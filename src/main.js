@@ -4,7 +4,7 @@ import { A } from './audio.js';
 import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun } from './store.js';
 import { buildSprites } from './sprites.js';
 import { byId } from './upgrades.js';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz } from './world.js';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx } from './world.js';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
@@ -122,6 +122,7 @@ function tick(now) {
       G.taken[o.id] = (G.taken[o.id] || 0) + 1;
       A.select();
       startWave(G.wave + 1);
+      if (o.req) evolveFx(typeof o.name === 'function' ? o.name(G.kit) : o.name);
       checkpoint();
       go('play');
     }

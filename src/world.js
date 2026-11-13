@@ -248,6 +248,15 @@ export function dust(x, y, n, sp = 50) {
   for (let i = 0; i < n; i++) { const a = rnd(TAU), v = rnd(10, sp); part(x, y, Math.cos(a) * v, Math.sin(a) * v * 0.6, rnd(0.25, 0.5), Math.random() < 0.5 ? P.stone2 : P.stone, { drag: 6 }); }
 }
 export function addText(x, y, s, c, sc = 1, num = false) { if (num && !settings.numbers) return; G.texts.push({ x, y, s, c, sc, t: 0, life: 0.75 }); }
+// the moment an evolution is picked: a pillar of light, slow motion, a burst
+export function evolveFx(name) {
+  const p = G.p;
+  G.banner = { text: name, sub: 'EVOLVED', t: 0, life: 2.8, c: P.gold };
+  p.evoFlash = 1.6;
+  slowmo(1.2, 0.3); flash(P.gold, 0.35, true); shake(0.9); A.ultRelease(); A.victory(); buzz('boss');
+  for (let i = 0; i < 4; i++) addRing(p.x, p.y - 6, i % 2 ? P.paper : P.gold, 200 + i * 80, 0.7, 3);
+  for (let i = 0; i < 90; i++) { const a = rnd(TAU), v = rnd(60, 300); part(p.x, p.y - 8, Math.cos(a) * v, Math.sin(a) * v, rnd(0.4, 1), Math.random() < 0.6 ? P.gold : P.paper, { drag: 3, glow: true, keep: true }); }
+}
 export function glitch(x, y, w, h, life = 0.3, n = 8) { G.glitches.push({ x, y, w, h, t: 0, life, n }); }
 export function addRing(x, y, c, vr, life, th = 2, r = 2) { G.rings.push({ x, y, r, vr, t: 0, life, c, th }); }
 export function ghost(p, c = P.volt, spr) {
@@ -303,11 +312,12 @@ export function damage(e, dmg, o) {
     if (p.ultLock <= 0 && !G.cine) p.ult = Math.min(100, p.ult + dmg * 0.25 * up.focus * G.kit.ultRate);
     p.energy = Math.min(100, p.energy + G.kit.energyHit);
     p.hitCount++;
-    if (up.ember && e.hp > 0) { e.burn = 2; e.burnDps = 2 * up.ember; }
-    if (up.static && p.hitCount % (up.evoStatic ? 4 : 8) === 0) chainLightning(e, up.evoStatic ? 7 : 1 + up.static * 2, up.evoStatic ? 7 : 4);
-    if (up.evoWpn && Math.random() < 0.3) {
-      shoot({ x: e.x, y: e.y - e.r - 4, a: rnd(TAU), sp: 160, dmg: pd(4) * up.wpn, kb: 50, life: 1.5, kind: 'arcane', r: 2, c: P.gold, homing: 7, ug: false });
+    if (up.ember && e.hp > 0) { e.burn = 2; e.burnDps = 2 * up.ember * (up.evoEmber ? 2 : 1); }
+    if (up.static && p.hitCount % (up.evoStatic ? 4 : 8) === 0) {
+      chainLightning(e, up.evoStatic ? 7 : 1 + up.static * 2, up.evoStatic ? 7 : 4);
+      if (up.evoStatic) skyStrike(e.x, e.y, 26, 14);
     }
+    if (up.evoWpn && (o.crit || Math.random() < 0.4)) spirits(e.x, e.y - e.r - 4, o.crit ? 3 : 1);
   }
   if (e.hp <= 0) { kill(e, o); return true; }
   return false;
@@ -332,7 +342,8 @@ export function kill(e, o) {
   shake(e.type === 'brute' ? 0.55 : 0.3);
   A.kill(); buzz('kill');
   if (e.type === 'tick') G.booms.push({ x: e.x, y: e.y, t: 0.09, friendly: true });
-  if (G.up.evoEmber && e.burn > 0) G.booms.push({ x: e.x, y: e.y, t: 0.05, friendly: true, R: 26, dmg: 8 });
+  if (G.up.evoEmber && e.burn > 0) { G.booms.push({ x: e.x, y: e.y, t: 0.05, friendly: true, R: 40, dmg: 14 }); G.zones.push({ type: 'burn', x: e.x, y: e.y, r: 22, t: 0, life: 2.5 }); }
+  if (G.up.evoWpn && o.ug) spirits(e.x, e.y - e.r - 4, 5);
   if (e.frozen > 0 && G.up.frost) shatter(e);
   if (G.up.debt && ++G.debtKills >= 20) { G.debtKills = 0; healPlayer(1); }
 }
@@ -387,8 +398,12 @@ export function tryHurt(dmg, sx, sy) {
     addRing(p.x, p.y - 6, P.blood, 260, 0.25, 2);
   }
   if (p.hp - dmg <= 0 && G.up.evoHeart && !G.undyingUsed) {
-    G.undyingUsed = true; p.hp = 3; p.inv = 2; slowmo(1, 0.25); flash(P.gold, 0.3, true); A.ultRelease(); buzz('boss');
-    addText(p.x, p.y - 26, 'UNDYING', P.gold, 2); addRing(p.x, p.y - 6, P.gold, 300, 0.5, 3);
+    G.undyingUsed = true; p.hp = p.maxHp; p.inv = 3; slowmo(1.2, 0.2); flash(P.gold, 0.4, true); A.ultRelease(); buzz('boss'); shake(1);
+    addText(p.x, p.y - 26, 'UNDYING', P.gold, 3);
+    for (let i = 0; i < 4; i++) addRing(p.x, p.y - 6, i % 2 ? P.paper : P.gold, 260 + i * 90, 0.6, 3);
+    for (let i = 0; i < 80; i++) { const a = rnd(TAU), v = rnd(80, 320); part(p.x, p.y - 6, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.8), Math.random() < 0.5 ? P.gold : P.paper, { drag: 4, glow: true, keep: true }); }
+    p.evoFlash = 1.2;
+    for (const e of G.E) if (alive(e)) damage(e, e.type === 'boss' ? pd(40) : pd(60), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 420, src: 'ult', slice: true, crit: true });
     return 'blocked';
   }
   p.hp -= dmg;
@@ -514,7 +529,24 @@ function updatePlayer(dt) {
   if (p.shieldT > 0) { p.shieldT -= dt; if (p.shieldT <= 0 && p.shield > 0) { p.shield = 0; kit.onShieldBreak?.(p); } }
   if (p.charges < p.dashMax) { p.dashCd -= dt; if (p.dashCd <= 0) { p.charges++; p.dashCd = kit.dash.cd * up.dashMul; } }
   p.energy = Math.min(100, p.energy + 2.5 * up.regen * (p.ascend > 0 ? 5 : 1) * dt);
-  if (p.ascend > 0) { p.ascend -= dt; if (Math.random() < dt * 30) part(p.x + rnd(-6, 6), p.y - rnd(0, 14), 0, -rnd(20, 50), 0.5, P.gold, { glow: true, drag: 1 }); }
+  if (p.ascend > 0) {
+    p.ascend -= dt;
+    if (Math.random() < dt * 40) part(p.x + rnd(-8, 8), p.y - rnd(0, 16), 0, -rnd(20, 60), 0.6, Math.random() < 0.7 ? P.gold : P.paper, { glow: true, drag: 1 });
+    p.ascNova -= dt;
+    if (p.ascNova <= 0) {
+      p.ascNova = 1;
+      addRing(p.x, p.y - 6, P.gold, 280, 0.3, 3); addRing(p.x, p.y - 6, P.paper, 200, 0.22, 1);
+      for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 78) damage(e, pd(10), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 200, src: 'bolt' });
+      A.boom(0.6); shake(0.15);
+    }
+  }
+  p.evoFlash = Math.max(0, (p.evoFlash || 0) - dt);
+  const evos = up.evoWpn + up.evoSpell + up.evoUlt + up.evoHeart + up.evoSwift + up.evoStatic + up.evoEmber + up.evoOrbit;
+  if (evos && Math.random() < dt * evos * 5) { const a = rnd(TAU); part(p.x + Math.cos(a) * 10, p.y - 6 + Math.sin(a) * 6, 0, -rnd(10, 25), 0.6, P.gold, { glow: true, drag: 1 }); }
+  if (up.evoStatic) {
+    G.stormT = (G.stormT ?? 2.5) - dt;
+    if (G.stormT <= 0) { G.stormT = 2.5; const live = G.E.filter(alive); if (live.length) { const e = live[Math.floor(rnd(live.length))]; skyStrike(e.x, e.y, 26, 14); } }
+  }
   updateOrbit(p, dt);
 
   let mx = (keyDown('KeyD', 'ArrowRight') ? 1 : 0) - (keyDown('KeyA', 'ArrowLeft') ? 1 : 0);
@@ -559,7 +591,19 @@ function updatePlayer(dt) {
           A.hit(false, false);
         }
       }
-      if (p.dashT <= 0) { p.state = 'move'; p.vx *= 0.3; p.vy *= 0.3; }
+      if (p.dashT <= 0) {
+        p.state = 'move'; p.vx *= 0.3; p.vy *= 0.3;
+        if (up.evoSwift && p.dashFrom) {
+          const [x0, y0] = p.dashFrom;
+          G.cuts.push({ x0, y0: y0 - 5, x1: p.x, y1: p.y - 5, a: Math.atan2(p.y - y0, p.x - x0), t: 0, pend: 0.28, marked: [], echo: 0, done: false,
+            fire(c) {
+              for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, c.x0, c.y0, c.x1, c.y1) < e.r + 12) damage(e, pd(14), { dir: c.a + Math.PI / 2, kb: 160, src: 'bolt', slice: true });
+              const L = hyp(c.x1 - c.x0, c.y1 - c.y0), n = Math.max(2, Math.ceil(L / 30));
+              for (let i = 0; i < n; i++) G.bolts.push({ x0: c.x0 + ((c.x1 - c.x0) * i) / n, y0: c.y0 + ((c.y1 - c.y0) * i) / n, x1: c.x0 + ((c.x1 - c.x0) * (i + 1)) / n, y1: c.y0 + ((c.y1 - c.y0) * (i + 1)) / n, t: 0, life: 0.3 });
+              A.zap(); shake(0.3);
+            } });
+        }
+      }
       break;
     }
     case 'recover': {
@@ -578,7 +622,7 @@ function updatePlayer(dt) {
     const canAct = free || (p.state === 'attack' && p.atkT >= p.cancelAt);
     const canDash = p.state !== 'dash' && p.state !== 'skill';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
-    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); buzz('ult'); if (up.evoUlt) { p.ascend = 8; p.ult = 25; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); } }
+    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); buzz('ult'); if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = 25; p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
     else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; if (kit.q.use(p) !== false) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); } }
     else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; if (kit.e.use(p) !== false) { p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); } }
     else if (kit.melee) { if (p.bufAtk > 0 && canAct) startAttack(); }
@@ -694,6 +738,7 @@ function startDash(mx, my, ml) {
   const a = ml ? Math.atan2(my, mx) : p.aim;
   p.dx = Math.cos(a); p.dy = Math.sin(a);
   if (p.state === 'attack') p.comboWin = 0.35;
+  p.dashFrom = [p.x, p.y];
   p.state = 'dash'; p.dashT = kit.dash.time; p.ghostT = 0;
   p.inv = Math.max(p.inv, kit.dash.time + 0.05); p.perfectUsed = false; p.phantomHit = new Set();
   A.dash(); dust(p.x, p.y, 6, 60); shake(0.05);
@@ -701,7 +746,21 @@ function startDash(mx, my, ml) {
 
 // evolved powers cast a second time a moment later, for free
 function echo(ab) {
-  G.timers.push({ t: 0.32, fn: () => { const p = G.p; if (p.state === 'dead' || G.cine) return; ab.use(p); addText(p.x, p.y - 24, 'ECHO', P.gold); } });
+  for (const [t, label] of [[0.3, 'ECHO'], [0.6, 'ECHO X2']]) G.timers.push({ t, fn: () => {
+    const p = G.p;
+    if (p.state === 'dead' || G.cine) return;
+    ab.use(p);
+    addText(p.x, p.y - 24, label, P.gold); addRing(p.x, p.y - 6, P.gold, 200, 0.25, 2); ghost(p, P.gold);
+  } });
+}
+
+// a friendly lightning strike from the sky
+function skyStrike(x, y, R, dmg) {
+  G.strikes.push({ x, y, t: 0, delay: 0.15, R, dmg, friendly: true, kind: 'lightning', c: P.volt });
+}
+// homing golden spirits that explode
+function spirits(x, y, n) {
+  for (let i = 0; i < n; i++) shoot({ x, y, a: rnd(TAU), sp: rnd(120, 180), dmg: pd(6) * G.up.wpn, kb: 60, life: 1.8, kind: 'spirit', r: 3, c: P.gold, homing: 8, ug: false, splash: { R: 18, dmg: pd(4) } });
 }
 
 // orbiting blades upgrade
@@ -710,6 +769,16 @@ function updateOrbit(p, dt) {
   if (!n) return;
   p.orbitA += dt * (G.up.evoOrbit ? 5.5 : 4);
   const R = G.up.evoOrbit ? 28 + Math.sin(G.time * 3) * 10 : 22;
+  if (G.up.evoOrbit) {
+    p.bladeT = (p.bladeT ?? 3) - dt;
+    if (p.bladeGone > 0) { p.bladeGone -= dt; return; }
+    if (p.bladeT <= 0 && G.E.some(alive)) {
+      p.bladeT = 3; p.bladeGone = 0.9;
+      for (let i = 0; i < n; i++) { const a = p.orbitA + (i * TAU) / n; shoot({ x: p.x + Math.cos(a) * R, y: p.y - 6 + Math.sin(a) * R * 0.8, a, sp: 280, dmg: pd(10), kb: 140, life: 0.8, kind: 'shuriken', pierce: 99, c: P.gold, ug: false, slice: true }); }
+      addRing(p.x, p.y - 6, P.gold, 240, 0.25, 2); A.shuriken(); shake(0.2);
+      return;
+    }
+  }
   for (let i = 0; i < n; i++) {
     const a = p.orbitA + (i * TAU) / n, bx = p.x + Math.cos(a) * R, by = p.y - 6 + Math.sin(a) * R * 0.8;
     for (const e of G.E) {
@@ -723,6 +792,7 @@ function updateOrbit(p, dt) {
   }
 }
 export function drawOrbit(p) {
+  if (p.bladeGone > 0) return;
   const n = G.up.orbit * (G.up.evoOrbit ? 2 : 1);
   const R = G.up.evoOrbit ? 28 + Math.sin(G.time * 3) * 10 : 22;
   for (let i = 0; i < n; i++) {
@@ -1355,7 +1425,20 @@ function drawPlayer() {
   ctx.globalAlpha = 1;
   glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 9, 0.2);
   drawOrbit(p);
-  if (p.ascend > 0) { ring(p.x, p.y - 8, 13 + Math.sin(G.time * 14), 1, P.gold); glow(p.x, p.y - 8, P.gold, 16, 0.35); }
+  if (p.ascend > 0) {
+    ring(p.x, p.y - 8, 13 + Math.sin(G.time * 14), 1, P.gold); glow(p.x, p.y - 8, P.gold, 20, 0.4);
+    // golden wings
+    const flap = Math.sin(G.time * 8) * 0.25;
+    for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + side * (0.6 + i * 0.28 + flap), L = 18 - i * 2;
+      line(p.x + side * 3, p.y - 10, p.x + side * 3 + Math.cos(a) * L, p.y - 10 + Math.sin(a) * L, i % 2 ? P.gold : P.paper);
+    }
+  }
+  if (p.evoFlash > 0) {
+    const w = Math.round(14 * Math.min(1, p.evoFlash));
+    rect(p.x - w / 2, fx.cam.y - 10, w, p.y - fx.cam.y + 10, P.gold); rect(p.x - w / 4, fx.cam.y - 10, Math.max(1, w / 2), p.y - fx.cam.y + 10, P.paper);
+    glow(p.x, p.y - 8, P.gold, 30, 0.6);
+  }
   if (p.shield > 0) { ring(p.x, p.y - 7, 12 + Math.sin(G.time * 8), 1, P.volt); glow(p.x, p.y - 7, P.volt, 12, 0.2); }
   if (p.fortress > 0) { ring(p.x, p.y - 7, 14 + Math.sin(G.time * 12) * 1.5, 2, P.gold); glow(p.x, p.y - 7, P.gold, 18, 0.3); }
 }
@@ -1584,6 +1667,11 @@ export function drawWorld() {
     } else if (s.fist) {
       disc(s.x, s.y, 5, '#5d6878'); disc(s.x, s.y, 3, '#8b98ab'); px(s.x, s.y, P.paper);
       line(s.x, s.y, s.x - s.vx * 0.05, s.y - s.vy * 0.05, P.ember, 2); glow(s.x - s.vx * 0.05, s.y - s.vy * 0.05, P.ember, 8, 0.6);
+    } else if (s.kind === 'spirit') {
+      disc(s.x, s.y, 3, P.gold); disc(s.x, s.y, 1, P.paper);
+      px(s.x - 1, s.y - 1, '#5a3a00'); px(s.x + 1, s.y - 1, '#5a3a00');
+      line(s.x, s.y, s.x - s.vx * 0.06, s.y - s.vy * 0.06, P.ember2);
+      glow(s.x, s.y, P.gold, 9, 0.6);
     } else if (s.kind === 'shuriken') {
       const a = s.spin;
       line(s.x - Math.cos(a) * 3, s.y - Math.sin(a) * 3, s.x + Math.cos(a) * 3, s.y + Math.sin(a) * 3, P.bone);
