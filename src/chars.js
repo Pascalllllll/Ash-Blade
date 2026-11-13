@@ -2,6 +2,7 @@ import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, tex
 import { SPR } from './sprites.js';
 import { A } from './audio.js';
 import { input } from './input.js';
+import { best } from './store.js';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
   explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo,
@@ -995,9 +996,33 @@ const AURA = {
       px(x, y, i === 0 ? '#62efff' : '#b48cff'); glow(x, y, '#b48cff', 4, 0.5);
     }
   },
+  DEV(p) {
+    // two holo-screens orbit The Dev, scrolling code
+    for (let i = 0; i < 2; i++) {
+      const a = G.time * 1.3 + i * Math.PI, x = Math.round(p.x + Math.cos(a) * 15 - 4), y = Math.round(p.y - 16 + Math.sin(a) * 5);
+      ctx.globalAlpha = 0.55; rect(x, y, 9, 7, '#0b2a16'); ctx.globalAlpha = 1;
+      rect(x, y, 9, 1, '#39ff6a'); rect(x, y + 6, 9, 1, '#1a7a3a');
+      for (let r = 0; r < 3; r++) rect(x + 1, y + 2 + r * 1.5, 2 + ((Math.floor(G.time * 8) + r * 3 + i) % 6), 1, r === 1 ? P.paper : '#39ff6a');
+      glow(x + 4, y + 3, '#39ff6a', 6, 0.35);
+    }
+  },
   ROBOT(p) { glow(p.x, p.y, P.volt, 8 + Math.sin(G.time * 30), 0.35); glow(p.x, p.y - 8, P.volt, 5 + Math.sin(G.time * 6) * 2, 0.35); },
   BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
   TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
 };
 const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#ffe08a', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
 for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].drawAura = AURA[id]; CHARS[id].eyeColor = EYES[id]; }
+
+// ---------- heroes: names, lore, and the mission that unlocks each one ----------
+const pct = (v, max) => Math.min(v, max) + ' / ' + max;
+const META = {
+  BLADE: { hero: 'KAEL', lore: ['THE LAST GUARD OF THE PIT. HIS BLADE', 'HOLDS THE FINAL EMBER OF THE OLD SUN.'] },
+  GUNNER: { hero: 'VEGA HALE', lore: ['A BOUNTY HUNTER WHO FOLLOWED ONE', 'BOUNTY TOO DEEP INTO THE PIT.'], mission: ['REACH WAVE 10', () => 'BEST WAVE ' + pct(best.wave, 10)] },
+  WIZARD: { hero: 'MORROW', lore: ['A WARLOCK WHO TRADED HIS FACE', 'FOR THE NAMES OF THE STARS.'], mission: ['LAND A 100-HIT COMBO', () => 'BEST COMBO ' + pct(best.combo, 100)] },
+  NINJA: { hero: 'RIN', lore: ['THE RED ONI CLAN SENT HER TO KILL', 'THE KING. SHE IS STILL ON THE JOB.'], mission: ['25 PERFECT DODGES IN ONE RUN', () => 'BEST ' + pct(best.perfects, 25)] },
+  MECHANIC: { hero: 'RIVET', lore: ['A SALVAGER WHO BUILDS HER WEAPONS', 'FROM WHAT THE COLOSSUS LEFT BEHIND.'], mission: ['KILL 1500 ENEMIES IN TOTAL', () => 'KILLS ' + pct(best.kills, 1500)] },
+  TANK: { hero: 'GROM', lore: ["THE LAST KNIGHT OF THE KING'S GUARD.", 'HE CAME BACK TO END WHAT HE SERVED.'], mission: ['BEAT A BOSS WITHOUT GETTING HIT', () => 'ANY BOSS, ANY FIGHTER'] },
+  ROBOT: { hero: 'UNIT-7', lore: ['A WAR MACHINE THAT WOKE UP WITH', 'ONE ORDER LEFT: STOP THE KING.'], mission: ['DEFEAT THE ASHEN KING', () => (best.won ? 'DONE' : 'THE KING WAITS AT WAVE 20')] },
+  DEV: { hero: 'THE DEV', lore: ['THE ONE WHO WROTE THIS WORLD.', 'NOW DEBUGGING IT FROM THE INSIDE.'], mission: ['REACH WAVE 50', () => 'BEST WAVE ' + pct(best.wave, 50)] },
+};
+for (const id in META) Object.assign(CHARS[id], META[id]);

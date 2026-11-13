@@ -88,6 +88,11 @@ export function ring(cx, cy, r, th, c) {
 }
 
 // ---------- sprites ----------
+export function mix(a, b, k) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = (sh) => Math.round(((pa >> sh) & 255) * (1 - k) + ((pb >> sh) & 255) * k);
+  return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
+}
 export function makeSprite(rows, map) {
   const h = rows.length, w = Math.max(...rows.map((r) => r.length));
   const build = (pick, flip) => {
@@ -103,8 +108,31 @@ export function makeSprite(rows, map) {
     return c;
   };
   const s = { w, h, cache: {} };
-  s.n = build((ch) => map[ch], false);
-  s.f = build((ch) => map[ch], true);
+  // icons use '#'; everything else gets automatic shading: a rim light on top edges, shadow on bottom edges
+  const shade = !map['#'];
+  const edge = (c) => !c || c === '.' || c === 'o';
+  const lit = (ch, x, y) => {
+    const col = map[ch];
+    if (!col || !shade || ch === 'o' || col.length !== 7) return col;
+    if (edge(rows[y - 1]?.[x])) return mix(col, '#ffffff', 0.22);
+    if (edge(rows[y + 1]?.[x])) return mix(col, '#000000', 0.28);
+    if (edge(rows[y]?.[x + 1]) && !edge(rows[y]?.[x - 1])) return mix(col, '#000000', 0.14);
+    return col;
+  };
+  const buildLit = (flip) => {
+    const c = makeCanvas(w, h), g = c.getContext('2d');
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const ch = rows[y][x];
+      if (!ch || ch === '.') continue;
+      const col = lit(ch, x, y);
+      if (!col) continue;
+      g.fillStyle = col;
+      g.fillRect(flip ? w - 1 - x : x, y, 1, 1);
+    }
+    return c;
+  };
+  s.n = buildLit(false);
+  s.f = buildLit(true);
   s.tint = (col, flip) => {
     const k = col + (flip ? 'f' : 'n');
     return s.cache[k] || (s.cache[k] = build((ch) => (map[ch] ? col : null), flip));
@@ -186,9 +214,27 @@ export function text(s, x, y, col, sc = 1, align = 'l') {
 }
 
 const OUT = [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+// outlined text is drawn 9 times, so each label is rendered once into a small canvas and reused
+const textCache = new Map();
 export function textO(s, x, y, col, sc = 1, align = 'l', oc = P.ink0) {
-  for (const [dx, dy] of OUT) text(s, x + dx, y + dy, oc, sc, align);
-  return text(s, x, y, col, sc, align);
+  s = String(s);
+  if (Array.isArray(col) || C !== ctx) { for (const [dx, dy] of OUT) text(s, x + dx, y + dy, oc, sc, align); return text(s, x, y, col, sc, align); }
+  const key = s + '|' + col + '|' + sc + '|' + oc;
+  let c = textCache.get(key);
+  const w = textW(s.toUpperCase(), sc);
+  if (!c) {
+    if (textCache.size > 600) textCache.clear();
+    c = makeCanvas(w + 2, 5 * sc + 2);
+    const prev = C;
+    C = c.getContext('2d');
+    for (const [dx, dy] of OUT) text(s, 1 + dx, 1 + dy, oc, sc);
+    text(s, 1, 1, col, sc);
+    C = prev;
+    textCache.set(key, c);
+  }
+  if (align === 'c') x -= w / 2; else if (align === 'r') x -= w;
+  C.drawImage(c, Math.round(x) - 1, Math.round(y) - 1);
+  return w;
 }
 
 // ---------- 5x7 logo face, only the letters the title needs ----------

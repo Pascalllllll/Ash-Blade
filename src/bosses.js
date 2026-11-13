@@ -1,4 +1,4 @@
-import { P, px, line, ring, disc, rect, glow, drawSprite } from './gfx.js';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas } from './gfx.js';
 import { A } from './audio.js';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
@@ -11,12 +11,15 @@ export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length
 
 const pick = (e, opts) => { let k = opts[Math.floor(rnd(opts.length))]; if (k === e.last) k = opts[Math.floor(rnd(opts.length))]; e.last = k; return k; };
 function phaseBanner(text, c) { G.banner = { text, sub: '', t: 0, life: 1.4, c }; }
+// a dithered wedge, filled as one shape with a checker pattern
+const checks = {};
+function checker(c) {
+  if (!checks[c]) { const cv = makeCanvas(2, 2), g = cv.getContext('2d'); g.fillStyle = c; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1); checks[c] = ctx.createPattern(cv, 'repeat'); }
+  return checks[c];
+}
 function cone(e, R, arc, blink, c1, c2) {
-  for (let y = -R; y <= R; y++) for (let x = -R; x <= R; x++) {
-    if ((x + y) & 1 || x * x + y * y > R * R || x * x + y * y < 64) continue;
-    if (Math.abs(angDiff(Math.atan2(y, x), e.lock)) > arc / 2) continue;
-    px(e.x + x, e.y - 4 + y, blink ? c1 : c2);
-  }
+  ctx.fillStyle = checker(blink ? c1 : c2);
+  ctx.beginPath(); ctx.moveTo(e.x, e.y - 4); ctx.arc(e.x, e.y - 4, R, e.lock - arc / 2, e.lock + arc / 2); ctx.closePath(); ctx.fill();
 }
 function bigSlash(e, R, arc, col) {
   const p = G.p;

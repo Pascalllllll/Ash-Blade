@@ -2,7 +2,7 @@ import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow,
 import { SPR } from './sprites.js';
 import { A } from './audio.js';
 import { input, keyDown, keyHit } from './input.js';
-import { settings, OPTIONS, best } from './store.js';
+import { settings, OPTIONS, best, saveBest } from './store.js';
 import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js';
 import { CHARS, ALLY } from './chars.js';
 import { BOSSES, bossFor } from './bosses.js';
@@ -85,6 +85,26 @@ const dctx = decal.getContext('2d');
 let floorKey = null;
 export function showMap(key) { if (floorKey !== key) { buildFloor(floor, key); floorKey = key; } }
 
+// blood and scorch marks fade out over the time set in settings
+function fadeStains(dt) {
+  const a = settings.blood === '10 SEC' ? 0.1 : settings.blood === '30 SEC' ? 0.035 : 0;
+  if (!a) return;
+  G.fadeT = (G.fadeT || 0) - dt;
+  G.sweepT = (G.sweepT ?? 3) - dt;
+  if (G.fadeT <= 0) {
+    G.fadeT = 0.5;
+    dctx.globalCompositeOperation = 'destination-out'; dctx.globalAlpha = a;
+    dctx.fillRect(0, 0, AW, AH);
+    dctx.globalCompositeOperation = 'source-over'; dctx.globalAlpha = 1;
+  }
+  if (G.sweepT <= 0) {
+    // 8-bit alpha never quite reaches zero, so clear the faint leftovers now and then
+    G.sweepT = 3;
+    const img = dctx.getImageData(0, 0, AW, AH), d = img.data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] && d[i] < 24) d[i] = 0;
+    dctx.putImageData(img, 0, 0);
+  }
+}
 export function stain(x, y, c, s = 1) { dctx.globalAlpha = 0.8; dctx.fillStyle = c; dctx.fillRect(Math.round(x), Math.round(y), s, s); dctx.globalAlpha = 1; }
 export function splat(x, y, size, c, c2) {
   for (let i = 0; i < size * 4; i++) {
@@ -125,7 +145,7 @@ export function newRun(charId, save) {
     t: 0, time: 0, wave: 0, score: 0, kills: 0, maxCombo: 0, bestRank: 0, combo: 0, comboT: 0, rank: 0, rankPop: 0,
     p: makePlayer(kit, D),
     E: [], shots: [], parts: [], slashes: [], texts: [], bolts: [], rings: [], gibs: [], picks: [], sigils: [], ghosts: [],
-    booms: [], cuts: [], quakes: [], timers: [], glitches: [], strikes: [], zones: [], hlines: [], hbeams: [], allies: [], amb: [],
+    booms: [], cuts: [], quakes: [], timers: [], glitches: [], unlocks: [], perfects: 0, bossClean: false, killsBanked: 0, strikes: [], zones: [], hlines: [], hbeams: [], allies: [], amb: [],
     queue: [], spawnCd: 0, phase: 'intro', phaseT: 2, banner: null, dark: 0,
     up: { wpn: 1, spell: 1, crit: 0, magnet: 0, thorns: 0, orbit: 0, dashMul: 1, cdMul: 1, evoWpn: 0, evoSpell: 0, evoUlt: 0, evoHeart: 0, evoSwift: 0, evoStatic: 0, evoEmber: 0, evoOrbit: 0, dmg: 1, spd: 1, reach: 1, regen: 1, static: 0, ember: 0, phantom: 0, mirror: 0, debt: 0, shrap: 1, exec: 0, focus: 1, echo: 0, storm: 0, mag: 0, pierce: 0, frost: 0, twin: 0, venom: 0, overclock: 0, hands: 0, after: 0, coolant: 0, cluster: 0 },
     taken: {}, cine: null, boss: null, dead: false, deadT: 0, wantUpgrade: false, victory: false, won: false,
@@ -136,6 +156,7 @@ export function newRun(charId, save) {
   if (save) {
     // re-apply every upgrade the save says was taken, then restore the exact numbers
     for (const id in save.taken) { const u = byId(id); for (let i = 0; i < save.taken[id]; i++) u.f(G.up, G.p); G.taken[id] = save.taken[id]; }
+    G.killsBanked = save.kills;
     Object.assign(G, { score: save.score, kills: save.kills, maxCombo: save.maxCombo, bestRank: save.bestRank, won: save.won, time: save.time });
     Object.assign(G.p, { hp: save.hp, maxHp: save.maxHp, energy: save.energy, ult: save.ult, dashMax: save.dashMax, charges: save.dashMax });
     if (G.kit.init) G.p.k = G.kit.init();
@@ -164,6 +185,8 @@ export function startWave(n) {
   G.wantUpgrade = false;
   G.dark = 0;
   G.undyingUsed = false;
+  if (n >= 10) unlock('GUNNER');
+  if (n >= 50) unlock('DEV');
   const boss = isBossWave(n);
   G.queue = buildQueue(n);
   if (boss) {
@@ -213,7 +236,7 @@ export function spawnEnemy(type, x, y) {
     d.scale = bd.scale || 1; d.tint = bd.tint;
     e.speed = bd.speed * (1 + tier * 0.1);
     e.phase = 1; e.last = ''; e.cd = 1;
-    G.boss = e;
+    G.boss = e; G.bossClean = true;
     bd.init?.(e);
   } else {
     e.hp = Math.round(d.hp * sc);
@@ -257,6 +280,20 @@ export function evolveFx(name) {
   for (let i = 0; i < 4; i++) addRing(p.x, p.y - 6, i % 2 ? P.paper : P.gold, 200 + i * 80, 0.7, 3);
   for (let i = 0; i < 90; i++) { const a = rnd(TAU), v = rnd(60, 300); part(p.x, p.y - 8, Math.cos(a) * v, Math.sin(a) * v, rnd(0.4, 1), Math.random() < 0.6 ? P.gold : P.paper, { drag: 3, glow: true, keep: true }); }
 }
+// fighters unlock mid-run the moment their mission is done
+export function unlock(id) {
+  if (best.unlocked.includes(id)) return;
+  best.unlocked.push(id); saveBest();
+  G.unlocks.push({ id, t: 0 });
+  A.victory(); buzz('boss'); flash(P.gold, 0.2, false);
+}
+// lifetime stats are banked into storage at each checkpoint and at the end of a run
+export function bankStats() {
+  best.kills += G.kills - G.killsBanked; G.killsBanked = G.kills;
+  best.combo = Math.max(best.combo, G.maxCombo);
+  best.perfects = Math.max(best.perfects, G.perfects);
+  saveBest();
+}
 export function glitch(x, y, w, h, life = 0.3, n = 8) { G.glitches.push({ x, y, w, h, t: 0, life, n }); }
 export function addRing(x, y, c, vr, life, th = 2, r = 2) { G.rings.push({ x, y, r, vr, t: 0, life, c, th }); }
 export function ghost(p, c = P.volt, spr) {
@@ -268,6 +305,7 @@ export function addCombo(n) {
   G.combo += n;
   G.comboT = 3;
   if (G.combo > G.maxCombo) G.maxCombo = G.combo;
+  if (G.combo >= 100) unlock('WIZARD');
   const r = rankOf(G.combo);
   if (r > G.rank) {
     G.rank = r; G.rankPop = 1; A.rank(r);
@@ -328,6 +366,7 @@ export function kill(e, o) {
   if (e.type === 'boss') { bossDeath(e); return; }
   e.dead = true;
   G.kills++;
+  if (best.kills + G.kills - G.killsBanked >= 1500) unlock('MECHANIC');
   if (o.slice) { makeGibs(e, dir); A.slice(); }
   bleed(e.x, e.y, dir, e.type === 'brute' ? 30 : 16, e.def.col, e.def.colD, 1.2);
   bleed(e.x, e.y, rnd(TAU), 8, e.def.col, e.def.colD, 0.6);
@@ -393,6 +432,7 @@ export function tryHurt(dmg, sx, sy) {
     return 'blocked';
   }
   dmg += G.D.dmg;
+  G.bossClean = false;
   if (G.up.thorns) {
     for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 50) damage(e, pd(10 * G.up.thorns), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 260, src: 'bolt' });
     addRing(p.x, p.y - 6, P.blood, 260, 0.25, 2);
@@ -425,6 +465,7 @@ export function tryHurt(dmg, sx, sy) {
 function perfectDodge() {
   const p = G.p;
   p.perfectUsed = true;
+  if (++G.perfects >= 25) unlock('NINJA');
   slowmo(0.6, 0.3);
   p.energy = Math.min(100, p.energy + 12);
   p.inv = Math.max(p.inv, 0.45);
@@ -958,6 +999,8 @@ function bossFinal(e) {
   G.score += Math.round(e.def.score * (G.wave / 5) * RANKS[G.rank].m * G.D.score);
   flash(P.paper, 0.4, true); shake(1); hitstop(0.15);
   A.ultRelease(); buzz('boss');
+  if (G.bossClean) unlock('TANK');
+  if (bd.final) unlock('ROBOT');
   if (bd.final && !G.won) { G.won = true; G.victory = true; A.victory(); }
 }
 
@@ -1084,6 +1127,7 @@ export function update(dt, rdt) {
   updateShots(dt);
   updateHazards(dt);
 
+  fadeStains(dt);
   for (const tm of G.timers) { tm.t -= dt; if (tm.t <= 0) tm.fn(); }
   sweep(G.timers, (tm) => tm.t > 0);
   for (const c of G.cuts) {
@@ -1378,10 +1422,16 @@ export function drawSlash(s) {
   const reveal = Math.min(1, age / 0.05), tail = Math.max(0, (age - 0.05) / (L - 0.05));
   const cx = Math.round(s.x), cy = Math.round(s.y - 5), R = s.r, a0 = -s.arc / 2;
   const cols = SLASH_COLS()[s.col];
-  const ir = Math.ceil(R);
-  for (let y = -ir; y <= ir; y++) for (let x = -ir; x <= ir; x++) {
-    const d = Math.sqrt(x * x + y * y);
-    if (d > R || d < R - s.th - 1) continue;
+  const ir = Math.ceil(R), rIn = Math.max(0, R - s.th - 1);
+  for (let y = -ir; y <= ir; y++) {
+    // only walk the pixels inside the ring, not the whole square
+    const yy = y * y;
+    if (yy > R * R) continue;
+    const xo = Math.floor(Math.sqrt(R * R - yy)), xi = yy < rIn * rIn ? Math.ceil(Math.sqrt(rIn * rIn - yy)) : -1;
+    for (let x = -xo; x <= xo; x++) {
+    if (xi >= 0 && x > -xi && x < xi) { x = xi - 1; continue; }
+    const d = Math.sqrt(x * x + yy);
+    if (d > R || d < rIn) continue;
     const u = (angDiff(Math.atan2(y, x), s.a) * s.dir - a0) / s.arc;
     if (u < tail || u > reveal || u < 0 || u > 1) continue;
     const th = s.th * Math.sin(Math.PI * Math.min(1, u * 1.15)) * (1 - tail * 0.7);
@@ -1395,6 +1445,7 @@ export function drawSlash(s) {
     else { if (((x + cx + y + cy) & 1) === 0) continue; c = cols[3]; }
     ctx.fillStyle = c;
     ctx.fillRect(cx + x, cy + y, 1, 1);
+    }
   }
   const tipA = s.a + s.dir * (a0 + s.arc * reveal);
   glow(cx + Math.cos(tipA) * R * 0.8, cy + Math.sin(tipA) * R * 0.8, cols[2], 10, 0.5 * (1 - tail));

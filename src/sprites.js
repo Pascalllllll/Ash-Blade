@@ -70,11 +70,16 @@ const BODIES = {
   },
 };
 BODIES.DEV = {
-  eye: [6, 5], wide: true,
-  rows: ['.....oooooo.....', '....oHHHHHHo....', '...oHHhhhhHHo...', '..oaHHHHHHHHao..', '..oaHoooooooHao.', '..oaoGGGoGGGoao.',
-    '...oHofffffoHom.', '...oHHoffnoHHo..', '..oHHHHHHHHHHo..', '.oHHhHHwHwHHhHo.', '.oHhoHHwHwHHohHo', '.oHHoHHHHHHHoHHo',
-    '.oggoHkkkkHoLLLo', '....oHHHHHHoLGLo', '....oJJJJJJoLLLo', '....oJJooJJo....'],
-  map: () => ({ H: '#2a2f3a', h: '#454c5c', a: '#1a1a20', G: '#39ff6a', f: '#d9a27a', n: '#7a3b2a', m: '#39ff6a', w: '#e6e6f0', g: '#d9a27a', k: '#1f232c', L: '#3a3f4a', J: '#2c3a5a', b: '#e6e6f0' }),
+  eye: [9, 5], legs: 'dev',
+  rows: ['......oooooo......', '.....oHHHHHHo.....', '....oHHhgghHHo....', '...oHHhHHHHhHHo...', '..oaHHoooooooHao..', '..oaHoVVVVVVVoHao.',
+    '..oaHoVvVVVvVoHao.', '...oHHoffffoHHo...', '...ooHHomnoHHoo...', '..oCCoHHHHHHoCCo..', '.oCCgCoCCCCoCgCCo.', 'oCCCgCCCwCwCCgCCCo',
+    'oCCoCCCCwCwCCCoCCo', 'oCgoCCkkkkkkCCogCo', 'oKKoCCCCgCCCCCoKKo', '.oo.oCCCgCCCCCo.oo', '....oCCCCCCCCCo...', '....oCgCCCCCgCo...',
+    '...oCCCoooooCCCo..'],
+  map: () => ({ H: '#1b1f27', h: '#2c3240', g: '#39ff6a', a: '#0f1014', V: '#39ff6a', v: '#c8ffd8', f: '#c8916a', m: '#39ff6a', n: '#5a2a20', C: '#20242e', w: '#e6e6f0', k: '#101216', K: '#2a2f3a', J: '#26304a', S: '#e6e6f0' }),
+};
+const DEV_LEGS = {
+  idle: ['.....oJo..oJo.....', '.....oSo..oSo.....'], r0: ['....oJo....oJo....', '....oSo....oSo....'], r1: ['......oJooJo......', '......oSooSo......'],
+  r2: ['.....oJo...oJo....', '.....oSo...oSo....'], r3: ['......oJooJo......', '.......oSSo.......'],
 };
 const ROBE_LEGS = ['..oRoRRoRRoRRo..', '..o.o..o..o.o...'];
 const ROBE_LEGS_ALT = ['..oRRoRRoRRoRo..', '...o.o..o..o.o..'];
@@ -88,7 +93,7 @@ function buildChar(id) {
   const map = { o: P.ink0, ...d.map() };
   const body = (alt) => d.rows.map((r, i) => (alt && d.alt && d.alt[i]) || r);
   const pad = (rows) => (d.wide ? rows.map((r) => '.' + r + '.') : rows);
-  const legs = (k) => (d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : d.legs === 'heavy' ? HEAVY[k] : pad(LEGS[k]));
+  const legs = (k) => (d.legs === 'dev' ? DEV_LEGS[k] : d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : d.legs === 'heavy' ? HEAVY[k] : pad(LEGS[k]));
   const sp = (alt, k) => makeSprite([...body(alt), ...legs(k)], map);
   const set = { idle: sp(false, 'idle'), run: [sp(false, 'r0'), sp(true, 'r1'), sp(false, 'r2'), sp(true, 'r3')] };
   set.eye = d.eye;

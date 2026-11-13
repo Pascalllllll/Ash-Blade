@@ -57,29 +57,29 @@ const TRACKS = {
   },
   // ----- battle music -----
   'PIT DIRGE': {
-    harm: true, hey: [[], [12], [], [12, 14]], bpm: 140, prog: [[38, DM], [34, MA], [36, MA], [33, MA]],
-    kick: 'x.....x.x.x...x.', snare: '....x.......x...', clap: '............x...', hat: 'xxxxxxxxxxxxxxxx',
-    bass: same('0 0 12 0 0 12 0 0 0 0 12 0 0 12 0 12'), bassLen: 0.9, bassCut: 1300,
+    harm: true, stab: true, wobble: true, hey: [[], [12], [], [12, 14]], bpm: 132, prog: [[38, DM], [34, MA], [36, MA], [33, MA]],
+    kick: 'x...x...x...x...', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.',
+    bass: same('. . 0 12 . . 0 12 . . 0 12 . . 0 12'), bassLen: 1.6, bassCut: 1800,
     lead: bars('12 . 10 . 12 . 15 . 14 . 12 . 10 . 7 .|8 . . 10 12 . . . 10 . 8 . 7 . . .|7 . 10 . 12 . 14 . 15 . 14 . 12 . 10 .|13 . . . 16 . . . 19 . . . 13 . 12 .'),
     leadType: 'square', leadVol: 0.05, leadOct: 0, arp: [0, 1, 2, 3, 2, 1, 0, 2, 1, 3, 2, 0, 3, 2, 1, 2],
   },
   BLOODRUSH: {
-    harm: true, hey: [[], [], [], [12, 14]], bpm: 172, prog: [[38, DM], [38, DM], [34, MA], [36, MA]],
+    wobble: true, harm: true, hey: [[], [], [], [12, 14]], bpm: 172, prog: [[38, DM], [38, DM], [34, MA], [36, MA]],
     kick: 'x.........x.....', snare: '....x.......x...', hat: 'x.xxx.xxx.xxx.xx', tom: '..............xx',
     bass: same('0 . . . . . . . . . 0 . 3 . . .'), bassLen: 5, bassCut: 900, dist: true,
     lead: bars('12 . . 12 . . 15 . . . 12 . 10 . . .|12 . . 12 . . 17 . . . 15 . 12 . . .|10 . . 10 . . 14 . . . 12 . 10 . 8 .|12 . . 12 . . 14 . 15 . 17 . 19 . . .'),
     leadType: 'sawtooth', leadVol: 0.04, leadOct: 0, supersaw: true, arp: [0, 2, 3, 2, 0, 2, 3, 2, 0, 2, 3, 2, 0, 2, 3, 2],
   },
   'NEON PULSE': {
-    harm: true, bpm: 118, prog: [[38, DM], [34, MA], [41, MA], [36, MA]],
+    harm: true, stab: true, hey: [[], [], [], [12]], bpm: 124, prog: [[38, DM], [34, MA], [41, MA], [36, MA]],
     kick: 'x...x...x...x...', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.',
-    bass: same('0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .'), bassLen: 1.5, bassCut: 1500,
+    bass: same('. . 12 . . . 12 . . . 12 . . . 12 0'), bassLen: 1.8, bassCut: 1700,
     lead: bars('7 . . 10 . . 12 . 14 . . 12 . 10 . .|5 . . 8 . . 10 . 12 . . 10 . 8 . .|3 . . 7 . . 10 . 15 . . 14 . 12 . .|7 . . . 5 . . . 2 . . . 0 . . .'),
     leadType: 'sawtooth', leadVol: 0.045, leadOct: 0, supersaw: true, arp: [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3],
   },
   // ----- one theme per boss -----
   WARDEN: {
-    harm: true, hey: [[4, 12], [4, 12], [4, 12], [4, 12, 14]], bpm: 150, prog: [[38, DM], [36, MA], [34, MA], [33, MA]],
+    stab: true, wobble: true, harm: true, hey: [[4, 12], [4, 12], [4, 12], [4, 12, 14]], bpm: 150, prog: [[38, DM], [36, MA], [34, MA], [33, MA]],
     kick: 'x...x...x...x...', snare: '....x.......x..x', hat: 'xxxxxxxxxxxxxxxx', tom: '............xxxx',
     bass: bars('0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 12 0 12 0 . 12 .'),
     bassLen: 1.5, bassCut: 1600,
@@ -87,21 +87,21 @@ const TRACKS = {
     leadType: 'sawtooth', leadVol: 0.045, leadOct: 0, supersaw: true, arp: [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3],
   },
   BROOD: {
-    harm: true, bpm: 166, prog: [[38, DM], [39, MA], [38, DM], [36, DM]],
+    wobble: true, harm: true, bpm: 166, prog: [[38, DM], [39, MA], [38, DM], [36, DM]],
     kick: 'x..x..x...x..x..', snare: '....x.......x..x', hat: 'xxxxxxxxxxxxxxxx', tom: '..x.....x.x.....',
     bass: same('0 . 1 0 . 1 0 . 3 . 1 0 . 1 . 0'), bassLen: 0.8, bassCut: 1200, dist: true,
     lead: bars('12 13 12 13 15 . 13 . 12 13 12 13 10 . 8 .|13 15 13 15 17 . 15 . 13 15 13 15 12 . 10 .|12 13 12 13 15 . 13 . 12 13 12 13 18 . 17 .|10 12 10 12 13 . 12 . 10 . 8 . 7 . 6 .'),
     leadType: 'square', leadVol: 0.04, leadOct: 0,
   },
   COLOSSUS: {
-    harm: true, hey: [[], [12], [], [12]], bpm: 128, prog: [[38, DM], [38, DM], [41, MA], [39, MA]],
+    stab: true, wobble: true, harm: true, hey: [[], [12], [], [12]], bpm: 128, prog: [[38, DM], [38, DM], [41, MA], [39, MA]],
     kick: 'x..x..x.x..x..x.', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.', metal: true, tom: '.......x.......x',
     bass: same('0 . . 0 . . 0 . 0 . . 0 . 0 0 .'), bassLen: 1.2, bassCut: 700, dist: true,
     lead: bars('0 . . 3 . . 5 . 6 . 5 . 3 . . .|0 . . 3 . . 5 . 8 . 6 . 5 . . .|3 . . 7 . . 8 . 10 . 8 . 7 . . .|1 . . 3 . . 1 . 0 . . . -2 . . .'),
     leadType: 'square', leadVol: 0.06, leadOct: 0, arp: [0, 0, 3, 0, 0, 3, 0, 2, 0, 0, 3, 0, 0, 3, 2, 1],
   },
   KINGFALL: {
-    choir: true, harm: true, hey: [[], [], [], [12, 13, 14]], bpm: 150, prog: [[38, DM], [39, MA], [38, DM], [37, [0, 3, 6]]],
+    stab: true, choir: true, harm: true, hey: [[], [], [], [12, 13, 14]], bpm: 150, prog: [[38, DM], [39, MA], [38, DM], [37, [0, 3, 6]]],
     kick: 'x..x..x...x..x..', snare: '....x.......x.xx', hat: 'x.x.x.x.x.x.x.x.', tom: 'x.......x...x.x.', clap: '............x...',
     bass: bars('0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 1 .'),
     bassLen: 1.4, bassCut: 900, dist: true,
@@ -111,21 +111,21 @@ const TRACKS = {
 };
 Object.assign(TRACKS, {
   VOID: {
-    choir: true, harm: true, bpm: 132, prog: [[38, DM], [39, MA], [41, MA], [39, MA]],
+    wobble: true, choir: true, harm: true, bpm: 132, prog: [[38, DM], [39, MA], [41, MA], [39, MA]],
     kick: 'x..x..x.x.....x.', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', tom: '..............xx',
     bass: same('0 . . 0 . 0 . . 0 . . 0 . 1 . 0'), bassLen: 1.3, bassCut: 900, dist: true,
     lead: bars('0 . . 1 . . 3 . 1 . . 0 . -2 . .|0 . . 1 . . 5 . 3 . . 1 . 0 . .|3 . . 5 . . 6 . 5 . . 3 . 1 . .|1 . . 0 . . -2 . 0 . . . . . . .'),
     leadType: 'sawtooth', leadVol: 0.045, leadOct: 12, supersaw: true,
   },
   TEMPEST: {
-    harm: true, hey: [[], [], [], [12, 14]], bpm: 174, prog: [[38, DM], [36, MA], [34, MA], [36, MA]],
+    stab: true, wobble: true, harm: true, hey: [[], [], [], [12, 14]], bpm: 174, prog: [[38, DM], [36, MA], [34, MA], [36, MA]],
     kick: 'x.........x.....', snare: '....x.......x...', hat: 'xxxxxxxxxxxxxxxx', clap: '............x...',
     bass: same('0 . . . . . 0 . . . 0 . 12 . . .'), bassLen: 4, bassCut: 1000, dist: true,
     lead: bars('19 . 17 . 15 . 14 . 12 . 14 . 15 . 17 .|17 . 15 . 14 . 12 . 10 . 12 . 14 . 15 .|15 . 14 . 12 . 10 . 8 . 10 . 12 . 14 .|13 . . . 16 . . . 19 . . . 22 . . .'),
     leadType: 'square', leadVol: 0.04, leadOct: 0, arp: [0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1, 0, 1, 2, 3],
   },
   ECLIPSE: {
-    choir: true, harm: true, bell: true, hey: [[], [12], [], [12, 13, 14]], bpm: 160, prog: [[38, DM], [34, MA], [36, MA], [37, [0, 3, 6]]],
+    stab: true, choir: true, harm: true, bell: true, hey: [[], [12], [], [12, 13, 14]], bpm: 160, prog: [[38, DM], [34, MA], [36, MA], [37, [0, 3, 6]]],
     kick: 'x...x...x...x...', snare: '....x.......x.x.', clap: '....x.......x...', hat: 'x.xxx.xxx.xxx.xx', tom: 'x...x...x..xxxxx',
     bass: same('0 0 12 0 0 12 0 0 0 0 12 0 0 12 0 12'), bassLen: 0.9, bassCut: 1200, dist: true,
     lead: bars('12 . . 15 . . 19 . 17 . . 15 . 14 . .|10 . . 14 . . 17 . 15 . . 14 . 12 . .|12 . . 16 . . 19 . 21 . . 19 . 16 . .|13 . . . 12 . . . 10 . . . 9 . . .'),
@@ -185,6 +185,12 @@ function bassNote(n, t) {
   f.type = 'lowpass'; f.Q.value = 6;
   f.frequency.setValueAtTime(cur.bassCut, t); f.frequency.exponentialRampToValueAtTime(150, t + Math.min(len, 0.5));
   env(e, t, 0.004, 0.3, len);
+  if (cur.wobble) {
+    f.frequency.cancelScheduledValues(t); f.frequency.setValueAtTime(700, t); f.Q.value = 10;
+    const lfo = ac.createOscillator(), lg = ac.createGain();
+    lfo.type = 'triangle'; lfo.frequency.value = (cur.bpm / 60) * 2; lg.gain.value = 650;
+    lfo.connect(lg); lg.connect(f.frequency); lfo.start(t); lfo.stop(t + len + 0.05);
+  }
   o.connect(f); f.connect(e); e.connect(cur.dist ? mcr : layers.bass);
   o.start(t); o.stop(t + len + 0.05);
   tone('sine', mtof(n - 12), mtof(n - 12), len, 0.28, layers.bass, t, 0.005);
@@ -246,16 +252,49 @@ function arpNote(n, t) {
   o.connect(f); f.connect(e); e.connect(pn); pn.connect(layers.arp); e.connect(delayIn);
   o.start(t); o.stop(t + 0.15);
 }
+// ---------- EDM: offbeat chord stabs, risers, snare rolls and drops ----------
+function stab(root, ch, t) {
+  const f = ac.createBiquadFilter(), e = ac.createGain();
+  f.type = 'lowpass'; f.frequency.setValueAtTime(4200, t); f.frequency.exponentialRampToValueAtTime(900, t + 0.14);
+  env(e, t, 0.004, 0.035, 0.13);
+  f.connect(e); e.connect(layers.arp); e.connect(verbIn);
+  for (const iv of [0, ch[1], ch[2], 12]) for (const det of [-12, 12]) {
+    const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(root + 36 + iv); o.detune.value = det;
+    o.connect(f); o.start(t); o.stop(t + 0.2);
+  }
+}
+function riser(t, dur) {
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), e = ac.createGain();
+  s.buffer = nbuf; s.loop = true;
+  f.type = 'bandpass'; f.Q.value = 2; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(9000, t + dur);
+  e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(0.22, t + dur);
+  s.connect(f); f.connect(e); e.connect(layers.drums); e.connect(verbIn);
+  s.start(t); s.stop(t + dur + 0.02);
+  tone('sawtooth', 110, 880, dur, 0.04, layers.arp, t, dur * 0.9);
+}
+function drop(t) {
+  tone('sine', 90, 28, 1.1, 0.9, layers.drums, t);
+  hiss(0.9, 0.3, 'lowpass', 3000, 100, 0.7, layers.drums, t);
+  crash(t); hey(t);
+}
+
 function playStep(i, t) {
   const s = i % 16, bar = Math.floor(i / 16) % 4;
   if (s === 0 && pending) { cur = pending; pending = null; if (delayNode) delayNode.delayTime.setValueAtTime(S16() * 3, t); }
   const [root, ch] = cur.prog[bar];
   if (s === 0) pad(root, ch, t);
-  if (s === 0 && bar === 0 && cur.kick.includes('x') && cur.bpm > 100) crash(t);
+  const edm = cur.bpm > 100, phrase = Math.floor(i / 16) % 8, build = edm && phrase === 7;
+  if (s === 0 && bar === 0 && edm) { if (phrase === 0 && i > 0) drop(t); else crash(t); }
+  if (build && s === 0) riser(t, S16() * 16);
+  if (build) {
+    // snare roll speeding up into the drop, kick drops out for the last half bar
+    if (s < 8 ? s % 2 === 0 : true) snare(t, 0.35 + (s / 16) * 0.65);
+  }
+  if (cur.stab && edm && !build && (s === 2 || s === 6 || s === 10 || s === 14 || (bar === 3 && s === 12))) stab(root, ch, t);
   if (cur.hey && cur.hey[bar] && cur.hey[bar].includes(s)) hey(t);
   const bn = cur.bass[bar][s];
   if (bn !== null && bn !== undefined) bassNote(root + bn, t);
-  if (cur.kick[s] === 'x') kick(t);
+  if (cur.kick[s] === 'x' && !(build && s >= 8)) kick(t);
   if (cur.snare[s] === 'x') snare(t, s % 4 === 0 ? 1 : 0.5);
   if (cur.clap && cur.clap[s] === 'x') clap(t);
   if (cur.hat[s] === 'x') hat(t, s % 8 === 6, s % 2 ? 0.6 : 1);

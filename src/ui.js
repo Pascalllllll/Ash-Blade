@@ -145,6 +145,31 @@ export function drawHUD(menu) {
     if (bd.final) { rect(x + w * 0.66, y - 1, 1, 5, P.ink0); rect(x + w * 0.33, y - 1, 1, 5, P.ink0); } else rect(x + w / 2, y - 1, 1, 5, P.ink0);
   }
 
+  // a fighter was just unlocked
+  const un = G.unlocks[0];
+  if (un) {
+    un.t += 1 / 60;
+    if (un.t > 4) G.unlocks.shift();
+    else {
+      const ch = CHARS[un.id], k2 = ease(un.t / 0.3), y = 118 + Math.round((1 - k2) * 30);
+      rect(60, y - 4, 200, 26, P.ink0); rect(60, y - 4, 200, 1, P.gold); rect(60, y + 21, 200, 1, P.gold);
+      drawSprite(SPR.chars[un.id].idle, 66, y - 1, false);
+      textO('NEW FIGHTER UNLOCKED', 160, y, Math.floor(un.t * 6) % 2 ? P.gold : P.paper, 1, 'c');
+      textO(ch.hero + '  THE ' + ch.name.replace('THE ', ''), 160, y + 10, ch.color(), 1, 'c');
+    }
+  }
+  // arrow on the screen edge pointing at an off-screen boss
+  if (b && !b.dead && !lb) {
+    const bx = b.x - fx.cam.x, by = b.y - 16 - fx.cam.y;
+    if (bx < 4 || bx > W - 4 || by < 4 || by > H - 4) {
+      const cx = W / 2, cy = H / 2, a = Math.atan2(by - cy, bx - cx);
+      const m = Math.min((W / 2 - 14) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 14) / Math.abs(Math.sin(a) || 1e-6));
+      const ax = cx + Math.cos(a) * m, ay = cy + Math.sin(a) * m, col = BOSSES[b.boss].col, pulse = Math.sin(G.time * 8) * 2;
+      for (let i = 0; i < 7; i++) { const w = 7 - i; line(ax + Math.cos(a) * (i + pulse) - Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) + Math.cos(a) * w, ax + Math.cos(a) * (i + pulse) + Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) - Math.cos(a) * w, col); }
+      glow(ax, ay, col, 10, 0.5);
+      textO(Math.round(Math.hypot(b.x - G.p.x, b.y - G.p.y) / 8) + 'M', ax - Math.cos(a) * 12, ay - Math.sin(a) * 12 - 2, col, 1, 'c');
+    }
+  }
   // letterbox while a boss makes its entrance
   if (lb) {
     const k = ease(Math.min(1, (b.introMax ??= b.t, (b.introMax - b.t) / 0.4)));
@@ -201,7 +226,7 @@ export function drawTitle(t, items) {
     ctx.save(); ctx.beginPath(); ctx.rect(0, ly + mid, W, H); ctx.clip(); ctx.drawImage(LOGO, lx - off, ly); ctx.restore();
     if (cutK < 0.5) { const lw = Math.round(W * Math.min(1, cutK * 4)); rect(0, ly + mid, lw, 1, P.paper); glow(lw, ly + mid, P.paper, 14, 0.6); }
   } else ctx.drawImage(LOGO, lx, ly);
-  textO('HOLD THE PIT AGAINST ENDLESS WAVES', W / 2, ly + 40, P.bone, 1, 'c');
+  textO('THE KING SWALLOWED THE SUN. HOLD THE PIT.', W / 2, ly + 40, P.bone, 1, 'c');
   // the seven fighters parade under the logo
   const ids = roster();
   ids.forEach((id, i) => {
@@ -219,8 +244,8 @@ export function drawTitle(t, items) {
 // ---------- character select ----------
 export const sel = { i: 0, row: 0, t: 0 };
 const NCH = OPTIONS.char.length, PW = 36, PG = 2, PX0 = Math.round((W - (NCH * PW + (NCH - 1) * PG)) / 2), PY = 12;
-export const roster = () => OPTIONS.char.filter((id) => id !== 'DEV' || best.dev);
-const locked = (id) => id === 'DEV' && !best.dev;
+export const roster = () => OPTIONS.char.filter((id) => best.unlocked.includes(id));
+const locked = (id) => !best.unlocked.includes(id);
 const cycle = (list, cur, dir) => list[(list.indexOf(cur) + dir + list.length) % list.length];
 export function updateSelect(dt) {
   sel.t += dt;
@@ -235,14 +260,11 @@ export function updateSelect(dt) {
     else if (sel.row === 1) return { map: cycle(OPTIONS.map, settings.map, lr) };
     else if (sel.row === 2) return { diff: cycle(OPTIONS.diff, settings.diff, lr) };
   }
-  for (const [code, ch] of [['KeyD', 'D'], ['KeyE', 'E'], ['KeyV', 'V']]) if (keyHit(code)) sel.code = ((sel.code || '') + ch).slice(-3);
-  if (sel.code === 'DEV' && !best.dev) { sel.code = ''; return { unlock: true }; }
   for (let i = 0; i < ids.length; i++) {
     if (!inBox(PX0 + i * (PW + PG), PY, PW, 36)) continue;
     if (input.mouse.moved && sel.i !== i) { sel.i = i; sel.row = 0; A.ui(); }
     if (input.mouse.pressed) {
       sel.i = i; sel.row = 0; A.ui();
-      if (locked(ids[i])) { sel.taps = (sel.taps || 0) + 1; if (sel.taps >= 5) { sel.taps = 0; return { unlock: true }; } }
     }
   }
   for (const [row, y, key] of [[1, 126, 'map'], [2, 137, 'diff']]) {
@@ -260,26 +282,32 @@ export function drawSelect(t) {
   drawBackdrop(t, 0.75);
   const ids = OPTIONS.char, k = CHARS[ids[sel.i]], col = locked(ids[sel.i]) ? P.dust : k.color();
   text('CHOOSE YOUR FIGHTER', W / 2, 3, P.dust, 1, 'c');
-  if (sel.flash > 0) { sel.flash -= 1 / 60; textO('ACCESS GRANTED', W / 2, 116, '#39ff6a', 1, 'c'); }
   ids.forEach((id, i) => {
     const x = PX0 + i * (PW + PG), on = i === sel.i, ch = CHARS[id];
     rect(x - 1, PY - 1, PW + 2, 38, on ? ch.color() : P.ink0);
     rect(x, PY, PW, 36, on ? P.ink2 : P.ink1);
     if (on) glow(x + PW / 2, PY + 18, ch.color(), 16, 0.18);
     const lk = locked(id), s = on && !lk ? SPR.chars[id].run[Math.floor(t * 9) % 4] : SPR.chars[id].idle;
-    ctx.save(); ctx.translate(x + PW / 2 - s.w, PY + 36 - s.h * 2 - (on && !lk ? Math.floor(t * 9) % 2 : 0)); ctx.scale(2, 2); drawSprite(s, 0, 0, false, lk ? '#0a0810' : null); ctx.restore();
-    if (lk) textO('?', x + PW / 2, PY + 12, Math.floor(t * 2) % 2 ? P.dust : P.stone2, 2, 'c');
+    ctx.save(); ctx.beginPath(); ctx.rect(x, PY, PW, 36); ctx.clip(); ctx.translate(x + PW / 2 - s.w, PY + 36 - s.h * 2 + Math.max(0, s.h * 2 - 36) / 2 - (on && !lk ? Math.floor(t * 9) % 2 : 0)); ctx.scale(2, 2); drawSprite(s, 0, 0, false, lk ? '#0a0810' : null); ctx.restore();
+    if (lk) {
+      // a small padlock over the silhouette
+      const lx2 = x + PW / 2 - 4, ly2 = PY + 13;
+      ring(lx2 + 4, ly2, 3, 1, P.dust); rect(lx2, ly2, 9, 7, P.stone2); rect(lx2 + 4, ly2 + 2, 1, 3, P.ink0);
+    }
     const rec = best.chars[id];
     if (rec && rec.won) px(x + PW - 4, PY + 3, P.gold);
   });
   if (locked(ids[sel.i])) {
-    textO('???', 12, 54, P.dust, 2);
-    text('A SECRET FIGHTER.', 12, 68, P.bone); text('BEAT THE ASHEN KING TO UNLOCK.', 12, 75, P.bone);
-    text('...OR KNOW THE CODE.', 12, 90, P.stone2);
+    const secret = ids[sel.i] === 'DEV';
+    textO(secret ? '???' : k.hero, 12, 54, P.dust, 2);
+    text(secret ? 'A SECRET FIGHTER' : k.name, 12 + (secret ? 3 : k.hero.length) * 8 + 4, 59, P.stone2);
+    textO('LOCKED', 12, 70, P.blood);
+    text('TO UNLOCK: ' + k.mission[0], 12, 82, P.gold);
+    text(k.mission[1](), 12, 92, P.bone);
   } else {
-  textO(k.name, 12, 54, col, 2);
-  text(k.alias, 12 + k.name.length * 8 + 4, 59, P.dust);
-  text(k.desc[0], 12, 68, P.bone); text(k.desc[1], 12, 75, P.bone);
+  textO(k.hero, 12, 54, col, 2);
+  if (k.hero !== k.name) text(k.name, 12 + k.hero.length * 8 + 4, 59, P.dust);
+  text(k.lore[0], 12, 68, P.bone); text(k.lore[1], 12, 75, P.bone);
   const bars = [['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]];
   bars.forEach(([n, v], i) => { text(n, 206, 54 + i * 7, P.dust); for (let j = 0; j < 5; j++) rect(238 + j * 14, 55 + i * 7, 12, 3, j < v ? col : P.ink3); });
   const ab = [['CLICK', k.primaryName, ''], ['Q', k.q.name + ' ' + k.q.cost, k.q.desc], ['E', k.e.name + ' ' + k.e.cost, k.e.desc], ['R', k.r.name, k.r.desc]];
@@ -333,6 +361,7 @@ export function settingsItems(ctxInfo) {
   return [
     { label: 'ARENA', value: () => MAPS[settings.map].name, adjust: stepList('map') },
     { label: 'DIFFICULTY', value: () => settings.diff, adjust: stepList('diff') },
+    { label: 'BLOOD STAINS', value: () => settings.blood, adjust: stepList('blood') },
     { label: 'VIBRATION', value: () => (canVibrate ? settings.vibe : settings.vibe + ' (NOT ON THIS DEVICE)'), adjust: (d) => { stepList('vibe')(d); buzz('heavy'); } },
     { label: 'RESET ALL SETTINGS', act: () => 'reset' },
     { label: 'ERASE SAVED RUN', act: () => 'erase', dimmed: !ctxInfo.hasSave },
@@ -441,7 +470,7 @@ export function drawOver(t, isBest) {
   if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 122, P.gold, 2, 'c');
   if (t > 1) textO(input.touch ? 'TAP LEFT  AGAIN       TAP RIGHT  MENU' : 'ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
 }
-export function drawVictory(t, devNew) {
+export function drawVictory(t) {
   const k = ease(t / 0.8);
   dim(0.7 * k);
   for (let i = 0; i < 3; i++) glow(W / 2 + Math.sin(t + i * 2) * 80, 30 + Math.cos(t * 1.3 + i) * 10, P.gold, 30, 0.15);
@@ -449,7 +478,6 @@ export function drawVictory(t, devNew) {
   textO('THE ASHEN KING HAS FALLEN', W / 2, 44, P.ember3, 1, 'c');
   text(G.kit.name + '  ' + MAPS[G.mapKey].name + '  ' + G.diffKey, W / 2, 54, P.dust, 1, 'c');
   stats(70, t);
-  if (devNew && t > 0.8) textO('SECRET FIGHTER UNLOCKED: THE DEV', W / 2, 116, Math.floor(t * 4) % 2 ? '#39ff6a' : P.paper, 1, 'c');
   if (t > 1.2) { textO((input.touch ? 'TAP LEFT' : 'ENTER') + '  KEEP GOING (ENDLESS)', W / 2, 128, P.paper, 1, 'c'); textO((input.touch ? 'TAP RIGHT' : 'ESC') + '  BACK TO MENU', W / 2, 140, P.dust, 1, 'c'); }
 }
 
@@ -511,7 +539,7 @@ export function drawIntro(t) {
     const k = (t - 2.3) / 0.8;
     ring(W / 2, ly + 16, 20 + k * 220, Math.max(1, Math.round(4 * (1 - k))), P.paper);
     ring(W / 2, ly + 16, 10 + k * 160, 1, P.ember);
-    textO('HOLD THE PIT AGAINST ENDLESS WAVES'.slice(0, Math.floor(k * 60)), W / 2, ly + 40, P.bone, 1, 'c');
+    textO('THE KING SWALLOWED THE SUN. HOLD THE PIT.'.slice(0, Math.floor(k * 70)), W / 2, ly + 40, P.bone, 1, 'c');
   }
   ctx.restore();
   // the black halves split along the cut

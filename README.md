@@ -4,23 +4,41 @@ Ashblade is a pixel-art hack and slash game that runs in the browser, on a compu
 
 ![Title screen](docs/title.png)
 
+## Story
+
+The Ashen King swallowed the sun and sealed the last of the world in a pit. Seven fighters went down after him, each for a reason of their own. An eighth was there before any of them.
+
 ## Fighters
 
 Every fighter has a basic attack, two powers on Q and E that cost energy, and an ultimate on R that charges as your basic attack lands.
 
-| Fighter | Basic attack | Q | E | R |
-| --- | --- | --- | --- | --- |
-| Blade | 3-hit sword combo | Rift: blinks forward and cuts every enemy on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
-| Gunner | Revolver, reloads after 14 shots | Buckshot: shotgun blast that pushes you back | Grenade | Last Stand: 4 seconds of minigun |
-| Wizard | Homing magic bolt | Frost Blink: teleports and freezes enemies at both ends | Meteor | Starfall: meteors land on enemies for about 3 seconds |
-| Ninja | 4-hit dagger combo, 2 dashes | Shuriken Fan: 5 stars that bounce off walls | Smoke Bomb: 3 seconds invisible, next hit does triple damage | Shadow Clones: 3 clones attack for 7 seconds |
-| Mechanic | Wrench | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Junk Golem: a scrap giant fights for 12 seconds |
-| Tank | Slow hammer, 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
-| Robot | Laser that overheats if you hold it too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
+| Fighter | Hero | Basic attack | Q | E | R |
+| --- | --- | --- | --- | --- | --- |
+| Blade | Kael | 3-hit sword combo | Rift: blinks forward and cuts every enemy on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
+| Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: shotgun blast that pushes you back | Grenade | Last Stand: 4 seconds of minigun |
+| Wizard | Morrow | Homing magic bolt | Frost Blink: teleports and freezes enemies at both ends | Meteor | Starfall: meteors land on enemies for about 3 seconds |
+| Ninja | Rin | 4-hit dagger combo, 2 dashes | Shuriken Fan: 5 stars that bounce off walls | Smoke Bomb: 3 seconds invisible, next hit does triple damage | Shadow Clones: 3 clones attack for 7 seconds |
+| Mechanic | Rivet | Wrench | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Junk Golem: a scrap giant fights for 12 seconds |
+| Tank | Grom | Slow hammer, 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
+| Robot | Unit-7 | Laser that overheats if you hold it too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
 Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
-There is also a secret eighth fighter, The Dev. It starts at half power and gets stronger every wave and every 20 kills, reaching roughly 4x power by wave 50. Its shots plant bugs, and five bugs crash an enemy. Beat the Ashen King to unlock it.
+The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. It starts at half power and gets stronger every wave and every 20 kills, reaching roughly 4x power by wave 50. Its shots plant bugs, and five bugs crash an enemy.
+
+### Unlocking fighters
+
+You start with Blade. Every other fighter unlocks when you finish its mission, and the game tells you the moment it happens. The fighter select screen shows each mission and how close you are.
+
+| Fighter | Mission |
+| --- | --- |
+| Gunner | Reach wave 10 |
+| Wizard | Land a 100-hit combo |
+| Ninja | Make 25 perfect dodges in one run |
+| Mechanic | Kill 1500 enemies in total, across all runs |
+| Tank | Beat any boss without getting hit |
+| Robot | Defeat the Ashen King |
+| The Dev | Reach wave 50 |
 
 ![Fighter select](docs/select.png)
 
@@ -59,7 +77,7 @@ After wave 20 four more bosses join, then all eight repeat with more health each
 
 Every boss has 25% more health than its base, acts 15% faster than the other enemies, and enrages after 75 seconds, which makes it 40% faster again.
 
-Each boss has its own entrance and its own music. The music adds reverb, a choir on the slow themes and a crowd shout on the fast ones.
+Each boss has its own entrance and its own music. When a boss is off screen, an arrow on the edge of the screen points to it and shows how far away it is. The music adds reverb, a choir on the slow themes and a crowd shout on the fast ones.
 
 ![The Brood Mother's acid](docs/boss.png)
 
@@ -84,9 +102,9 @@ On a phone, the game asks you to turn the phone sideways. It pauses whenever you
 
 ## Settings
 
-- Audio: master, music and effects volume. The soundtrack setting either follows the fight or plays one track of your choice. You can also pick which of the three battle tracks plays during normal waves.
+- Audio: master, music and effects volume. The soundtrack setting either follows the fight or plays one track of your choice. You can also pick which of the three battle tracks plays during normal waves. The fast tracks are built like EDM: four-on-the-floor kicks, offbeat bass, chord stabs, and an 8-bar cycle that builds up with a snare roll and a riser, then drops.
 - Video: color theme, vibrancy, brightness, contrast, hue shift and scanlines. You can also turn down screen shake, flashes, damage numbers and particles.
-- Game: arena, difficulty and vibration. Vibration has four levels (off, light, medium, strong) and works on phones whose browser supports it, which includes Android but not iPhone. There are 5 arenas. On the ice everything slides, and in the forge, enemies knocked into lava catch fire.
+- Game: arena, difficulty, blood stains and vibration. Blood and scorch marks fade after about 10 seconds by default, or 30 seconds, or never. Vibration has four levels (off, light, medium, strong) and works on phones whose browser supports it, which includes Android but not iPhone. There are 5 arenas. On the ice everything slides, and in the forge, enemies knocked into lava catch fire.
 
 ## Saving
 
