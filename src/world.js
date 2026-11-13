@@ -359,6 +359,7 @@ export function tryHurt(dmg, sx, sy) {
   p.vx = Math.cos(a) * 220; p.vy = Math.sin(a) * 220;
   if (p.state === 'attack' || p.state === 'recover') p.state = 'move';
   hitstop(0.12); shake(0.65); flash(P.blood, 0.22, false); A.hurt();
+  if (input.touch) try { navigator.vibrate?.(70); } catch { /* not supported */ }
   fx.hurtVig = 1;
   bleed(p.x, p.y, a, 14, P.blood, P.bloodD, 1);
   if (G.combo >= 5) addText(p.x, p.y - 24, 'COMBO LOST', P.dust);
@@ -450,13 +451,18 @@ export function controls() {
   if (m.pressed) p.bufAtk = 0.2;
   if ((m.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ')) p.bufAtk = Math.max(p.bufAtk, 0.04);
   if (keyHit('Space', 'ShiftLeft', 'ShiftRight', 'KeyK', 'KeyX') || m.rpressed) p.bufDash = 0.18;
+  if (input.touch) {
+    if (input.thit.has('attack')) p.bufAtk = 0.2;
+    if (input.tb.attack) p.bufAtk = Math.max(p.bufAtk, 0.04);
+    if (input.thit.has('dash')) p.bufDash = 0.18;
+  }
   const ask = (codes, cost, cd, key) => {
-    if (!keyHit(...codes)) return;
+    if (!keyHit(...codes) && !input.thit.has(key.toLowerCase())) return;
     if (p.energy >= cost && cd <= 0) p['buf' + key] = 0.18; else { G.deny[key.toLowerCase()] = 0.35; A.deny(); }
   };
   ask(['KeyQ', 'KeyU'], kit.q.cost, p.cdQ, 'Q');
   ask(['KeyE', 'KeyI'], kit.e.cost, p.cdE, 'E');
-  if (keyHit('KeyR', 'KeyO')) { if (p.ult >= 100 && G.E.some(alive)) p.bufR = 0.25; else { G.deny.r = 0.35; A.deny(); } }
+  if (keyHit('KeyR', 'KeyO') || input.thit.has('r')) { if (p.ult >= 100 && G.E.some(alive)) p.bufR = 0.25; else { G.deny.r = 0.35; A.deny(); } }
 }
 
 // ---------- player ----------
@@ -473,10 +479,12 @@ function updatePlayer(dt) {
 
   let mx = (keyDown('KeyD', 'ArrowRight') ? 1 : 0) - (keyDown('KeyA', 'ArrowLeft') ? 1 : 0);
   let my = (keyDown('KeyS', 'ArrowDown') ? 1 : 0) - (keyDown('KeyW', 'ArrowUp') ? 1 : 0);
+  if (!mx && !my && input.stick.id !== null) { mx = input.stick.dx; my = input.stick.dy; }
   const ml = hyp(mx, my);
-  if (ml) { mx /= ml; my /= ml; p.moveAng = Math.atan2(my, mx); }
+  if (ml) { const n = Math.max(1, ml); mx /= n; my /= n; p.moveAng = Math.atan2(my, mx); }
   if (p.state !== 'attack' && p.state !== 'dead' && p.state !== 'cine') {
-    if (input.device === 'mouse') p.aim = Math.atan2(input.mouse.y + fx.cam.y - (p.y - 6), input.mouse.x + fx.cam.x - p.x);
+    if (input.device === 'touch') touchAim(p, ml);
+    else if (input.device === 'mouse') p.aim = Math.atan2(input.mouse.y + fx.cam.y - (p.y - 6), input.mouse.x + fx.cam.x - p.x);
     else if (ml) p.aim = p.moveAng;
   }
   const speed = kit.stats.speed * p.slowMul, fr = G.map.friction;
@@ -535,14 +543,23 @@ function updatePlayer(dt) {
     else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; if (kit.e.use(p) !== false) { p.energy -= kit.e.cost; p.cdE = kit.e.cd; } }
     else if (kit.melee) { if (p.bufAtk > 0 && canAct) startAttack(); }
     if (!kit.melee && p.state !== 'dead') {
-      const held = (input.mouse.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ');
+      const held = (input.mouse.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || input.tb.attack;
       kit.primary(p, dt, held && (p.state === 'move' || p.state === 'recover'));
     }
   }
   kit.update?.(p, dt);
+  if (p.state !== 'dead') kit.flair?.(p, dt, hyp(p.vx, p.vy) > 20);
 
   p.x = clamp(p.x + p.vx * dt, B.x0 + p.r, B.x1 - p.r);
   p.y = clamp(p.y + p.vy * dt, B.y0 + p.r, B.y1 - 2);
+}
+
+// phones: aim at the nearest enemy, otherwise where you're walking
+function touchAim(p, ml) {
+  let best = null, bd = 170;
+  for (const e of G.E) { if (!alive(e)) continue; const d = hyp(e.x - p.x, e.y - p.y); if (d < bd) { bd = d; best = e; } }
+  if (best) p.aim = Math.atan2(best.y - best.r - (p.y - 6), best.x - p.x);
+  else if (ml) p.aim = p.moveAng;
 }
 
 export function aimAssist() {
@@ -1223,8 +1240,13 @@ function drawPlayer() {
   const behind = Math.sin(wa) < -0.3;
   shadow(p.x, p.y, 5);
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
+  kit.drawAura?.(p, flip);
   if (behind) kit.drawWeapon(p, flip);
-  drawSprite(fr, p.x - fr.w / 2, p.y - fr.h + 1 - bob, flip, p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null);
+  const sx = Math.round(p.x - fr.w / 2), sy = Math.round(p.y - fr.h + 1 - bob);
+  drawSprite(fr, sx, sy, flip, p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null);
+  // glowing eyes
+  const ex = sx + (flip ? fr.w - 1 - set.eye[0] : set.eye[0]), ey = sy + set.eye[1], ec = kit.eyeColor || kit.color();
+  px(ex, ey, P.paper); glow(ex, ey, ec, 4, 0.7);
   if (!behind) kit.drawWeapon(p, flip);
   ctx.globalAlpha = 1;
   glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 9, 0.2);

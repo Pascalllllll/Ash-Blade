@@ -44,65 +44,92 @@ const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 // ---------- soundtrack ----------
 // Lead lines are offsets from D4 (MIDI 62), '.' is a rest. Bass is offset from each bar's root.
 const bars = (s) => s.split('|').map((b) => b.trim().split(/\s+/).map((t) => (t === '.' ? null : +t)));
+const same = (s) => bars([s, s, s, s].join('|'));
+const DM = [0, 3, 7], MA = [0, 4, 7];
 const TRACKS = {
   'ASHEN HYMN': {
-    bpm: 80,
-    prog: [[38, [0, 3, 7]], [34, [0, 4, 7]], [31, [0, 3, 7]], [33, [0, 4, 7]]],
+    bpm: 80, prog: [[38, DM], [34, MA], [31, DM], [33, MA]],
     kick: 'x.......x.......', snare: '................', hat: '..........x.....',
     bass: bars('0 . . . . . . . . . . . . . . .|0 . . . . . . . . . . . . . . .|0 . . . . . . . . . . . . . . .|0 . . . . . . . . . . . 7 . . .'),
     bassLen: 14, bassCut: 500,
     lead: bars('7 . . . 5 . 3 . 2 . . . 0 . . .|8 . . . 7 . 5 . 3 . . . 5 . . .|5 . . . 3 . 2 . 0 . . . -2 . . .|-1 . . . 2 . . . 7 . . . . . . .'),
     leadType: 'triangle', leadVol: 0.09, leadOct: 12, bell: true,
-    arp: null,
   },
+  // ----- battle music -----
   'PIT DIRGE': {
-    bpm: 128,
-    prog: [[38, [0, 3, 7]], [34, [0, 4, 7]], [36, [0, 4, 7]], [33, [0, 4, 7]]],
-    kick: 'x.....x.x.....x.', snare: '....x.......x...', hat: 'x.x.x.xxx.x.x.xx',
-    bass: bars('0 . . 12 . . 0 . 0 . 12 . . 0 . 12|0 . . 12 . . 0 . 0 . 12 . . 0 . 12|0 . . 12 . . 0 . 0 . 12 . . 0 . 12|0 . . 12 . . 0 . 0 . 12 . . 0 . 12'),
-    bassLen: 1.7, bassCut: 1100,
-    lead: bars('12 . 10 . 12 . 15 . 14 . 12 . 10 . 7 .|8 . . 10 12 . . . 10 . 8 . 7 . . .|7 . 10 . 12 . 14 . 15 . 14 . 12 . 10 .|13 . . . 16 . . . 19 . . . 13 . . .'),
-    leadType: 'square', leadVol: 0.05, leadOct: 0,
-    arp: [0, 1, 2, 3, 2, 1, 0, 2, 1, 3, 2, 0, 3, 2, 1, 2],
+    bpm: 140, prog: [[38, DM], [34, MA], [36, MA], [33, MA]],
+    kick: 'x.....x.x.x...x.', snare: '....x.......x...', clap: '............x...', hat: 'xxxxxxxxxxxxxxxx',
+    bass: same('0 0 12 0 0 12 0 0 0 0 12 0 0 12 0 12'), bassLen: 0.9, bassCut: 1300,
+    lead: bars('12 . 10 . 12 . 15 . 14 . 12 . 10 . 7 .|8 . . 10 12 . . . 10 . 8 . 7 . . .|7 . 10 . 12 . 14 . 15 . 14 . 12 . 10 .|13 . . . 16 . . . 19 . . . 13 . 12 .'),
+    leadType: 'square', leadVol: 0.05, leadOct: 0, arp: [0, 1, 2, 3, 2, 1, 0, 2, 1, 3, 2, 0, 3, 2, 1, 2],
   },
-  OVERDRIVE: {
-    bpm: 150,
-    prog: [[38, [0, 3, 7]], [36, [0, 4, 7]], [34, [0, 4, 7]], [33, [0, 4, 7]]],
-    kick: 'x...x...x...x...', snare: '....x.......x..x', hat: 'xxxxxxxxxxxxxxxx',
+  BLOODRUSH: {
+    bpm: 172, prog: [[38, DM], [38, DM], [34, MA], [36, MA]],
+    kick: 'x.........x.....', snare: '....x.......x...', hat: 'x.xxx.xxx.xxx.xx', tom: '..............xx',
+    bass: same('0 . . . . . . . . . 0 . 3 . . .'), bassLen: 5, bassCut: 900, dist: true,
+    lead: bars('12 . . 12 . . 15 . . . 12 . 10 . . .|12 . . 12 . . 17 . . . 15 . 12 . . .|10 . . 10 . . 14 . . . 12 . 10 . 8 .|12 . . 12 . . 14 . 15 . 17 . 19 . . .'),
+    leadType: 'sawtooth', leadVol: 0.04, leadOct: 0, supersaw: true, arp: [0, 2, 3, 2, 0, 2, 3, 2, 0, 2, 3, 2, 0, 2, 3, 2],
+  },
+  'NEON PULSE': {
+    bpm: 118, prog: [[38, DM], [34, MA], [41, MA], [36, MA]],
+    kick: 'x...x...x...x...', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.',
+    bass: same('0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .'), bassLen: 1.5, bassCut: 1500,
+    lead: bars('7 . . 10 . . 12 . 14 . . 12 . 10 . .|5 . . 8 . . 10 . 12 . . 10 . 8 . .|3 . . 7 . . 10 . 15 . . 14 . 12 . .|7 . . . 5 . . . 2 . . . 0 . . .'),
+    leadType: 'sawtooth', leadVol: 0.045, leadOct: 0, supersaw: true, arp: [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3],
+  },
+  // ----- one theme per boss -----
+  WARDEN: {
+    bpm: 150, prog: [[38, DM], [36, MA], [34, MA], [33, MA]],
+    kick: 'x...x...x...x...', snare: '....x.......x..x', hat: 'xxxxxxxxxxxxxxxx', tom: '............xxxx',
     bass: bars('0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 12 0 12 0 . 12 .'),
     bassLen: 1.5, bassCut: 1600,
     lead: bars('12 . . 12 15 . 12 . 17 . 15 . 12 . 10 .|10 . . 10 14 . 10 . 15 . 14 . 10 . 7 .|8 . . 8 12 . 8 . 15 . 12 . 8 . 10 .|13 . 12 . 13 . 16 . 19 . 16 . 13 . 12 .'),
-    leadType: 'sawtooth', leadVol: 0.045, leadOct: 0,
-    arp: [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3],
+    leadType: 'sawtooth', leadVol: 0.045, leadOct: 0, supersaw: true, arp: [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3],
+  },
+  BROOD: {
+    bpm: 166, prog: [[38, DM], [39, MA], [38, DM], [36, DM]],
+    kick: 'x..x..x...x..x..', snare: '....x.......x..x', hat: 'xxxxxxxxxxxxxxxx', tom: '..x.....x.x.....',
+    bass: same('0 . 1 0 . 1 0 . 3 . 1 0 . 1 . 0'), bassLen: 0.8, bassCut: 1200, dist: true,
+    lead: bars('12 13 12 13 15 . 13 . 12 13 12 13 10 . 8 .|13 15 13 15 17 . 15 . 13 15 13 15 12 . 10 .|12 13 12 13 15 . 13 . 12 13 12 13 18 . 17 .|10 12 10 12 13 . 12 . 10 . 8 . 7 . 6 .'),
+    leadType: 'square', leadVol: 0.04, leadOct: 0,
+  },
+  COLOSSUS: {
+    bpm: 128, prog: [[38, DM], [38, DM], [41, MA], [39, MA]],
+    kick: 'x..x..x.x..x..x.', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.', metal: true, tom: '.......x.......x',
+    bass: same('0 . . 0 . . 0 . 0 . . 0 . 0 0 .'), bassLen: 1.2, bassCut: 700, dist: true,
+    lead: bars('0 . . 3 . . 5 . 6 . 5 . 3 . . .|0 . . 3 . . 5 . 8 . 6 . 5 . . .|3 . . 7 . . 8 . 10 . 8 . 7 . . .|1 . . 3 . . 1 . 0 . . . -2 . . .'),
+    leadType: 'square', leadVol: 0.06, leadOct: 0, arp: [0, 0, 3, 0, 0, 3, 0, 2, 0, 0, 3, 0, 0, 3, 2, 1],
   },
   KINGFALL: {
-    bpm: 138,
-    prog: [[38, [0, 3, 7]], [39, [0, 4, 7]], [38, [0, 3, 7]], [37, [0, 3, 6]]],
-    kick: 'x..x..x...x..x..', snare: '....x.......x.xx', hat: 'x.x.x.x.x.x.x.x.',
+    bpm: 150, prog: [[38, DM], [39, MA], [38, DM], [37, [0, 3, 6]]],
+    kick: 'x..x..x...x..x..', snare: '....x.......x.xx', hat: 'x.x.x.x.x.x.x.x.', tom: 'x.......x...x.x.', clap: '............x...',
     bass: bars('0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 1 .'),
-    bassLen: 1.4, bassCut: 900,
+    bassLen: 1.4, bassCut: 900, dist: true,
     lead: bars('12 . . . 13 . . . 12 . 10 . 8 . 7 .|13 . . . 15 . . . 13 . 12 . 10 . 8 .|12 . 13 . 12 . 10 . 7 . 8 . 10 . 12 .|11 . . . 10 . . . 8 . 7 . 6 . 7 .'),
-    leadType: 'sawtooth', leadVol: 0.05, leadOct: 0, bell: true,
-    arp: [0, 1, 2, 1, 0, 1, 2, 3, 0, 1, 2, 1, 0, 2, 3, 2],
+    leadType: 'sawtooth', leadVol: 0.05, leadOct: 0, bell: true, supersaw: true, arp: [0, 1, 2, 1, 0, 1, 2, 3, 0, 1, 2, 1, 0, 2, 3, 2],
   },
 };
-// what plays in each moment when the track setting is AUTO, and how loud each layer is
+// what plays in each moment when the soundtrack is AUTO, and how loud each layer is
 const SCENES = {
   title: { track: 'ASHEN HYMN', pad: 1, bass: 0.7, drums: 0.5, arp: 0, lead: 1 },
   calm: { track: 'ASHEN HYMN', pad: 1, bass: 0.5, drums: 0, arp: 0, lead: 0.7 },
-  fight: { track: 'PIT DIRGE', pad: 0.4, bass: 1, drums: 1, arp: 0.55, lead: 0 },
-  hot: { track: 'PIT DIRGE', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
-  boss: { track: 'OVERDRIVE', pad: 0.5, bass: 1, drums: 1, arp: 0.8, lead: 1 },
-  final: { track: 'KINGFALL', pad: 1, bass: 1, drums: 1, arp: 0.7, lead: 1 },
+  fight: { track: 'COMBAT', pad: 0.4, bass: 1, drums: 1, arp: 0.55, lead: 0 },
+  hot: { track: 'COMBAT', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
+  boss_warden: { track: 'WARDEN', pad: 0.5, bass: 1, drums: 1, arp: 0.8, lead: 1 },
+  boss_brood: { track: 'BROOD', pad: 0.4, bass: 1, drums: 1, arp: 0, lead: 1 },
+  boss_colossus: { track: 'COLOSSUS', pad: 0.6, bass: 1, drums: 1, arp: 0.6, lead: 1 },
+  boss_king: { track: 'KINGFALL', pad: 1, bass: 1, drums: 1, arp: 0.7, lead: 1 },
   dead: { track: null, pad: 0.6, bass: 0, drums: 0, arp: 0, lead: 0 },
 };
-let choice = 'AUTO', scene = 'title', cur = TRACKS['ASHEN HYMN'], pending = null;
-let step = 0, nextT = 0;
+let choice = 'AUTO', combat = 'PIT DIRGE', scene = 'title', cur = TRACKS['ASHEN HYMN'], pending = null;
+let step = 0, nextT = 0, mcr = null;
 const S16 = () => 60 / cur.bpm / 4;
 
-function kick(t) { tone('sine', 150, 42, 0.2, 0.9, layers.drums, t); hiss(0.012, 0.25, 'highpass', 3000, 3000, 1, layers.drums, t); }
-function snare(t, v = 1) { hiss(0.15, 0.32 * v, 'bandpass', 1900, 1500, 0.8, layers.drums, t); tone('triangle', 200, 150, 0.08, 0.18 * v, layers.drums, t); }
-function hat(t, open) { hiss(open ? 0.09 : 0.025, 0.09, 'highpass', 8000, 8000, 1, layers.drums, t); }
+function kick(t) { tone('sine', 160, 42, 0.22, 1, layers.drums, t); hiss(0.012, 0.3, 'highpass', 3000, 3000, 1, layers.drums, t); }
+function snare(t, v = 1) { hiss(0.15, 0.34 * v, 'bandpass', 1900, 1500, 0.8, layers.drums, t); tone('triangle', 200, 150, 0.08, 0.18 * v, layers.drums, t); }
+function clap(t) { for (let i = 0; i < 3; i++) hiss(0.03 + (i === 2 ? 0.08 : 0), 0.3, 'bandpass', 1400, 1200, 1.5, layers.drums, t + i * 0.012); }
+function hat(t, open, vel) { if (cur.metal) { hiss(0.06, 0.16, 'bandpass', 7200, 6800, 12, layers.drums, t); tone('square', 3100, 3000, 0.02, 0.02, layers.drums, t); } else hiss(open ? 0.09 : 0.025, 0.09 * vel, 'highpass', 8000, 8000, 1, layers.drums, t); }
+function tom(t, i) { const f = 190 - (i % 4) * 25; tone('sine', f, f * 0.45, 0.2, 0.55, layers.drums, t); }
 function bassNote(n, t) {
   const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
   const len = S16() * cur.bassLen;
@@ -110,7 +137,7 @@ function bassNote(n, t) {
   f.type = 'lowpass'; f.Q.value = 6;
   f.frequency.setValueAtTime(cur.bassCut, t); f.frequency.exponentialRampToValueAtTime(150, t + Math.min(len, 0.5));
   env(e, t, 0.004, 0.3, len);
-  o.connect(f); f.connect(e); e.connect(layers.bass);
+  o.connect(f); f.connect(e); e.connect(cur.dist ? mcr : layers.bass);
   o.start(t); o.stop(t + len + 0.05);
 }
 function pad(root, ch, t) {
@@ -128,16 +155,18 @@ function pad(root, ch, t) {
   }
 }
 function leadNote(n, len, t) {
-  const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
-  o.type = cur.leadType; o.frequency.value = mtof(n);
-  f.type = 'lowpass'; f.frequency.value = cur.leadType === 'sawtooth' ? 2400 : 3200;
-  const d = Math.max(0.08, S16() * len * 0.95);
+  const d = Math.max(0.08, S16() * len * 0.95), f = ac.createBiquadFilter(), e = ac.createGain();
+  f.type = 'lowpass'; f.frequency.value = cur.leadType === 'sawtooth' ? 2600 : 3200;
   e.gain.setValueAtTime(0.0001, t);
   e.gain.exponentialRampToValueAtTime(cur.leadVol, t + 0.01);
   e.gain.setValueAtTime(cur.leadVol * 0.8, t + d * 0.6);
   e.gain.exponentialRampToValueAtTime(0.0001, t + d + (cur.bell ? 0.4 : 0.05));
-  o.connect(f); f.connect(e); e.connect(layers.lead); e.connect(delayIn);
-  o.start(t); o.stop(t + d + 0.5);
+  f.connect(e); e.connect(layers.lead); e.connect(delayIn);
+  for (const det of cur.supersaw ? [-14, 0, 14] : [0]) {
+    const o = ac.createOscillator();
+    o.type = cur.leadType; o.frequency.value = mtof(n); o.detune.value = det;
+    o.connect(f); o.start(t); o.stop(t + d + 0.5);
+  }
   if (cur.bell) {
     const o2 = ac.createOscillator(), e2 = ac.createGain();
     o2.type = 'sine'; o2.frequency.value = mtof(n + 12);
@@ -163,7 +192,9 @@ function playStep(i, t) {
   if (bn !== null && bn !== undefined) bassNote(root + bn, t);
   if (cur.kick[s] === 'x') kick(t);
   if (cur.snare[s] === 'x') snare(t, s % 4 === 0 ? 1 : 0.5);
-  if (cur.hat[s] === 'x') hat(t, s % 8 === 6);
+  if (cur.clap && cur.clap[s] === 'x') clap(t);
+  if (cur.hat[s] === 'x') hat(t, s % 8 === 6, s % 2 ? 0.6 : 1);
+  if (cur.tom && cur.tom[s] === 'x' && (bar === 3 || !cur.tom.endsWith('xxxx'))) tom(t, s);
   const ln = cur.lead[bar][s];
   if (ln !== null && ln !== undefined) {
     let len = 1;
@@ -180,18 +211,18 @@ function schedule() {
 function wantTrack() {
   if (choice !== 'AUTO') return TRACKS[choice] || null;
   const t = SCENES[scene].track;
-  return t ? TRACKS[t] : null;
+  return t === 'COMBAT' ? TRACKS[combat] : t ? TRACKS[t] : null;
 }
 function applyScene() {
   const want = wantTrack();
   if (want && want !== cur) {
-    // jump to the next bar line so the change lands on the beat
+    // land the change on the next bar line
     pending = want;
     const s = step % 16;
     if (s !== 0) step += 16 - s;
   }
   if (!ac) return;
-  const L = SCENES[scene];
+  const L = choice === 'AUTO' || scene === 'dead' ? SCENES[scene] : { pad: 0.8, bass: 1, drums: scene === 'title' || scene === 'calm' ? 0.5 : 1, arp: 0.8, lead: 1 };
   for (const k of ['pad', 'bass', 'drums', 'arp', 'lead']) layers[k].gain.setTargetAtTime(L[k], ac.currentTime, 0.5);
 }
 
@@ -218,6 +249,8 @@ export const A = {
     const d = nbuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     for (const k of ['pad', 'bass', 'drums', 'arp', 'lead']) { layers[k] = ac.createGain(); layers[k].gain.value = 0; layers[k].connect(mus); }
+    mcr = ac.createWaveShaper(); mcr.curve = curve;
+    const mg = ac.createGain(); mg.gain.value = 0.45; mcr.connect(mg); mg.connect(layers.bass);
     delayIn = ac.createGain(); delayIn.gain.value = 0.3;
     delayNode = ac.createDelay(2);
     const fb = ac.createGain(), lp = ac.createBiquadFilter();
@@ -229,7 +262,7 @@ export const A = {
     setInterval(schedule, 25);
   },
   settings(s) {
-    choice = s.track;
+    choice = s.track; combat = s.combat;
     if (!ac) return;
     master.gain.setTargetAtTime(s.master * 0.85, ac.currentTime, 0.05);
     mus.gain.setTargetAtTime(choice === 'OFF' ? 0 : s.music * 0.5, ac.currentTime, 0.05);

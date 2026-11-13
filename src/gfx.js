@@ -31,7 +31,9 @@ export function makeCanvas(w, h) {
 }
 
 export function fit() {
-  const s = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H)));
+  const raw = Math.min(innerWidth / W, innerHeight / H);
+  const touch = document.documentElement.classList.contains('touch');
+  const s = touch ? Math.max(0.5, raw) : Math.max(1, Math.floor(raw));
   canvas.style.width = W * s + 'px';
   canvas.style.height = H * s + 'px';
 }

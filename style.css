@@ -9,6 +9,11 @@
 
 html, body {
   height: 100%;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
   background: var(--void);
   overflow: hidden;
 }
@@ -48,3 +53,41 @@ html, body {
   font: 14px/1.5 ui-monospace, monospace;
   padding: 16px;
 }
+
+#rotate { display: none; }
+
+@media (orientation: portrait) {
+  .touch #frame { display: none; }
+  .touch #rotate {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    background: var(--void);
+    color: var(--bone);
+    font: 600 15px/1.4 ui-monospace, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 24px;
+  }
+}
+
+.phone {
+  width: 44px;
+  height: 76px;
+  border: 3px solid var(--bone);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--void), 0 0 24px rgba(255, 106, 43, 0.4);
+  animation: turn 2s ease-in-out infinite;
+}
+
+@keyframes turn {
+  0%, 20% { transform: rotate(0deg); border-color: var(--bone); }
+  55%, 100% { transform: rotate(-90deg); border-color: var(--ember); }
+}
+
+@media (prefers-reduced-motion: reduce) { .phone { animation: none; transform: rotate(-90deg); } }

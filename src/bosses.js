@@ -28,7 +28,7 @@ const introBars = (e) => e.state === 'intro';
 export const BOSSES = {
   // ---------------------------------------------------------------- wave 5
   warden: {
-    name: 'THE WARDEN', short: 'WARDEN', sub: 'KEEPER OF THE PIT', col: '#ff4fa8', colD: '#6e1b52', hp: 560, r: 13, speed: 34, score: 6000, music: 'boss',
+    name: 'THE WARDEN', short: 'WARDEN', sub: 'KEEPER OF THE PIT', col: '#ff4fa8', colD: '#6e1b52', hp: 560, r: 13, speed: 34, score: 6000, music: 'boss_warden',
     init(e) { e.state = 'intro'; e.t = 2.2; e.z = 240; },
     update(e, dt, d, ang, dx) {
       const p = G.p, rage = e.phase === 2 ? 1.3 : 1;
@@ -118,7 +118,7 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 10
   brood: {
-    name: 'THE BROOD MOTHER', short: 'BROOD MOTHER', sub: 'SHE NESTS BELOW', col: '#b5f23a', colD: '#45651a', hp: 900, r: 14, speed: 40, score: 9000, music: 'boss',
+    name: 'THE BROOD MOTHER', short: 'BROOD MOTHER', sub: 'SHE NESTS BELOW', col: '#b5f23a', colD: '#45651a', hp: 900, r: 14, speed: 40, score: 9000, music: 'boss_brood',
     init(e) { e.state = 'intro'; e.t = 2.4; e.under = true; e.mx = e.x - 120; e.my = e.y + 60; },
     update(e, dt, d, ang, dx) {
       const p = G.p, rage = e.phase === 2 ? 1.25 : 1;
@@ -218,7 +218,7 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 15
   colossus: {
-    name: 'IRON COLOSSUS', short: 'COLOSSUS', sub: 'A WAR MACHINE NOBODY TURNED OFF', col: '#ff7a2b', colD: '#5a2410', hp: 1100, r: 14, speed: 26, score: 12000, music: 'boss',
+    name: 'IRON COLOSSUS', short: 'COLOSSUS', sub: 'A WAR MACHINE NOBODY TURNED OFF', col: '#ff7a2b', colD: '#5a2410', hp: 1100, r: 14, speed: 26, score: 12000, music: 'boss_colossus',
     init(e) { e.state = 'intro'; e.t = 2.6; e.off = true; },
     onHit(e, o) {
       if (e.shieldUp && o.src === 'orb') {
@@ -310,7 +310,7 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 20: final
   king: {
-    name: 'THE ASHEN KING', short: 'ASHEN KING', sub: 'THE LAST FIRE', col: '#ff6a2b', colD: '#5a1420', hp: 1600, r: 12, speed: 48, score: 30000, music: 'final', final: true,
+    name: 'THE ASHEN KING', short: 'ASHEN KING', sub: 'THE LAST FIRE', col: '#ff6a2b', colD: '#5a1420', hp: 1600, r: 12, speed: 48, score: 30000, music: 'boss_king', final: true,
     init(e) { e.state = 'intro'; e.t = 3; e.combo = 0; },
     update(e, dt, d, ang, dx) {
       const p = G.p;

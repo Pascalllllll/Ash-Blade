@@ -1,75 +1,84 @@
 # Ashblade
 
-A pixel-art hack and slash game you play in the browser. Pick one of seven fighters, hold the pit against endless waves, and beat four bosses on the way to the final one: the Ashen King.
+Ashblade is a pixel-art hack and slash game that runs in the browser, on a computer or a phone. You pick a fighter and hold an arena against waves of enemies. Every fifth wave is a boss, and the fourth boss, the Ashen King on wave 20, ends the game. After that you can keep playing for score.
 
-![Mid-fight on wave 2](docs/screenshot.png)
+![Title screen](docs/title.png)
 
 ## Fighters
 
-Each fighter has a main attack, two powers (Q and E, which cost energy) and an ultimate (R, which charges as you land hits). Each one also gets its own entrance when a run starts.
+Every fighter has a basic attack, two powers on Q and E that cost energy, and an ultimate on R that charges as your basic attack lands.
 
-| Fighter | Plays like | Q | E | R (ultimate) |
+| Fighter | Basic attack | Q | E | R |
 | --- | --- | --- | --- | --- |
-| **Blade** | 3-hit sword combo | Rift: blink forward and cut everything you pass | Tempest: shockwave plus chain lightning | Thousand Cuts: time stops while you cut every enemy |
-| **Gunner** | Hold to fire a revolver that reloads itself | Buckshot: shotgun blast with recoil | Grenade | Last Stand: 4 seconds of minigun |
-| **Wizard** | Homing arcane bolts | Frost Blink: teleport and freeze enemies at both ends | Meteor | Starfall: meteors fall on every enemy |
-| **Ninja** | 4-hit dagger combo, two dashes | Shuriken Fan: bouncing stars | Smoke Bomb: go invisible, and your next hit backstabs for triple damage | Shadow Clones |
-| **Mechanic** | Wrench | Turret | Tesla Coil | Junk Golem |
-| **Tank** | Huge, slow hammer and lots of health | Bulldoze: charge and pin enemies against walls | Ground Slam: stunning shockwaves | Fortress: 6 seconds of invincibility that also reflects shots |
-| **Robot** | Laser beam that overheats | Rocket Salvo: homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from the sky follows your aim |
+| Blade | 3-hit sword combo | Rift: blinks forward and cuts every enemy on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
+| Gunner | Revolver, reloads after 14 shots | Buckshot: shotgun blast that pushes you back | Grenade | Last Stand: 4 seconds of minigun |
+| Wizard | Homing magic bolt | Frost Blink: teleports and freezes enemies at both ends | Meteor | Starfall: meteors land on enemies for about 3 seconds |
+| Ninja | 4-hit dagger combo, 2 dashes | Shuriken Fan: 5 stars that bounce off walls | Smoke Bomb: 3 seconds invisible, next hit does triple damage | Shadow Clones: 3 clones attack for 7 seconds |
+| Mechanic | Wrench | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Junk Golem: a scrap giant fights for 12 seconds |
+| Tank | Slow hammer, 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
+| Robot | Laser that overheats if you hold it too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
-![Character select](docs/select.png)
+Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
+
+![Fighter select](docs/select.png)
 
 ## Bosses
 
-Every fifth wave is a boss with its own entrance and attack patterns:
+| Wave | Boss | What it does |
+| --- | --- | --- |
+| 5 | The Warden | Sword sweeps, jumps that send out shockwaves, spirals of orbs |
+| 10 | The Brood Mother | Digs under the floor and comes up under you, spits acid, lays eggs that hatch |
+| 15 | Iron Colossus | Sweeping lasers and missile strikes. Its shield breaks only when you hit it with an orb you knocked back |
+| 20 | The Ashen King | Three phases. In the last one the arena goes dark and he uses Thousand Cuts on you |
 
-1. **The Warden** (wave 5): crashes down from the sky. It sweeps, leaps and fires orb spirals.
-2. **The Brood Mother** (wave 10): tunnels underground and bursts up under you. She spits acid and lays eggs that hatch.
-3. **Iron Colossus** (wave 15): sweeping lasers and missile barrages. Its shield can only be broken by sending an orb back into it.
-4. **The Ashen King** (wave 20, final): three phases. He blinks around and slashes, then fills the screen with fire, then turns out the lights and casts his own Thousand Cuts at you.
+Each boss has its own entrance and its own music.
 
-After the King falls you can keep going in endless mode.
-
-![The Brood Mother](docs/boss.png)
+![The Brood Mother's acid](docs/boss.png)
 
 ## Controls
 
-| Key | Action |
-| --- | --- |
-| WASD / arrows | Move |
-| Mouse | Aim |
-| Left click / J | Attack (hold to keep attacking) |
-| Space / right click | Dash. You can't be hit during a dash, and dashing through an attack as it lands is a perfect dodge |
-| Q / E / R | Powers and ultimate |
-| Esc | Pause, settings, save and exit |
+| Action | Keyboard and mouse | Phone |
+| --- | --- | --- |
+| Move | WASD or arrow keys | Left thumb anywhere on the left side |
+| Aim | Mouse | Automatic, aims at the nearest enemy |
+| Attack | Left click or J, hold to keep attacking | Big button on the right |
+| Dash | Space or right click | Dash button |
+| Powers | Q, E, R | Buttons around the attack button |
+| Pause | Esc | Button at the top |
 
-Slash the pink orbs to send them back. Orbs with a red ring can't be sent back.
+You can't be hit while dashing. If you dash through an attack just as it lands, time slows down and you get energy back.
 
-## Features
+Hitting a pink orb sends it back at the enemies. Orbs with a red ring can't be sent back.
 
-- **Maps:** The Pit, Frozen Hollow (everything slides), Ember Forge (lava pools burn enemies), Neon Grid and Overgrown Shrine.
-- **Settings:**
-  - Audio: master, music and effects volume, and soundtrack choice.
-  - Video: 6 color themes, vibrancy, brightness, contrast, hue shift, scanlines, screen shake, flash reduction, damage numbers and particle amount.
-  - Game: 4 difficulty levels.
-- **Saving:** your run saves at the start of every wave. Exit any time and pick it up again with Continue. High scores are kept for each fighter.
-- **Soundtrack:** composed in code and played live, and it follows the action. A slow hymn plays on the title screen, a driving theme in combat, a harder theme in boss fights, and the King gets his own theme.
+On a phone, the game asks you to turn the phone sideways. It pauses whenever you turn it back upright.
+
+![Playing on a phone](docs/mobile.png)
+
+## Settings
+
+- Audio: master, music and effects volume. The soundtrack setting either follows the fight or plays one track of your choice. You can also pick which of the three battle tracks plays during normal waves.
+- Video: color theme, vibrancy, brightness, contrast, hue shift and scanlines. You can also turn down screen shake, flashes, damage numbers and particles.
+- Game: arena and difficulty. There are 5 arenas. On the ice everything slides, and in the forge, enemies knocked into lava catch fire.
+
+## Saving
+
+The game saves your run at the start of every wave. You can quit from the pause menu and pick the run up later with Continue on the title screen. Your best score is saved for each fighter.
 
 ## How it's built
 
-It's plain JavaScript modules with no libraries, no build step and no image or audio files. Everything is drawn at 320×180 and scaled up by whole numbers, so pixels stay sharp. Sprites are text grids, and the font, slashes, glows and lighting are drawn pixel by pixel. Every sound is synthesized with the Web Audio API.
+The game is plain JavaScript with no libraries and no build step. It draws everything at 320×180 and scales it up. The sprites are written as grids of characters in the code, and all music and sound effects are generated in the browser with the Web Audio API, so the game has no image or audio files.
 
-The page makes no network requests and loads nothing from other sites. A strict Content-Security-Policy only allows the game's own files, and saved data is checked against the allowed values when it's loaded back.
+The page makes no network requests. A Content Security Policy only allows the game's own files to load. Saved settings and runs are checked against the allowed values before they are used.
 
-| File | What it does |
+| File | Contents |
 | --- | --- |
-| `src/main.js` | Main loop, screens, saving, time control |
-| `src/world.js` | Combat, enemies, projectiles, hazards, drawing the arena |
-| `src/chars.js` | The seven fighters and their entrances |
+| `src/main.js` | Main loop, screens, saving |
+| `src/world.js` | Combat, enemies, projectiles, arena drawing |
+| `src/chars.js` | The seven fighters |
 | `src/bosses.js` | The four bosses |
-| `src/ui.js` | HUD, menus, settings, character select |
+| `src/ui.js` | HUD, menus, settings, title intro, phone controls |
 | `src/maps.js` | Arenas |
-| `src/audio.js` | Soundtrack and sound effects |
-| `src/sprites.js`, `src/gfx.js` | Pixel art and rendering |
-| `src/upgrades.js`, `src/store.js`, `src/input.js` | Upgrades, saved data, input |
+| `src/audio.js` | Music and sound effects |
+| `src/sprites.js`, `src/gfx.js` | Pixel art and drawing |
+| `src/input.js` | Keyboard, mouse and touch |
+| `src/upgrades.js`, `src/store.js` | Upgrades and saved data |

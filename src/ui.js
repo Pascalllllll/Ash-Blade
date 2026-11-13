@@ -1,6 +1,6 @@
 import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js';
 import { SPR, icon } from './sprites.js';
-import { input, keyHit } from './input.js';
+import { input, keyHit, TOUCH_BTNS } from './input.js';
 import { A } from './audio.js';
 import { settings, best, OPTIONS } from './store.js';
 import { G, fx, RANKS, floor, decal, AW, AH, isBossWave } from './world.js';
@@ -107,9 +107,12 @@ export function drawHUD(menu) {
   kit.hud?.(p, ex, uy + (full ? 12 : 5));
 
   const by = H - 21;
+  if (input.touch) { drawTouch(p, kit, full); }
+  else {
   abilityBox(6, by, 'Q', p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), G.deny.q, kit.q.icon, kit.color());
   abilityBox(26, by, 'E', p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), G.deny.e, kit.e.icon, kit.color());
   abilityBox(46, by, 'R', full, p.ult / 100, G.deny.r, kit.r.icon, P.gold);
+  }
 
   // score and high score, top right
   const hi = Math.max(best.score, G.startBest ?? best.score), beat = G.score > hi && hi > 0;
@@ -201,15 +204,15 @@ export function drawTitle(t, items) {
   // the seven fighters parade under the logo
   const ids = OPTIONS.char;
   ids.forEach((id, i) => {
-    const s = SPR.chars[id].run[Math.floor(t * 8 + i) % 4], x = W / 2 - (ids.length * 20) / 2 + i * 20 + 4;
-    drawSprite(s, x, 76 + (Math.floor(t * 8 + i) % 2), false);
+    const s = SPR.chars[id].run[Math.floor(t * 8 + i) % 4], x = W / 2 - (ids.length * 22) / 2 + i * 22 + 11 - s.w / 2;
+    drawSprite(s, x, 92 - s.h - (Math.floor(t * 8 + i) % 2), false);
   });
   const mw = 150, mx = (W - mw) / 2, my = 104;
   rect(mx - 2, my - 6, mw + 4, items.length * 12 + 6, P.ink1);
   drawMenu(titleMenu, items, mx, my, mw, 12);
-  const bline = best.score > 0 ? 'BEST ' + best.score + '   WAVE ' + best.wave + (best.won ? '   KING SLAIN' : '') : 'WASD MOVE   MOUSE AIM   CLICK ATTACK   SPACE DASH';
+  const bline = best.score > 0 ? 'BEST ' + best.score + '   WAVE ' + best.wave + (best.won ? '   KING SLAIN' : '') : input.touch ? 'LEFT THUMB MOVES, RIGHT THUMB FIGHTS' : 'WASD MOVE   MOUSE AIM   CLICK ATTACK   SPACE DASH';
   textO(bline, W / 2, 158, best.score > 0 ? P.gold : P.dust, 1, 'c');
-  text('ARROWS OR MOUSE, ENTER TO PICK', W / 2, 170, P.stone2, 1, 'c');
+  text(input.touch ? 'TAP TO PICK' : 'ARROWS OR MOUSE, ENTER TO PICK', W / 2, 170, P.stone2, 1, 'c');
 }
 
 // ---------- character select ----------
@@ -241,7 +244,7 @@ export function updateSelect(dt) {
   }
   if (inBox(W / 2 - 50, 151, 100, 12)) { if (input.mouse.moved) sel.row = 3; if (input.mouse.pressed) return { start: ids[sel.i] }; }
   if (keyHit('Enter', 'Space') && sel.t > 0.2) return { start: ids[sel.i] };
-  if (keyHit('Escape')) return { back: true };
+  if (keyHit('Escape') || (input.touch && input.mouse.pressed && input.mouse.x < 44 && input.mouse.y < 12)) return { back: true };
   return null;
 }
 export function drawSelect(t) {
@@ -253,7 +256,7 @@ export function drawSelect(t) {
     rect(x - 1, PY - 1, PW + 2, 38, on ? ch.color() : P.ink0);
     rect(x, PY, PW, 36, on ? P.ink2 : P.ink1);
     const s = on ? SPR.chars[id].run[Math.floor(t * 9) % 4] : SPR.chars[id].idle;
-    ctx.save(); ctx.translate(x + PW / 2 - 12, PY + 3 - (on ? Math.floor(t * 9) % 2 : 0)); ctx.scale(2, 2); drawSprite(s, 0, 0, false, on ? null : undefined); ctx.restore();
+    ctx.save(); ctx.translate(x + PW / 2 - s.w, PY + 36 - s.h * 2 - (on ? Math.floor(t * 9) % 2 : 0)); ctx.scale(2, 2); drawSprite(s, 0, 0, false); ctx.restore();
     if (on) glow(x + PW / 2, PY + 18, ch.color(), 16, 0.18);
     const rec = best.chars[id];
     if (rec && rec.won) px(x + PW - 4, PY + 3, P.gold);
@@ -278,7 +281,7 @@ export function drawSelect(t) {
   const on = sel.row === 3, pulse = Math.floor(t * 3) % 2;
   rect(W / 2 - 50, 151, 100, 12, on ? col : P.ink3);
   textO('START', W / 2, 155, on && pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
-  text('ENTER START   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
+  if (input.touch) text('< BACK', 6, 3, P.dust); else text('ENTER START   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
 }
 
 // ---------- settings ----------
@@ -293,7 +296,8 @@ export function settingsItems(ctxInfo) {
     { label: 'MASTER VOLUME', value: () => pct(settings.master), adjust: stepNum('master', 0.1, 0, 1) },
     { label: 'MUSIC', value: () => pct(settings.music), adjust: stepNum('music', 0.1, 0, 1) },
     { label: 'SOUND EFFECTS', value: () => pct(settings.sfx), adjust: stepNum('sfx', 0.1, 0, 1) },
-    { label: 'SOUNDTRACK', value: () => settings.track, adjust: stepList('track') },
+    { label: 'SOUNDTRACK', value: () => (settings.track === 'AUTO' ? 'AUTO (FOLLOWS THE FIGHT)' : settings.track), adjust: stepList('track') },
+    { label: 'BATTLE MUSIC', value: () => settings.combat, adjust: stepList('combat') },
     { label: 'BACK', act: () => 'back' },
   ];
   if (setm.tab === 1) return [
@@ -338,7 +342,7 @@ export function drawSettings(t, items, inRun) {
   drawMenu(setm, items, 40, 36, 240, 11);
   if (setm.tab === 1) OPTIONS.char.forEach((id, i) => drawSprite(SPR.chars[id].run[Math.floor(t * 8 + i) % 4], 290, 36 + i * 18, false));
   if (setm.tab === 2 && inRun) text('ARENA AND DIFFICULTY APPLY TO YOUR NEXT RUN', W / 2, 106, P.stone2, 1, 'c');
-  text('Q / E SWITCH TABS   ARROWS CHANGE   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
+  text(input.touch ? 'TAP A TAB, TAP LEFT OR RIGHT SIDE OF A ROW TO CHANGE IT' : 'Q / E SWITCH TABS   ARROWS CHANGE   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
 }
 
 // ---------- upgrade pick ----------
@@ -395,7 +399,7 @@ export function drawPause(items) {
   text(G.kit.name + '   WAVE ' + G.wave + '   ' + MAPS[G.mapKey].name + '   ' + G.diffKey, W / 2, 46, P.dust, 1, 'c');
   drawMenu(pauseMenu, items, 70, 64, 180, 13);
   text('YOUR RUN SAVES AT THE START OF EVERY WAVE', W / 2, 150, P.stone2, 1, 'c');
-  text('ESC TO RESUME', W / 2, 162, P.stone2, 1, 'c');
+  if (!input.touch) text('ESC TO RESUME', W / 2, 162, P.stone2, 1, 'c');
 }
 
 // ---------- game over & victory ----------
@@ -415,7 +419,7 @@ export function drawOver(t, isBest) {
   textO(G.kit.name + ' ON WAVE ' + G.wave, W / 2, 52, P.bone, 1, 'c');
   stats(72, t);
   if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 122, P.gold, 2, 'c');
-  if (t > 1) textO('ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
+  if (t > 1) textO(input.touch ? 'TAP LEFT  AGAIN       TAP RIGHT  MENU' : 'ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
 }
 export function drawVictory(t) {
   const k = ease(t / 0.8);
@@ -425,5 +429,116 @@ export function drawVictory(t) {
   textO('THE ASHEN KING HAS FALLEN', W / 2, 44, P.ember3, 1, 'c');
   text(G.kit.name + '  ' + MAPS[G.mapKey].name + '  ' + G.diffKey, W / 2, 54, P.dust, 1, 'c');
   stats(70, t);
-  if (t > 1.2) { textO('ENTER  KEEP GOING (ENDLESS)', W / 2, 128, P.paper, 1, 'c'); textO('ESC  BACK TO MENU', W / 2, 140, P.dust, 1, 'c'); }
+  if (t > 1.2) { textO((input.touch ? 'TAP LEFT' : 'ENTER') + '  KEEP GOING (ENDLESS)', W / 2, 128, P.paper, 1, 'c'); textO((input.touch ? 'TAP RIGHT' : 'ESC') + '  BACK TO MENU', W / 2, 140, P.dust, 1, 'c'); }
+}
+
+// ---------- opening: a press-to-begin gate (browsers need a gesture for sound), then the intro cinematic ----------
+export const INTRO_LEN = 3.1;
+const LETTER = (i) => 0.62 + i * 0.09;
+const paradeX = (i, s) => W / 2 - (7 * 22) / 2 + i * 22 + 11 - s.w / 2;
+export const INTRO_CUES = [
+  [0, 'rift'], [0.35, 'riftCut'],
+  ...Array.from({ length: 8 }, (_, i) => [LETTER(i) + 0.14, 'wall']),
+  ...Array.from({ length: 7 }, (_, i) => [1.55 + i * 0.07, 'dash']),
+  [2.3, 'ultRelease'],
+];
+export function drawSplash(t, touch) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const w = Math.round(60 + Math.sin(t * 2) * 10);
+  rect(W / 2 - w / 2, H / 2 - 12, w, 1, P.ember);
+  glow(W / 2, H / 2 - 12, P.ember, 20, 0.25 + Math.sin(t * 3) * 0.1);
+  if (Math.floor(t * 1.6) % 2 === 0) text(touch ? 'TAP TO BEGIN' : 'PRESS ANY KEY', W / 2, H / 2, P.bone, 1, 'c');
+  text('SOUND ON', W / 2, H / 2 + 14, P.stone2, 1, 'c');
+}
+export function drawIntro(t) {
+  const lx = Math.round((W - LOGO.width) / 2), ly = 22;
+  // shake from the most recent impact
+  let sh = 0;
+  for (const [ct, kind] of INTRO_CUES) if (t >= ct && t - ct < 0.15 && kind !== 'rift' && kind !== 'dash') sh = Math.max(sh, (kind === 'ultRelease' ? 5 : kind === 'riftCut' ? 4 : 2) * (1 - (t - ct) / 0.15));
+  const ox = Math.round((Math.random() - 0.5) * sh * 2), oy = Math.round((Math.random() - 0.5) * sh * 2);
+  ctx.save(); ctx.translate(ox, oy);
+  if (t < 0.35) {
+    ctx.fillStyle = '#000'; ctx.fillRect(-8, -8, W + 16, H + 16);
+    const k = t / 0.35, x = Math.round(W * k);
+    rect(0, H / 2, x, 1, P.paper); rect(0, H / 2 + 1, x, 1, P.ember);
+    glow(x, H / 2, P.paper, 18, 0.8);
+    ctx.restore();
+    return;
+  }
+  drawBackdrop(t, 0.6);
+  // logo letters slam down one at a time
+  for (let i = 0; i < 8; i++) {
+    const k = (t - LETTER(i)) / 0.14;
+    if (k <= 0) continue;
+    const y = k >= 1 ? 0 : -60 * (1 - k * k);
+    ctx.save(); ctx.beginPath(); ctx.rect(lx + i * 24, 0, 24, H); ctx.clip();
+    ctx.drawImage(LOGO, lx, ly + Math.round(y));
+    ctx.restore();
+    if (k >= 1 && k < 2.2) glow(lx + i * 24 + 12, ly + 28, P.ember, 14, 0.5 * (1 - (k - 1) / 1.2));
+  }
+  // the seven fighters dash in from both sides with trails
+  OPTIONS.char.forEach((id, i) => {
+    const k = Math.min(1, (t - (1.55 + i * 0.07)) / 0.28);
+    if (k <= 0) return;
+    const s = k < 1 ? SPR.chars[id].run[Math.floor(t * 16) % 4] : SPR.chars[id].idle, from = i % 2 ? W + 20 : -30;
+    const tx = paradeX(i, s), y = 92 - s.h, e = 1 - Math.pow(1 - k, 3), x = from + (tx - from) * e;
+    if (k < 1) for (let g = 1; g <= 3; g++) { ctx.globalAlpha = 0.25 / g; drawSprite(s, x - (tx - from) * 0.08 * g, y, from > tx, CHARS[id].color()); }
+    ctx.globalAlpha = 1;
+    drawSprite(s, x, y, from > tx && k < 1);
+  });
+  if (t > 2.3) {
+    const k = (t - 2.3) / 0.8;
+    ring(W / 2, ly + 16, 20 + k * 220, Math.max(1, Math.round(4 * (1 - k))), P.paper);
+    ring(W / 2, ly + 16, 10 + k * 160, 1, P.ember);
+    textO('HOLD THE PIT AGAINST ENDLESS WAVES'.slice(0, Math.floor(k * 60)), W / 2, ly + 40, P.bone, 1, 'c');
+  }
+  ctx.restore();
+  // the black halves split along the cut
+  if (t < 0.8) {
+    const k = Math.min(1, (t - 0.35) / 0.45), e = k * k, half = Math.round((H / 2) * (1 - e));
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, -Math.round((H / 2) * e), W, H / 2); ctx.fillRect(0, H / 2 + Math.round((H / 2) * e), W, H / 2);
+    if (half > 0) { rect(0, H / 2 - Math.round((H / 2) * e), W, 1, P.ember); rect(0, H / 2 + Math.round((H / 2) * e), W, 1, P.ember); }
+  }
+  if (t >= 0.35 && t < 0.55) { ctx.globalAlpha = (0.55 - t) / 0.2 * (settings.flash ? 0.8 : 0.15); ctx.fillStyle = P.paper; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+  if (t >= 2.3 && t < 2.5) { ctx.globalAlpha = (2.5 - t) / 0.2 * (settings.flash ? 0.6 : 0.12); ctx.fillStyle = P.paper; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+}
+
+// ---------- phone controls: a floating stick on the left, buttons on the right ----------
+const PRIMARY_ICON = { BLADE: 'blade', GUNNER: 'gun', WIZARD: 'star', NINJA: 'cross', MECHANIC: 'gear', TANK: 'fist', ROBOT: 'bolt' };
+function drawTouch(p, kit, full) {
+  const st = input.stick;
+  if (st.id !== null) {
+    ctx.globalAlpha = 0.35; ring(st.ox, st.oy, 22, 1, P.paper); ctx.globalAlpha = 0.6;
+    ring(st.ox + st.dx * 22, st.oy + st.dy * 22, 8, 8, P.paper); ctx.globalAlpha = 1;
+  } else if (G.time < 6) { ctx.globalAlpha = 0.3; ring(50, 135, 22, 1, P.paper); text('MOVE', 50, 133, P.paper, 1, 'c'); ctx.globalAlpha = 1; }
+  const state = {
+    attack: [true, 1, PRIMARY_ICON[G.char], kit.color()],
+    dash: [p.charges > 0, p.charges > 0 ? 1 : 1 - p.dashCd / kit.dash.cd, 'dash', P.paper],
+    q: [p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), kit.q.icon, kit.color()],
+    e: [p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), kit.e.icon, kit.color()],
+    r: [full, p.ult / 100, kit.r.icon, P.gold],
+  };
+  for (const b of TOUCH_BTNS) {
+    if (b.id === 'pause') {
+      ctx.globalAlpha = 0.5; ring(b.x, b.y, b.r, 1, P.paper); rect(b.x - 3, b.y - 3, 2, 6, P.paper); rect(b.x + 1, b.y - 3, 2, 6, P.paper); ctx.globalAlpha = 1;
+      continue;
+    }
+    const [ready, frac, ic, col] = state[b.id], held = input.tb[b.id];
+    ctx.globalAlpha = held ? 0.75 : 0.45;
+    ring(b.x, b.y, b.r, b.r, held ? P.ink3 : P.ink1);
+    ctx.globalAlpha = 1;
+    if (!ready) { ctx.globalAlpha = 0.6; ring(b.x, b.y, Math.max(1, b.r * Math.min(1, frac)), Math.max(1, b.r * Math.min(1, frac)), P.ink3); ctx.globalAlpha = 1; }
+    ring(b.x, b.y, b.r, 1, ready ? col : P.stone2);
+    const s = icon(ic, ready ? col : P.stone2);
+    if (b.id === 'attack') { ctx.save(); ctx.translate(b.x - 9, b.y - 9); ctx.scale(2, 2); drawSprite(s, 0, 0, false); ctx.restore(); }
+    else drawSprite(s, b.x - 4, b.y - 4, false);
+    if (b.id === 'r' && full) glow(b.x, b.y, P.gold, b.r + 6, 0.4);
+    if (G.deny[b.id] > 0) ring(b.x, b.y, b.r + 1, 1, P.blood);
+  }
+}
+export function touchBack(t) {
+  if (!input.touch) return false;
+  text('< BACK', 6, 3, P.dust);
+  return input.mouse.pressed && input.mouse.x < 44 && input.mouse.y < 12;
 }

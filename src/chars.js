@@ -228,7 +228,7 @@ export const CHARS = {
             const a = (u.phase === 'gather' ? Math.min(1, u.t / 0.4) : 1) * 0.86;
             ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(cx, cy, 320, 180); ctx.globalAlpha = 1;
             for (const e of G.E) if (!e.dead) { const s = sprFor(e); drawSprite(s, e.x - s.w / 2, e.y - s.h + 1, e.face < 0, P.bone); }
-            drawSprite(SPR.chars.BLADE.idle, p.x - 6, p.y - 13, Math.cos(p.aim) < 0, P.ember);
+            { const s = SPR.chars.BLADE.idle; drawSprite(s, p.x - s.w / 2, p.y - s.h + 1, Math.cos(p.aim) < 0, P.ember); }
             for (const c of u.cuts) {
               const ux = (Math.cos(c.a) * c.L) / 2, uy = (Math.sin(c.a) * c.L) / 2;
               line(c.x - ux, c.y - uy + 1, c.x + ux, c.y + uy + 1, P.blood); line(c.x - ux, c.y - uy, c.x + ux, c.y + uy, P.paper);
@@ -785,3 +785,47 @@ export const ALLY = {
     },
   },
 };
+
+// ---------- signature flair: small effects each fighter gives off ----------
+const behindX = (p, d) => p.x - (Math.cos(p.aim) < 0 ? -d : d);
+const FLAIR = {
+  BLADE(p, dt, moving) {
+    if (Math.random() < dt * (moving ? 30 : 6)) part(behindX(p, 5), p.y - 9 + rnd(-1, 1), (Math.cos(p.aim) < 0 ? 1 : -1) * rnd(10, 30), -rnd(5, 20), rnd(0.3, 0.6), Math.random() < 0.5 ? P.ember : P.ember2, { drag: 2, glow: true });
+  },
+  GUNNER(p, dt, moving) {
+    if (moving && Math.random() < dt * 8) dust(p.x, p.y, 1, 25);
+    if (Math.random() < dt * 0.7) part(p.x + rnd(-4, 4), p.y - 15, 0, -8, 0.25, P.gold, { glow: true, drag: 1 });
+  },
+  WIZARD(p, dt) {
+    if (Math.random() < dt * 10) part(p.x + rnd(-6, 6), p.y - rnd(0, 14), rnd(-5, 5), -rnd(10, 25), rnd(0.4, 0.8), Math.random() < 0.5 ? '#b48cff' : '#62efff', { drag: 1, glow: true });
+  },
+  NINJA(p, dt, moving) {
+    if (Math.random() < dt * (moving ? 45 : 8)) part(behindX(p, 4), p.y - 9, (Math.cos(p.aim) < 0 ? 1 : -1) * rnd(20, 50), rnd(-6, 6), rnd(0.2, 0.4), P.blood, { drag: 3 });
+    p.k.shadowT = (p.k.shadowT || 0) - dt;
+    if (moving && p.k.shadowT <= 0) { p.k.shadowT = 0.08; ghost(p, '#2a1f4a'); }
+  },
+  MECHANIC(p, dt) {
+    if (Math.random() < dt * 2.5) { const x = p.x + (Math.cos(p.aim) < 0 ? -6 : 6); for (let i = 0; i < 4; i++) part(x, p.y - 6, rnd(-60, 60), -rnd(20, 80), rnd(0.2, 0.4), Math.random() < 0.5 ? P.gold : P.paper, { z: 2, vz: rnd(20, 60), g: 260, drag: 2, glow: true }); }
+  },
+  TANK(p, dt, moving) {
+    if (Math.random() < dt * 2) for (const side of [-6, 6]) part(p.x + side, p.y - 14, rnd(-5, 5), -rnd(15, 30), rnd(0.5, 0.9), '#8fa2bd', { drag: 1.5 });
+    p.k.stompT = (p.k.stompT || 0) - dt;
+    if (moving && p.k.stompT <= 0) { p.k.stompT = 0.32; dust(p.x, p.y, 5, 45); shake(0.03); }
+  },
+  ROBOT(p, dt) {
+    if (Math.random() < dt * 30) part(p.x + rnd(-3, 3), p.y + 1, rnd(-10, 10), rnd(20, 50), rnd(0.12, 0.25), Math.random() < 0.5 ? P.volt : P.paper, { drag: 4, glow: true });
+  },
+};
+const AURA = {
+  WIZARD(p) {
+    for (let i = 0; i < 3; i++) {
+      const a = G.time * 2.5 + (i * TAU) / 3, x = p.x + Math.cos(a) * 11, y = p.y - 8 + Math.sin(a) * 4;
+      px(x, y, i === 0 ? '#62efff' : '#b48cff'); glow(x, y, '#b48cff', 4, 0.5);
+    }
+  },
+  ROBOT(p) { glow(p.x, p.y, P.volt, 8 + Math.sin(G.time * 30), 0.35); glow(p.x, p.y - 8, P.volt, 5 + Math.sin(G.time * 6) * 2, 0.35); },
+  BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
+  TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
+};
+const EYES = { WIZARD: '#62efff', NINJA: '#ff5050', MECHANIC: '#62efff', TANK: '#ff9a3c', ROBOT: P.volt, GUNNER: '#ffd447', BLADE: '#ffb04a' };
+for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].drawAura = AURA[id]; CHARS[id].eyeColor = EYES[id]; }

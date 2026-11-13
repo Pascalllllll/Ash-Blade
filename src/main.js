@@ -8,7 +8,7 @@ import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapsho
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
-  sel, updateSelect, drawSelect, setm, settingsItems, updateSettings, drawSettings,
+  sel, updateSelect, drawSelect, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
 } from './ui.js';
 
 loadAll();
@@ -19,8 +19,9 @@ refreshArt();
 showMap(settings.map);
 fit();
 addEventListener('resize', fit);
+addEventListener('touchstart', fit, { once: true });
 
-let scene = 'title', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
+let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
 let save = loadRun((id) => !!byId(id));
 
 function go(s) { scene = s; sceneT = 0; }
@@ -61,8 +62,21 @@ function tick(now) {
   fx.oy = Math.round(7 * sh * Math.sin(fx.shakeT * 2.3 + 1));
   fx.flashT -= rdt;
   if (input.any || input.mouse.pressed) A.init(settings);
+  input.touchPlay = scene === 'play' && G && !G.dead && !G.cine;
+  // phones held upright: pause and let the overlay ask for landscape
+  const portrait = input.touch && innerHeight > innerWidth;
+  if (portrait && scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
 
-  if (scene === 'title') {
+  if (scene === 'splash') {
+    if (input.any || input.mouse.pressed) { A.init(settings); A.scene('title'); go('intro'); }
+    drawSplash(sceneT, input.touch);
+  } else if (scene === 'intro') {
+    for (const [ct, cue] of INTRO_CUES) if (sceneT >= ct && sceneT - rdt < ct) A[cue]();
+    if (sceneT > 0.3 && (input.any || input.mouse.pressed)) go('title');
+    else if (sceneT >= INTRO_LEN) go('title');
+    else drawIntro(sceneT);
+    if (scene === 'title') drawTitle(0.8, titleItems(save, (r) => r));
+  } else if (scene === 'title') {
     const items = titleItems(save, (r) => r);
     const r = runMenu(titleMenu, items, (W - 150) / 2, 104, 150, 12);
     if (r === 'continue' && save) startRun(save.char, save);
@@ -87,7 +101,7 @@ function tick(now) {
     if (settingsFrom === 'pause') { drawWorld(); vignette(); }
     drawSettings(sceneT, items, settingsFrom === 'pause');
   } else if (scene === 'play') {
-    if (keyHit('Escape', 'KeyP') && !G.dead && !G.cine) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
+    if ((keyHit('Escape', 'KeyP') || input.thit.has('pause')) && !G.dead && !G.cine) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
     else {
       controls();
       update(rdt * ts, rdt);
@@ -112,20 +126,22 @@ function tick(now) {
   } else if (scene === 'pause') {
     const items = pauseItems((r) => r);
     const r = keyHit('Escape', 'KeyP') ? 'resume' : runMenu(pauseMenu, items, 70, 64, 180, 13);
-    if (r === 'resume') { go('play'); A.scene(G.boss ? (G.boss.boss === 'king' ? 'final' : 'boss') : 'fight'); }
+    if (r === 'resume') { go('play'); A.scene(G.boss ? 'boss_' + G.boss.boss : 'fight'); }
     else if (r === 'settings') { settingsFrom = 'pause'; setm.tab = 0; setm.sel = 0; go('settings'); }
     else if (r === 'restart') { const s = loadRun((id) => !!byId(id)); if (s) startRun(s.char, s); else { startRun(G.char, null); checkpoint(); } }
     else if (r === 'exit') toTitle();
     if (scene === 'pause' || scene === 'settings') { drawWorld(); vignette(); drawHUD(true); if (scene === 'pause') drawPause(items); }
   } else if (scene === 'over') {
     update(rdt * ts, rdt);
-    if (sceneT > 1 && (keyHit('Enter', 'Space') || input.mouse.pressed)) { const c = G.char; startRun(c, null); checkpoint(); }
-    else if (sceneT > 0.5 && keyHit('Escape')) toTitle();
+    const tapL = input.touch && input.mouse.pressed && input.mouse.x < W / 2, tapR = input.touch && input.mouse.pressed && !tapL;
+    if (sceneT > 1 && (keyHit('Enter', 'Space') || (!input.touch && input.mouse.pressed) || tapL)) { const c = G.char; startRun(c, null); checkpoint(); }
+    else if (sceneT > 0.5 && (keyHit('Escape') || (sceneT > 1 && tapR))) toTitle();
     if (scene !== 'title') { drawWorld(); vignette(); drawOver(sceneT, newBest); }
   } else if (scene === 'victory') {
     update(rdt * ts, rdt);
-    if (sceneT > 1.2 && (keyHit('Enter', 'Space') || input.mouse.pressed)) { openUpgrade(); go('upgrade'); A.scene('calm'); }
-    else if (sceneT > 1.2 && keyHit('Escape')) toTitle();
+    const tapL = input.touch && input.mouse.pressed && input.mouse.x < W / 2, tapR = input.touch && input.mouse.pressed && !tapL;
+    if (sceneT > 1.2 && (keyHit('Enter', 'Space') || (!input.touch && input.mouse.pressed) || tapL)) { openUpgrade(); go('upgrade'); A.scene('calm'); }
+    else if (sceneT > 1.2 && (keyHit('Escape') || tapR)) toTitle();
     if (scene !== 'title') { drawWorld(); vignette(); drawVictory(sceneT); }
   }
   if (scene === 'title' || scene === 'select' || scene === 'settings') { /* menus draw their own backdrop */ }

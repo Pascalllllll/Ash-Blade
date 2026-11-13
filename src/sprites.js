@@ -4,61 +4,75 @@ import { makeSprite, P } from './gfx.js';
 export const SPR = {};
 
 const LEGS = {
-  idle: ['....obo.bo..', '....oo..oo..'],
-  r0: ['...obo..bo..', '...oo...oo..'],
-  r1: ['....oboobo..', '....oo.oo...'],
-  r2: ['....obo..bo.', '....oo...oo.'],
-  r3: ['....oboobo..', '.....oo.oo..'],
+  idle: ['....obo..obo..', '....ooo..ooo..'],
+  r0: ['...obo....obo.', '...ooo....ooo.'],
+  r1: ['.....obobo....', '.....ooooo....'],
+  r2: ['....obo...obo.', '....ooo...ooo.'],
+  r3: ['.....obobo....', '......oooo....'],
 };
 
-// ---------- the seven playable characters (12 wide, legs added below) ----------
+// ---------- the seven playable characters ----------
+// eye: the pixel that glows (facing right). Sprites are drawn with their feet on the ground point.
 const BODIES = {
   BLADE: {
-    rows: ['....oooo....', '...occcCo...', '..occcccCo..', '..ocMmmmco..', '..oMmmmeeo..', '..oMmmmmmo..',
-      '...osssSo...', '..osSSsscoo.', '.osoccccCCo.', '..oocccccCo.', '...occcccco.', '...okcccckoo'],
-    alt: { 7: '.ossSSsscoo.', 8: 'os.occccCCo.' },
-    map: () => ({ c: '#433764', C: '#6e5d9c', m: P.bone, M: '#b8a88c', e: P.ember, s: P.ember, S: P.ember2, b: '#191322', k: '#2a2240' }),
+    eye: [9, 5],
+    rows: ['.....oooo.....', '....oCCCCo....', '...oCLLLCCo...', '..oCLLCCCCCo..', '..oCoooooooCo.', '..ooMmmmmeeoo.',
+      '..oMMmmmmmmo..', '...oMMmmmmo...', '..oossSSSsoo..', '.osSSssssCCoo.', 'osSoCaaaaCLCo.', 'oso.oaAAaoCCo.',
+      '.o..okkKkoCCo.', '....oaAaaoCLo.', '...oCCaaCCCLo.', '...oCCCCCCCCo.'],
+    alt: { 10: 'SsooCaaaaCLCo.', 11: '.s..oaAAaoCCo.', 15: '..oCCCCCCCCCo.' },
+    map: () => ({ C: '#3a2e58', L: '#5e4d8c', m: P.bone, M: '#a8987c', e: P.ember3, s: P.ember, S: P.ember2, a: '#4a4560', A: '#7a7498', k: '#2a2238', K: P.gold, b: '#191322' }),
   },
   GUNNER: {
-    rows: ['....oooo....', '...oHHHHo...', 'ooooHhhHoooo', 'oHHHHHHHHHHo', '.oooffffooo.', '...ofeefo...',
-      '...offffo...', '..oppppppo..', '.oppPPppPpo.', '.opPppppPpo.', '..oppppppo..', '...okkkko...'],
-    alt: { 9: 'oppPppppPpo.' },
-    map: () => ({ H: '#5a3a28', h: P.gold, f: '#d9a27a', e: '#2a1a10', p: '#7a3b2a', P: '#e8b04a', k: '#2a1f1a', b: '#21160f' }),
+    eye: [9, 5],
+    rows: ['......oo......', '.....oHHo.....', '....oHhhHo....', 'ooooHHHHHHoooo', 'oHHHHHHHHHHHHo', '.ooofffffeooo.',
+      '...orrrrrrro..', '...oorrrrroo..', '..oDDDwwDDDo..', '.oDDdDwwDdDDo.', '.oDdoDkKkDodDo', '.oDdoDDDDDodDo',
+      '.oDDoDDoDDoDDo', '.oDDoDDoDDoDDo', '..oDDDo.oDDDo.', '..oooo...oooo.'],
+    alt: { 14: '..oDDDo..oDDDo', 15: '..oooo....oooo' },
+    map: () => ({ H: '#3a2418', h: P.gold, f: '#c08a64', e: P.gold, r: '#a01e30', D: '#6a3e24', d: '#8e5a34', w: '#d8c8a0', k: '#2a1a10', K: P.gold, b: '#21160f' }),
   },
   WIZARD: {
-    rows: ['.....oo.....', '....oHHo....', '...oHHHso...', '..oHHHHHHo..', '.oooooooooo.', '...offffo...',
-      '...oeffeo...', '..oRRbbRRo..', '.oRRRbbRRRo.', '.oRrRRRRrRo.', '.oRRRRRRRRo.', '..oRRRRRRo..'],
-    alt: { 11: '.oRRRRRRRo..' },
-    map: () => ({ H: '#4b2f8a', s: '#ffd447', f: '#d9a27a', e: '#62efff', b: '#e6e6f0', R: '#5b3aa8', r: '#8a64e0', k: '#2a1f40' }),
+    eye: [6, 6],
+    rows: ['.........oo...', '.......ooHo...', '......oHHo....', '.....oHsHo....', '....oHHHHHo...', '..ooooooooooo.',
+      '....oKeKeKo...', '....obbbbbo...', '...oRbbbbbRo..', '..oRRrbbbrRRo.', '..oRrRRbRRrRo.', '..oRRRgRgRRRo.',
+      '..oRRrRRRrRRo.', '.oRRRRRRRRRRRo', '.oRrRRRRRRRrRo', '.ooooooooooooo'],
+    map: () => ({ H: '#3e2878', s: '#ffd447', K: '#160f22', e: '#62efff', b: '#e6e6f0', R: '#4a2f96', r: '#7d5ad6', g: '#62efff' }),
     legs: 'robe',
   },
   NINJA: {
-    rows: ['....oooo....', '...oNNNNo...', '..oNNNNNNo..', '..oNrrrrNo..', '..oNeNNeNo..', '..oNNNNNNoo.',
-      '...oNNNNorr.', '..oNNnnNNo..', '.oNoNNNNoNo.', '...oNNNNo...', '...oNrrNo...', '...oNNNNo...'],
-    alt: { 6: '...oNNNNo.rr', 5: '..oNNNNNNo.r' },
-    map: () => ({ N: '#3a3452', n: '#5a5280', r: '#e0223f', e: '#fff6e0', b: '#1d1a28' }),
+    eye: [8, 5],
+    rows: ['..........o...', '.....oooooKo..', '....oNNNNoKo..', '...oNNNNNNoKo.', '...oNrrrrNNo..', '...oNeNNeNNo..',
+      '...oNNNNNNoro.', '....oNNNNorrro', '...onrrrrno.ro', '..oNNnnnnNNo..', '.oNoNNnnNNoNo.', '.oNooNNNNooNo.',
+      '..o.oNrrNo.o..', '....oNNNNo....', '....onnNNo....', '....oNNNNo....'],
+    alt: { 7: '....oNNNNorr.o', 8: '...onrrrrnorr.' },
+    map: () => ({ N: '#3e3858', n: '#615a8a', r: '#e0223f', e: '#ff5050', K: '#8a7a64', b: '#1d1a28' }),
   },
   MECHANIC: {
-    rows: ['....oooo....', '...oKKKKo...', '..oKKKKKKo..', '..oGgoGgKo..', '..offfffo...', '..offmffo...',
-      '...oooooo...', '..oOOwOOOo..', '.oOoOOOOoOo.', '.ofoOtOOofo.', '...oOOOOo...', '...okOOko...'],
-    map: () => ({ K: '#3a2a20', G: '#62efff', g: '#8a7a64', f: '#d9a27a', m: '#7a3b2a', O: '#d8651e', w: '#e6d8bd', t: '#3d3250', k: '#2a1f1a', b: '#2a1f1a' }),
+    eye: [4, 3],
+    rows: ['....oooo......', '...oKKKKo.....', '..oKKKKKKoo...', '..oGGoGGKPPo..', '..offfffoPpo..', '..offmmfoPpo..',
+      '..oobbbboPPo..', '.oOOOwwOOOPo..', 'oOOoOOOOOoOo..', 'oggoOtTtOoOo..', 'oggoOOOOOooo..', '.oo.okkkko....',
+      '....oOOOOo....', '....oOOOOo....'],
+    map: () => ({ K: '#2a1a14', G: '#62efff', P: '#5d6878', p: '#8b98ab', f: '#d9a27a', m: '#7a3b2a', b: '#5a3a28', O: '#d8651e', w: '#e6d8bd', g: '#6a6a78', t: '#3d3250', T: '#ffd447', k: '#2a1f1a' }),
   },
   TANK: {
-    rows: ['...oooooo...', '..oSSSSSSo..', '.oSSsssSSSo.', '.oSvvvvvvSo.', '.oSSSSSSSSo.', 'ooooSSSSoooo',
-      'oSSSoSSoSSSo', 'oSsSSSSSSsSo', 'oSSoSSSSoSSo', '.oooSSSSooo.', '...oSSSSo...', '...oSkkSo...'],
-    map: () => ({ S: '#5a6a82', s: '#8fa2bd', v: '#ffb347', k: '#2a2f3a', b: '#2a2f3a' }),
+    eye: [8, 4],
+    rows: ['.h............h.', '.hh..oooooo..hh.', '..oooSSSSSSooo..', '...oSSssssSSo...', '...oSvvvvvvSo...', '...oSSSvvSSSo...',
+      '..ooSSSSSSSSoo..', 'ooPPPoSSSSoPPPoo', 'oPpPPPoSSoPPPpPo', 'oPPPPoSssSoPPPPo', '.ooooSSSKSSoooo.', '...oSSsSSsSSo...',
+      '...oSSSSSSSSo...', '...okkkkkkkko...', '...oSSSooSSSo...'],
+    map: () => ({ h: '#e6d8bd', S: '#5a6a82', s: '#8fa2bd', v: '#ff9a3c', P: '#3c4a63', p: '#8fa2bd', K: P.gold, k: '#2a2f3a' }),
     legs: 'heavy',
   },
   ROBOT: {
-    rows: ['.....o......', '.....oA.....', '...oooooo...', '..oMMMMMMo..', '..oMVVVVMo..', '..oMMMMMMo..',
-      '...oooooo...', '.ooMMmmMMoo.', 'oMoMMcMMMoMo', 'oMoMMMMMMoMo', '.o.oMMMMo.o.', '...oMmmMo...'],
-    map: () => ({ M: '#9aa6b8', m: '#5c6678', V: '#62efff', c: '#62efff', A: '#ff4f4f', b: '#3a4252' }),
+    eye: [7, 4],
+    rows: ['......oA......', '......oo......', '....oooooo....', '...oMMMMMMo...', '..oMmVVVVVMo..', '..oMMMMMMMMo..',
+      '...oommmmoo...', '.ooMMooooMMoo.', 'oMMmMMMMMMmMMo', 'oMmoMMcCMMomMo', 'oMMoMMccMMoMMo', '.ooomMMMMmooo.',
+      '...oMmmmmMo...', '...oMMooMMo...'],
+    map: () => ({ M: '#9aa6b8', m: '#5c6678', V: '#62efff', c: '#62efff', C: '#ffffff', A: '#ff4f4f', b: '#3a4252' }),
   },
 };
-const ROBE_LEGS = ['..oRRRRRRo..', '...oooooo...'];
+const ROBE_LEGS = ['..oRRRRRRRRo..', '...oooooooo...'];
 const HEAVY = {
-  idle: ['...obbo.obbo', '...oooo.oooo'], r0: ['..obbo..obbo', '..oooo..oooo'], r1: ['...obbobbo..', '...oooooo...'],
-  r2: ['...obbo..obbo', '...oooo..oooo'], r3: ['...obbobbo..', '....oooooo..'],
+  idle: ['...oSSo..oSSo...', '...oooo..oooo...'], r0: ['..oSSo....oSSo..', '..oooo....oooo..'], r1: ['....oSSooSSo....', '....oooooooo....'],
+  r2: ['...oSSo...oSSo..', '...oooo...oooo..'], r3: ['....oSSooSSo....', '.....oooooo.....'],
 };
 
 function buildChar(id) {
@@ -67,7 +81,9 @@ function buildChar(id) {
   const body = (alt) => d.rows.map((r, i) => (alt && d.alt && d.alt[i]) || r);
   const legs = (k) => (d.legs === 'robe' ? ROBE_LEGS : d.legs === 'heavy' ? HEAVY[k] : LEGS[k]);
   const sp = (alt, k) => makeSprite([...body(alt), ...legs(k)], map);
-  return { idle: sp(false, 'idle'), run: [sp(false, 'r0'), sp(true, 'r1'), sp(false, 'r2'), sp(true, 'r3')] };
+  const set = { idle: sp(false, 'idle'), run: [sp(false, 'r0'), sp(true, 'r1'), sp(false, 'r2'), sp(true, 'r3')] };
+  set.eye = d.eye;
+  return set;
 }
 
 export function buildSprites() {
