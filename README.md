@@ -58,7 +58,7 @@ On a phone, the game asks you to turn the phone sideways. It pauses whenever you
 
 - Audio: master, music and effects volume. The soundtrack setting either follows the fight or plays one track of your choice. You can also pick which of the three battle tracks plays during normal waves.
 - Video: color theme, vibrancy, brightness, contrast, hue shift and scanlines. You can also turn down screen shake, flashes, damage numbers and particles.
-- Game: arena and difficulty. There are 5 arenas. On the ice everything slides, and in the forge, enemies knocked into lava catch fire.
+- Game: arena, difficulty and vibration. Vibration has four levels (off, light, medium, strong) and works on phones whose browser supports it, which includes Android but not iPhone. There are 5 arenas. On the ice everything slides, and in the forge, enemies knocked into lava catch fire.
 
 ## Saving
 

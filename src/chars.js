@@ -805,6 +805,8 @@ const FLAIR = {
     if (moving && p.k.shadowT <= 0) { p.k.shadowT = 0.08; ghost(p, '#2a1f4a'); }
   },
   MECHANIC(p, dt) {
+    const bx = p.x - (Math.cos(p.aim) < 0 ? -5 : 5);
+    if (Math.random() < dt * 14) part(bx + rnd(-1, 1), p.y - 19, rnd(-6, 6), -rnd(20, 45), rnd(0.2, 0.4), Math.random() < 0.5 ? P.ember : P.ember2, { drag: 2, glow: true });
     if (Math.random() < dt * 2.5) { const x = p.x + (Math.cos(p.aim) < 0 ? -6 : 6); for (let i = 0; i < 4; i++) part(x, p.y - 6, rnd(-60, 60), -rnd(20, 80), rnd(0.2, 0.4), Math.random() < 0.5 ? P.gold : P.paper, { z: 2, vz: rnd(20, 60), g: 260, drag: 2, glow: true }); }
   },
   TANK(p, dt, moving) {
@@ -827,5 +829,5 @@ const AURA = {
   BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
   TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
 };
-const EYES = { WIZARD: '#62efff', NINJA: '#ff5050', MECHANIC: '#62efff', TANK: '#ff9a3c', ROBOT: P.volt, GUNNER: '#ffd447', BLADE: '#ffb04a' };
+const EYES = { WIZARD: '#62efff', NINJA: '#ffe08a', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
 for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].drawAura = AURA[id]; CHARS[id].eyeColor = EYES[id]; }

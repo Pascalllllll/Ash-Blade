@@ -4,7 +4,7 @@ import { A } from './audio.js';
 import { settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun } from './store.js';
 import { buildSprites } from './sprites.js';
 import { byId } from './upgrades.js';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot } from './world.js';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz } from './world.js';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
@@ -71,7 +71,7 @@ function tick(now) {
     if (input.any || input.mouse.pressed) { A.init(settings); A.scene('title'); go('intro'); }
     drawSplash(sceneT, input.touch);
   } else if (scene === 'intro') {
-    for (const [ct, cue] of INTRO_CUES) if (sceneT >= ct && sceneT - rdt < ct) A[cue]();
+    for (const [ct, cue] of INTRO_CUES) if (sceneT >= ct && sceneT - rdt < ct) { A[cue](); if (cue === 'riftCut' || cue === 'ultRelease') buzz('heavy'); else if (cue === 'wall') buzz('tap'); }
     if (sceneT > 0.3 && (input.any || input.mouse.pressed)) go('title');
     else if (sceneT >= INTRO_LEN) go('title');
     else drawIntro(sceneT);

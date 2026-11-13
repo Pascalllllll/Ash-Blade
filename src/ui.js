@@ -3,7 +3,7 @@ import { SPR, icon } from './sprites.js';
 import { input, keyHit, TOUCH_BTNS } from './input.js';
 import { A } from './audio.js';
 import { settings, best, OPTIONS } from './store.js';
-import { G, fx, RANKS, floor, decal, AW, AH, isBossWave } from './world.js';
+import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js';
 import { CHARS } from './chars.js';
 import { BOSSES } from './bosses.js';
 import { MAPS } from './maps.js';
@@ -255,9 +255,9 @@ export function drawSelect(t) {
     const x = PX0 + i * (PW + PG), on = i === sel.i, ch = CHARS[id];
     rect(x - 1, PY - 1, PW + 2, 38, on ? ch.color() : P.ink0);
     rect(x, PY, PW, 36, on ? P.ink2 : P.ink1);
+    if (on) glow(x + PW / 2, PY + 18, ch.color(), 16, 0.18);
     const s = on ? SPR.chars[id].run[Math.floor(t * 9) % 4] : SPR.chars[id].idle;
     ctx.save(); ctx.translate(x + PW / 2 - s.w, PY + 36 - s.h * 2 - (on ? Math.floor(t * 9) % 2 : 0)); ctx.scale(2, 2); drawSprite(s, 0, 0, false); ctx.restore();
-    if (on) glow(x + PW / 2, PY + 18, ch.color(), 16, 0.18);
     const rec = best.chars[id];
     if (rec && rec.won) px(x + PW - 4, PY + 3, P.gold);
   });
@@ -316,6 +316,7 @@ export function settingsItems(ctxInfo) {
   return [
     { label: 'ARENA', value: () => MAPS[settings.map].name, adjust: stepList('map') },
     { label: 'DIFFICULTY', value: () => settings.diff, adjust: stepList('diff') },
+    { label: 'VIBRATION', value: () => (canVibrate ? settings.vibe : settings.vibe + ' (NOT ON THIS DEVICE)'), adjust: (d) => { stepList('vibe')(d); buzz('heavy'); } },
     { label: 'RESET ALL SETTINGS', act: () => 'reset' },
     { label: 'ERASE SAVED RUN', act: () => 'erase', dimmed: !ctxInfo.hasSave },
     { label: 'BACK', act: () => 'back' },

@@ -11,13 +11,14 @@ export const OPTIONS = {
   map: ['PIT', 'FROST', 'FORGE', 'GRID', 'SHRINE'],
   diff: ['EASY', 'NORMAL', 'HARD', 'NIGHTMARE'],
   char: ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT'],
+  vibe: ['OFF', 'LIGHT', 'MEDIUM', 'STRONG'],
 };
 
 const DEFAULTS = {
   master: 1, music: 0.6, sfx: 0.9, track: 'AUTO', combat: 'PIT DIRGE',
   theme: 'EMBER', vibrancy: 1, bright: 1, contrast: 1, hue: 0, crt: false,
   shake: 1, flash: true, numbers: true, particles: 'HIGH',
-  map: 'PIT', diff: 'NORMAL', char: 'BLADE',
+  map: 'PIT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM',
 };
 const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], bright: [0.6, 1.4], contrast: [0.6, 1.6], hue: [0, 345], shake: [0, 1] };
 

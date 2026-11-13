@@ -47,11 +47,26 @@ export const DIFF = {
   NIGHTMARE: { hp: 1.7, spd: 1.22, count: 1.4, dmg: 1, php: -2, score: 2.2 },
 };
 
+// ---------- vibration (phones that support it; iPhone browsers don't) ----------
+const VIBE = { OFF: 0, LIGHT: 0.5, MEDIUM: 1, STRONG: 1.8 };
+// even entries buzz (scaled by the setting), odd entries are pauses
+const BUZZ = { tap: [12], hit: [16], kill: [26], heavy: [40], hurt: [90], parry: [18, 40, 28], boom: [60], ult: [40, 50, 140], boss: [140, 70, 260] };
+export const canVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+let lastBuzz = 0;
+export function buzz(kind) {
+  const k = VIBE[settings.vibe];
+  if (!k || !canVibrate) return;
+  const now = performance.now();
+  if (kind !== 'hurt' && kind !== 'boss' && now - lastBuzz < 70) return;
+  lastBuzz = now;
+  try { navigator.vibrate(BUZZ[kind].map((v, i) => (i % 2 ? v : Math.max(5, Math.round(v * k))))); } catch { /* blocked */ }
+}
+
 // ---------- feel ----------
 export const fx = { trauma: 0, shakeT: 0, freeze: 0, slowT: 0, slowF: 1, flashT: 0, flashMax: 1, flashC: '#fff', flashStrong: false, flashLog: [], cam: { x: 0, y: 0 }, ox: 0, oy: 0, hurtVig: 0 };
 export function hitstop(d) { fx.freeze = Math.max(fx.freeze, d); }
 export function slowmo(d, f) { if (fx.slowT <= 0 || f < fx.slowF) fx.slowF = f; fx.slowT = Math.max(fx.slowT, d); }
-export function shake(a) { fx.trauma = Math.min(1, fx.trauma + a); }
+export function shake(a) { fx.trauma = Math.min(1, fx.trauma + a); if (a >= 0.6) buzz('boom'); }
 export function flash(c, d, strong) {
   if (strong) {
     const now = performance.now();
@@ -302,7 +317,7 @@ export function kill(e, o) {
   if (o.ug && G.p.ultLock <= 0 && !G.cine) G.p.ult = Math.min(100, G.p.ult + 3 * G.up.focus * G.kit.ultRate);
   hitstop(o.src === 'primary' ? 0.06 : 0.03);
   shake(e.type === 'brute' ? 0.55 : 0.3);
-  A.kill();
+  A.kill(); buzz('kill');
   if (e.type === 'tick') G.booms.push({ x: e.x, y: e.y, t: 0.09, friendly: true });
   if (e.frozen > 0 && G.up.frost) shatter(e);
   if (G.up.debt && ++G.debtKills >= 20) { G.debtKills = 0; healPlayer(1); }
@@ -359,7 +374,7 @@ export function tryHurt(dmg, sx, sy) {
   p.vx = Math.cos(a) * 220; p.vy = Math.sin(a) * 220;
   if (p.state === 'attack' || p.state === 'recover') p.state = 'move';
   hitstop(0.12); shake(0.65); flash(P.blood, 0.22, false); A.hurt();
-  if (input.touch) try { navigator.vibrate?.(70); } catch { /* not supported */ }
+  buzz('hurt');
   fx.hurtVig = 1;
   bleed(p.x, p.y, a, 14, P.blood, P.bloodD, 1);
   if (G.combo >= 5) addText(p.x, p.y - 24, 'COMBO LOST', P.dust);
@@ -377,7 +392,7 @@ function perfectDodge() {
   p.inv = Math.max(p.inv, 0.45);
   addText(p.x, p.y - 24, 'PERFECT', P.volt, 1);
   addRing(p.x, p.y - 6, P.volt, 220, 0.35, 2);
-  A.perfect();
+  A.perfect(); buzz('parry');
   addCombo(1);
 }
 
@@ -538,7 +553,7 @@ function updatePlayer(dt) {
     const canAct = free || (p.state === 'attack' && p.atkT >= p.cancelAt);
     const canDash = p.state !== 'dash' && p.state !== 'skill';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
-    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); }
+    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); buzz('ult'); }
     else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; if (kit.q.use(p) !== false) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd; } }
     else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; if (kit.e.use(p) !== false) { p.energy -= kit.e.cost; p.cdE = kit.e.cd; } }
     else if (kit.melee) { if (p.bufAtk > 0 && canAct) startAttack(); }
@@ -621,6 +636,7 @@ function meleeHit(e, sw, dir) {
   if (!killed) hitstop(e.type === 'boss' ? 0.035 : sw.heavy || crit ? 0.085 : 0.05);
   shake(sw.heavy ? 0.3 : 0.17);
   A.hit(sw.heavy, crit);
+  buzz(sw.heavy || crit ? 'heavy' : 'hit');
   sparks(e.x, e.y - e.r, dir + (Math.PI / 2) * sw.dir, 7, 0.5, P.ember2, 220);
   kit.onHit?.(e, sw, dir);
 }
@@ -636,7 +652,7 @@ export function parry(s, a0) {
   s.owner = 'player'; s.vx = Math.cos(a) * 300; s.vy = Math.sin(a) * 300;
   s.dmg = pd(10 * (1 + up.mirror)); s.pierce = up.mirror ? 99 : 0; s.life = 2; s.hit = new Set(); s.c = P.volt;
   s.kind = 'orb'; s.ug = true; s.kb = 200; s.bounce = 0; s.homing = 0; s.slice = true; s.trail = true; s.accel = 0;
-  hitstop(0.09); shake(0.25); A.parry();
+  hitstop(0.09); shake(0.25); A.parry(); buzz('parry');
   addText(s.x, s.y - 10, 'PARRY', P.volt);
   addRing(s.x, s.y, P.paper, 200, 0.2, 2);
   sparks(s.x, s.y, a, 10, 0.6, P.volt, 260);
@@ -795,7 +811,7 @@ function bossFinal(e) {
   for (let i = 0; i < 3; i++) dropPick(e.x, e.y, 'heal');
   G.score += Math.round(e.def.score * (G.wave / 5) * RANKS[G.rank].m * G.D.score);
   flash(P.paper, 0.4, true); shake(1); hitstop(0.15);
-  A.ultRelease();
+  A.ultRelease(); buzz('boss');
   if (bd.final && !G.won) { G.won = true; G.victory = true; A.victory(); }
 }
 

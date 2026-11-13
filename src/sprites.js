@@ -31,27 +31,27 @@ const BODIES = {
     map: () => ({ H: '#3a2418', h: P.gold, f: '#c08a64', e: P.gold, r: '#a01e30', D: '#6a3e24', d: '#8e5a34', w: '#d8c8a0', k: '#2a1a10', K: P.gold, b: '#21160f' }),
   },
   WIZARD: {
-    eye: [6, 6],
-    rows: ['.........oo...', '.......ooHo...', '......oHHo....', '.....oHsHo....', '....oHHHHHo...', '..ooooooooooo.',
-      '....oKeKeKo...', '....obbbbbo...', '...oRbbbbbRo..', '..oRRrbbbrRRo.', '..oRrRRbRRrRo.', '..oRRRgRgRRRo.',
-      '..oRRrRRRrRRo.', '.oRRRRRRRRRRRo', '.oRrRRRRRRRrRo', '.ooooooooooooo'],
-    map: () => ({ H: '#3e2878', s: '#ffd447', K: '#160f22', e: '#62efff', b: '#e6e6f0', R: '#4a2f96', r: '#7d5ad6', g: '#62efff' }),
+    eye: [7, 5], wide: true,
+    rows: ['.......oo.......', '......oHHo......', '.....oHHHHo.....', '....oHHhHHHo....', '...oHHoooooHo...', '...oHoKeKKeoHo..',
+      '..ooHoKKmmKoHoo.', '.oSSoHoooooHoSSo', 'oSSRRoHgggHoRRSo', '.oRRrRRRRRRrRRo.', '.oRrRRRgRgRRrRo.', 'oRRoRRRRRRRRoRRo',
+      'oKKoRRrkkrRRoKKo', '.oo.oRRRRRRo.oo.', '....oRrRRrRo....', '...oRRRRRRRRo...'],
+    map: () => ({ H: '#2a1d4a', h: '#4a3580', K: '#0c0816', e: '#62efff', m: '#e6d8bd', S: '#8a7a9a', R: '#3a2766', r: '#6a4ab8', g: '#b48cff', k: '#1a1030' }),
     legs: 'robe',
   },
   NINJA: {
-    eye: [8, 5],
-    rows: ['..........o...', '.....oooooKo..', '....oNNNNoKo..', '...oNNNNNNoKo.', '...oNrrrrNNo..', '...oNeNNeNNo..',
-      '...oNNNNNNoro.', '....oNNNNorrro', '...onrrrrno.ro', '..oNNnnnnNNo..', '.oNoNNnnNNoNo.', '.oNooNNNNooNo.',
-      '..o.oNrrNo.o..', '....oNNNNo....', '....onnNNo....', '....oNNNNo....'],
-    alt: { 7: '....oNNNNorr.o', 8: '...onrrrrnorr.' },
-    map: () => ({ N: '#3e3858', n: '#615a8a', r: '#e0223f', e: '#ff5050', K: '#8a7a64', b: '#1d1a28' }),
+    eye: [7, 5], wide: true,
+    rows: ['...........oo...', '......oooooKo...', '.....oNNNNoKo...', '....oNNNNNNoKo..', '....oNMMMMMNo...', '....oNMeMMeMo...',
+      '....oNMwwwwMo.rr', '.....oMMMMMorrr.', '...oornrrrnrro..', '..oPPoNNNNNoPo..', '.oPPoNNnnNNNoNo.', '.oNo.oNNNNNo.oNo',
+      '.oKo.oNrrNNo.oKo', '.....oNNNNNo....', '.....onNNNno....', '.....oNNNNNo....'],
+    alt: { 6: '....oNMwwwwMo..r', 7: '.....oMMMMMorr.r', 8: '...oornrrrnrrro.' },
+    map: () => ({ N: '#3e3858', n: '#615a8a', M: '#c0182e', e: '#ffe08a', w: '#e6d8bd', r: '#e0223f', P: '#5a5470', K: '#cfd8e0', b: '#1d1a28' }),
   },
   MECHANIC: {
-    eye: [4, 3],
-    rows: ['....oooo......', '...oKKKKo.....', '..oKKKKKKoo...', '..oGGoGGKPPo..', '..offfffoPpo..', '..offmmfoPpo..',
-      '..oobbbboPPo..', '.oOOOwwOOOPo..', 'oOOoOOOOOoOo..', 'oggoOtTtOoOo..', 'oggoOOOOOooo..', '.oo.okkkko....',
-      '....oOOOOo....', '....oOOOOo....'],
-    map: () => ({ K: '#2a1a14', G: '#62efff', P: '#5d6878', p: '#8b98ab', f: '#d9a27a', m: '#7a3b2a', b: '#5a3a28', O: '#d8651e', w: '#e6d8bd', g: '#6a6a78', t: '#3d3250', T: '#ffd447', k: '#2a1f1a' }),
+    eye: [6, 3], wide: true,
+    rows: ['.....oooooo.....', '....oWWWWWWo.xx.', '...oWWwwwwWWoxx.', '...oWGGGGGGWoxo.', '...oWWWWWWWWoPo.', '...ooWWddWWooPo.',
+      '..oOOoooooooOPo.', '.oOOOOOhhOOOoCCo', 'oggoOOOhhOOoCcCo', 'oggoOyKyKyOoCCCC', '.oo.oOOOOOOoCcoC', '....okkTkkko.oCo',
+      '....oOOOOOOo....', '....oOOooOOo....'],
+    map: () => ({ W: '#4a4f5c', w: '#7a8090', G: '#ff9a3c', x: '#ff6a2b', P: '#3a3f4a', d: '#2a2a30', O: '#d8651e', h: '#ffd447', g: '#3a3f4a', y: '#ffd447', K: '#1a1a20', C: '#8b98ab', c: '#62efff', k: '#2a1f1a', T: '#ffd447', b: '#2a1f1a' }),
   },
   TANK: {
     eye: [8, 4],
@@ -62,14 +62,15 @@ const BODIES = {
     legs: 'heavy',
   },
   ROBOT: {
-    eye: [7, 4],
-    rows: ['......oA......', '......oo......', '....oooooo....', '...oMMMMMMo...', '..oMmVVVVVMo..', '..oMMMMMMMMo..',
-      '...oommmmoo...', '.ooMMooooMMoo.', 'oMMmMMMMMMmMMo', 'oMmoMMcCMMomMo', 'oMMoMMccMMoMMo', '.ooomMMMMmooo.',
-      '...oMmmmmMo...', '...oMMooMMo...'],
-    map: () => ({ M: '#9aa6b8', m: '#5c6678', V: '#62efff', c: '#62efff', C: '#ffffff', A: '#ff4f4f', b: '#3a4252' }),
+    eye: [7, 4], wide: true,
+    rows: ['..o..........o..', '..oA........Ao..', '...oA.oooo.Ao...', '....ooMMMMoo....', '....oMmERmMo....', '....oMMMMMMo....',
+      '..ooomMmmMmooo..', '.oCCoMMMMMMoCCo.', 'oCcCoMmVVmMoCcCo', 'oCCooMVWWVMooCCo', '.oooMMmVVmMMooo.', '...oMoMMMMoMo...',
+      '...oFoMmmMoFo...', '....ooMMMMoo....', '....oMMooMMo....'],
+    map: () => ({ M: '#8a96a8', m: '#4a5466', A: '#ff4f4f', E: '#ffffff', R: '#ff3b3b', C: '#3a4252', c: '#ff4f4f', V: '#62efff', W: '#ffffff', F: '#5c6678', b: '#3a4252' }),
   },
 };
-const ROBE_LEGS = ['..oRRRRRRRRo..', '...oooooooo...'];
+const ROBE_LEGS = ['..oRoRRoRRoRRo..', '..o.o..o..o.o...'];
+const ROBE_LEGS_ALT = ['..oRRoRRoRRoRo..', '...o.o..o..o.o..'];
 const HEAVY = {
   idle: ['...oSSo..oSSo...', '...oooo..oooo...'], r0: ['..oSSo....oSSo..', '..oooo....oooo..'], r1: ['....oSSooSSo....', '....oooooooo....'],
   r2: ['...oSSo...oSSo..', '...oooo...oooo..'], r3: ['....oSSooSSo....', '.....oooooo.....'],
@@ -79,7 +80,8 @@ function buildChar(id) {
   const d = BODIES[id];
   const map = { o: P.ink0, ...d.map() };
   const body = (alt) => d.rows.map((r, i) => (alt && d.alt && d.alt[i]) || r);
-  const legs = (k) => (d.legs === 'robe' ? ROBE_LEGS : d.legs === 'heavy' ? HEAVY[k] : LEGS[k]);
+  const pad = (rows) => (d.wide ? rows.map((r) => '.' + r + '.') : rows);
+  const legs = (k) => (d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : d.legs === 'heavy' ? HEAVY[k] : pad(LEGS[k]));
   const sp = (alt, k) => makeSprite([...body(alt), ...legs(k)], map);
   const set = { idle: sp(false, 'idle'), run: [sp(false, 'r0'), sp(true, 'r1'), sp(false, 'r2'), sp(true, 'r3')] };
   set.eye = d.eye;
