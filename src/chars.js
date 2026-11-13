@@ -270,7 +270,7 @@ export const CHARS = {
         shoot({ x: hx + Math.cos(a) * 8, y: hy + Math.sin(a) * 8, a, sp: 400, dmg: pd(2), kb: 70, life: 0.7, kind: 'bullet', pierce: G.up.pierce, c: P.gold });
         muzzle(hx + Math.cos(a) * 8, hy + Math.sin(a) * 8, a, P.gold, 3);
         part(hx, hy, -Math.sin(a) * 50 + rnd(-20, 20), Math.cos(a) * 50, 0.5, P.gold2, { z: 6, vz: 60, g: 300, drag: 2 });
-        k.flashT = 0.04; A.gun(); shake(0.04);
+        k.flashT = 0.04; A.charAtk('GUNNER'); shake(0.04);
         p.vx -= Math.cos(a) * 20; p.vy -= Math.sin(a) * 20;
         if (k.ammo <= 0) { k.reload = 0.9 / (1 + 0.3 * G.up.mag); A.click(); }
       }
@@ -337,7 +337,7 @@ export const CHARS = {
         k.fireT = 0.3 / G.up.spd; k.castT = 0.1;
         const [hx, hy] = hand(p, Math.cos(p.aim) < 0);
         shoot({ x: hx + Math.cos(p.aim) * 6, y: hy - 6, a: p.aim, sp: 210, dmg: pd(5), kb: 80, life: 1.4, kind: 'arcane', r: 3, c: '#b48cff', homing: 2.5, splash: { R: 14, dmg: pd(2) } });
-        A.magic();
+        A.charAtk('WIZARD');
       }
     },
     update(p, dt) {
@@ -592,7 +592,9 @@ export const CHARS = {
         k.tick -= dt;
         if (k.tick <= 0) {
           k.tick = 0.1 / G.up.spd;
-          for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, hx, hy, ex, ey) < e.r + 4) damage(e, pd(2), { dir: a, kb: 30, src: 'primary', ug: true });
+          let hits = 0;
+          for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, hx, hy, ex, ey) < e.r + 4) { damage(e, pd(2), { dir: a, kb: 30, src: 'primary', ug: true }); hits++; }
+          if (hits) A.charHit('ROBOT', false, false, G.combo);
           for (const s of G.shots) if (s.owner === 'enemy' && !s.noparry && segDist(s.x, s.y, hx, hy, ex, ey) < 5) { s.dead = true; sparks(s.x, s.y, rnd(TAU), 5, Math.PI, P.hex); }
         }
         if (Math.random() < 0.6) sparks(ex, ey, a + Math.PI, 2, 1, P.volt, 120);
@@ -847,7 +849,7 @@ CHARS.DEV = {
         const a = p.aim + (i - (n - 1) / 2) * 0.14;
         shoot({ x: hx + Math.cos(a) * 6, y: hy + Math.sin(a) * 6, a, sp: 330, dmg: pd(2), kb: 40, life: 0.75, kind: 'packet', c: GREEN, trail: false, onHit: (e, killed) => { if (!killed) bugHit(e); } });
       }
-      k.flashT = 0.04; A.pew();
+      k.flashT = 0.04; A.charAtk('DEV', false, v);
     }
   },
   update(p, dt) {
@@ -1010,7 +1012,7 @@ const AURA = {
   BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
   TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
 };
-const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#ffe08a', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
+const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#ff4f7a', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
 for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].drawAura = AURA[id]; CHARS[id].eyeColor = EYES[id]; }
 
 // ---------- heroes: names, lore, and the mission that unlocks each one ----------
@@ -1019,7 +1021,7 @@ const META = {
   BLADE: { hero: 'KAEL', lore: ['THE LAST GUARD OF THE PIT. HIS BLADE', 'HOLDS THE FINAL EMBER OF THE OLD SUN.'] },
   GUNNER: { hero: 'VEGA HALE', lore: ['A BOUNTY HUNTER WHO FOLLOWED ONE', 'BOUNTY TOO DEEP INTO THE PIT.'], mission: ['REACH WAVE 10', () => 'BEST WAVE ' + pct(best.wave, 10)] },
   WIZARD: { hero: 'MORROW', lore: ['A WARLOCK WHO TRADED HIS FACE', 'FOR THE NAMES OF THE STARS.'], mission: ['LAND A 100-HIT COMBO', () => 'BEST COMBO ' + pct(best.combo, 100)] },
-  NINJA: { hero: 'RIN', lore: ['THE RED ONI CLAN SENT HER TO KILL', 'THE KING. SHE IS STILL ON THE JOB.'], mission: ['25 PERFECT DODGES IN ONE RUN', () => 'BEST ' + pct(best.perfects, 25)] },
+  NINJA: { hero: 'RIN', lore: ['A STUDENT BY DAY, THE LAST HEIR OF', 'THE RED ONI CLAN BY NIGHT.'], mission: ['25 PERFECT DODGES IN ONE RUN', () => 'BEST ' + pct(best.perfects, 25)] },
   MECHANIC: { hero: 'RIVET', lore: ['A SALVAGER WHO BUILDS HER WEAPONS', 'FROM WHAT THE COLOSSUS LEFT BEHIND.'], mission: ['KILL 1500 ENEMIES IN TOTAL', () => 'KILLS ' + pct(best.kills, 1500)] },
   TANK: { hero: 'GROM', lore: ["THE LAST KNIGHT OF THE KING'S GUARD.", 'HE CAME BACK TO END WHAT HE SERVED.'], mission: ['BEAT A BOSS WITHOUT GETTING HIT', () => 'ANY BOSS, ANY FIGHTER'] },
   ROBOT: { hero: 'UNIT-7', lore: ['A WAR MACHINE THAT WOKE UP WITH', 'ONE ORDER LEFT: STOP THE KING.'], mission: ['DEFEAT THE ASHEN KING', () => (best.won ? 'DONE' : 'THE KING WAITS AT WAVE 20')] },

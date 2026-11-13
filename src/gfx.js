@@ -93,7 +93,8 @@ export function mix(a, b, k) {
   const ch = (sh) => Math.round(((pa >> sh) & 255) * (1 - k) + ((pb >> sh) & 255) * k);
   return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
 }
-export function makeSprite(rows, map) {
+// eyes: the characters in `rows` that are eyes. They get a highlight and a closed-eye frame for blinking.
+export function makeSprite(rows, map, eyes) {
   const h = rows.length, w = Math.max(...rows.map((r) => r.length));
   const build = (pick, flip) => {
     const c = makeCanvas(w, h), g = c.getContext('2d');
@@ -108,15 +109,28 @@ export function makeSprite(rows, map) {
     return c;
   };
   const s = { w, h, cache: {} };
-  // icons use '#'; everything else gets automatic shading: a rim light on top edges, shadow on bottom edges
+  // icons use '#'; every other sprite gets an automatic detail pass
   const shade = !map['#'];
-  const edge = (c) => !c || c === '.' || c === 'o';
+  const at = (x, y) => rows[y]?.[x];
+  const empty = (c) => !c || c === '.';
+  const edge = (c) => empty(c) || c === 'o';
+  const solid = (c) => !edge(c) && map[c] && map[c].length === 7;
   const lit = (ch, x, y) => {
     const col = map[ch];
-    if (!col || !shade || ch === 'o' || col.length !== 7) return col;
-    if (edge(rows[y - 1]?.[x])) return mix(col, '#ffffff', 0.22);
-    if (edge(rows[y + 1]?.[x])) return mix(col, '#000000', 0.28);
-    if (edge(rows[y]?.[x + 1]) && !edge(rows[y]?.[x - 1])) return mix(col, '#000000', 0.14);
+    if (!col || !shade || col.length !== 7) return col;
+    if (ch === 'o') {
+      // selective outline: inner lines take a dark shade of the color beside them, the silhouette stays near black
+      const outer = [[0, -1], [1, 0], [0, 1], [-1, 0]].some(([dx, dy]) => empty(at(x + dx, y + dy)));
+      const nb = [[0, -1], [-1, 0], [1, 0], [0, 1]].map(([dx, dy]) => at(x + dx, y + dy)).find(solid);
+      return nb ? mix(map[nb], '#05040a', outer ? 0.82 : 0.6) : col;
+    }
+    if (eyes && eyes.includes(ch)) return col;
+    if (edge(at(x, y - 1))) return mix(col, '#ffffff', 0.22);
+    if (edge(at(x, y + 1))) return mix(col, '#000000', 0.3);
+    if (edge(at(x + 1, y)) && !edge(at(x - 1, y))) return mix(col, '#000000', 0.16);
+    // a dithered core shadow two pixels above a bottom edge gives surfaces texture
+    if (edge(at(x, y + 2)) && (x + y) % 2 === 0) return mix(col, '#000000', 0.12);
+    if (edge(at(x - 1, y)) && (x + y) % 2 === 1) return mix(col, '#ffffff', 0.08);
     return col;
   };
   const buildLit = (flip) => {
@@ -129,6 +143,13 @@ export function makeSprite(rows, map) {
       g.fillStyle = col;
       g.fillRect(flip ? w - 1 - x : x, y, 1, 1);
     }
+    // eye highlights: the top-left pixel of each eye turns near white
+    if (eyes) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const ch = rows[y][x];
+      if (!eyes.includes(ch) || eyes.includes(at(x - 1, y)) || eyes.includes(at(x, y - 1))) continue;
+      g.fillStyle = mix(map[ch], '#ffffff', 0.75);
+      g.fillRect(flip ? w - 1 - x : x, y, 1, 1);
+    }
     return c;
   };
   s.n = buildLit(false);
@@ -137,7 +158,21 @@ export function makeSprite(rows, map) {
     const k = col + (flip ? 'f' : 'n');
     return s.cache[k] || (s.cache[k] = build((ch) => (map[ch] ? col : null), flip));
   };
+  if (eyes) {
+    // the blink frame: eyes become a dark lid line
+    const closed = rows.map((r) => [...r].map((c) => (eyes.includes(c) ? 'o' : c)).join(''));
+    s.blink = makeSprite(closed, map);
+  }
   return s;
+}
+
+// breathing: the upper body is drawn `off` pixels lower than the legs
+export function drawBreath(s, x, y, flip, tint, off, split = 0.58) {
+  if (!off) { drawSprite(s, x, y, flip, tint); return; }
+  const img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, cut = Math.round(s.h * split);
+  x = Math.round(x); y = Math.round(y);
+  C.drawImage(img, 0, 0, s.w, cut, x, y + off, s.w, cut);
+  C.drawImage(img, 0, cut, s.w, s.h - cut, x, y + cut, s.w, s.h - cut);
 }
 
 export function drawSprite(s, x, y, flip, tint) {

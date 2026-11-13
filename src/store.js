@@ -4,8 +4,8 @@ const KEY_BEST = 'ashblade.best.v2';
 
 // Every choice the settings menu can make. Saved values outside these lists are thrown away.
 export const OPTIONS = {
-  track: ['AUTO', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE', 'ASHEN HYMN', 'WARDEN', 'BROOD', 'COLOSSUS', 'KINGFALL', 'VOID', 'TEMPEST', 'REFLECTION', 'ECLIPSE', 'OFF'],
-  combat: ['PIT DIRGE', 'BLOODRUSH', 'NEON PULSE'],
+  track: ['AUTO', 'HYPERDRIVE', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE', 'ASHEN HYMN', 'WARDEN', 'BROOD', 'COLOSSUS', 'KINGFALL', 'VOID', 'TEMPEST', 'REFLECTION', 'ECLIPSE', 'OFF'],
+  combat: ['HYPERDRIVE', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE'],
   theme: ['EMBER', 'FROST', 'TOXIC', 'BLOOD MOON', 'ROYAL', 'NOIR'],
   particles: ['HIGH', 'LOW'],
   map: ['PIT', 'FROST', 'FORGE', 'GRID', 'SHRINE'],
@@ -16,14 +16,14 @@ export const OPTIONS = {
 };
 
 const DEFAULTS = {
-  master: 1, music: 0.6, sfx: 0.9, track: 'AUTO', combat: 'PIT DIRGE',
+  master: 1, music: 0.6, sfx: 0.9, track: 'AUTO', combat: 'HYPERDRIVE',
   theme: 'EMBER', vibrancy: 1, bright: 1, contrast: 1, hue: 0, crt: false,
   shake: 1, flash: true, numbers: true, particles: 'HIGH',
   map: 'PIT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC',
 };
 const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], bright: [0.6, 1.4], contrast: [0.6, 1.6], hue: [0, 345], shake: [0, 1] };
 
-export const settings = { ...DEFAULTS };
+export const settings = { ...DEFAULTS, ver: 3 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
 export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0 };
 
@@ -46,6 +46,8 @@ export function loadAll() {
     for (const k in RANGES) settings[k] = num(s[k], RANGES[k][0], RANGES[k][1], DEFAULTS[k]);
     for (const k of ['crt', 'flash', 'numbers']) settings[k] = typeof s[k] === 'boolean' ? s[k] : DEFAULTS[k];
     for (const k in OPTIONS) settings[k] = OPTIONS[k].includes(s[k]) ? s[k] : DEFAULTS[k];
+    // settings saved before HYPERDRIVE existed move to it once
+    if (s.ver !== 3) { settings.combat = 'HYPERDRIVE'; settings.track = 'AUTO'; }
   }
   const b = read(KEY_BEST);
   if (b) {

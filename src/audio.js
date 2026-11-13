@@ -1,5 +1,5 @@
 // All sound is synthesized with Web Audio: no files, no network.
-let ac = null, master, sfx, mus, crunch, nbuf, delayIn, delayNode, verbIn, padDuck, bassDuck;
+let sfxRev = null, ac = null, master, sfx, mus, crunch, nbuf, delayIn, delayNode, verbIn, padDuck, bassDuck, kickDist;
 const layers = {};
 const loops = {};
 const last = {};
@@ -57,7 +57,7 @@ const TRACKS = {
   },
   // ----- battle music -----
   'PIT DIRGE': {
-    harm: true, stab: true, wobble: true, hey: [[], [12], [], [12, 14]], bpm: 132, prog: [[38, DM], [34, MA], [36, MA], [33, MA]],
+    harm: true, stab: true, wobble: true, hey: [[], [12], [], [12, 14]], bpm: 150, prog: [[38, DM], [34, MA], [36, MA], [33, MA]],
     kick: 'x...x...x...x...', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.',
     bass: same('. . 0 12 . . 0 12 . . 0 12 . . 0 12'), bassLen: 1.6, bassCut: 1800,
     lead: bars('12 . 10 . 12 . 15 . 14 . 12 . 10 . 7 .|8 . . 10 12 . . . 10 . 8 . 7 . . .|7 . 10 . 12 . 14 . 15 . 14 . 12 . 10 .|13 . . . 16 . . . 19 . . . 13 . 12 .'),
@@ -71,7 +71,7 @@ const TRACKS = {
     leadType: 'sawtooth', leadVol: 0.04, leadOct: 0, supersaw: true, arp: [0, 2, 3, 2, 0, 2, 3, 2, 0, 2, 3, 2, 0, 2, 3, 2],
   },
   'NEON PULSE': {
-    harm: true, stab: true, hey: [[], [], [], [12]], bpm: 124, prog: [[38, DM], [34, MA], [41, MA], [36, MA]],
+    harm: true, stab: true, hey: [[], [], [], [12]], bpm: 140, prog: [[38, DM], [34, MA], [41, MA], [36, MA]],
     kick: 'x...x...x...x...', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.',
     bass: same('. . 12 . . . 12 . . . 12 . . . 12 0'), bassLen: 1.8, bassCut: 1700,
     lead: bars('7 . . 10 . . 12 . 14 . . 12 . 10 . .|5 . . 8 . . 10 . 12 . . 10 . 8 . .|3 . . 7 . . 10 . 15 . . 14 . 12 . .|7 . . . 5 . . . 2 . . . 0 . . .'),
@@ -79,7 +79,7 @@ const TRACKS = {
   },
   // ----- one theme per boss -----
   WARDEN: {
-    stab: true, wobble: true, harm: true, hey: [[4, 12], [4, 12], [4, 12], [4, 12, 14]], bpm: 150, prog: [[38, DM], [36, MA], [34, MA], [33, MA]],
+    stab: true, wobble: true, harm: true, hey: [[4, 12], [4, 12], [4, 12], [4, 12, 14]], bpm: 162, prog: [[38, DM], [36, MA], [34, MA], [33, MA]],
     kick: 'x...x...x...x...', snare: '....x.......x..x', hat: 'xxxxxxxxxxxxxxxx', tom: '............xxxx',
     bass: bars('0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 . 12 . 0 . 12 .|0 . 12 . 0 . 12 . 0 12 0 12 0 . 12 .'),
     bassLen: 1.5, bassCut: 1600,
@@ -94,14 +94,14 @@ const TRACKS = {
     leadType: 'square', leadVol: 0.04, leadOct: 0,
   },
   COLOSSUS: {
-    stab: true, wobble: true, harm: true, hey: [[], [12], [], [12]], bpm: 128, prog: [[38, DM], [38, DM], [41, MA], [39, MA]],
+    stab: true, wobble: true, harm: true, hey: [[], [12], [], [12]], bpm: 142, prog: [[38, DM], [38, DM], [41, MA], [39, MA]],
     kick: 'x..x..x.x..x..x.', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.', metal: true, tom: '.......x.......x',
     bass: same('0 . . 0 . . 0 . 0 . . 0 . 0 0 .'), bassLen: 1.2, bassCut: 700, dist: true,
     lead: bars('0 . . 3 . . 5 . 6 . 5 . 3 . . .|0 . . 3 . . 5 . 8 . 6 . 5 . . .|3 . . 7 . . 8 . 10 . 8 . 7 . . .|1 . . 3 . . 1 . 0 . . . -2 . . .'),
     leadType: 'square', leadVol: 0.06, leadOct: 0, arp: [0, 0, 3, 0, 0, 3, 0, 2, 0, 0, 3, 0, 0, 3, 2, 1],
   },
   KINGFALL: {
-    stab: true, choir: true, harm: true, hey: [[], [], [], [12, 13, 14]], bpm: 150, prog: [[38, DM], [39, MA], [38, DM], [37, [0, 3, 6]]],
+    stab: true, choir: true, harm: true, hey: [[], [], [], [12, 13, 14]], bpm: 160, prog: [[38, DM], [39, MA], [38, DM], [37, [0, 3, 6]]],
     kick: 'x..x..x...x..x..', snare: '....x.......x.xx', hat: 'x.x.x.x.x.x.x.x.', tom: 'x.......x...x.x.', clap: '............x...',
     bass: bars('0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 0 .|0 0 . 0 0 . 0 . 0 0 . 0 12 . 1 .'),
     bassLen: 1.4, bassCut: 900, dist: true,
@@ -111,7 +111,7 @@ const TRACKS = {
 };
 Object.assign(TRACKS, {
   VOID: {
-    wobble: true, choir: true, harm: true, bpm: 132, prog: [[38, DM], [39, MA], [41, MA], [39, MA]],
+    wobble: true, choir: true, harm: true, bpm: 150, prog: [[38, DM], [39, MA], [41, MA], [39, MA]],
     kick: 'x..x..x.x.....x.', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', tom: '..............xx',
     bass: same('0 . . 0 . 0 . . 0 . . 0 . 1 . 0'), bassLen: 1.3, bassCut: 900, dist: true,
     lead: bars('0 . . 1 . . 3 . 1 . . 0 . -2 . .|0 . . 1 . . 5 . 3 . . 1 . 0 . .|3 . . 5 . . 6 . 5 . . 3 . 1 . .|1 . . 0 . . -2 . 0 . . . . . . .'),
@@ -132,14 +132,23 @@ Object.assign(TRACKS, {
     leadType: 'sawtooth', leadVol: 0.045, leadOct: 0, supersaw: true, arp: [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3],
   },
 });
+// the default battle music: hard-kick EDM at 150 bpm
+TRACKS.HYPERDRIVE = {
+  hard: true, stab: true, harm: true, hey: [[], [12], [], [4, 12, 14]], bpm: 150,
+  prog: [[38, DM], [34, MA], [41, MA], [36, MA]],
+  kick: 'x...x...x...x...', snare: '....x.......x...', clap: '....x.......x...', hat: '..x...x...x...x.', tom: '..............xx',
+  bass: same('. . 0 12 . . 0 12 . . 0 12 . . 0 12'), bassLen: 1.2, bassCut: 2000, dist: true,
+  lead: bars('12 . 12 . 15 . 12 . 17 . 15 . 12 . 10 .|10 . 10 . 14 . 10 . 15 . 14 . 10 . 8 .|15 . 15 . 19 . 15 . 20 . 19 . 15 . 12 .|14 . 14 . 17 . 14 . 19 . 17 . 14 . 12 .'),
+  leadType: 'sawtooth', leadVol: 0.045, leadOct: 0, supersaw: true, arp: [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3],
+};
 // the Mirror plays the battle theme backwards, slower and sung
 TRACKS.REFLECTION = { ...TRACKS['PIT DIRGE'], bpm: 146, leadType: 'triangle', leadOct: 12, bell: true, choir: true, hey: null, lead: TRACKS['PIT DIRGE'].lead.map((b) => [...b].reverse()) };
 
 // what plays in each moment when the soundtrack is AUTO, and how loud each layer is
 const SCENES = {
-  title: { track: 'ASHEN HYMN', pad: 1, bass: 0.7, drums: 0.5, arp: 0, lead: 1 },
-  calm: { track: 'ASHEN HYMN', pad: 1, bass: 0.5, drums: 0, arp: 0, lead: 0.7 },
-  fight: { track: 'COMBAT', pad: 0.4, bass: 1, drums: 1, arp: 0.55, lead: 0 },
+  title: { track: 'HYPERDRIVE', pad: 0.7, bass: 0.8, drums: 0.85, arp: 0.6, lead: 1 },
+  calm: { track: 'HYPERDRIVE', pad: 1, bass: 0.5, drums: 0.35, arp: 0.5, lead: 0.6 },
+  fight: { track: 'COMBAT', pad: 0.5, bass: 1, drums: 1, arp: 0.7, lead: 0.75 },
   hot: { track: 'COMBAT', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
   boss_warden: { track: 'WARDEN', pad: 0.5, bass: 1, drums: 1, arp: 0.8, lead: 1 },
   boss_brood: { track: 'BROOD', pad: 0.4, bass: 1, drums: 1, arp: 0, lead: 1 },
@@ -157,6 +166,7 @@ const S16 = () => 60 / cur.bpm / 4;
 
 function kick(t) {
   tone('sine', 160, 42, 0.22, 1, layers.drums, t); tone('sine', 60, 38, 0.3, 0.5, layers.drums, t);
+  if (cur.hard) { tone('sine', 230, 48, 0.24, 1, kickDist, t); hiss(0.02, 0.4, 'bandpass', 2500, 1500, 2, layers.drums, t); }
   hiss(0.012, 0.3, 'highpass', 3000, 3000, 1, layers.drums, t);
   for (const d of [padDuck, bassDuck]) { d.gain.cancelScheduledValues(t); d.gain.setValueAtTime(d === padDuck ? 0.35 : 0.55, t); d.gain.linearRampToValueAtTime(1, t + 0.2); }
 }
@@ -356,6 +366,9 @@ export const A = {
     const verb = ac.createConvolver(), ir = ac.createBuffer(2, ac.sampleRate * 2.2, ac.sampleRate);
     for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / ch.length, 3); }
     verb.buffer = ir;
+    // a reverb send for sound effects, so it follows the effects volume, not the music volume
+    const sv = ac.createConvolver(); sv.buffer = ir;
+    sfxRev = ac.createGain(); sfxRev.gain.value = 0.45; sfxRev.connect(sv); sv.connect(sfx);
     verbIn = ac.createGain(); verbIn.gain.value = 0.32;
     const vlp = ac.createBiquadFilter(); vlp.type = 'lowpass'; vlp.frequency.value = 4000;
     verbIn.connect(vlp); vlp.connect(verb); verb.connect(mus);
@@ -367,6 +380,11 @@ export const A = {
       if (k !== 'bass' && k !== 'drums') layers[k].connect(verbIn);
     }
     mcr = ac.createWaveShaper(); mcr.curve = curve;
+    kickDist = ac.createWaveShaper();
+    const kc = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; kc[i] = Math.tanh(x * 7); }
+    kickDist.curve = kc;
+    const kg = ac.createGain(); kg.gain.value = 0.32; kickDist.connect(kg); kg.connect(layers.drums);
     const mg = ac.createGain(); mg.gain.value = 0.45; mcr.connect(mg); mg.connect(layers.bass);
     delayIn = ac.createGain(); delayIn.gain.value = 0.3;
     delayNode = ac.createDelay(2);
@@ -435,7 +453,14 @@ export const A = {
     if (crit) tone('triangle', 2400, 2300, 0.3, 0.12);
   },
   tick() { if (gate('tick', 0.045)) { tone('sine', 220, 80, 0.06, 0.4, crunch); hiss(0.03, 0.2, 'highpass', 3000, 2000, 1); } },
-  kill() { if (gate('kill', 0.04)) { tone('sine', 120, 28, 0.32, 1, crunch); hiss(0.3, 0.5, 'lowpass', 4200, 180, 0.8); } },
+  kill(combo = 0) {
+    if (!gate('kill', 0.04)) return;
+    const t = ac.currentTime, pm = 1 + Math.min(combo, 60) * 0.008;
+    v('sine', 130, 26, 0.36, 1, t, { dest: crunch });
+    n(0.3, 0.5, 'lowpass', 4200, 180, 0.8, t);
+    n(0.2, 0.22, 'bandpass', 7000, 2200, 2.5, t + 0.02, { rev: 0.5 });
+    v('triangle', 1320 * pm, 1310 * pm, 0.14, 0.06, t + 0.03, { rev: 0.6 });
+  },
   slice() { if (gate('slice', 0.04)) hiss(0.1, 0.35, 'bandpass', 5000, 9500, 2); },
   dash() { if (gate('dash', 0.05)) { hiss(0.17, 0.32, 'bandpass', 280, 1900, 1.2); tone('sine', 300, 760, 0.12, 0.05); } },
   parry() {
@@ -513,3 +538,107 @@ export const A = {
   ultCut(i) { if (!ac) return; hiss(0.05, 0.4, 'bandpass', 6000, 9500, 3); tone('sine', 1800 + i * 70, 1700 + i * 70, 0.07, 0.05); },
   ultRelease() { if (!ac) return; last.boom = -1; this.boom(2.6); tone('sine', 2600, 2400, 1.3, 0.1); hiss(1, 0.5, 'lowpass', 8000, 200, 0.7); },
 };
+
+// ---------- signature sounds: every fighter attacks and hits differently ----------
+function v(type, f0, f1, dur, vol, t, o = {}) {
+  const osc = ac.createOscillator();
+  osc.type = type; osc.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+  const e = ac.createGain();
+  env(e, t, o.a ?? 0.002, vol, dur);
+  osc.connect(e); e.connect(o.dest || sfx);
+  if (o.rev && sfxRev) { const g = ac.createGain(); g.gain.value = o.rev; e.connect(g); g.connect(sfxRev); }
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+function n(dur, vol, type, f0, f1, q, t, o = {}) {
+  hiss(dur, vol, type, f0, f1, q, o.dest || sfx, t, o.a ?? 0.002);
+  if (o.rev && sfxRev) hiss(dur, vol * o.rev, type, f0, f1, q, sfxRev, t, o.a ?? 0.002);
+}
+// inharmonic partials ring like struck metal
+const metal = (fs, dur, vol, t, rev = 0.4) => fs.forEach((f) => v('sine', f, f * 0.997, dur, vol / fs.length, t, { rev }));
+const semi = (f, s) => f * Math.pow(2, s / 12);
+
+const ATK = {
+  BLADE(h, step, t) {
+    n(h ? 0.22 : 0.13, h ? 0.6 : 0.45, 'bandpass', h ? 500 : 900, h ? 6000 : 4500, 1.6, t);
+    v('sine', h ? 2600 : 3000 + step * 200, h ? 1500 : 2200, 0.12, 0.06, t, { rev: 0.3 });
+    if (h) v('sawtooth', 120, 60, 0.18, 0.12, t, { dest: crunch });
+  },
+  GUNNER(h, step, t) {
+    n(0.012, 0.9, 'highpass', 4000, 4000, 0.7, t);
+    v('square', 1100, 140, 0.05, 0.28, t, { dest: crunch });
+    v('sine', 170, 45, 0.14, 0.7, t, { dest: crunch });
+    n(0.2, 0.3, 'bandpass', 2200, 500, 0.8, t + 0.01, { rev: 0.5 });
+  },
+  WIZARD(h, step, t) {
+    [0, 4, 7].forEach((s, i) => v('triangle', semi(880, s), semi(880, s) * 1.02, 0.09, 0.07, t + i * 0.025, { rev: 0.6 }));
+    n(0.15, 0.12, 'highpass', 6000, 9000, 1, t, { rev: 0.5 });
+    v('sine', 220, 440, 0.12, 0.08, t);
+  },
+  NINJA(h, step, t) {
+    n(h ? 0.12 : 0.06, h ? 0.5 : 0.42, 'bandpass', h ? 1500 : 2600, h ? 8500 : 7500, 2.5, t);
+    if (h) v('sine', 3400, 3100, 0.28, 0.05, t + 0.03, { rev: 0.5 });
+  },
+  MECHANIC(h, step, t) {
+    n(h ? 0.26 : 0.17, 0.5, 'bandpass', 250, 1500, 1.2, t);
+    v('sawtooth', 300, 640, 0.1, 0.035, t);
+    v('sine', 160, 90, 0.15, 0.12, t);
+  },
+  TANK(h, step, t) {
+    n(h ? 0.42 : 0.3, 0.65, 'bandpass', 140, 900, 1, t);
+    v('sine', 90, 48, 0.32, 0.25, t, { dest: crunch });
+    if (h) n(0.3, 0.2, 'lowpass', 800, 100, 1, t + 0.1, { rev: 0.4 });
+  },
+  ROBOT(h, step, t) { v('square', 600, 1200, 0.06, 0.05, t); v('sawtooth', 90, 180, 0.08, 0.06, t); },
+  DEV(h, step, t) {
+    const f = [988, 1319, 1568, 1175][step % 4];
+    v('square', f, f, 0.035, 0.07, t); v('square', f * 2, f * 2, 0.02, 0.03, t + 0.035);
+  },
+};
+const HIT = {
+  BLADE(h, crit, pm, t) {
+    v('sine', 190 * pm, 42, h ? 0.22 : 0.14, 1, t, { dest: crunch });
+    n(0.06, 0.6, 'highpass', 3000, 1500, 0.8, t);
+    n(0.12, 0.25, 'lowpass', 1800, 300, 1, t);
+    metal([1870 * pm, 2790 * pm], h ? 0.35 : 0.2, 0.18, t);
+    if (crit) metal([3100 * pm, 4200 * pm], 0.5, 0.16, t, 0.7);
+  },
+  GUNNER(h, crit, pm, t) {
+    n(0.04, 0.5, 'bandpass', 2600 * pm, 900, 1.2, t);
+    v('sine', 260 * pm, 80, 0.07, 0.6, t, { dest: crunch });
+    if (crit) v('triangle', 2400, 2200, 0.25, 0.1, t, { rev: 0.6 });
+  },
+  WIZARD(h, crit, pm, t) {
+    [0, 7, 12].forEach((s, i) => v('sine', semi(660 * pm, s), semi(660 * pm, s), 0.3, 0.07, t + i * 0.012, { rev: 0.7 }));
+    n(0.1, 0.3, 'bandpass', 4000, 9000, 3, t);
+    v('sine', 140, 50, 0.12, 0.5, t, { dest: crunch });
+  },
+  NINJA(h, crit, pm, t) {
+    v('square', 2400 * pm, 1200, 0.03, 0.12, t);
+    n(0.04, 0.5, 'highpass', 4500, 2500, 1, t);
+    v('sine', 170, 60, 0.08, 0.6, t, { dest: crunch });
+    if (h || crit) v('sine', 3600, 3500, 0.35, 0.07, t, { rev: 0.6 });
+  },
+  MECHANIC(h, crit, pm, t) {
+    metal([523 * pm, 791 * pm, 1231 * pm, 1677 * pm], h ? 0.7 : 0.45, 0.32, t, 0.5);
+    v('sine', 150, 45, 0.18, 0.9, t, { dest: crunch });
+  },
+  TANK(h, crit, pm, t) {
+    v('sine', 110 * pm, 28, h ? 0.5 : 0.32, 1, t, { dest: crunch });
+    n(h ? 0.45 : 0.3, 0.7, 'lowpass', 1600, 80, 0.8, t, { rev: 0.4 });
+    n(0.08, 0.4, 'highpass', 2000, 800, 1, t);
+  },
+  ROBOT(h, crit, pm, t) {
+    for (let i = 0; i < 3; i++) v('square', 800 + Math.random() * 1400, 300, 0.025, 0.06, t + i * 0.015);
+    n(0.06, 0.3, 'highpass', 5000, 8000, 3, t);
+  },
+  DEV(h, crit, pm, t) {
+    [0, 7, 12, 19].forEach((s, i) => v('square', semi(523 * pm, s), semi(523 * pm, s), 0.025, 0.06, t + i * 0.022));
+    n(0.05, 0.2, 'highpass', 6000, 6000, 1, t);
+  },
+};
+Object.assign(A, {
+  charAtk(id, heavy, step = 0) { if (gate('atk', 0.025)) (ATK[id] || ATK.BLADE)(heavy, step, ac.currentTime); },
+  // hits climb a little in pitch as the combo grows
+  charHit(id, heavy, crit, combo = 0) { if (gate('chit', 0.03)) (HIT[id] || HIT.BLADE)(heavy, crit, 1 + Math.min(combo, 60) * 0.006, ac.currentTime); },
+});

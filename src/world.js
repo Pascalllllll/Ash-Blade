@@ -1,4 +1,4 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, textO } from './gfx.js';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js';
 import { SPR } from './sprites.js';
 import { A } from './audio.js';
 import { input, keyDown, keyHit } from './input.js';
@@ -320,7 +320,9 @@ export const pd = (x) => Math.max(1, Math.round(x * G.up.dmg));
 export function sprFor(e) {
   const frames = e.type === 'boss' ? (e.boss === 'mirror' ? [SPR.chars[G.char].idle, ...SPR.chars[G.char].run] : SPR[e.boss]) : SPR[e.type];
   const speed = e.type === 'wisp' ? 4 : e.type === 'tick' || e.type === 'larva' ? 14 : e.type === 'egg' ? 3 : 7;
-  return frames[Math.floor(e.anim * speed) % frames.length];
+  const f = frames[Math.floor(e.anim * speed) % frames.length];
+  // everyone blinks now and then, each on their own clock
+  return f.blink && (e.anim * 0.8 + e.x * 0.013) % 3.3 < 0.14 ? f.blink : f;
 }
 
 export function damage(e, dmg, o) {
@@ -379,7 +381,7 @@ export function kill(e, o) {
   if (o.ug && G.p.ultLock <= 0 && !G.cine) G.p.ult = Math.min(100, G.p.ult + 3 * G.up.focus * G.kit.ultRate);
   hitstop(o.src === 'primary' ? 0.06 : 0.03);
   shake(e.type === 'brute' ? 0.55 : 0.3);
-  A.kill(); buzz('kill');
+  A.kill(G.combo); buzz('kill');
   if (e.type === 'tick') G.booms.push({ x: e.x, y: e.y, t: 0.09, friendly: true });
   if (G.up.evoEmber && e.burn > 0) { G.booms.push({ x: e.x, y: e.y, t: 0.05, friendly: true, R: 40, dmg: 14 }); G.zones.push({ type: 'burn', x: e.x, y: e.y, r: 22, t: 0, life: 2.5 }); }
   if (G.up.evoWpn && o.ug) spirits(e.x, e.y - e.r - 4, 5);
@@ -714,7 +716,7 @@ function startAttack() {
   p.swingHit = new Set();
   const col = RANKS[G.rank].l === 'SSS' ? 'gold' : m.col;
   G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach, arc: s.arc, dir: p.swing.dir, t: 0, life: s.heavy ? 0.24 : Math.min(0.19, s.dur * 0.9), th: s.th, col });
-  if (m.heavySfx && s.heavy) A.heavySwing(); else A.swing(s.heavy ? 2 : 0);
+  A.charAtk(G.char, !!s.heavy, p.step);
 }
 
 function swingHits() {
@@ -746,7 +748,7 @@ function meleeHit(e, sw, dir) {
   const killed = damage(e, sw.dmg * mult * G.up.dmg, { dir, kb: sw.kb, src: 'primary', ug: true, slice: true, crit });
   if (!killed) hitstop(e.type === 'boss' ? 0.035 : sw.heavy || crit ? 0.085 : 0.05);
   shake(sw.heavy ? 0.3 : 0.17);
-  A.hit(sw.heavy, crit);
+  A.charHit(G.char, sw.heavy, crit, G.combo);
   buzz(sw.heavy || crit ? 'heavy' : 'hit');
   sparks(e.x, e.y - e.r, dir + (Math.PI / 2) * sw.dir, 7, 0.5, P.ember2, 220);
   kit.onHit?.(e, sw, dir);
@@ -1215,7 +1217,7 @@ function updateShots(dt) {
           if (!killed && s.poison) { e.burn = 3; e.burnDps = 3; }
           if (!killed && s.freeze && e.type !== 'boss') e.frozen = Math.max(e.frozen, s.freeze);
           sparks(s.x, s.y, Math.atan2(s.vy, s.vx), s.kind === 'bullet' ? 4 : 8, 0.7, s.c);
-          if (s.kind === 'orb') A.hit(true, false); else A.tick();
+          if (s.kind === 'orb') A.hit(true, false); else if (s.ug) A.charHit(G.char, false, false, G.combo); else A.tick();
           if (s.pierce > 0) s.pierce--; else { endShot(s); break; }
         }
       }
@@ -1459,19 +1461,23 @@ function drawPlayer() {
   const flip = Math.cos(p.state === 'attack' ? p.atkAng : p.aim) < 0;
   const moving = (p.state === 'move' || p.state === 'skill') && hyp(p.vx, p.vy) > 20;
   const fi = Math.floor(p.runT * 11) % 4;
-  const fr = moving ? set.run[fi] : set.idle;
+  const blink = !moving && (G.time % 3.1) < 0.13;
+  const fr = moving ? set.run[fi] : blink ? set.idle.blink : set.idle;
   const bob = moving && fi % 2 ? 1 : 0;
+  // idle breathing, and a lean into each swing
+  const breathe = !moving && p.state === 'move' ? Math.floor(G.time * 1.7) % 2 : 0;
+  const lean = p.state === 'attack' && p.atkT < 0.12 ? 2 : p.state === 'dash' ? 1 : 0, la = p.state === 'attack' ? p.atkAng : p.aim;
   const wa = p.state === 'attack' ? p.atkAng : p.aim;
   const behind = Math.sin(wa) < -0.3;
   shadow(p.x, p.y, 5);
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
   kit.drawAura?.(p, flip);
   if (behind) kit.drawWeapon(p, flip);
-  const sx = Math.round(p.x - fr.w / 2), sy = Math.round(p.y - fr.h + 1 - bob);
-  drawSprite(fr, sx, sy, flip, p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null);
+  const sx = Math.round(p.x - fr.w / 2 + Math.cos(la) * lean), sy = Math.round(p.y - fr.h + 1 - bob + Math.sin(la) * lean * 0.5);
+  drawBreath(fr, sx, sy, flip, p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null, breathe);
   // glowing eyes
-  const ex = sx + (flip ? fr.w - 1 - set.eye[0] : set.eye[0]), ey = sy + set.eye[1], ec = kit.eyeColor || kit.color();
-  px(ex, ey, P.paper); glow(ex, ey, ec, 4, 0.7);
+  const ex = sx + (flip ? fr.w - 1 - set.eye[0] : set.eye[0]), ey = sy + set.eye[1] + breathe, ec = kit.eyeColor || kit.color();
+  if (!blink) glow(ex, ey, ec, 4, 0.7);
   if (!behind) kit.drawWeapon(p, flip);
   ctx.globalAlpha = 1;
   glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 9, 0.2);
@@ -1522,8 +1528,11 @@ export function drawEnemy(e) {
     return;
   }
   if (e.elite) { for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, x + ox, y + oy, e.face < 0, P.gold); glow(e.x, e.y - e.r, P.gold, 10, 0.25); }
-  if (sc > 1) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(sc, sc); drawSprite(s, 0, 0, e.face < 0, tint); ctx.restore(); }
-  else drawSprite(s, x, y, e.face < 0, tint);
+  // breathing, and a crouch while winding up an attack
+  const crouch = e.state === 'windup' || e.state === 'aim' || e.state === 'sweepW' || e.state === 'kslashW' || e.state === 'slashW' || e.state === 'dashW';
+  const br = crouch ? 1 : Math.sin(e.anim * (e.type === 'boss' ? 2.2 : 3.4)) > 0.2 ? 1 : 0;
+  if (sc > 1) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(sc, sc); drawBreath(s, 0, 0, e.face < 0, tint, br); ctx.restore(); }
+  else drawBreath(s, x, y, e.face < 0, tint, br);
   if (e.type === 'wisp' && e.state === 'windup') glow(e.x, y + 4, P.hex, 6 + (0.55 - e.t) * 18, 0.6);
   if (e.type === 'egg') glow(e.x, e.y - 3, DEF.egg.col, 6 + Math.sin(G.time * 8) * 2, 0.3);
   if (e.type === 'boss') BOSSES[e.boss].draw?.(e, x, y, s);

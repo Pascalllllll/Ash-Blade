@@ -22,7 +22,7 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 | Tank | Grom | Slow hammer, 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
 | Robot | Unit-7 | Laser that overheats if you hold it too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
-Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
+Every fighter, monster and boss breathes, blinks and leans into attacks. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
 The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. It starts at half power and gets stronger every wave and every 20 kills, reaching roughly 4x power by wave 50. Its shots plant bugs, and five bugs crash an enemy.
 
@@ -102,7 +102,7 @@ On a phone, the game asks you to turn the phone sideways. It pauses whenever you
 
 ## Settings
 
-- Audio: master, music and effects volume. The soundtrack setting either follows the fight or plays one track of your choice. You can also pick which of the three battle tracks plays during normal waves. The fast tracks are built like EDM: four-on-the-floor kicks, offbeat bass, chord stabs, and an 8-bar cycle that builds up with a snare roll and a riser, then drops.
+- Audio: master, music and effects volume. The soundtrack setting either follows the fight or plays one track of your choice. You can also pick which of the four battle tracks plays during normal waves. The default is HYPERDRIVE, a 150 bpm hard-kick EDM track that also plays on the title screen. The fast tracks are built like EDM: four-on-the-floor kicks, offbeat bass, chord stabs, and an 8-bar cycle that builds up with a snare roll and a riser, then drops.
 - Video: color theme, vibrancy, brightness, contrast, hue shift and scanlines. You can also turn down screen shake, flashes, damage numbers and particles.
 - Game: arena, difficulty, blood stains and vibration. Blood and scorch marks fade after about 10 seconds by default, or 30 seconds, or never. Vibration has four levels (off, light, medium, strong) and works on phones whose browser supports it, which includes Android but not iPhone. There are 5 arenas. On the ice everything slides, and in the forge, enemies knocked into lava catch fire.
 
