@@ -10,7 +10,7 @@ export const OPTIONS = {
   particles: ['HIGH', 'LOW'],
   map: ['PIT', 'FROST', 'FORGE', 'GRID', 'SHRINE'],
   diff: ['EASY', 'NORMAL', 'HARD', 'NIGHTMARE'],
-  char: ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT'],
+  char: ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT', 'DEV'],
   vibe: ['OFF', 'LIGHT', 'MEDIUM', 'STRONG'],
 };
 
@@ -23,7 +23,7 @@ const DEFAULTS = {
 const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], bright: [0.6, 1.4], contrast: [0.6, 1.6], hue: [0, 345], shake: [0, 1] };
 
 export const settings = { ...DEFAULTS };
-export const best = { score: 0, wave: 0, won: false, chars: {} };
+export const best = { score: 0, wave: 0, won: false, dev: false, chars: {} };
 
 function read(key) {
   try {
@@ -50,6 +50,7 @@ export function loadAll() {
     best.score = Math.floor(num(b.score, 0, 1e10, 0));
     best.wave = Math.floor(num(b.wave, 0, 9999, 0));
     best.won = b.won === true;
+    best.dev = b.dev === true;
     if (b.chars && typeof b.chars === 'object') {
       for (const c of OPTIONS.char) {
         const r = b.chars[c];

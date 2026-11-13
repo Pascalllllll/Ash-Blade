@@ -69,6 +69,13 @@ const BODIES = {
     map: () => ({ M: '#8a96a8', m: '#4a5466', A: '#ff4f4f', E: '#ffffff', R: '#ff3b3b', C: '#3a4252', c: '#ff4f4f', V: '#62efff', W: '#ffffff', F: '#5c6678', b: '#3a4252' }),
   },
 };
+BODIES.DEV = {
+  eye: [6, 5], wide: true,
+  rows: ['.....oooooo.....', '....oHHHHHHo....', '...oHHhhhhHHo...', '..oaHHHHHHHHao..', '..oaHoooooooHao.', '..oaoGGGoGGGoao.',
+    '...oHofffffoHom.', '...oHHoffnoHHo..', '..oHHHHHHHHHHo..', '.oHHhHHwHwHHhHo.', '.oHhoHHwHwHHohHo', '.oHHoHHHHHHHoHHo',
+    '.oggoHkkkkHoLLLo', '....oHHHHHHoLGLo', '....oJJJJJJoLLLo', '....oJJooJJo....'],
+  map: () => ({ H: '#2a2f3a', h: '#454c5c', a: '#1a1a20', G: '#39ff6a', f: '#d9a27a', n: '#7a3b2a', m: '#39ff6a', w: '#e6e6f0', g: '#d9a27a', k: '#1f232c', L: '#3a3f4a', J: '#2c3a5a', b: '#e6e6f0' }),
+};
 const ROBE_LEGS = ['..oRoRRoRRoRRo..', '..o.o..o..o.o...'];
 const ROBE_LEGS_ALT = ['..oRRoRRoRRoRo..', '...o.o..o..o.o..'];
 const HEAVY = {
@@ -113,6 +120,8 @@ export function buildSprites() {
   const TICK = ['....r....', '...ofo...', '..ooooo..', '.oTTTTTo.', 'oTtTTTtTo', 'oTTTTTTTo', '.oTTTTTo.'];
   SPR.tick = [makeSprite([...TICK, '.o.o.o.o.'], TI), makeSprite([...TICK, 'o.o.o.o.o'], TI)];
 
+  const LV = { o: O, L: '#4f7a35', g: P.ichor };
+  SPR.larva = [makeSprite(['.o...o.', 'oLo.oLo', '.oLLLo.', 'oLgLgLo', '.ooooo.'], LV), makeSprite(['.......', 'oLo.oLo', '.oLLLo.', 'oLgLgLo', '.ooooo.'], LV)];
   const EG = { o: O, E: '#c9d48a', e: '#7d8a3a', g: P.ichor };
   SPR.egg = [
     makeSprite(['..ooo..', '.oEEEo.', 'oEeEEEo', 'oEEEeEo', 'oEEgEEo', '.oEEEo.', '..ooo..'], EG),

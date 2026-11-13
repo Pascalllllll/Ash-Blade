@@ -1,6 +1,6 @@
 # Ashblade
 
-Ashblade is a pixel-art hack and slash game that runs in the browser, on a computer or a phone. You pick a fighter and hold an arena against waves of enemies. Every fifth wave is a boss, and the fourth boss, the Ashen King on wave 20, ends the game. After that you can keep playing for score.
+Ashblade is a pixel-art hack and slash game that runs in the browser, on a computer or a phone. You pick a fighter and hold an arena against waves of enemies. Every fifth wave is a boss, and the fourth boss, the Ashen King on wave 20, ends the story. After that the game goes endless, and every wave adds 15% enemy health, more enemies and more elites.
 
 ![Title screen](docs/title.png)
 
@@ -20,18 +20,35 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 
 Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
+There is also a secret eighth fighter, The Dev. It starts at half power and gets stronger every wave and every 20 kills, reaching roughly 4x power by wave 50. Its shots plant bugs, and five bugs crash an enemy. Beat the Ashen King to unlock it.
+
 ![Fighter select](docs/select.png)
+
+## Upgrades
+
+After every wave you pick one of three upgrades. Each fighter has about 60 picks before the list runs out, which lasts past wave 50. Taking an upgrade to its maximum level unlocks its evolution:
+
+| Max this | Evolution |
+| --- | --- |
+| Ultimate Mastery | Your ultimate becomes version II: it lasts longer or hits harder, then you deal double damage for 8 seconds |
+| Spell Mastery | Q and E cast a second time for free |
+| Weapon Mastery | Basic hits release homing spirits |
+| Heartwood | Survive one killing blow per wave |
+| Swift Step | An extra dash, and dashing cuts every enemy you pass |
+| Static Charge | Every 4th hit chains lightning to 7 enemies |
+| Kindling | Burning enemies explode when they die |
+| Orbit Blades | Twice the blades, on a wider orbit |
 
 ## Bosses
 
 | Wave | Boss | What it does |
 | --- | --- | --- |
-| 5 | The Warden | Sword sweeps, jumps that send out shockwaves, spirals of orbs |
-| 10 | The Brood Mother | Digs under the floor and comes up under you, spits acid, lays eggs that hatch |
-| 15 | Iron Colossus | Sweeping lasers and missile strikes. Its shield breaks only when you hit it with an orb you knocked back |
-| 20 | The Ashen King | Three phases. In the last one the arena goes dark and he uses Thousand Cuts on you |
+| 5 | The Warden | Sword sweeps, jumps that send out shockwaves, spirals of orbs, rings of orbs with one gap, four rotating chain beams |
+| 10 | The Brood Mother | Digs under the floor and comes up under you, spits acid, lays eggs, releases swarms of larvae, rains acid over the whole arena |
+| 15 | Iron Colossus | Sweeping lasers, missile strikes, a rocket fist that flies back to its arm, and four spinning lasers. Its shield breaks only when you hit it with an orb you knocked back |
+| 20 | The Ashen King | Twice the size of the other bosses, with three phases. He summons armored knights, sends out rings of fire, and in the last phase darkens the arena, spins six beams around himself and uses Thousand Cuts on you |
 
-Each boss has its own entrance and its own music.
+Each boss has its own entrance and its own music. The music adds reverb, a choir on the slow themes and a crowd shout on the fast ones.
 
 ![The Brood Mother's acid](docs/boss.png)
 

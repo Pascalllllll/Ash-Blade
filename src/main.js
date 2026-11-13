@@ -1,7 +1,7 @@
 import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js';
 import { input, keyHit, endFrame } from './input.js';
 import { A } from './audio.js';
-import { settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun } from './store.js';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun } from './store.js';
 import { buildSprites } from './sprites.js';
 import { byId } from './upgrades.js';
 import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz } from './world.js';
@@ -21,7 +21,7 @@ fit();
 addEventListener('resize', fit);
 addEventListener('touchstart', fit, { once: true });
 
-let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
+let devNew = false, scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
 let save = loadRun((id) => !!byId(id));
 
 function go(s) { scene = s; sceneT = 0; }
@@ -33,6 +33,8 @@ function recordBest(won) {
   if (newBest) best.score = G.score;
   best.wave = Math.max(best.wave, G.wave);
   if (won) best.won = true;
+  devNew = won && !best.dev;
+  if (won) best.dev = true;
   const r = best.chars[G.char] || { score: 0, wave: 0, won: false };
   best.chars[G.char] = { score: Math.max(r.score, G.score), wave: Math.max(r.wave, G.wave), won: r.won || won };
   saveBest();
@@ -80,12 +82,13 @@ function tick(now) {
     const items = titleItems(save, (r) => r);
     const r = runMenu(titleMenu, items, (W - 150) / 2, 104, 150, 12);
     if (r === 'continue' && save) startRun(save.char, save);
-    else if (r === 'select') { sel.i = Math.max(0, ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT'].indexOf(settings.char)); sel.row = 0; sel.t = 0; go('select'); }
+    else if (r === 'select') { sel.i = Math.max(0, OPTIONS.char.indexOf(settings.char)); if (settings.char === 'DEV' && !best.dev) sel.i = 0; sel.row = 0; sel.t = 0; go('select'); }
     else if (r === 'settings') { settingsFrom = 'title'; setm.tab = 0; setm.sel = 0; go('settings'); }
     drawTitle(sceneT, items);
   } else if (scene === 'select') {
     const r = updateSelect(rdt);
     if (r?.map || r?.diff) { const prev = { ...settings }; Object.assign(settings, r); applySettings(prev); }
+    if (r?.unlock) { best.dev = true; saveBest(); sel.flash = 1.5; A.ultRelease(); fx.flashT = 0.3; fx.flashMax = 0.3; fx.flashC = '#39ff6a'; buzz('boss'); }
     if (r?.back) toTitle();
     else if (r?.start) { settings.char = r.start; saveSettings(); clearRun(); startRun(r.start, null); checkpoint(); }
     else drawSelect(sceneT);
@@ -142,7 +145,7 @@ function tick(now) {
     const tapL = input.touch && input.mouse.pressed && input.mouse.x < W / 2, tapR = input.touch && input.mouse.pressed && !tapL;
     if (sceneT > 1.2 && (keyHit('Enter', 'Space') || (!input.touch && input.mouse.pressed) || tapL)) { openUpgrade(); go('upgrade'); A.scene('calm'); }
     else if (sceneT > 1.2 && (keyHit('Escape') || tapR)) toTitle();
-    if (scene !== 'title') { drawWorld(); vignette(); drawVictory(sceneT); }
+    if (scene !== 'title') { drawWorld(); vignette(); drawVictory(sceneT, devNew); }
   }
   if (scene === 'title' || scene === 'select' || scene === 'settings') { /* menus draw their own backdrop */ }
   screenFlash();
