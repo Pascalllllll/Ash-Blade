@@ -48,6 +48,17 @@ After every wave you pick one of three upgrades. Each fighter has about 60 picks
 | 15 | Iron Colossus | Sweeping lasers, missile strikes, a rocket fist that flies back to its arm, and four spinning lasers. Its shield breaks only when you hit it with an orb you knocked back |
 | 20 | The Ashen King | Twice the size of the other bosses, with three phases. He summons armored knights, sends out rings of fire, and in the last phase darkens the arena, spins six beams around himself and uses Thousand Cuts on you |
 
+After wave 20 four more bosses join, then all eight repeat with more health each time:
+
+| Wave | Boss | What it does |
+| --- | --- | --- |
+| 25 | Void Wyrm | A serpent whose whole body hurts to touch. Tunnels under you, breathes a cone of orbs, circles you and spits inward |
+| 30 | Storm Herald | Calls lightning on your position, teleports, keeps four storm orbs firing at you, and fires lightning lances |
+| 35 | The Mirror | A dark copy of your own fighter. Dashes, slash combos and rift lines like yours, and brings elite husks in its second half |
+| 40 | Eclipse | A giant eye. Spirals, rings and rotating beams of light, and darkens the arena in its second half |
+
+Every boss has 25% more health than its base, acts 15% faster than the other enemies, and enrages after 75 seconds, which makes it 40% faster again.
+
 Each boss has its own entrance and its own music. The music adds reverb, a choir on the slow themes and a crowd shout on the fast ones.
 
 ![The Brood Mother's acid](docs/boss.png)
@@ -99,3 +110,7 @@ The page makes no network requests. A Content Security Policy only allows the ga
 | `src/sprites.js`, `src/gfx.js` | Pixel art and drawing |
 | `src/input.js` | Keyboard, mouse and touch |
 | `src/upgrades.js`, `src/store.js` | Upgrades and saved data |
+
+## License
+
+Ashblade is licensed under the [PolyForm Strict License 1.0.0](LICENSE.md). You can play it and read the code for personal, non-commercial use. You may not change it, share copies of it or build other works from it, and you may not use it commercially. For any other use, ask the author.

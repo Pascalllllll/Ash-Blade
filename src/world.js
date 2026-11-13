@@ -206,11 +206,11 @@ export function spawnEnemy(type, x, y) {
     wx: x, wy: y, elite: false,
   };
   if (type === 'boss') {
-    const key = bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / 4);
+    const key = bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / 8);
     d = { r: bd.r, hp: bd.hp, kbRes: 0.97, col: bd.col, colD: bd.colD, score: bd.score, speed: bd.speed, energy: 0 };
     e.def = d; e.boss = key;
-    e.hp = Math.round(bd.hp * (1 + tier * 0.6) * G.D.hp * (1 + 0.12 * ef));
-    d.scale = bd.scale || 1;
+    e.hp = Math.round(bd.hp * 1.25 * (1 + tier * 0.6) * G.D.hp * (1 + 0.12 * ef));
+    d.scale = bd.scale || 1; d.tint = bd.tint;
     e.speed = bd.speed * (1 + tier * 0.1);
     e.phase = 1; e.last = ''; e.cd = 1;
     G.boss = e;
@@ -271,7 +271,7 @@ export function addCombo(n) {
 export const pd = (x) => Math.max(1, Math.round(x * G.up.dmg));
 
 export function sprFor(e) {
-  const frames = e.type === 'boss' ? SPR[e.boss] : SPR[e.type];
+  const frames = e.type === 'boss' ? (e.boss === 'mirror' ? [SPR.chars[G.char].idle, ...SPR.chars[G.char].run] : SPR[e.boss]) : SPR[e.type];
   const speed = e.type === 'wisp' ? 4 : e.type === 'tick' || e.type === 'larva' ? 14 : e.type === 'egg' ? 3 : 7;
   return frames[Math.floor(e.anim * speed) % frames.length];
 }
@@ -744,7 +744,17 @@ function updateEnemy(e, dt) {
     if (e.t <= 0) { e.state = { ...HOME, egg: 'incubate', boss: 'intro' }[e.type]; e.t = e.type === 'boss' ? 1.4 : e.type === 'egg' ? rnd(3, 4) : 0; }
     return;
   }
-  if (e.type === 'boss') { BOSSES[e.boss].update(e, dt, d, ang, dx); return; }
+  if (e.type === 'boss') {
+    // bosses act 15% faster, and 40% faster once they enrage after 75 seconds
+    e.fightT = (e.fightT || 0) + dt;
+    if (!e.enraged && e.fightT > 75 && e.state !== 'intro') {
+      e.enraged = true; e.speed *= 1.2;
+      G.banner = { text: 'ENRAGED', sub: 'FINISH IT FAST', t: 0, life: 1.4, c: P.blood };
+      A.bossRoar(); shake(0.6); addRing(e.x, e.y - 16, P.blood, 300, 0.5, 3);
+    }
+    BOSSES[e.boss].update(e, dt * (e.enraged ? 1.4 : 1.15), d, ang, dx);
+    return;
+  }
   if (e.frozen > 0) { e.frozen -= dt; return; }
   if (e.stunT > 0) { e.stunT -= dt; return; }
   if (e.state === 'hurt') { e.t -= dt; if (e.t <= 0) e.state = HOME[e.type] || 'chase'; return; }
@@ -1138,6 +1148,7 @@ function updateHazards(dt) {
         for (const e of G.E) if (alive(e) && hyp(e.x - s.x, e.y - s.y) < s.R + e.r) damage(e, pd(s.dmg), { dir: Math.atan2(e.y - s.y, e.x - s.x), kb: 220, src: 'boom' });
         if (s.kind === 'meteor') G.zones.push({ type: 'burn', x: s.x, y: s.y, r: s.R * 0.7, t: 0, life: 3 });
       } else if (hyp(G.p.x - s.x, G.p.y - s.y) < s.R) tryHurt(s.dmg ?? 2, s.x, s.y);
+      if (s.kind === 'lightning') { G.bolts.push({ x0: s.x + rnd(-20, 20), y0: s.y - 160, x1: s.x, y1: s.y, t: 0, life: 0.25 }); A.zip(); }
       if (s.kind === 'acid') { G.zones.push({ type: 'acid', x: s.x, y: s.y, r: 14, t: 0, life: 4 }); A.splat(); splat(s.x, s.y, 8, '#b5f23a', '#45651a'); continue; }
       addRing(s.x, s.y - 3, s.c, s.R * 7, 0.2, 3);
       addRing(s.x, s.y - 3, P.paper, s.R * 5, 0.14, 1);
@@ -1367,6 +1378,8 @@ export function drawEnemy(e) {
   else if (e.state === 'fuse') tint = Math.floor(G.time * (8 + (0.7 - e.t) * 30)) % 2 ? P.paper : null;
   else if (e.dying) tint = blink ? P.paper : e.def.col;
   else if (e.shieldUp) tint = blink ? null : '#62efff';
+  if (!tint && e.def.tint) tint = e.def.tint;
+  if (e.enraged && !e.dying) glow(e.x, e.y - e.r * 2, P.blood, e.r * 2 + 6, 0.25 + Math.sin(G.time * 10) * 0.1);
   if (e.state === 'spawn') {
     const k = 1 - e.t / 0.28;
     ctx.save(); ctx.beginPath(); ctx.rect(x - 2, y + s.h * (1 - k), s.w + 4, s.h * k + 1); ctx.clip();
@@ -1447,7 +1460,7 @@ function drawTelegraphs() {
     ring(s.x, s.y, s.R * (0.3 + 0.7 * k), 1, s.friendly ? s.c : blink ? P.blood : P.paper);
     ring(s.x, s.y, s.R, 1, s.friendly ? P.ink3 : P.bloodD);
     const fy = s.y - (1 - k) * 140, fx2 = s.x + (1 - k) * 40;
-    if (k > 0.25) {
+    if (k > 0.25 && s.kind !== 'lightning') {
       line(fx2, fy, fx2 + 10, fy - 26, s.c, 2);
       disc(fx2, fy, s.kind === 'missile' ? 2 : 4, s.c); px(fx2, fy, P.paper);
       glow(fx2, fy, s.c, 10, 0.5);

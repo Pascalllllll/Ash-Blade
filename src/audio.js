@@ -109,6 +109,32 @@ const TRACKS = {
     leadType: 'sawtooth', leadVol: 0.05, leadOct: 0, bell: true, supersaw: true, arp: [0, 1, 2, 1, 0, 1, 2, 3, 0, 1, 2, 1, 0, 2, 3, 2],
   },
 };
+Object.assign(TRACKS, {
+  VOID: {
+    choir: true, harm: true, bpm: 132, prog: [[38, DM], [39, MA], [41, MA], [39, MA]],
+    kick: 'x..x..x.x.....x.', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', tom: '..............xx',
+    bass: same('0 . . 0 . 0 . . 0 . . 0 . 1 . 0'), bassLen: 1.3, bassCut: 900, dist: true,
+    lead: bars('0 . . 1 . . 3 . 1 . . 0 . -2 . .|0 . . 1 . . 5 . 3 . . 1 . 0 . .|3 . . 5 . . 6 . 5 . . 3 . 1 . .|1 . . 0 . . -2 . 0 . . . . . . .'),
+    leadType: 'sawtooth', leadVol: 0.045, leadOct: 12, supersaw: true,
+  },
+  TEMPEST: {
+    harm: true, hey: [[], [], [], [12, 14]], bpm: 174, prog: [[38, DM], [36, MA], [34, MA], [36, MA]],
+    kick: 'x.........x.....', snare: '....x.......x...', hat: 'xxxxxxxxxxxxxxxx', clap: '............x...',
+    bass: same('0 . . . . . 0 . . . 0 . 12 . . .'), bassLen: 4, bassCut: 1000, dist: true,
+    lead: bars('19 . 17 . 15 . 14 . 12 . 14 . 15 . 17 .|17 . 15 . 14 . 12 . 10 . 12 . 14 . 15 .|15 . 14 . 12 . 10 . 8 . 10 . 12 . 14 .|13 . . . 16 . . . 19 . . . 22 . . .'),
+    leadType: 'square', leadVol: 0.04, leadOct: 0, arp: [0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1, 0, 1, 2, 3],
+  },
+  ECLIPSE: {
+    choir: true, harm: true, bell: true, hey: [[], [12], [], [12, 13, 14]], bpm: 160, prog: [[38, DM], [34, MA], [36, MA], [37, [0, 3, 6]]],
+    kick: 'x...x...x...x...', snare: '....x.......x.x.', clap: '....x.......x...', hat: 'x.xxx.xxx.xxx.xx', tom: 'x...x...x..xxxxx',
+    bass: same('0 0 12 0 0 12 0 0 0 0 12 0 0 12 0 12'), bassLen: 0.9, bassCut: 1200, dist: true,
+    lead: bars('12 . . 15 . . 19 . 17 . . 15 . 14 . .|10 . . 14 . . 17 . 15 . . 14 . 12 . .|12 . . 16 . . 19 . 21 . . 19 . 16 . .|13 . . . 12 . . . 10 . . . 9 . . .'),
+    leadType: 'sawtooth', leadVol: 0.045, leadOct: 0, supersaw: true, arp: [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3],
+  },
+});
+// the Mirror plays the battle theme backwards, slower and sung
+TRACKS.REFLECTION = { ...TRACKS['PIT DIRGE'], bpm: 146, leadType: 'triangle', leadOct: 12, bell: true, choir: true, hey: null, lead: TRACKS['PIT DIRGE'].lead.map((b) => [...b].reverse()) };
+
 // what plays in each moment when the soundtrack is AUTO, and how loud each layer is
 const SCENES = {
   title: { track: 'ASHEN HYMN', pad: 1, bass: 0.7, drums: 0.5, arp: 0, lead: 1 },
@@ -119,6 +145,10 @@ const SCENES = {
   boss_brood: { track: 'BROOD', pad: 0.4, bass: 1, drums: 1, arp: 0, lead: 1 },
   boss_colossus: { track: 'COLOSSUS', pad: 0.6, bass: 1, drums: 1, arp: 0.6, lead: 1 },
   boss_king: { track: 'KINGFALL', pad: 1, bass: 1, drums: 1, arp: 0.7, lead: 1 },
+  boss_wyrm: { track: 'VOID', pad: 1, bass: 1, drums: 1, arp: 0, lead: 1 },
+  boss_herald: { track: 'TEMPEST', pad: 0.5, bass: 1, drums: 1, arp: 0.9, lead: 1 },
+  boss_mirror: { track: 'REFLECTION', pad: 0.8, bass: 1, drums: 1, arp: 0.6, lead: 1 },
+  boss_eclipse: { track: 'ECLIPSE', pad: 1, bass: 1, drums: 1, arp: 0.8, lead: 1 },
   dead: { track: null, pad: 0.6, bass: 0, drums: 0, arp: 0, lead: 0 },
 };
 let choice = 'AUTO', combat = 'PIT DIRGE', scene = 'title', cur = TRACKS['ASHEN HYMN'], pending = null;

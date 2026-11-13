@@ -5,7 +5,7 @@ import { A } from './audio.js';
 import { settings, best, OPTIONS } from './store.js';
 import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js';
 import { CHARS } from './chars.js';
-import { BOSSES } from './bosses.js';
+import { BOSSES, bossFor } from './bosses.js';
 import { MAPS } from './maps.js';
 import { rollUpgrades, UPGRADES } from './upgrades.js';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
@@ -382,7 +382,7 @@ export function drawUpgrade() {
   dim(0.78);
   const k0 = ease(upg.t / 0.3), next = G.wave + 1;
   textO('WAVE ' + G.wave + ' CLEARED', W / 2, 14 - Math.round((1 - k0) * 10), P.ember3, 2, 'c');
-  textO(isBossWave(next) ? 'NEXT: ' + BOSSES[['warden', 'brood', 'colossus', 'king'][(next / 5 - 1) % 4]].name : 'TAKE ONE', W / 2, 32, isBossWave(next) ? P.blood : P.dust, 1, 'c');
+  textO(isBossWave(next) ? 'NEXT: ' + BOSSES[bossFor(next)].name : 'TAKE ONE', W / 2, 32, isBossWave(next) ? P.blood : P.dust, 1, 'c');
   for (let i = 0; i < 3; i++) {
     const o = upg.opts[i], oc = C(o.c), k = back((upg.t - 0.08 - i * 0.07) / 0.35), on = upg.sel === i && upg.t > 0.3;
     const x = cardX(i), y = Math.round(CY + (1 - k) * -120) - (on ? 3 : 0);

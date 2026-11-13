@@ -172,6 +172,27 @@ export function buildSprites() {
     makeSprite([...KING, '.oQQqQQQoQQoQQQqQQo.', 'oQQQo..oQQo..oQQQo..', '.ooo...oKKo...ooo...', '.......oooo.........'], KG),
   ];
 
+  // ---------- bosses after wave 20 ----------
+  const WY = { o: O, V: '#5a2f9c', v: '#8b5ce0', g: P.hex, W: P.bone };
+  const WYRM = ['....oooooooo....', '..ooVVVVVVVVoo..', '.oVVvvVVVVvvVVo.', 'oVVgVVVVVVVVgVVo', 'oVVVVVVVVVVVVVVo', 'oVVVVooooooVVVVo'];
+  SPR.wyrm = [makeSprite([...WYRM, '.oVVoWWoWWoVVo..', '..oVo.o..o.oVo..', '...oo......oo...'], WY), makeSprite([...WYRM, '.oVVoW.oW.oVVo..', '..oVoW.o.Wo.Vo..', '...oo......oo...'], WY)];
+  SPR.wyrmSeg = makeSprite(['..oooooo..', '.oVVVVVVo.', 'oVvVVVVvVo', 'oVVVggVVVo', 'oVvVVVVvVo', '.oVVVVVVo.', '..oooooo..'], WY);
+  const HE = { o: O, C: '#1f3a6a', E: '#62efff', Y: '#ffe08a', R: '#2a5aa0', r: '#62efff' };
+  const HERALD = ['...o.o..o.o...', '...oYoooYo....', '...oooooooo...', '..oCCCCCCCCo..', '..oCooooooCo..', '..oCoEooEoCo..', '..oCoooooooCo.', '.ooCCCCCCCCCoo',
+    'oRRoCCCCCCCoRRo', 'oRrRoCCYCCoRrRo', '.oRRRCCCCCRRRo.', '..oRRRRRRRRRo..', '..oRrRRRRRrRo..', '...oRRRRRRRo...', '....oRRRRRo....'];
+  SPR.herald = [makeSprite([...HERALD, '.....oRRRo.....', '......oRo......', '.......o.......'], HE), makeSprite([...HERALD, '....oRRRo......', '.....oRo.......', '......o........'], HE)];
+  // eclipse: a black sun with a gold corona and a red slit eye, built from a circle
+  const ecl = [];
+  for (let y = 0; y < 28; y++) {
+    let row = '';
+    for (let x = 0; x < 28; x++) {
+      const d = Math.hypot(x - 13.5, y - 13.5);
+      row += d > 13.5 ? '.' : d > 12.5 ? 'o' : d > 10.5 ? (((x + y) % 3) ? 'G' : 'g') : d > 9.5 ? 'o' : Math.abs(x - 13.5) < 1.6 && Math.abs(y - 13.5) < 7 ? 'R' : d < 3 && x < 13 && y < 13 ? 'w' : 'B';
+    }
+    ecl.push(row);
+  }
+  SPR.eclipse = [makeSprite(ecl, { o: O, G: P.gold, g: P.ember2, B: '#0a0610', R: '#ff3b3b', w: '#2a1a30' })];
+
   // ---------- allies ----------
   SPR.turret = makeSprite(['...oooo...', '..oTTTTo..', '..oTttTo..', '..oTTTTo..', '.oooooooo.', '.oLLLLLLo.', 'oLoLLLLoLo', 'oo.oooo.oo'],
     { o: O, T: '#d8651e', t: '#ffe08a', L: '#5d6878' });

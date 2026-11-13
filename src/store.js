@@ -4,7 +4,7 @@ const KEY_BEST = 'ashblade.best.v2';
 
 // Every choice the settings menu can make. Saved values outside these lists are thrown away.
 export const OPTIONS = {
-  track: ['AUTO', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE', 'ASHEN HYMN', 'WARDEN', 'BROOD', 'COLOSSUS', 'KINGFALL', 'OFF'],
+  track: ['AUTO', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE', 'ASHEN HYMN', 'WARDEN', 'BROOD', 'COLOSSUS', 'KINGFALL', 'VOID', 'TEMPEST', 'REFLECTION', 'ECLIPSE', 'OFF'],
   combat: ['PIT DIRGE', 'BLOODRUSH', 'NEON PULSE'],
   theme: ['EMBER', 'FROST', 'TOXIC', 'BLOOD MOON', 'ROYAL', 'NOIR'],
   particles: ['HIGH', 'LOW'],

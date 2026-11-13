@@ -1,12 +1,13 @@
-import { P, px, line, ring, disc, rect, glow } from './gfx.js';
+import { P, px, line, ring, disc, rect, glow, drawSprite } from './gfx.js';
 import { A } from './audio.js';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor,
 } from './world.js';
+import { SPR } from './sprites.js';
 
-const ORDER = ['warden', 'brood', 'colossus', 'king'];
-export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % 4];
+const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse'];
+export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
 
 const pick = (e, opts) => { let k = opts[Math.floor(rnd(opts.length))]; if (k === e.last) k = opts[Math.floor(rnd(opts.length))]; e.last = k; return k; };
 function phaseBanner(text, c) { G.banner = { text, sub: '', t: 0, life: 1.4, c }; }
@@ -474,6 +475,264 @@ export const BOSSES = {
     bars: introBars,
   },
 };
+
+// ================================================================ after wave 20
+const orbRing = (e, n, sp, gapA, o = {}) => { for (let i = 0; i < n; i++) { const a = (i * TAU) / n; if (gapA !== undefined && Math.abs(angDiff(a, gapA)) < 0.5) continue; fire(e.x, e.y - (o.oy ?? 16), a, sp, o); } A.shoot(); };
+const walkTo = (e, x, y, sp) => { const d = hyp(x - e.x, y - e.y); if (d > 2) { e.vx = ((x - e.x) / d) * sp; e.vy = ((y - e.y) / d) * sp; } };
+const VOID = '#9b5cff';
+
+Object.assign(BOSSES, {
+  // ---------------------------------------------------------------- wave 25
+  wyrm: {
+    name: 'VOID WYRM', short: 'VOID WYRM', sub: 'IT SWIMS THROUGH STONE', col: VOID, colD: '#3a1a6a', hp: 2000, r: 11, speed: 70, score: 16000, music: 'boss_wyrm',
+    init(e) { e.state = 'intro'; e.t = 2.2; e.under = true; e.trail = []; e.wob = 0; e.cdir = 1; },
+    update(e, dt, d, ang, dx) {
+      const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
+      e.superArmor = true; e.kx = e.ky = 0;
+      const last = e.trail[0];
+      if (!last || hyp(last.x - e.x, last.y - e.y) > 3) { e.trail.unshift({ x: e.x, y: e.y }); if (e.trail.length > 70) e.trail.pop(); }
+      // the body hurts to touch
+      if (!e.under) for (let i = 4; i < e.trail.length; i += 5) { const s = e.trail[i]; if (hyp(p.x - s.x, p.y - s.y) < 8) { tryHurt(2, s.x, s.y); break; } }
+      if (e.state === 'intro') {
+        e.t -= dt; dust(e.x, e.y, 1, 30);
+        if (e.under && e.t < 1.2) { e.under = false; A.bossRoar(); A.boom(1.8); shake(0.9); orbRing(e, 14, 60, undefined, { c: VOID }); scorch(e.x, e.y, 18); addRing(e.x, e.y, VOID, 320, 0.5, 3); }
+        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.6; }
+        return;
+      }
+      if (e.phase === 1 && e.hp < e.maxHp * 0.5 && !e.under) { e.phase = 2; e.state = 'rec'; e.t = 0.8; A.bossRoar(); phaseBanner('THE VOID HUNGERS', VOID); shake(0.7); }
+      switch (e.state) {
+        case 'walk': {
+          e.wob += dt * 4;
+          const a = ang + Math.sin(e.wob) * 0.8;
+          e.vx = Math.cos(a) * e.speed * spd; e.vy = Math.sin(a) * e.speed * spd; e.face = dx < 0 ? -1 : 1;
+          e.cd -= dt;
+          if (e.cd <= 0) {
+            const opts = ['dive', 'breath', 'breath', 'coil'];
+            if (e.phase === 2) opts.push('dive', 'coil');
+            const k = pick(e, opts);
+            if (k === 'dive') { e.state = 'dig'; e.t = 0.4; A.wall(); }
+            else if (k === 'breath') { e.state = 'breathW'; e.t = 0.5; e.lock = ang; A.warn(); }
+            else { e.state = 'coil'; e.t = 2.6; e.ca = Math.atan2(e.y - p.y, e.x - p.x); e.cdir = Math.random() < 0.5 ? 1 : -1; e.fireT = 0.3; }
+          }
+          break;
+        }
+        case 'dig': e.t -= dt; dust(e.x, e.y, 2, 60); if (e.t <= 0) { e.under = true; e.state = 'tunnel'; e.t = 1.3 / spd; } break;
+        case 'tunnel':
+          e.t -= dt; if (e.t > 0.4) walkTo(e, p.x, p.y, 165); dust(e.x, e.y, 2, 40);
+          if (e.t <= 0) {
+            e.under = false;
+            if (d < 26) tryHurt(2, e.x, e.y);
+            orbRing(e, e.phase === 2 ? 20 : 14, 70, undefined, { c: VOID, noparry: false });
+            G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 90, hitP: false, c: VOID, c2: '#3a1a6a' });
+            A.boom(1.5); A.bossRoar(); shake(0.8); scorch(e.x, e.y, 14);
+            e.state = 'rec'; e.t = 0.7;
+          }
+          break;
+        case 'breathW': e.t -= dt; if (e.t > 0.15) e.lock = ang; if (e.t <= 0) { e.state = 'breath'; e.t = 1.1; e.fireT = 0; } break;
+        case 'breath':
+          e.t -= dt; e.fireT -= dt;
+          if (e.fireT <= 0) { e.fireT = 0.04 / spd; fire(e.x, e.y - 8, e.lock + rnd(-0.5, 0.5), rnd(90, 140), { c: VOID, noparry: Math.random() < 0.35 }); }
+          if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
+          break;
+        case 'coil': {
+          // circle the player, spitting inward
+          e.t -= dt; e.fireT -= dt; e.ca += dt * 2.2 * e.cdir;
+          walkTo(e, p.x + Math.cos(e.ca) * 75, p.y + Math.sin(e.ca) * 60, 220);
+          if (e.fireT <= 0) { e.fireT = 0.28 / spd; fire(e.x, e.y - 8, ang, 85, { c: VOID }); A.shoot(); }
+          if (e.t <= 0) { e.state = 'rec'; e.t = 0.5; }
+          break;
+        }
+        case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
+      }
+      e.tele = e.state === 'breathW';
+    },
+    tele(e, blink) {
+      if (!e.under) for (let i = e.trail.length - 1; i >= 4; i -= 5) { const s = e.trail[i], sp = SPR.wyrmSeg; drawSprite(sp, s.x - sp.w / 2, s.y - sp.h, false); }
+      else { for (let i = -8; i <= 8; i += 2) px(e.x + i, e.y - Math.round(Math.cos(i / 5) * 3), '#5a2f9c'); if (e.state === 'tunnel' && e.t < 0.4) ring(e.x, e.y, 26, 1, blink ? P.blood : P.paper); }
+      if (e.state === 'breathW') cone(e, 90, 1.1, blink, '#2a0a40', '#14051f');
+    },
+    draw(e, x, y) { glow(e.x, y + 4, VOID, 10, 0.4); },
+    bars: introBars,
+  },
+
+  // ---------------------------------------------------------------- wave 30
+  herald: {
+    name: 'STORM HERALD', short: 'HERALD', sub: 'THE SKY ANSWERS HIM', col: '#62efff', colD: '#163a78', hp: 2300, r: 9, speed: 50, score: 20000, music: 'boss_herald',
+    init(e) { e.state = 'intro'; e.t = 2.4; e.under = true; e.orbsT = 0; e.oa = 0; },
+    update(e, dt, d, ang, dx) {
+      const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
+      e.superArmor = true; e.kx = e.ky = 0; e.z = 4 + Math.sin(e.anim * 3) * 3;
+      if (e.state === 'intro') {
+        e.t -= dt;
+        if (Math.floor(e.t * 2.5) !== Math.floor((e.t + dt) * 2.5)) { G.bolts.push({ x0: e.x + rnd(-20, 20), y0: e.y - 170, x1: e.x, y1: e.y, t: 0, life: 0.3 }); A.zap(); shake(0.4); flash('#62efff', 0.08, false); }
+        if (e.under && e.t < 1) { e.under = false; addRing(e.x, e.y - 10, '#62efff', 320, 0.5, 3); A.bossRoar(); }
+        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
+        return;
+      }
+      if (e.phase === 1 && e.hp < e.maxHp * 0.5) { e.phase = 2; e.state = 'rec'; e.t = 0.8; phaseBanner('THE STORM BREAKS', '#62efff'); A.zap(); shake(0.7); }
+      if (e.orbsT > 0) {
+        // four storm orbs circle him and fire at you
+        e.orbsT -= dt; e.oa += dt * 2; e.ofT = (e.ofT || 0) - dt;
+        if (e.ofT <= 0) { e.ofT = 0.45 / spd; for (let i = 0; i < 4; i++) { const a = e.oa + (i * TAU) / 4, ox = e.x + Math.cos(a) * 20, oy = e.y - 14 + Math.sin(a) * 14; fire(ox, oy, Math.atan2(p.y - 6 - oy, p.x - ox), 95, { c: '#62efff' }); } A.zip(); }
+      }
+      switch (e.state) {
+        case 'walk': {
+          const radial = d > 130 ? 1 : d < 90 ? -1 : 0;
+          e.vx = (Math.cos(ang) * radial + Math.cos(ang + Math.PI / 2) * 0.6) * e.speed; e.vy = (Math.sin(ang) * radial + Math.sin(ang + Math.PI / 2) * 0.6) * e.speed;
+          e.face = dx < 0 ? -1 : 1; e.cd -= dt;
+          if (e.cd <= 0) {
+            const opts = ['bolts', 'bolts', 'teleport', 'orbs'];
+            if (e.phase === 2) opts.push('lances', 'lances', 'storm');
+            const k = pick(e, opts);
+            if (k === 'bolts') {
+              for (let i = 0; i < (e.phase === 2 ? 12 : 8); i++) G.strikes.push({ x: clamp(p.x + rnd(-45, 45), B.x0 + 8, B.x1 - 8), y: clamp(p.y + rnd(-35, 35), B.y0 + 8, B.y1 - 4), t: -i * 0.12, delay: 0.7, R: 16, dmg: 2, friendly: false, kind: 'lightning', c: '#62efff' });
+              A.warn(); e.state = 'rec'; e.t = 1;
+            } else if (k === 'teleport') {
+              G.ghosts.push({ x: e.x, y: e.y, flip: e.face < 0, t: 0, life: 0.4, c: '#62efff', spr: sprFor(e) });
+              for (let i = 0; i < 20; i++) { const a = rnd(TAU), r2 = rnd(110, 180); const x = clamp(p.x + Math.cos(a) * r2, B.x0 + 14, B.x1 - 14), y = clamp(p.y + Math.sin(a) * r2 * 0.7, B.y0 + 14, B.y1 - 4); if (hyp(x - p.x, y - p.y) > 90) { e.x = x; e.y = y; break; } }
+              orbRing(e, 16, 70, undefined, { c: '#62efff' }); A.zap(); e.state = 'rec'; e.t = 0.6;
+            } else if (k === 'orbs') { e.orbsT = 6; e.state = 'rec'; e.t = 0.4; A.shieldUp(); }
+            else if (k === 'lances') {
+              for (const off of [-0.35, 0, 0.35]) G.hbeams.push({ x: e.x, y: e.y - 14, owner: e, oy: 14, a: ang + off, rot: 0, w: 4, warn: 0.6, t: 0, life: 1.1, len: 0 });
+              A.warn(); e.state = 'rec'; e.t = 1.2;
+            } else {
+              for (let i = 0; i < 22; i++) G.strikes.push({ x: rnd(B.x0 + 10, B.x1 - 10), y: rnd(B.y0 + 10, B.y1 - 6), t: -i * 0.09, delay: 0.8, R: 16, dmg: 2, friendly: false, kind: 'lightning', c: '#62efff' });
+              phaseBanner('THUNDERSTORM', '#62efff'); e.state = 'rec'; e.t = 2.2;
+            }
+          }
+          break;
+        }
+        case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
+      }
+    },
+    draw(e, x, y) {
+      glow(e.x, y + 8, '#62efff', 12, 0.4);
+      if (Math.random() < 0.15) G.bolts.push({ x0: e.x, y0: y + 6, x1: e.x + rnd(-14, 14), y1: y + rnd(0, 16), t: 0, life: 0.08 });
+      if (e.orbsT > 0) for (let i = 0; i < 4; i++) { const a = e.oa + (i * TAU) / 4, ox = e.x + Math.cos(a) * 20, oy = e.y - 14 + Math.sin(a) * 14; disc(ox, oy, 2, '#62efff'); px(ox, oy, P.paper); glow(ox, oy, '#62efff', 7, 0.5); }
+    },
+    bars: introBars,
+  },
+
+  // ---------------------------------------------------------------- wave 35
+  mirror: {
+    name: 'THE MIRROR', short: 'MIRROR', sub: 'IT LEARNED YOUR MOVES', col: '#cfd8e0', colD: '#2a2a38', hp: 2200, r: 7, speed: 105, score: 24000, music: 'boss_mirror', scale: 1.5, tint: '#1a1626',
+    init(e) { e.state = 'intro'; e.t = 2.2; e.combo = 0; },
+    update(e, dt, d, ang, dx) {
+      const p = G.p, spd = e.phase === 2 ? 1.25 : 1;
+      e.superArmor = true; e.kx = e.ky = 0;
+      if (e.state === 'intro') {
+        e.t -= dt;
+        if (Math.random() < 0.6) G.ghosts.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-20, 20), flip: Math.random() < 0.5, t: 0, life: 0.3, c: '#cfd8e0', spr: sprFor(e) });
+        if (e.t < 1 && !e.shown) { e.shown = true; flash(P.paper, 0.15, false); A.ultRelease(); addRing(e.x, e.y - 10, P.paper, 300, 0.4, 2); }
+        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; }
+        return;
+      }
+      if (e.phase === 1 && e.hp < e.maxHp * 0.5) { e.phase = 2; e.state = 'rec'; e.t = 0.6; phaseBanner('IT STUDIES YOU', P.paper); for (let i = 0; i < 3; i++) { const h = spawnEnemy('husk', clamp(e.x + rnd(-40, 40), B.x0 + 10, B.x1 - 10), clamp(e.y + rnd(-30, 30), B.y0 + 10, B.y1 - 4)); h.elite = true; h.hp = h.maxHp = h.hp * 2; } }
+      switch (e.state) {
+        case 'walk':
+          if (d > 40) walkTo(e, p.x, p.y, e.speed * spd);
+          e.face = dx < 0 ? -1 : 1; e.cd -= dt;
+          if (e.cd <= 0) {
+            const k = pick(e, ['dash', 'dash', 'combo', 'combo', 'rift', 'volley']);
+            if (k === 'dash') { e.state = 'dashW'; e.t = 0.42; e.lock = ang; }
+            else if (k === 'combo') { e.state = 'slashW'; e.t = 0.32; e.combo = e.phase === 2 ? 4 : 3; e.lock = ang; }
+            else if (k === 'rift') {
+              for (let i = 0; i < (e.phase === 2 ? 3 : 2); i++) { const a = rnd(TAU); G.hlines.push({ x0: p.x - Math.cos(a) * 200, y0: p.y - 5 - Math.sin(a) * 200, x1: p.x + Math.cos(a) * 200, y1: p.y - 5 + Math.sin(a) * 200, t: -i * 0.15, pend: 0.65, done: false }); }
+              A.rift(); A.warn(); e.state = 'rec'; e.t = 0.9;
+            } else { for (let i = -2; i <= 2; i++) fire(e.x, e.y - 14, ang + i * 0.18, 120, { c: '#cfd8e0' }); A.shoot(); e.state = 'rec'; e.t = 0.5; }
+          }
+          break;
+        case 'dashW': e.t -= dt; if (e.t > 0.12) e.lock = ang; if (e.t <= 0) { e.state = 'dash'; e.t = 0.28; e.hitP = false; A.dash(); } break;
+        case 'dash':
+          e.vx = Math.cos(e.lock) * 380; e.vy = Math.sin(e.lock) * 380; e.t -= dt;
+          G.ghosts.push({ x: e.x, y: e.y, flip: e.face < 0, t: 0, life: 0.2, c: '#3a3456', spr: sprFor(e) });
+          if (!e.hitP && d < e.r + 8) { if (tryHurt(2, e.x, e.y) === true) e.hitP = true; }
+          if (e.t <= 0) { e.state = e.phase === 2 && Math.random() < 0.5 ? 'dashW' : 'rec'; e.t = e.state === 'dashW' ? 0.25 : 0.5; e.lock = ang; }
+          break;
+        case 'slashW':
+          e.t -= dt; if (e.t > 0.1) e.lock = ang;
+          if (e.t <= 0) {
+            e.x += Math.cos(e.lock) * 12; e.y += Math.sin(e.lock) * 12;
+            bigSlash(e, 38, 2.6, 'steel');
+            if (--e.combo > 0) { e.state = 'slashW'; e.t = 0.24 / spd; } else { e.state = 'rec'; e.t = 0.6; }
+          }
+          break;
+        case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.2, 0.6) / spd; } break;
+      }
+      e.tele = e.state === 'slashW' || e.state === 'dashW';
+    },
+    tele(e, blink) {
+      if (e.state === 'slashW') cone(e, 38, 2.6, blink, P.bloodD, '#2a0a14');
+      if (e.state === 'dashW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x, e.y, e.x + cx * 110, e.y + cy * 110, blink ? P.blood : P.bloodD, 2); }
+    },
+    draw(e, x, y) {
+      const set = SPR.chars[G.char], s = sprFor(e), ex = x + (e.face < 0 ? s.w - 1 - set.eye[0] : set.eye[0]) * 1.5, ey = y + set.eye[1] * 1.5;
+      rect(ex, ey, 2, 2, P.paper); glow(ex, ey, P.paper, 5, 0.6);
+    },
+    bars: introBars,
+  },
+
+  // ---------------------------------------------------------------- wave 40
+  eclipse: {
+    name: 'ECLIPSE', short: 'ECLIPSE', sub: 'THE SUN THAT WATCHES', col: '#ffd447', colD: '#5a1420', hp: 3600, r: 16, speed: 14, score: 40000, music: 'boss_eclipse',
+    init(e) { e.state = 'intro'; e.t = 3; e.open = 0; e.spin = 0; },
+    update(e, dt, d, ang) {
+      const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
+      e.superArmor = true; e.kx = e.ky = 0; e.z = 5 + Math.sin(e.anim * 1.5) * 1.5;
+      if (e.state === 'intro') {
+        // the sky goes dark, then the eye opens
+        e.t -= dt;
+        G.dark = Math.min(0.75, (3 - e.t) * 0.5);
+        e.open = Math.max(0, Math.min(1, (1.6 - e.t) / 1.2));
+        if (e.t < 0.4 && !e.lit) { e.lit = true; flash(P.gold, 0.25, true); A.bossRoar(); A.ultRelease(); addRing(e.x, e.y - 14, P.gold, 380, 0.6, 3); }
+        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; G.dark = 0; }
+        return;
+      }
+      if (e.phase === 1 && e.hp < e.maxHp * 0.5) { e.phase = 2; e.state = 'rec'; e.t = 1; phaseBanner('TOTAL ECLIPSE', P.gold); A.bossRoar(); shake(0.8); }
+      if (e.phase === 2) G.dark = Math.min(0.55, G.dark + dt);
+      switch (e.state) {
+        case 'walk':
+          walkTo(e, p.x, p.y - 40, e.speed);
+          e.cd -= dt;
+          if (e.cd <= 0) {
+            const opts = ['spiral', 'rings', 'beams', 'minions'];
+            if (e.phase === 2) opts.push('cross', 'spiral', 'rings');
+            const k = pick(e, opts);
+            if (k === 'spiral') { e.state = 'spiral'; e.t = 2.6; e.fireT = 0; e.sdir = Math.random() < 0.5 ? 1 : -1; }
+            else if (k === 'rings') { for (let i = 0; i < 4; i++) G.timers.push({ t: i * 0.45, fn: () => { if (!e.dead && !e.dying) orbRing(e, 26, 70, rnd(TAU), { oy: 14, c: P.gold, noparry: i % 2 === 1 }); } }); e.state = 'rec'; e.t = 2; }
+            else if (k === 'beams') {
+              const off = rnd(TAU), dir = Math.random() < 0.5 ? 1 : -1;
+              for (let i = 0; i < 8; i++) G.hbeams.push({ owner: e, oy: 14, x: e.x, y: e.y - 14, a: off + (i * TAU) / 8, rot: dir * 0.55, w: 4, warn: 0.9, t: 0, life: 3.5, len: 0 });
+              A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3.5, fn: () => A.loop('bossbeam', false) }); e.state = 'rec'; e.t = 3.5;
+            } else if (k === 'minions') {
+              for (let i = 0; i < 4; i++) { const a = (i * TAU) / 4; spawnEnemy('wisp', clamp(e.x + Math.cos(a) * 50, B.x0 + 10, B.x1 - 10), clamp(e.y + Math.sin(a) * 40, B.y0 + 10, B.y1 - 4)); }
+              A.sigil(); e.state = 'rec'; e.t = 0.8;
+            } else {
+              const off = rnd(TAU);
+              for (let i = 0; i < 4; i++) G.hbeams.push({ owner: e, oy: 14, x: e.x, y: e.y - 14, a: off + (i * Math.PI) / 2, rot: 1.3 * (Math.random() < 0.5 ? 1 : -1), w: 8, warn: 0.7, t: 0, life: 2.6, len: 0 });
+              A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 2.6, fn: () => A.loop('bossbeam', false) }); e.state = 'spiral'; e.t = 2.6; e.fireT = 0.3; e.sdir = 1;
+            }
+          }
+          break;
+        case 'spiral':
+          e.t -= dt; e.fireT -= dt;
+          if (e.fireT <= 0) { e.fireT = 0.07 / spd; for (let k = 0; k < 4; k++) fire(e.x, e.y - 14, e.spin + (k * TAU) / 4, 75, { c: P.gold, noparry: k % 2 === 0 }); e.spin += 0.22 * e.sdir; A.shoot(); }
+          if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
+          break;
+        case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
+      }
+    },
+    draw(e, x, y) {
+      const cx = x + 14, cy = y + 14;
+      ring(cx, cy, 16 + Math.sin(G.time * 6) * 1.5, 1, P.gold); glow(cx, cy, P.gold, 26, 0.35);
+      // the pupil looks at you
+      const a = Math.atan2(G.p.y - 6 - cy, G.p.x - cx);
+      rect(cx + Math.cos(a) * 3 - 1, cy + Math.sin(a) * 3 - 3, 3, 7, P.paper);
+      if (e.open < 1) { const h = Math.round(13 * (1 - e.open)); rect(x + 2, cy - 11, 24, h, '#0a0610'); rect(x + 2, cy + 12 - h, 24, h, '#0a0610'); }
+    },
+    bars: introBars,
+  },
+});
 
 function riftLines(e, n) {
   const p = G.p;
