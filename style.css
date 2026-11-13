@@ -1,0 +1,50 @@
+:root {
+  --void: #07060b;
+  --ink: #15111d;
+  --ember: #ff6a2b;
+  --bone: #e6d8bd;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--void);
+  overflow: hidden;
+}
+
+#stage {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 45%, #1a1424 0%, var(--void) 70%);
+}
+
+#screen {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: none;
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+  box-shadow: 0 0 0 1px #000, 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+.ready #screen { opacity: 1; }
+
+#frame { position: relative; line-height: 0; }
+
+.crt #frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 3px);
+}
+
+.note {
+  color: var(--bone);
+  font: 14px/1.5 ui-monospace, monospace;
+  padding: 16px;
+}
