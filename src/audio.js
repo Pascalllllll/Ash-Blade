@@ -558,82 +558,133 @@ function n(dur, vol, type, f0, f1, q, t, o = {}) {
 const metal = (fs, dur, vol, t, rev = 0.4) => fs.forEach((f) => v('sine', f, f * 0.997, dur, vol / fs.length, t, { rev }));
 const semi = (f, s) => f * Math.pow(2, s / 12);
 
+// a blade cutting air: the noise band rises as the edge speeds up, then falls away
+function whoosh(dur, vol, lo, hi, q, t, o) {
+  n(dur * 0.4, vol * 0.7, 'bandpass', lo, hi, q, t, o);
+  n(dur * 0.6, vol, 'bandpass', hi, lo * 0.8, q, t + dur * 0.35, o);
+}
+// quick mechanical ticks: a revolver cylinder, a wrench ratchet
+function clicks(count, gap, f, vol, t) {
+  for (let i = 0; i < count; i++) { v('square', f * (1 + (i % 2) * 0.12), f, 0.006, vol, t + i * gap); n(0.008, vol * 2, 'highpass', 4000, 4000, 1, t + i * gap); }
+}
+
+// The sound follows the weapon in hand: longsword, katana, revolver, staff magic, wrench, hammer, laser, code.
 const ATK = {
+  // KAEL, longsword: a fast hiss of air with a thin steel "shing" on the opener and the finisher
   BLADE(h, step, t) {
-    n(h ? 0.22 : 0.13, h ? 0.6 : 0.45, 'bandpass', h ? 500 : 900, h ? 6000 : 4500, 1.6, t);
-    v('sine', h ? 2600 : 3000 + step * 200, h ? 1500 : 2200, 0.12, 0.06, t, { rev: 0.3 });
-    if (h) v('sawtooth', 120, 60, 0.18, 0.12, t, { dest: crunch });
+    if (h) {
+      whoosh(0.34, 0.75, 350, 2600, 1.8, t);
+      v('sawtooth', 110, 55, 0.22, 0.12, t, { dest: crunch });
+    } else whoosh(0.2, 0.6, 700, 3400 + step * 300, 2.2, t);
+    v('sine', 1900 + step * 150, 900, 0.14, 0.025, t + 0.02);
+    if (h || step === 0) metal([4300, 5750, 7200], 0.3, 0.045, t, 0.5);
   },
-  GUNNER(h, step, t) {
-    n(0.012, 0.9, 'highpass', 4000, 4000, 0.7, t);
-    v('square', 1100, 140, 0.05, 0.28, t, { dest: crunch });
-    v('sine', 170, 45, 0.14, 0.7, t, { dest: crunch });
-    n(0.2, 0.3, 'bandpass', 2200, 500, 0.8, t + 0.01, { rev: 0.5 });
-  },
-  WIZARD(h, step, t) {
-    [0, 4, 7].forEach((s, i) => v('triangle', semi(880, s), semi(880, s) * 1.02, 0.09, 0.07, t + i * 0.025, { rev: 0.6 }));
-    n(0.15, 0.12, 'highpass', 6000, 9000, 1, t, { rev: 0.5 });
-    v('sine', 220, 440, 0.12, 0.08, t);
-  },
+  // RIN, katana: a thin, fast swish with a bright steel shing. The finisher is a quick-draw:
+  // the blade scrapes out of the scabbard, then cuts.
   NINJA(h, step, t) {
-    n(h ? 0.12 : 0.06, h ? 0.5 : 0.42, 'bandpass', h ? 1500 : 2600, h ? 8500 : 7500, 2.5, t);
-    if (h) v('sine', 3400, 3100, 0.28, 0.05, t + 0.03, { rev: 0.5 });
+    if (h) {
+      n(0.1, 0.35, 'bandpass', 2000, 8000, 6, t);
+      metal([3700, 5100, 6800], 0.12, 0.05, t, 0.3);
+      whoosh(0.2, 0.6, 1100, 6500, 3, t + 0.09);
+      metal([5400, 7300, 9100], 0.45, 0.06, t + 0.1, 0.7);
+    } else {
+      whoosh(0.13, 0.5, 1400, 6000 + step * 400, 3, t);
+      metal([5200 + step * 200, 6900 + step * 250], 0.18, 0.035, t + 0.01, 0.5);
+    }
   },
+  // VEGA, revolver: hammer click, muzzle crack, chest thump, echo, then the cylinder turns
+  GUNNER(h, step, t) {
+    v('square', 3200, 3200, 0.005, 0.08, t);
+    n(0.018, 1, 'highpass', 2500, 2500, 0.7, t + 0.006);
+    n(0.09, 0.7, 'lowpass', 3200, 380, 0.7, t + 0.006, { dest: crunch });
+    v('sine', 150, 40, 0.18, 0.85, t + 0.006, { dest: crunch });
+    n(0.4, 0.22, 'bandpass', 1300, 280, 0.6, t + 0.04, { rev: 0.9 });
+    clicks(2, 0.025, 2600, 0.035, t + 0.12);
+  },
+  // MORROW, staff magic: a resonant rising swirl with a shimmering arpeggio
+  WIZARD(h, step, t) {
+    n(0.2, 0.3, 'bandpass', 400, 3200, 5, t, { rev: 0.5 });
+    v('sine', 180, 380, 0.16, 0.12, t);
+    [0, 4, 7, 12].forEach((s, i) => {
+      const f = semi(1046, s);
+      v('sine', f, f, 0.12, 0.05, t + i * 0.022, { rev: 0.7 });
+      v('sine', f * 1.007, f * 1.007, 0.12, 0.03, t + i * 0.022);
+    });
+    n(0.18, 0.1, 'highpass', 7000, 10000, 1, t + 0.04, { rev: 0.6 });
+  },
+  // RIVET, wrench: a ratchet clicks, then a heavy tool swing
   MECHANIC(h, step, t) {
-    n(h ? 0.26 : 0.17, 0.5, 'bandpass', 250, 1500, 1.2, t);
-    v('sawtooth', 300, 640, 0.1, 0.035, t);
-    v('sine', 160, 90, 0.15, 0.12, t);
+    clicks(h ? 5 : 3, 0.016, 1900, 0.035, t);
+    whoosh(h ? 0.32 : 0.22, 0.55, 280, 1500, 1.4, t + 0.03);
   },
+  // GROM, war hammer: a slow, huge swing you feel in the chest
   TANK(h, step, t) {
-    n(h ? 0.42 : 0.3, 0.65, 'bandpass', 140, 900, 1, t);
-    v('sine', 90, 48, 0.32, 0.25, t, { dest: crunch });
-    if (h) n(0.3, 0.2, 'lowpass', 800, 100, 1, t + 0.1, { rev: 0.4 });
+    whoosh(h ? 0.5 : 0.38, 0.75, 130, 750, 1.2, t);
+    v('sine', 75, 42, h ? 0.4 : 0.3, 0.3, t, { dest: crunch });
+    if (h) n(0.3, 0.2, 'lowpass', 600, 90, 1, t + 0.15, { rev: 0.4 });
   },
-  ROBOT(h, step, t) { v('square', 600, 1200, 0.06, 0.05, t); v('sawtooth', 90, 180, 0.08, 0.06, t); },
+  // UNIT-7 keeps the beam hum loop; this is the charge chirp
+  ROBOT(h, step, t) { v('sawtooth', 300, 1500, 0.07, 0.05, t); v('square', 2400, 3600, 0.04, 0.02, t + 0.04); },
+  // THE DEV, ping: a packet goes out as 8-bit blips
   DEV(h, step, t) {
     const f = [988, 1319, 1568, 1175][step % 4];
-    v('square', f, f, 0.035, 0.07, t); v('square', f * 2, f * 2, 0.02, 0.03, t + 0.035);
+    v('square', f, f, 0.03, 0.07, t); v('square', f * 2, f * 2, 0.02, 0.035, t + 0.032);
+    n(0.015, 0.15, 'highpass', 6000, 6000, 1, t);
   },
 };
 const HIT = {
+  // katana through flesh: a razor hiss, a wet cut, a thump, and the steel rings out
   BLADE(h, crit, pm, t) {
-    v('sine', 190 * pm, 42, h ? 0.22 : 0.14, 1, t, { dest: crunch });
-    n(0.06, 0.6, 'highpass', 3000, 1500, 0.8, t);
-    n(0.12, 0.25, 'lowpass', 1800, 300, 1, t);
-    metal([1870 * pm, 2790 * pm], h ? 0.35 : 0.2, 0.18, t);
-    if (crit) metal([3100 * pm, 4200 * pm], 0.5, 0.16, t, 0.7);
+    n(0.035, 0.75, 'highpass', 5200, 2600, 0.8, t);
+    n(0.1, 0.5, 'bandpass', 1900 * pm, 550, 1.4, t + 0.008);
+    v('sine', 170 * pm, 42, h ? 0.22 : 0.13, 0.95, t, { dest: crunch });
+    metal([2350 * pm, 3510 * pm, 4790 * pm], h ? 0.4 : 0.24, 0.13, t, 0.5);
+    if (crit) metal([4700 * pm, 6300 * pm], 0.6, 0.12, t + 0.01, 0.8);
   },
-  GUNNER(h, crit, pm, t) {
-    n(0.04, 0.5, 'bandpass', 2600 * pm, 900, 1.2, t);
-    v('sine', 260 * pm, 80, 0.07, 0.6, t, { dest: crunch });
-    if (crit) v('triangle', 2400, 2200, 0.25, 0.1, t, { rev: 0.6 });
-  },
-  WIZARD(h, crit, pm, t) {
-    [0, 7, 12].forEach((s, i) => v('sine', semi(660 * pm, s), semi(660 * pm, s), 0.3, 0.07, t + i * 0.012, { rev: 0.7 }));
-    n(0.1, 0.3, 'bandpass', 4000, 9000, 3, t);
-    v('sine', 140, 50, 0.12, 0.5, t, { dest: crunch });
-  },
+  // katana slice: a razor-clean "tsk", a short cut, and a high ring that lingers on heavies and crits
   NINJA(h, crit, pm, t) {
-    v('square', 2400 * pm, 1200, 0.03, 0.12, t);
-    n(0.04, 0.5, 'highpass', 4500, 2500, 1, t);
-    v('sine', 170, 60, 0.08, 0.6, t, { dest: crunch });
-    if (h || crit) v('sine', 3600, 3500, 0.35, 0.07, t, { rev: 0.6 });
+    n(0.03, 0.75, 'highpass', 7000, 3500, 1, t);
+    n(0.07, 0.45, 'bandpass', 2600 * pm, 900, 1.8, t + 0.006);
+    v('sine', 220 * pm, 60, h ? 0.14 : 0.08, 0.7, t, { dest: crunch });
+    metal([3100 * pm, 4650 * pm, 6200 * pm], h || crit ? 0.5 : 0.18, h || crit ? 0.14 : 0.08, t, 0.6);
   },
+  // bullet impact: a hard thwack; crits ricochet away
+  GUNNER(h, crit, pm, t) {
+    n(0.03, 0.6, 'bandpass', 3600 * pm, 1400, 1.5, t);
+    v('sine', 300 * pm, 70, 0.08, 0.7, t, { dest: crunch });
+    n(0.07, 0.3, 'lowpass', 1500, 200, 1, t);
+    if (crit) v('sine', 3400, 1700, 0.25, 0.06, t + 0.02, { rev: 0.7 });
+  },
+  // arcane burst: a soft pop, a sparkling bell chord that hangs in the air
+  WIZARD(h, crit, pm, t) {
+    v('sine', 420, 80, 0.09, 0.6, t, { dest: crunch });
+    [0, 7, 12, 16].forEach((s, i) => v('sine', semi(660 * pm, s), semi(660 * pm, s), 0.4, 0.055, t + i * 0.015, { rev: 0.8 }));
+    n(0.14, 0.28, 'bandpass', 5000, 11000, 3, t, { rev: 0.5 });
+    if (crit) [19, 24].forEach((s, i) => v('triangle', semi(660 * pm, s), semi(660 * pm, s), 0.5, 0.05, t + 0.05 + i * 0.03, { rev: 0.9 }));
+  },
+  // wrench on armor: a bright tool clang and a rattle
   MECHANIC(h, crit, pm, t) {
-    metal([523 * pm, 791 * pm, 1231 * pm, 1677 * pm], h ? 0.7 : 0.45, 0.32, t, 0.5);
-    v('sine', 150, 45, 0.18, 0.9, t, { dest: crunch });
+    metal([470 * pm, 1170 * pm, 1980 * pm, 2860 * pm], h ? 0.6 : 0.38, 0.32, t, 0.5);
+    v('sine', 150, 45, 0.16, 0.9, t, { dest: crunch });
+    n(0.08, 0.3, 'bandpass', 2400, 1200, 2, t + 0.02);
   },
+  // hammer smash: a deep boom, a dull iron clang, and debris
   TANK(h, crit, pm, t) {
-    v('sine', 110 * pm, 28, h ? 0.5 : 0.32, 1, t, { dest: crunch });
-    n(h ? 0.45 : 0.3, 0.7, 'lowpass', 1600, 80, 0.8, t, { rev: 0.4 });
-    n(0.08, 0.4, 'highpass', 2000, 800, 1, t);
+    v('sine', 95 * pm, 28, h ? 0.5 : 0.34, 1, t, { dest: crunch });
+    n(h ? 0.45 : 0.3, 0.7, 'lowpass', 2400, 90, 0.8, t, { rev: 0.4 });
+    metal([220 * pm, 341 * pm, 517 * pm, 780 * pm], h ? 0.5 : 0.3, 0.28, t, 0.4);
+    n(0.18, 0.25, 'bandpass', 1500, 600, 1.5, t + 0.04);
   },
+  // laser burn: a sizzle and an electric zzt, soft enough to repeat every tick of the beam
   ROBOT(h, crit, pm, t) {
-    for (let i = 0; i < 3; i++) v('square', 800 + Math.random() * 1400, 300, 0.025, 0.06, t + i * 0.015);
-    n(0.06, 0.3, 'highpass', 5000, 8000, 3, t);
+    n(0.07, 0.3, 'highpass', 3000, 7000, 1, t);
+    v('sawtooth', 120 * pm, 95, 0.06, 0.08, t, { dest: crunch });
+    v('square', 1600 * pm, 2600 * pm, 0.03, 0.025, t);
   },
+  // the hack lands: a glitchy chiptune arpeggio
   DEV(h, crit, pm, t) {
     [0, 7, 12, 19].forEach((s, i) => v('square', semi(523 * pm, s), semi(523 * pm, s), 0.025, 0.06, t + i * 0.022));
+    v('square', 3000 + Math.random() * 3000, 400, 0.04, 0.03, t);
     n(0.05, 0.2, 'highpass', 6000, 6000, 1, t);
   },
 };

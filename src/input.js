@@ -1,4 +1,4 @@
-import { canvas, W, H } from './gfx.js';
+import { canvas, W, H } from './gfx.js?v=32';
 
 export const input = {
   down: new Set(),
@@ -34,6 +34,22 @@ function becomeTouch() {
   input.device = 'touch';
 }
 // best effort: fullscreen and a landscape lock. Browsers only allow it when a finger lifts.
+export const isFull = () => !!document.fullscreenElement;
+export function toggleFull() {
+  if (isFull()) { document.exitFullscreen?.().catch(() => {}); return; }
+  document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => {
+    // keep Escape for the game (pause): in Chromium browsers fullscreen then needs Escape held down, F11 or the button to leave
+    navigator.keyboard?.lock?.(['Escape']).catch(() => {});
+    screen.orientation?.lock?.('landscape');
+  }).catch(() => {});
+}
+// the corner button: its own clicks and taps never reach the game
+const fsBtn = document.getElementById('fs');
+if (fsBtn) {
+  for (const ev of ['mousedown', 'mouseup', 'touchstart', 'touchend']) fsBtn.addEventListener(ev, (e) => e.stopPropagation());
+  fsBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleFull(); fsBtn.blur(); });
+  document.addEventListener('fullscreenchange', () => { fsBtn.classList.toggle('on', isFull()); if (!isFull()) navigator.keyboard?.unlock?.(); });
+}
 function goFull() {
   if (wentFull || !document.documentElement.requestFullscreen) return;
   wentFull = true;

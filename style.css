@@ -91,3 +91,25 @@ html, body {
 }
 
 @media (prefers-reduced-motion: reduce) { .phone { animation: none; transform: rotate(-90deg); } }
+
+/* fullscreen button in the page corner */
+#fs {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 6, 11, 0.55);
+  border: 1px solid rgba(230, 216, 189, 0.25);
+  color: var(--bone);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, border-color 0.15s;
+  z-index: 5;
+}
+#fs:hover, #fs:focus-visible { opacity: 1; border-color: var(--ember); outline: none; }
+#fs svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+#fs.on svg { transform: rotate(180deg); }
+.touch #fs { display: none; }

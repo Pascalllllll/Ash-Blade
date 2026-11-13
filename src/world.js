@@ -1,12 +1,12 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js';
-import { SPR } from './sprites.js';
-import { A } from './audio.js';
-import { input, keyDown, keyHit } from './input.js';
-import { settings, OPTIONS, best, saveBest } from './store.js';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js';
-import { CHARS, ALLY } from './chars.js';
-import { BOSSES, bossFor } from './bosses.js';
-import { byId } from './upgrades.js';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js?v=32';
+import { SPR } from './sprites.js?v=32';
+import { A } from './audio.js?v=32';
+import { input, keyDown, keyHit } from './input.js?v=32';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=32';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=32';
+import { CHARS, ALLY } from './chars.js?v=32';
+import { BOSSES, bossFor } from './bosses.js?v=32';
+import { byId } from './upgrades.js?v=32';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -39,6 +39,10 @@ export const DEF = {
   tick: { r: 4, hp: 3, kbRes: 0, col: '#ff5a3c', colD: '#6b0f24', score: 80, speed: 74, energy: 1 },
   brute: { r: 9, hp: 46, kbRes: 0.8, col: '#b5f23a', colD: '#45651a', score: 450, speed: 26, energy: 6 },
   larva: { r: 3, hp: 2, kbRes: 0, col: '#b5f23a', colD: '#45651a', score: 20, speed: 100, energy: 0 },
+  slime: { r: 6, hp: 12, kbRes: 0.2, col: '#4ad6c0', colD: '#1a5a52', score: 140, speed: 34, energy: 2 },
+  slimelet: { r: 3, hp: 3, kbRes: 0, col: '#4ad6c0', colD: '#1a5a52', score: 30, speed: 60, energy: 0 },
+  spitter: { r: 6, hp: 14, kbRes: 0.6, col: '#d6e24a', colD: '#5a6a1a', score: 220, speed: 22, energy: 3 },
+  shade: { r: 5, hp: 10, kbRes: 0, col: '#9a7aff', colD: '#3a2a6a', score: 260, speed: 50, energy: 3 },
   egg: { r: 4, hp: 12, kbRes: 1, col: '#c9d48a', colD: '#45651a', score: 40, speed: 0, energy: 1 },
 };
 export const DIFF = {
@@ -208,7 +212,10 @@ function buildQueue(n) {
   const pool = [['husk', 1, 5]];
   if (n >= 2) pool.push(['wisp', 2, 3]);
   if (n >= 3) pool.push(['tick', 1, 3]);
+  if (n >= 3) pool.push(['slime', 2, 3]);
   if (n >= 4) pool.push(['brute', 5, n >= 7 ? 2 : 1]);
+  if (n >= 5) pool.push(['spitter', 3, 2]);
+  if (n >= 8) pool.push(['shade', 3, 2]);
   const total = pool.reduce((s, x) => s + x[2], 0);
   while (budget > 0) {
     let k = rnd(total), pick = pool[0];
@@ -241,7 +248,7 @@ export function spawnEnemy(type, x, y) {
   } else {
     e.hp = Math.round(d.hp * sc);
     e.speed = d.speed * (1 + Math.min(0.45, (G.wave - 1) * 0.03)) * G.D.spd * Math.min(1.35, 1 + 0.012 * ef);
-    if (type !== 'egg' && type !== 'larva' && G.wave >= 6 && Math.random() < Math.min(0.6, 0.06 + G.wave * 0.012 + 0.03 * ef)) { e.elite = true; e.hp = Math.round(e.hp * 2.4); e.speed *= 1.1; }
+    if (type !== 'egg' && type !== 'larva' && type !== 'slimelet' && G.wave >= 6 && Math.random() < Math.min(0.6, 0.06 + G.wave * 0.012 + 0.03 * ef)) { e.elite = true; e.hp = Math.round(e.hp * 2.4); e.speed *= 1.1; }
   }
   e.r = d.r;
   e.maxHp = e.hp;
@@ -319,7 +326,7 @@ export const pd = (x) => Math.max(1, Math.round(x * G.up.dmg));
 
 export function sprFor(e) {
   const frames = e.type === 'boss' ? (e.boss === 'mirror' ? [SPR.chars[G.char].idle, ...SPR.chars[G.char].run] : SPR[e.boss]) : SPR[e.type];
-  const speed = e.type === 'wisp' ? 4 : e.type === 'tick' || e.type === 'larva' ? 14 : e.type === 'egg' ? 3 : 7;
+  const speed = e.type === 'slime' ? 5 : e.type === 'slimelet' ? 9 : e.type === 'spitter' || e.type === 'shade' ? 4 : e.type === 'wisp' ? 4 : e.type === 'tick' || e.type === 'larva' ? 14 : e.type === 'egg' ? 3 : 7;
   const f = frames[Math.floor(e.anim * speed) % frames.length];
   // everyone blinks now and then, each on their own clock
   return f.blink && (e.anim * 0.8 + e.x * 0.013) % 3.3 < 0.14 ? f.blink : f;
@@ -336,6 +343,11 @@ export function damage(e, dmg, o) {
   if (p.ascend > 0 && o.src !== 'lava') dmg *= 2;
   if (G.kit.dmgScale && o.src !== 'lava' && o.src !== 'wall') dmg *= G.kit.dmgScale();
   if (melee && !o.crit && Math.random() < up.crit) { dmg *= 2; o.crit = true; }
+  // the first hit after a perfect dodge is a counter: triple damage and a shockwave
+  if (o.ug && p.counter > 0) {
+    dmg *= 3; o.crit = true;
+    if (!p.counterHit) { p.counterHit = true; p.counter = 0.08; counterBlast(e, o.dir ?? 0); }
+  }
   if (up.exec && e.hp < e.maxHp * 0.2 && o.src !== 'lava') dmg *= 1.6;
   if (e.armor) dmg *= e.armor;
   dmg = Math.max(1, Math.round(dmg));
@@ -383,6 +395,8 @@ export function kill(e, o) {
   shake(e.type === 'brute' ? 0.55 : 0.3);
   A.kill(G.combo); buzz('kill');
   if (e.type === 'tick') G.booms.push({ x: e.x, y: e.y, t: 0.09, friendly: true });
+  // a slime splits into two hopping slimelets
+  if (e.type === 'slime') for (const side of [-1, 1]) { const c = spawnEnemy('slimelet', e.x + side * 4, e.y); c.state = 'hop'; c.cd = 0.15; c.kx = side * 120; }
   if (G.up.evoEmber && e.burn > 0) { G.booms.push({ x: e.x, y: e.y, t: 0.05, friendly: true, R: 40, dmg: 14 }); G.zones.push({ type: 'burn', x: e.x, y: e.y, r: 22, t: 0, life: 2.5 }); }
   if (G.up.evoWpn && o.ug) spirits(e.x, e.y - e.r - 4, 5);
   if (e.frozen > 0 && G.up.frost) shatter(e);
@@ -449,7 +463,7 @@ export function tryHurt(dmg, sx, sy) {
     return 'blocked';
   }
   p.hp -= dmg;
-  p.inv = 1.1; p.hurtT = 0.3;
+  p.inv = 0.8; p.hurtT = 0.3;
   const a = Math.atan2(p.y - sy, p.x - sx);
   p.vx = Math.cos(a) * 220; p.vy = Math.sin(a) * 220;
   if (p.state === 'attack' || p.state === 'recover') p.state = 'move';
@@ -464,6 +478,17 @@ export function tryHurt(dmg, sx, sy) {
   return true;
 }
 
+function counterBlast(e, dir) {
+  const p = G.p;
+  hitstop(0.16); shake(0.75); flash(P.volt, 0.18, true); buzz('heavy');
+  A.parry(); A.ultCut(4); A.boom(0.7);
+  addText(e.x, e.y - 22, 'COUNTER', P.volt, 2);
+  addRing(e.x, e.y - e.r, P.volt, 320, 0.3, 3); addRing(e.x, e.y - e.r, P.paper, 220, 0.2, 1);
+  sparks(e.x, e.y - e.r, dir, 18, 0.9, P.volt, 320);
+  for (const o of G.E) if (o !== e && alive(o) && hyp(o.x - e.x, o.y - e.y) < 55) damage(o, pd(8), { dir: Math.atan2(o.y - e.y, o.x - e.x), kb: 280, src: 'bolt' });
+  ghost(p, P.volt);
+}
+
 function perfectDodge() {
   const p = G.p;
   p.perfectUsed = true;
@@ -471,7 +496,8 @@ function perfectDodge() {
   slowmo(0.6, 0.3);
   p.energy = Math.min(100, p.energy + 12);
   p.inv = Math.max(p.inv, 0.45);
-  addText(p.x, p.y - 24, 'PERFECT', P.volt, 1);
+  p.counter = 2.5; p.counterHit = false;
+  addText(p.x, p.y - 24, 'PERFECT  COUNTER READY', P.volt, 1);
   addRing(p.x, p.y - 6, P.volt, 220, 0.35, 2);
   A.perfect(); buzz('parry');
   addCombo(1);
@@ -566,6 +592,7 @@ function updatePlayer(dt) {
   const p = G.p, up = G.up, kit = G.kit;
   p.t += dt; p.atkT += dt;
   p.inv = Math.max(0, p.inv - dt); p.hurtT -= dt; p.comboWin -= dt;
+  if (p.counter > 0) { p.counter -= dt; if (p.counter <= 0) p.counterHit = false; }
   p.bufAtk -= dt; p.bufDash -= dt; p.bufQ -= dt; p.bufE -= dt; p.bufR -= dt;
   p.cdQ -= dt; p.cdE -= dt; p.ultLock -= dt;
   p.invis = Math.max(0, p.invis - dt); p.fortress = Math.max(0, p.fortress - dt);
@@ -617,7 +644,21 @@ function updatePlayer(dt) {
     case 'attack': {
       const k = 1 - Math.exp(-12 * dt);
       p.vx += (mx * speed * 0.3 - p.vx) * k; p.vy += (my * speed * 0.3 - p.vy) * k;
-      if (p.atkT <= p.swing.active) swingHits();
+      const sw = p.swing;
+      if (sw.delay && !sw.landed && p.atkT >= sw.delay) {
+        // the hammer or wrench hits the floor
+        sw.landed = true;
+        const cx = p.x + Math.cos(p.atkAng) * sw.reach * 0.5, cy = p.y + Math.sin(p.atkAng) * sw.reach * 0.5;
+        addRing(cx, cy, P.paper, sw.reach * 7, 0.22, 2); addRing(cx, cy, P[sw.col] || P.ember, sw.reach * 5, 0.3, 3);
+        dust(cx, cy, 16, 130); scorch(cx, cy, 7); shake(0.5); hitstop(0.04); A.boom(0.55);
+      }
+      if (sw.rehit && p.atkT >= sw.rehit) {
+        // the second cut of a cross or an iai draw
+        sw.rehit = 0; p.swingHit = new Set(); sw.dir = -sw.dir; sw.active = p.atkT + 0.085;
+        G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: sw.reach, arc: Math.max(sw.arc, 1.6), dir: sw.dir, t: 0, life: 0.15, th: sw.th, col: sw.col });
+        A.charAtk(G.char, sw.heavy, p.step + 1);
+      }
+      if (p.atkT >= sw.delay && p.atkT <= sw.active) swingHits();
       if (p.atkT >= p.atkDur) { p.state = 'move'; p.comboWin = 0.3; }
       break;
     }
@@ -712,10 +753,15 @@ function startAttack() {
   p.atkDur = s.dur / spd;
   p.cancelAt = s.cancel / spd;
   p.vx = Math.cos(p.atkAng) * s.lunge; p.vy = Math.sin(p.atkAng) * s.lunge;
-  p.swing = { reach: s.reach * up.reach, arc: s.arc, dmg: s.dmg, heavy: !!s.heavy, kb: s.kb, active: 0.085 / up.spd, dir: p.step % 2 ? -1 : 1 };
+  // shapes: arc (default), cross (a second cut back the other way), thrust (long and narrow),
+  // iai (a lunging thrust with a delayed second cut), spin (all around), slam (a delayed ground impact in front)
+  const shape = s.shape || 'arc', delay = shape === 'slam' ? (s.dur * 0.38) / spd : 0;
+  p.swing = { reach: s.reach * up.reach, arc: s.arc, dmg: s.dmg, heavy: !!s.heavy, kb: s.kb, active: delay + 0.085 / up.spd, dir: p.step % 2 ? -1 : 1,
+    shape, delay, rehit: shape === 'cross' || shape === 'iai' ? 0.1 / spd : 0, landed: false, th: s.th };
   p.swingHit = new Set();
   const col = RANKS[G.rank].l === 'SSS' ? 'gold' : m.col;
-  G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach, arc: s.arc, dir: p.swing.dir, t: 0, life: s.heavy ? 0.24 : Math.min(0.19, s.dur * 0.9), th: s.th, col });
+  p.swing.col = col;
+  if (shape !== 'slam') G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach, arc: s.arc, dir: p.swing.dir, t: 0, life: s.heavy ? 0.24 : Math.min(0.19, s.dur * 0.9), th: s.th, col });
   A.charAtk(G.char, !!s.heavy, p.step);
 }
 
@@ -726,7 +772,8 @@ function swingHits() {
     const dx = e.x - p.x, dy = e.y - p.y, d = hyp(dx, dy);
     if (d > sw.reach + e.r) continue;
     const a = Math.atan2(dy, dx);
-    if (d > e.r + 6 && Math.abs(angDiff(a, p.atkAng)) > sw.arc / 2) continue;
+    if (sw.shape === 'slam') { const cx = p.x + Math.cos(p.atkAng) * sw.reach * 0.5, cy = p.y + Math.sin(p.atkAng) * sw.reach * 0.5; if (hyp(e.x - cx, e.y - cy) > sw.reach * 0.65 + e.r) continue; }
+    else if (sw.shape !== 'spin' && d > e.r + 6 && Math.abs(angDiff(a, p.atkAng)) > sw.arc / 2) continue;
     p.swingHit.add(e);
     meleeHit(e, sw, a);
   }
@@ -847,7 +894,7 @@ export function drawOrbit(p) {
 }
 
 // ---------- regular enemies ----------
-const HOME = { husk: 'chase', wisp: 'drift', tick: 'run', brute: 'chase', larva: 'chase' };
+const HOME = { husk: 'chase', wisp: 'drift', tick: 'run', brute: 'chase', larva: 'chase', slime: 'hop', slimelet: 'hop', spitter: 'root', shade: 'stalk' };
 function updateEnemy(e, dt) {
   const p = G.p, dx = p.x - e.x, dy = p.y - e.y, d = hyp(dx, dy), ang = Math.atan2(dy, dx);
   e.vx = 0; e.vy = 0;
@@ -885,13 +932,90 @@ function updateEnemy(e, dt) {
     if (hyp(e.wx - e.x, e.wy - e.y) < 8 || Math.random() < dt * 0.5) { e.wx = rnd(B.x0 + 20, B.x1 - 20); e.wy = rnd(B.y0 + 20, B.y1 - 20); }
     const wa = Math.atan2(e.wy - e.y, e.wx - e.x);
     e.vx = Math.cos(wa) * e.speed * 0.5; e.vy = Math.sin(wa) * e.speed * 0.5;
-    if (e.state === 'windup' || e.state === 'lunge' || e.state === 'aim' || e.state === 'fuse') e.state = HOME[e.type];
+    if (e.state === 'windup' || e.state === 'lunge' || e.state === 'aim' || e.state === 'fuse' || e.state === 'strike' || e.state === 'vanish') e.state = HOME[e.type];
+    e.z = 0; e.hopT = 0;
     return;
   }
   if (e.type === 'larva') {
     const wob = Math.sin(e.anim * 10) * 0.6;
     e.vx = Math.cos(ang + wob) * e.speed; e.vy = Math.sin(ang + wob) * e.speed; e.face = dx < 0 ? -1 : 1;
     if (d < e.r + p.r + 2) { e.dead = true; tryHurt(1, e.x, e.y); splat(e.x, e.y, 5, e.def.col, e.def.colD); A.splat(); }
+    return;
+  }
+  if (e.type === 'slime' || e.type === 'slimelet') {
+    // hops at you; it only hurts when it lands on you
+    const small = e.type === 'slimelet';
+    e.face = dx < 0 ? -1 : 1;
+    if (e.hopT > 0) {
+      e.hopT -= dt;
+      const k = 1 - e.hopT / e.hopDur;
+      e.vx = Math.cos(e.lock) * e.speed * 3; e.vy = Math.sin(e.lock) * e.speed * 3;
+      e.z = Math.sin(k * Math.PI) * (small ? 6 : 11);
+      if (e.hopT <= 0) {
+        e.z = 0; dust(e.x, e.y, small ? 2 : 5, 40);
+        if (d < e.r + p.r + 4) tryHurt(1, e.x, e.y);
+        e.cd = small ? rnd(0.2, 0.45) : rnd(0.55, 1);
+      }
+    } else {
+      e.cd -= dt;
+      if (e.cd <= 0) { e.hopDur = e.hopT = small ? 0.3 : 0.42; e.lock = ang + rnd(-0.35, 0.35); }
+    }
+    return;
+  }
+  if (e.type === 'spitter') {
+    // a rooted plant that keeps its distance and lobs acid where you stand
+    e.face = dx < 0 ? -1 : 1;
+    if (e.state === 'root') {
+      const radial = d > 160 ? 1 : d < 100 ? -1 : 0;
+      e.vx = Math.cos(ang) * radial * e.speed; e.vy = Math.sin(ang) * radial * e.speed;
+      e.cd -= dt;
+      if (e.cd <= 0 && d < 240) { e.state = 'windup'; e.t = 0.6; e.tele = true; }
+    } else if (e.state === 'windup') {
+      e.t -= dt;
+      if (e.t <= 0) {
+        e.tele = false;
+        const n = e.elite || G.wave >= 14 ? 3 : 1;
+        for (let i = 0; i < n; i++) {
+          const ox = i ? rnd(-30, 30) : 0, oy = i ? rnd(-22, 22) : 0;
+          G.strikes.push({ x: clamp(p.x + p.vx * 0.35 + ox, B.x0 + 8, B.x1 - 8), y: clamp(p.y + p.vy * 0.35 + oy, B.y0 + 8, B.y1 - 4), x0: e.x, y0: e.y - 10, t: 0, delay: 0.85, R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor });
+        }
+        A.splat(); A.shoot();
+        e.state = 'root'; e.cd = rnd(2.6, 3.6);
+      }
+    }
+    return;
+  }
+  if (e.type === 'shade') {
+    // drifts at a distance, fades out, then reappears behind you and slashes
+    if (e.state === 'stalk') {
+      e.face = dx < 0 ? -1 : 1;
+      const radial = d > 90 ? 1 : d < 60 ? -1 : 0;
+      e.vx = (Math.cos(ang) * radial + Math.cos(ang + Math.PI / 2) * e.orbit) * e.speed;
+      e.vy = (Math.sin(ang) * radial + Math.sin(ang + Math.PI / 2) * e.orbit) * e.speed;
+      e.cd -= dt;
+      if (e.cd <= 0) { e.state = 'vanish'; e.t = 0.3; A.zip(); }
+    } else if (e.state === 'vanish') {
+      e.t -= dt;
+      if (e.t <= 0) {
+        const back = (Math.cos(p.aim) < 0 ? 0 : Math.PI) + rnd(-0.5, 0.5);
+        e.x = clamp(p.x + Math.cos(back) * 22, B.x0 + 8, B.x1 - 8); e.y = clamp(p.y + Math.sin(back) * 16, B.y0 + 8, B.y1 - 4);
+        e.state = 'strike'; e.t = 0.45; e.tele = true;
+        for (let i = 0; i < 10; i++) { const a = rnd(TAU); part(e.x, e.y - 6, Math.cos(a) * 60, Math.sin(a) * 60, 0.3, e.def.col, { drag: 5, glow: true }); }
+      }
+    } else if (e.state === 'strike') {
+      e.t -= dt; e.face = dx < 0 ? -1 : 1;
+      if (e.t > 0.12) e.lock = ang;
+      if (e.t <= 0) {
+        e.tele = false;
+        G.slashes.push({ follow: false, x: e.x, y: e.y, a: e.lock, r: 24, arc: 2.4, dir: 1, t: 0, life: 0.16, th: 6, col: 'hex' });
+        if (d < 26 && Math.abs(angDiff(ang, e.lock)) < 1.4) tryHurt(1, e.x, e.y);
+        A.slice();
+        e.state = 'recover'; e.t = 0.7;
+      }
+    } else if (e.state === 'recover') {
+      e.t -= dt;
+      if (e.t <= 0) { e.state = 'stalk'; e.cd = rnd(2, 3); e.orbit = Math.random() < 0.5 ? 1 : -1; }
+    }
     return;
   }
   if (e.type === 'husk') {
@@ -1055,8 +1179,7 @@ export function update(dt, rdt) {
       G.phase = 'clear'; G.phaseT = 1.6;
       slowmo(0.8, 0.25);
       A.waveClear(); A.scene('calm'); A.stopLoops();
-      G.banner = { text: 'WAVE CLEAR', sub: '+1 HEALTH', t: 0, life: 1.6, c: P.ember3 };
-      healPlayer(1);
+      G.banner = { text: 'WAVE CLEAR', sub: '', t: 0, life: 1.6, c: P.ember3 };
     }
   } else if (G.phase === 'clear') {
     G.phaseT -= dt;
@@ -1469,7 +1592,7 @@ function drawPlayer() {
   const lean = p.state === 'attack' && p.atkT < 0.12 ? 2 : p.state === 'dash' ? 1 : 0, la = p.state === 'attack' ? p.atkAng : p.aim;
   const wa = p.state === 'attack' ? p.atkAng : p.aim;
   const behind = Math.sin(wa) < -0.3;
-  shadow(p.x, p.y, 5);
+  shadow(p.x, p.y, 6);
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
   kit.drawAura?.(p, flip);
   if (behind) kit.drawWeapon(p, flip);
@@ -1478,12 +1601,14 @@ function drawPlayer() {
   // glowing eyes
   const ex = sx + (flip ? fr.w - 1 - set.eye[0] : set.eye[0]), ey = sy + set.eye[1] + breathe, ec = kit.eyeColor || kit.color();
   if (!blink) glow(ex, ey, ec, 4, 0.7);
+  // a charged counter crackles around the fighter
+  if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
   if (!behind) kit.drawWeapon(p, flip);
   ctx.globalAlpha = 1;
-  glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 9, 0.2);
+  glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 10, 0.2);
   drawOrbit(p);
   if (p.ascend > 0) {
-    ring(p.x, p.y - 8, 13 + Math.sin(G.time * 14), 1, P.gold); glow(p.x, p.y - 8, P.gold, 20, 0.4);
+    ring(p.x, p.y - 9, 14 + Math.sin(G.time * 14), 1, P.gold); glow(p.x, p.y - 9, P.gold, 22, 0.4);
     // golden wings
     const flap = Math.sin(G.time * 8) * 0.25;
     for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
@@ -1494,10 +1619,10 @@ function drawPlayer() {
   if (p.evoFlash > 0) {
     const w = Math.round(14 * Math.min(1, p.evoFlash));
     rect(p.x - w / 2, fx.cam.y - 10, w, p.y - fx.cam.y + 10, P.gold); rect(p.x - w / 4, fx.cam.y - 10, Math.max(1, w / 2), p.y - fx.cam.y + 10, P.paper);
-    glow(p.x, p.y - 8, P.gold, 30, 0.6);
+    glow(p.x, p.y - 9, P.gold, 30, 0.6);
   }
-  if (p.shield > 0) { ring(p.x, p.y - 7, 12 + Math.sin(G.time * 8), 1, P.volt); glow(p.x, p.y - 7, P.volt, 12, 0.2); }
-  if (p.fortress > 0) { ring(p.x, p.y - 7, 14 + Math.sin(G.time * 12) * 1.5, 2, P.gold); glow(p.x, p.y - 7, P.gold, 18, 0.3); }
+  if (p.shield > 0) { ring(p.x, p.y - 8, 13 + Math.sin(G.time * 8), 1, P.volt); glow(p.x, p.y - 8, P.volt, 12, 0.2); }
+  if (p.fortress > 0) { ring(p.x, p.y - 8, 15 + Math.sin(G.time * 12) * 1.5, 2, P.gold); glow(p.x, p.y - 8, P.gold, 18, 0.3); }
 }
 
 export function drawEnemy(e) {
@@ -1531,8 +1656,10 @@ export function drawEnemy(e) {
   // breathing, and a crouch while winding up an attack
   const crouch = e.state === 'windup' || e.state === 'aim' || e.state === 'sweepW' || e.state === 'kslashW' || e.state === 'slashW' || e.state === 'dashW';
   const br = crouch ? 1 : Math.sin(e.anim * (e.type === 'boss' ? 2.2 : 3.4)) > 0.2 ? 1 : 0;
+  if (e.type === 'shade') ctx.globalAlpha = e.state === 'vanish' ? Math.max(0.05, e.t / 0.3) : e.state === 'stalk' ? 0.55 : 1;
   if (sc > 1) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(sc, sc); drawBreath(s, 0, 0, e.face < 0, tint, br); ctx.restore(); }
   else drawBreath(s, x, y, e.face < 0, tint, br);
+  ctx.globalAlpha = 1;
   if (e.type === 'wisp' && e.state === 'windup') glow(e.x, y + 4, P.hex, 6 + (0.55 - e.t) * 18, 0.6);
   if (e.type === 'egg') glow(e.x, e.y - 3, DEF.egg.col, 6 + Math.sin(G.time * 8) * 2, 0.3);
   if (e.type === 'boss') BOSSES[e.boss].draw?.(e, x, y, s);
@@ -1590,6 +1717,7 @@ function drawTelegraphs() {
       }
     }
     if (e.type === 'tick' && e.state === 'fuse') ring(e.x, e.y, 30, 1, blink ? P.blood : P.bloodD);
+    if (e.type === 'shade' && e.state === 'strike') { ring(e.x, e.y, 24, 1, blink ? P.hex : P.paper); textO('!', e.x, e.y - 22, P.hex, 1, 'c'); }
     if (e.type === 'boss' && !e.dying) BOSSES[e.boss].tele?.(e, blink);
   }
   for (const s of G.strikes) {

@@ -1,99 +1,98 @@
-import { makeSprite, P } from './gfx.js';
+import { makeSprite, P } from './gfx.js?v=32';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
 
+// stubby feet: 16 wide, 2 rows, L = leg color, b = boots
 const LEGS = {
-  idle: ['....obo..obo..', '....ooo..ooo..'],
-  r0: ['...obo....obo.', '...ooo....ooo.'],
-  r1: ['.....obobo....', '.....ooooo....'],
-  r2: ['....obo...obo.', '....ooo...ooo.'],
-  r3: ['.....obobo....', '......oooo....'],
+  idle: ['....oLLo.oLLo...', '....obbo.obbo...'],
+  r0: ['...oLLo...oLLo..', '...obbo...obbo..'],
+  r1: ['.....oLLoLLo....', '.....obbobbo....'],
+  r2: ['...oLLo...oLLo..', '..obbo.....obbo.'],
+  r3: ['.....oLLoLLo....', '......obbbo.....'],
 };
+// the wizard's robe hem replaces feet
+const ROBE_LEGS = ['.oRRRRRRRRRRRRo.', '.ooRoooRRoooRoo.'];
+const ROBE_LEGS_ALT = ['.oRRRRRRRRRRRRo.', '.oRoooRoooRoooo.'];
 
-// ---------- the seven playable characters ----------
+// ---------- the playable characters ----------
+// Tiny 16x18 heroes: a big head that is two thirds of the height, a small block of a body with nub
+// hands, and stubby feet. Hands sit on row 13 (4 above the feet).
 // eye: the pixel that glows (facing right). Sprites are drawn with their feet on the ground point.
 const BODIES = {
   BLADE: {
-    lids: 'e', eye: [9, 5],
-    rows: ['.....oooo.....', '....oCCCCo....', '...oCLLLCCo...', '..oCLLCCCCCo..', '..oCoooooooCo.', '..ooMmmmmeeoo.',
-      '..oMMmmmmmmo..', '...oMMmmmmo...', '..oossSSSsoo..', '.osSSssssCCoo.', 'osSoCaaaaCLCo.', 'oso.oaAAaoCCo.',
-      '.o..okkKkoCCo.', '....oaAaaoCLo.', '...oCCaaCCCLo.', '...oCCCCCCCCo.'],
-    alt: { 10: 'SsooCaaaaCLCo.', 11: '.s..oaAAaoCCo.', 15: '..oCCCCCCCCCo.' },
-    map: () => ({ C: '#3a2e58', L: '#5e4d8c', m: P.bone, M: '#a8987c', e: P.ember3, s: P.ember, S: P.ember2, a: '#4a4560', A: '#7a7498', k: '#2a2238', K: P.gold, b: '#191322' }),
+    lids: 'E', eye: [10, 7],
+    rows: ['....oooooooo....', '..ooCCCllCCCoo..', '.oCCCllCCCCCCCo.', '.oCClCCCCCCCCCo.', '.oCCCCCCCCCCCCo.', '.oCCCooooooooCo.',
+      '.oCCokkkkkkkkoo.', '.oCCokEEkkEEkko.', '.oCCokkkkkkkkko.', '.oCComMmmmmmmmo.', '.oCCoMMMMMMMMMo.', '..oCCooooooooo..',
+      '...osSSSSSSso...', '..okoaAAAAaoko..', '..SoCaaKKaaCo...', '...oCCaaaaCCo...'],
+    alt: { 14: '.SSoCaaKKaaCo...' },
+    map: () => ({ C: '#3a2e58', l: '#5e4d8c', k: '#120d1c', E: P.ember3, m: P.bone, M: '#a8987c', s: P.ember, S: P.ember2, a: '#4a4560', A: '#7a7498', K: P.gold }),
+    leg: '#2a2238', boot: '#191322',
   },
   GUNNER: {
-    lids: 'e', eye: [9, 5],
-    rows: ['......oo......', '.....oHHo.....', '....oHhhHo....', 'ooooHHHHHHoooo', 'oHHHHHHHHHHHHo', '.ooofffffeooo.',
-      '...orrrrrrro..', '...oorrrrroo..', '..oDDDwwDDDo..', '.oDDdDwwDdDDo.', '.oDdoDkKkDodDo', '.oDdoDDDDDodDo',
-      '.oDDoDDoDDoDDo', '.oDDoDDoDDoDDo', '..oDDDo.oDDDo.', '..oooo...oooo.'],
-    alt: { 14: '..oDDDo..oDDDo', 15: '..oooo....oooo' },
-    map: () => ({ H: '#3a2418', h: P.gold, f: '#c08a64', e: P.gold, r: '#a01e30', D: '#6a3e24', d: '#8e5a34', w: '#d8c8a0', k: '#2a1a10', K: P.gold, b: '#21160f' }),
+    lids: 'E', eye: [10, 7],
+    rows: ['.....oooooo.....', '....oHhhhhHo....', '.ooooHHHHHHoooo.', 'oHHHHHHHHHHHHHHo', '.oooYYYYYYYYooo.', '.oYYYYYYYYYYYYo.',
+      '.oYYfKKffKKfYYo.', '.oYYfEEffEEfYYo.', '.oYYffffffffYYo.', '.oYrrrrrrrrrrYo.', '.oorrrrRrrrrroo.', '...orrrrrrrro...',
+      '...oDDwwwwDDo...', '..ofoDDwwDDofo..', '...oDkKKKKkDo...', '...oDDDooDDDo...'],
+    map: () => ({ H: '#3a2418', h: P.gold, Y: '#5a3420', f: '#c08a64', K: '#2a1a10', E: '#f0e0c0', r: '#a01e30', R: '#7a1424', D: '#6a3e24', w: '#d8c8a0', k: '#2a1a10' }),
+    leg: '#3a2a20', boot: '#21160f',
   },
   WIZARD: {
-    lids: 'e', eye: [7, 5], wide: true,
-    rows: ['.......oo.......', '......oHHo......', '.....oHHHHo.....', '....oHHhHHHo....', '...oHHoooooHo...', '...oHoKeKKeoHo..',
-      '..ooHoKKmmKoHoo.', '.oSSoHoooooHoSSo', 'oSSRRoHgggHoRRSo', '.oRRrRRRRRRrRRo.', '.oRrRRRgRgRRrRo.', 'oRRoRRRRRRRRoRRo',
-      'oKKoRRrkkrRRoKKo', '.oo.oRRRRRRo.oo.', '....oRrRRrRo....', '...oRRRRRRRRo...'],
-    map: () => ({ H: '#2a1d4a', h: '#4a3580', K: '#0c0816', e: '#62efff', m: '#e6d8bd', S: '#8a7a9a', R: '#3a2766', r: '#6a4ab8', g: '#b48cff', k: '#1a1030' }),
-    legs: 'robe',
+    lids: 'e', eye: [9, 8], legs: 'robe',
+    rows: ['.........oo.....', '........oHHo....', '.......oHHo.....', '......oHhHHo....', '.....oHHhHHHo...', '....oHHHhHHHHo..',
+      'ooHHHHgHHgHHHHoo', '.ooKKKKKKKKKKoo.', '..oKKeeKKeeKKo..', '..oKmmmmmmmmKo..', '..ommmmmmmmmmo..', '...ommmmmmmmo...',
+      '...oRRmmmmRRo...', '..oKoRRmmRRoKo..', '..oRRRrgrRRRRo..', '..oRRRRRRRRRRo..'],
+    map: () => ({ H: '#2a1d4a', h: '#4a3580', K: '#0c0816', e: '#62efff', m: '#e6d8bd', R: '#3a2766', r: '#6a4ab8', g: '#b48cff' }),
   },
   NINJA: {
-    lids: 'E', eye: [9, 5], wide: true,
-    rows: ['.....oooooo.....', '....oBBBBBBo.Ko.', '...oBBbBBBBBoKo.', '...oBBBBBBBBoK..', '...oBoffffBBoK..', '...oBfEffEfBo...',
-      '...oBffflfBBo...', '....oofffoo.....', '...oWNNrrNNWo...', '..oWWNWrrWNWWo..', '..oWoWWWWWWoWo..', '..ofoWWWWWWofo..',
-      '....oSSSSSSo....', '...oSsSsSsSSo...', '....oLLooLLo....', '....oLLooLLo....'],
-    alt: { 8: '...oWNNrNNNWo...', 13: '...oSSsSsSsSo...' },
-    map: () => ({ B: '#3a7bd5', b: '#8ec5ff', K: '#c9a24a', f: '#f0c8a8', E: '#ff4f7a', l: '#c0504a', W: '#e8e6f0', N: '#24305a', r: '#e0223f', S: '#24305a', s: '#3a4a80', L: '#1a1a24', b2: '#2a2a3a' }),
+    // Rin: teal bob with a cyan shine and violet ends, lashed violet eyes, sailor collar, red tie and sash, navy skirt
+    lids: 'Ee', eye: [10, 8],
+    rows: ['....oooooooo....', '..ooBBBhhBBBoo..', '.oBBBhhhhBBBBBo.', '.oBBhhBBBBBBBBo.', '.oBBBBBBBBBBBBo.', '.oBsBBsBBsBBsBo.',
+      '.oVBBffBffffBBo.', '.oVBKKKffKKKfBo.', '.oVBfEEffEEffBo.', '.oVBfEeffEeffBo.', '.oVVfpffmffpVVo.', '..oVoffffffoVo..',
+      '...oWNNrrNNWo...', '..ofoWWrrWWofo..', '...oRRRRRRRRo...', '...oSsSSsSSso...'],
+    alt: { 14: '.RRoRRRRRRRRo...' },
+    map: () => ({ B: '#34a9c9', h: '#8be4f0', s: '#2a7f9e', V: '#8a5ad8', f: '#f4d2b8', K: '#14101c', E: '#a070ff', e: '#4a2a9a', p: '#f08a9a', m: '#c0504a', W: '#ecebf4', N: '#24305a', r: '#e0223f', R: '#c81e36', S: '#24305a' }),
+    leg: '#1a1a24', boot: '#3a2030',
   },
   MECHANIC: {
-    lids: 'G', eye: [6, 3], wide: true,
-    rows: ['.....oooooo.....', '....oWWWWWWo.xx.', '...oWWwwwwWWoxx.', '...oWGGGGGGWoxo.', '...oWWWWWWWWoPo.', '...ooWWddWWooPo.',
-      '..oOOoooooooOPo.', '.oOOOOOhhOOOoCCo', 'oggoOOOhhOOoCcCo', 'oggoOyKyKyOoCCCC', '.oo.oOOOOOOoCcoC', '....okkTkkko.oCo',
-      '....oOOOOOOo....', '....oOOooOOo....'],
-    map: () => ({ W: '#4a4f5c', w: '#7a8090', G: '#ff9a3c', x: '#ff6a2b', P: '#3a3f4a', d: '#2a2a30', O: '#d8651e', h: '#ffd447', g: '#3a3f4a', y: '#ffd447', K: '#1a1a20', C: '#8b98ab', c: '#62efff', k: '#2a1f1a', T: '#ffd447', b: '#2a1f1a' }),
+    lids: 'Gg', eye: [10, 5],
+    rows: ['....oooooooo....', '..ooWWwwwwWWoo..', '.oWWwWWWWWWWWWo.', '.oWWWWWWWWWWWWo.', '.oWooooooooooWo.', '.oWoGGGooGGGoWo.',
+      '.oWoGggooGggoWo.', '.oWWooofffoooWo.', '.offffffffffffo.', '.offcfffffffffo.', '.offffffddffffo.', '..ooffffffffoo..',
+      '...oOOOhhOOOo...', '..ogoOOhhOOogo..', '...oOyKyKyKOo...', '...oOOOooOOOo...'],
+    map: () => ({ W: '#4a4f5c', w: '#7a8090', G: '#ff9a3c', g: '#ffd08a', f: '#d8a07a', c: '#6a5a50', d: '#5a2a20', O: '#d8651e', h: '#ffd447', y: '#ffd447', K: '#1a1a20' }),
+    leg: '#b85416', boot: '#2a1f1a',
   },
   TANK: {
-    lids: 'v', eye: [8, 4],
-    rows: ['.h............h.', '.hh..oooooo..hh.', '..oooSSSSSSooo..', '...oSSssssSSo...', '...oSvvvvvvSo...', '...oSSSvvSSSo...',
-      '..ooSSSSSSSSoo..', 'ooPPPoSSSSoPPPoo', 'oPpPPPoSSoPPPpPo', 'oPPPPoSssSoPPPPo', '.ooooSSSKSSoooo.', '...oSSsSSsSSo...',
-      '...oSSSSSSSSo...', '...okkkkkkkko...', '...oSSSooSSSo...'],
-    map: () => ({ h: '#e6d8bd', S: '#5a6a82', s: '#8fa2bd', v: '#ff9a3c', P: '#3c4a63', p: '#8fa2bd', K: P.gold, k: '#2a2f3a' }),
-    legs: 'heavy',
+    lids: 'v', eye: [10, 7],
+    rows: ['.h............h.', '.hh..oooooo..hh.', '..hhoSSssSSohh..', '..oSSSSSSSSSSo..', '.oSSSsSSSSSSSSo.', '.oSSSSSSSSSSSSo.',
+      '.oSSooooooooSSo.', '.oSSovvvvvvoSSo.', '.oSSooooooooSSo.', '.oSSSSkSSkSSSSo.', '.oSSSSSSSSSSSSo.', '..ooSSSSSSSSoo..',
+      '.oPPoSSSSSSoPPo.', '.okkoSSKKSSokko.', '..ooSSsSSsSSoo..', '...okkkkkkkko...'],
+    map: () => ({ h: '#e6d8bd', S: '#5a6a82', s: '#8fa2bd', v: '#ff9a3c', P: '#3c4a63', K: P.gold, k: '#2a2f3a' }),
+    leg: '#4a586e', boot: '#2a2f3a',
   },
   ROBOT: {
-    lids: 'ER', eye: [7, 4], wide: true,
-    rows: ['..o..........o..', '..oA........Ao..', '...oA.oooo.Ao...', '....ooMMMMoo....', '....oMmERmMo....', '....oMMMMMMo....',
-      '..ooomMmmMmooo..', '.oCCoMMMMMMoCCo.', 'oCcCoMmVVmMoCcCo', 'oCCooMVWWVMooCCo', '.oooMMmVVmMMooo.', '...oMoMMMMoMo...',
-      '...oFoMmmMoFo...', '....ooMMMMoo....', '....oMMooMMo....'],
-    map: () => ({ M: '#8a96a8', m: '#4a5466', A: '#ff4f4f', E: '#ffffff', R: '#ff3b3b', C: '#3a4252', c: '#ff4f4f', V: '#62efff', W: '#ffffff', F: '#5c6678', b: '#3a4252' }),
+    lids: 'R', eye: [10, 8],
+    rows: ['..o..........o..', '..oA........Ao..', '...oAooooooAo...', '..oMMMMMMMMMMo..', '.oMMmmmmmmmmMMo.', '.oMooooooooooMo.',
+      '.oMoKKKKKKKKoMo.', '.oMoKKKKRRKKoMo.', '.oMoKKKRRRRKoMo.', '.oMoKKKKRRKKoMo.', '.oMooooooooooMo.', '..oMMmmmmmmMMo..',
+      '..ooooMMMMoooo..', '..oFoMmVVmMoFo..', '...oCMVWWVMCo...', '...oMMmVVmMMo...'],
+    map: () => ({ M: '#8a96a8', m: '#4a5466', A: '#ff4f4f', K: '#14161c', R: '#ff3b3b', C: '#3a4252', V: '#62efff', W: '#ffffff', F: '#5c6678' }),
+    leg: '#5c6678', boot: '#3a4252',
   },
 };
 BODIES.DEV = {
-  lids: 'V', eye: [9, 5], legs: 'dev',
-  rows: ['......oooooo......', '.....oHHHHHHo.....', '....oHHhgghHHo....', '...oHHhHHHHhHHo...', '..oaHHoooooooHao..', '..oaHoVVVVVVVoHao.',
-    '..oaHoVvVVVvVoHao.', '...oHHoffffoHHo...', '...ooHHomnoHHoo...', '..oCCoHHHHHHoCCo..', '.oCCgCoCCCCoCgCCo.', 'oCCCgCCCwCwCCgCCCo',
-    'oCCoCCCCwCwCCCoCCo', 'oCgoCCkkkkkkCCogCo', 'oKKoCCCCgCCCCCoKKo', '.oo.oCCCgCCCCCo.oo', '....oCCCCCCCCCo...', '....oCgCCCCCgCo...',
-    '...oCCCoooooCCCo..'],
-  map: () => ({ H: '#1b1f27', h: '#2c3240', g: '#39ff6a', a: '#0f1014', V: '#39ff6a', v: '#c8ffd8', f: '#c8916a', m: '#39ff6a', n: '#5a2a20', C: '#20242e', w: '#e6e6f0', k: '#101216', K: '#2a2f3a', J: '#26304a', S: '#e6e6f0' }),
-};
-const DEV_LEGS = {
-  idle: ['.....oJo..oJo.....', '.....oSo..oSo.....'], r0: ['....oJo....oJo....', '....oSo....oSo....'], r1: ['......oJooJo......', '......oSooSo......'],
-  r2: ['.....oJo...oJo....', '.....oSo...oSo....'], r3: ['......oJooJo......', '.......oSSo.......'],
-};
-const ROBE_LEGS = ['..oRoRRoRRoRRo..', '..o.o..o..o.o...'];
-const ROBE_LEGS_ALT = ['..oRRoRRoRRoRo..', '...o.o..o..o.o..'];
-const HEAVY = {
-  idle: ['...oSSo..oSSo...', '...oooo..oooo...'], r0: ['..oSSo....oSSo..', '..oooo....oooo..'], r1: ['....oSSooSSo....', '....oooooooo....'],
-  r2: ['...oSSo...oSSo..', '...oooo...oooo..'], r3: ['....oSSooSSo....', '.....oooooo.....'],
+  lids: 'Vv', eye: [10, 6],
+  rows: ['....oooooooo....', '..ooHHhgghHHoo..', '.oHHhHHHHHHHHHo.', '.oHHHHHHHHHHHHo.', 'aoHHooooooooHHoa', 'aoHoffffffffoHoa',
+    'aoHVVVVoVVVVoHoa', 'aoHVvVVoVvVVoHoa', 'aoHoffffffffoHoa', '.oHoffffmnffoHo.', '.oHHooooooooHHo.', '..ooHHHHHHHHoo..',
+    '...oCCwCCwCCo...', '..oKoCCgCCCoKo..', '...oCCkkkkCCo...', '...oCgCCCCgCo...'],
+  map: () => ({ H: '#1b1f27', h: '#2c3240', g: '#39ff6a', a: '#0f1014', V: '#39ff6a', v: '#c8ffd8', f: '#c8916a', m: '#39ff6a', n: '#5a2a20', C: '#20242e', w: '#e6e6f0', k: '#101216', K: '#2a2f3a' }),
+  leg: '#26304a', boot: '#e6e6f0',
 };
 
 function buildChar(id) {
   const d = BODIES[id];
-  const map = { o: P.ink0, ...d.map() };
+  const map = { o: P.ink0, L: d.leg, b: d.boot, ...d.map() };
   const body = (alt) => d.rows.map((r, i) => (alt && d.alt && d.alt[i]) || r);
-  const pad = (rows) => (d.wide ? rows.map((r) => '.' + r + '.') : rows);
-  const legs = (k) => (d.legs === 'dev' ? DEV_LEGS[k] : d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : d.legs === 'heavy' ? HEAVY[k] : pad(LEGS[k]));
+  const legs = (k) => (d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : LEGS[k]);
   const sp = (alt, k) => makeSprite([...body(alt), ...legs(k)], map, d.lids);
   const set = { idle: sp(false, 'idle'), run: [sp(false, 'r0'), sp(true, 'r1'), sp(false, 'r2'), sp(true, 'r3')] };
   set.eye = d.eye;
@@ -132,6 +131,23 @@ export function buildSprites() {
     makeSprite(['..ooo..', '.oEEEo.', 'oEeEEEo', 'oEEEeEo', 'oEEgEEo', '.oEEEo.', '..ooo..'], EG),
     makeSprite(['..ooo..', '.oEEEo.', 'oEeEEEo', 'oEEEeEo', 'oEgggEo', '.oEEEo.', '..ooo..'], EG),
   ];
+
+  // ---------- creeps added later: slimes, spitters, shades ----------
+  const SL = { o: O, S: '#4ad6c0', s: '#a8fff0', g: '#0e2e2a', m: '#1a5a52' };
+  SPR.slime = [
+    makeSprite(['...ooooo...', '..oSSSSSo..', '.oSsSSSSSo.', 'oSSgSSSgSSo', 'oSSSSSSSSSo', 'oSSSSmmSSSo', '.ooooooooo.'], SL, 'g'),
+    makeSprite(['...........', '..ooooooo..', '.oSsSSSSSo.', 'oSSgSSSgSSo', 'oSSSSSSSSSo', 'oSSSmmSSSSo', 'ooooooooooo'], SL, 'g'),
+  ];
+  SPR.slimelet = [makeSprite(['.ooo.', 'oSsSo', 'ogSgo', 'ooooo'], SL), makeSprite(['.....', '.ooo.', 'ogSgo', 'ooooo'], SL)];
+  const SP = { o: O, L: '#4f9a35', l: '#8fd04a', P: '#d6e24a', p: '#f6ff9a', g: '#ff4f4f', M: '#3a0a14', R: '#5a3a24' };
+  const SPIT = ['..oo...oo..', '.oLLo.oLLo.', '.oLlLoLlLo.', '..oLLoLLo..', '...ooooo...', '..oPPPPPo..', '.oPpPPPPPo.', 'oPPgPPPgPPo', 'oPPPPPPPPPo'];
+  SPR.spitter = [
+    makeSprite([...SPIT, 'oPPoooooPPo', 'oPPoMMMoPPo', '.oPPoooPPo.', '..oRRRRRo..', '.oRoRRRoRo.'], SP, 'g'),
+    makeSprite([...SPIT, 'oPoMMMMMoPo', 'oPPoMMMoPPo', '.oPPoooPPo.', '..oRRRRRo..', '.oRoRRRoRo.'], SP, 'g'),
+  ];
+  const SH = { o: O, V: '#4a3a8a', v: '#9a7aff', G: '#e8d8ff' };
+  const SHADE = ['...ooooo...', '..oVVVVVo..', '.oVvVVVVVo.', '.oVoooooVo.', '.oVoGoGoVo.', '.oVoooooVo.', 'oVVVVVVVVVo', 'oVvVVVVVvVo', '.oVVVVVVVo.', '..oVVVVVo..'];
+  SPR.shade = [makeSprite([...SHADE, '...oVVVo...', '....oVo....'], SH, 'G'), makeSprite([...SHADE, '...oVVo....', '...oVo.....'], SH, 'G')];
 
   // ---------- bosses ----------
   const WA = { o: O, B: '#c2b294', b: '#8a7a64', W: '#4a4068', w: '#7d6ea6', g: P.hex, R: '#4c2f4a', r: '#7c4a70', C: '#221a2c', c: '#3a2a48' };

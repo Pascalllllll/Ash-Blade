@@ -1,10 +1,10 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas } from './gfx.js';
-import { A } from './audio.js';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas } from './gfx.js?v=32';
+import { A } from './audio.js?v=32';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor,
-} from './world.js';
-import { SPR } from './sprites.js';
+} from './world.js?v=32';
+import { SPR } from './sprites.js?v=32';
 
 const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];

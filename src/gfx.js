@@ -30,10 +30,16 @@ export function makeCanvas(w, h) {
   return c;
 }
 
+// AUTO: the biggest whole-number zoom (sharpest pixels). FILL SCREEN: as big as fits.
+// A fixed resolution is in device pixels and never grows past the window.
+export const view = { res: 'AUTO' };
 export function fit() {
   const raw = Math.min(innerWidth / W, innerHeight / H);
   const touch = document.documentElement.classList.contains('touch');
-  const s = touch ? Math.max(0.5, raw) : Math.max(1, Math.floor(raw));
+  let s;
+  if (view.res === 'FILL SCREEN') s = raw;
+  else if (view.res !== 'AUTO') s = Math.min(raw, parseInt(view.res, 10) / W / (devicePixelRatio || 1));
+  else s = touch ? Math.max(0.5, raw) : Math.max(1, Math.floor(raw));
   canvas.style.width = W * s + 'px';
   canvas.style.height = H * s + 'px';
 }
@@ -312,4 +318,5 @@ export function applyTheme(name) { Object.assign(P, THEMES[name] || THEMES.EMBER
 export function applyDisplay(s) {
   canvas.style.filter = `saturate(${s.vibrancy}) brightness(${s.bright}) contrast(${s.contrast}) hue-rotate(${s.hue}deg)`;
   document.documentElement.classList.toggle('crt', !!s.crt);
+  if (s.res && s.res !== view.res) { view.res = s.res; fit(); }
 }

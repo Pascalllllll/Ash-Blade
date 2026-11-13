@@ -13,19 +13,23 @@ export const OPTIONS = {
   char: ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT', 'DEV'],
   vibe: ['OFF', 'LIGHT', 'MEDIUM', 'STRONG'],
   blood: ['10 SEC', '30 SEC', 'NEVER FADES'],
+  res: ['AUTO', 'FILL SCREEN', '1280X720', '1600X900', '1920X1080', '2560X1440'],
 };
 
 const DEFAULTS = {
   master: 1, music: 0.6, sfx: 0.9, track: 'AUTO', combat: 'HYPERDRIVE',
   theme: 'EMBER', vibrancy: 1, bright: 1, contrast: 1, hue: 0, crt: false,
   shake: 1, flash: true, numbers: true, particles: 'HIGH',
-  map: 'PIT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC',
+  map: 'PIT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC', res: 'AUTO',
 };
 const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], bright: [0.6, 1.4], contrast: [0.6, 1.6], hue: [0, 345], shake: [0, 1] };
 
 export const settings = { ...DEFAULTS, ver: 3 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
 export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0 };
+// Testing switch: true makes every fighter pickable (unlock progress is still tracked). Keep it false for release.
+const OPEN_ROSTER = false;
+export const isUnlocked = (id) => OPEN_ROSTER || best.unlocked.includes(id);
 
 function read(key) {
   try {
@@ -78,7 +82,7 @@ export function clearRun() { try { localStorage.removeItem(KEY_RUN); } catch { /
 export function loadRun(isUpgrade) {
   const r = read(KEY_RUN);
   if (!r || r.v !== 1) return null;
-  if (!OPTIONS.char.includes(r.char) || !best.unlocked.includes(r.char) || !OPTIONS.map.includes(r.map) || !OPTIONS.diff.includes(r.diff)) return null;
+  if (!OPTIONS.char.includes(r.char) || !isUnlocked(r.char) || !OPTIONS.map.includes(r.map) || !OPTIONS.diff.includes(r.diff)) return null;
   const out = {
     v: 1, char: r.char, map: r.map, diff: r.diff,
     wave: int(r.wave, 1, 9999), score: int(r.score, 0, 1e10), kills: int(r.kills, 0, 1e7), maxCombo: int(r.maxCombo, 0, 1e6),

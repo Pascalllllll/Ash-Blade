@@ -14,12 +14,12 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 
 | Fighter | Hero | Basic attack | Q | E | R |
 | --- | --- | --- | --- | --- | --- |
-| Blade | Kael | 3-hit sword combo | Rift: blinks forward and cuts every enemy on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
+| Blade | Kael | 4-hit sword combo: slash, X-cut, thrust, whirlwind | Rift: blinks forward and cuts every enemy on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
 | Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: shotgun blast that pushes you back | Grenade | Last Stand: 4 seconds of minigun |
 | Wizard | Morrow | Homing magic bolt | Frost Blink: teleports and freezes enemies at both ends | Meteor | Starfall: meteors land on enemies for about 3 seconds |
-| Ninja | Rin | 4-hit dagger combo, 2 dashes | Shuriken Fan: 5 stars that bounce off walls | Smoke Bomb: 3 seconds invisible, next hit does triple damage | Shadow Clones: 3 clones attack for 7 seconds |
-| Mechanic | Rivet | Wrench | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Junk Golem: a scrap giant fights for 12 seconds |
-| Tank | Grom | Slow hammer, 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
+| Ninja | Rin | 4-hit katana combo: cut, X-cut, lunging stab, a quick-draw that dashes through and cuts twice. 2 dashes | Shuriken Fan: 5 stars that bounce off walls | Smoke Bomb: 3 seconds invisible, next hit does triple damage | Shadow Clones: 3 clones attack for 7 seconds |
+| Mechanic | Rivet | Wrench combo: swing, twirl, ground slam | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Junk Golem: a scrap giant fights for 12 seconds |
+| Tank | Grom | Slow hammer combo: sweep, ground slam, full spin. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
 | Robot | Unit-7 | Laser that overheats if you hold it too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
 Every fighter, monster and boss breathes, blinks and leans into attacks. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
@@ -57,6 +57,18 @@ After every wave you pick one of three upgrades. Each fighter has about 60 picks
 | Kindling | Burning enemies explode when they die |
 | Orbit Blades | Twice the blades, on a wider orbit |
 
+## Enemies
+
+| Enemy | From wave | What it does |
+| --- | --- | --- |
+| Husk | 1 | Walks up and lunges |
+| Wisp | 2 | Keeps its distance and fires pink orbs |
+| Tick | 3 | Runs at you and explodes |
+| Slime | 3 | Hops at you and hurts when it lands. Splits into two small slimes when it dies |
+| Brute | 4 | Charges in a straight line and stuns itself on walls |
+| Spitter | 5 | A rooted plant that lobs acid where you are heading. The acid stays on the floor for 4 seconds |
+| Shade | 8 | Fades out, reappears behind you, and slashes after a short warning |
+
 ## Bosses
 
 | Wave | Boss | What it does |
@@ -92,7 +104,11 @@ Each boss has its own entrance and its own music. When a boss is off screen, an 
 | Powers | Q, E, R | Buttons around the attack button |
 | Pause | Esc | Button at the top |
 
-You can't be hit while dashing. If you dash through an attack just as it lands, time slows down and you get energy back.
+You can't be hit while dashing. If you dash through an attack just as it lands, time slows down, you get energy back, and your next hit within 2.5 seconds is a counter: triple damage and a shockwave that hits everything nearby.
+
+After you take a hit you can't be hit again for 0.8 seconds. Clearing a wave doesn't heal you, so health only comes from drops and upgrades.
+
+Use the button in the bottom-right corner, or F11, to go fullscreen. Escape pauses the game and doesn't leave fullscreen (in Firefox and Safari it still does).
 
 Hitting a pink orb sends it back at the enemies. Orbs with a red ring can't be sent back.
 
@@ -103,7 +119,7 @@ On a phone, the game asks you to turn the phone sideways. It pauses whenever you
 ## Settings
 
 - Audio: master, music and effects volume. The soundtrack setting either follows the fight or plays one track of your choice. You can also pick which of the four battle tracks plays during normal waves. The default is HYPERDRIVE, a 150 bpm hard-kick EDM track that also plays on the title screen. The fast tracks are built like EDM: four-on-the-floor kicks, offbeat bass, chord stabs, and an 8-bar cycle that builds up with a snare roll and a riser, then drops.
-- Video: color theme, vibrancy, brightness, contrast, hue shift and scanlines. You can also turn down screen shake, flashes, damage numbers and particles.
+- Video: resolution (sharpest whole-number zoom, fill the screen, or a fixed 720p to 1440p), color theme, vibrancy, brightness, contrast, hue shift and scanlines. You can also turn down screen shake, flashes, damage numbers and particles.
 - Game: arena, difficulty, blood stains and vibration. Blood and scorch marks fade after about 10 seconds by default, or 30 seconds, or never. Vibration has four levels (off, light, medium, strong) and works on phones whose browser supports it, which includes Android but not iPhone. There are 5 arenas. On the ice everything slides, and in the forge, enemies knocked into lava catch fire.
 
 ## Saving

@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js';
-import { SPR } from './sprites.js';
-import { A } from './audio.js';
-import { input } from './input.js';
-import { best } from './store.js';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=32';
+import { SPR } from './sprites.js?v=32';
+import { A } from './audio.js?v=32';
+import { input } from './input.js?v=32';
+import { best } from './store.js?v=32';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
   explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo,
-} from './world.js';
+} from './world.js?v=32';
 
 // ---------- helpers ----------
 function aimPoint(p, max) {
@@ -17,7 +17,7 @@ function aimPoint(p, max) {
   if (d > max) { x = p.x + ((x - p.x) / d) * max; y = p.y + ((y - p.y) / d) * max; }
   return [clamp(x, B.x0 + 6, B.x1 - 6), clamp(y, B.y0 + 6, B.y1 - 4)];
 }
-const hand = (p, flip) => [p.x + (flip ? -3 : 3), p.y - 6];
+const hand = (p, flip) => [p.x + (flip ? -4 : 4), p.y - 4];
 const nearest = (x, y, range, skip) => {
   let best = null, bd = range;
   for (const e of G.E) { if (!alive(e) || (skip && skip.has(e))) continue; const d = hyp(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } }
@@ -142,9 +142,11 @@ export const CHARS = {
     stats: { hp: 8, speed: 98 }, dash: { speed: 330, time: 0.14, cd: 0.32, charges: 1 }, ultRate: 1, energyHit: 1.5,
     melee: {
       col: 'ember', steps: [
+        // slash, X-cut, piercing thrust, whirlwind
         { reach: 31, arc: 2.6, dmg: 3, dur: 0.24, cancel: 0.12, lunge: 150, kb: 150, th: 8 },
-        { reach: 31, arc: 2.6, dmg: 3, dur: 0.24, cancel: 0.12, lunge: 150, kb: 150, th: 8 },
-        { reach: 40, arc: 3.7, dmg: 6, dur: 0.36, cancel: 0.2, lunge: 215, kb: 270, th: 12, heavy: true },
+        { reach: 31, arc: 2.6, dmg: 2, dur: 0.26, cancel: 0.14, lunge: 120, kb: 120, th: 7, shape: 'cross' },
+        { reach: 46, arc: 0.7, dmg: 4, dur: 0.24, cancel: 0.12, lunge: 260, kb: 220, th: 5, shape: 'thrust' },
+        { reach: 38, arc: Math.PI * 2, dmg: 6, dur: 0.4, cancel: 0.22, lunge: 60, kb: 280, th: 12, heavy: true, shape: 'spin' },
       ],
     },
     primaryName: 'SWORD COMBO',
@@ -400,13 +402,14 @@ export const CHARS = {
     stats: { hp: 6, speed: 114 }, dash: { speed: 380, time: 0.11, cd: 0.7, charges: 2 }, ultRate: 1, energyHit: 1.2, backstab: true,
     melee: {
       col: 'blood', steps: [
+        // quick cut, X-cut, lunging stab, iai draw (dashes through and cuts twice)
         { reach: 23, arc: 2.3, dmg: 2, dur: 0.15, cancel: 0.07, lunge: 170, kb: 80, th: 6 },
-        { reach: 23, arc: 2.3, dmg: 2, dur: 0.15, cancel: 0.07, lunge: 170, kb: 80, th: 6 },
-        { reach: 23, arc: 2.3, dmg: 2, dur: 0.15, cancel: 0.07, lunge: 170, kb: 80, th: 6 },
-        { reach: 28, arc: 3.2, dmg: 5, dur: 0.28, cancel: 0.14, lunge: 230, kb: 200, th: 9, heavy: true },
+        { reach: 24, arc: 2.3, dmg: 2, dur: 0.2, cancel: 0.1, lunge: 150, kb: 80, th: 6, shape: 'cross' },
+        { reach: 36, arc: 0.6, dmg: 3, dur: 0.16, cancel: 0.08, lunge: 300, kb: 120, th: 4, shape: 'thrust' },
+        { reach: 34, arc: 1.2, dmg: 4, dur: 0.3, cancel: 0.15, lunge: 430, kb: 200, th: 9, heavy: true, shape: 'iai' },
       ],
     },
-    primaryName: 'TWIN DAGGERS',
+    primaryName: 'KATANA',
     q: {
       name: 'SHURIKEN FAN', cost: 20, cd: 1, icon: 'cross', desc: 'FIVE BOUNCING STARS',
       use(p) {
@@ -435,9 +438,11 @@ export const CHARS = {
     },
     drawWeapon(p, flip) {
       const a = p.state === 'attack' ? swordAngle(p) : p.aim + (flip ? -0.8 : 0.8), [hx, hy] = hand(p, flip), cx = Math.cos(a), cy = Math.sin(a);
-      line(hx, hy, hx + cx * 6, hy + cy * 6, P.bone); px(hx + cx * 6, hy + cy * 6, P.paper);
-      const ox = flip ? 5 : -5;
-      line(hx + ox, hy + 1, hx + ox + cx * 4, hy + 1 + cy * 4, P.dust);
+      // katana: red-wrapped hilt, gold guard, a long slim steel blade with a bright edge at the tip
+      line(hx - cx * 3, hy - cy * 3, hx, hy, '#c81e36');
+      line(hx - cy * 1.5, hy + cx * 1.5, hx + cy * 1.5, hy - cx * 1.5, P.gold);
+      line(hx + cx, hy + cy, hx + cx * 11, hy + cy * 11, '#d8e4f0');
+      px(hx + cx * 11, hy + cy * 11, P.paper);
     },
     entrance: () => entrance('smoke'),
   },
@@ -449,8 +454,10 @@ export const CHARS = {
     stats: { hp: 8, speed: 95 }, dash: { speed: 320, time: 0.14, cd: 0.4, charges: 1 }, ultRate: 1.1, energyHit: 2,
     melee: {
       col: 'ember', heavySfx: true, steps: [
+        // swing, wrench twirl, ground slam
         { reach: 28, arc: 2.4, dmg: 4, dur: 0.3, cancel: 0.16, lunge: 120, kb: 180, th: 8 },
-        { reach: 30, arc: 3, dmg: 8, dur: 0.42, cancel: 0.24, lunge: 170, kb: 300, th: 11, heavy: true },
+        { reach: 26, arc: Math.PI * 2, dmg: 4, dur: 0.34, cancel: 0.2, lunge: 60, kb: 220, th: 9, shape: 'spin' },
+        { reach: 32, arc: 3, dmg: 9, dur: 0.46, cancel: 0.26, lunge: 140, kb: 320, th: 11, heavy: true, shape: 'slam' },
       ],
     },
     primaryName: 'WRENCH',
@@ -500,8 +507,10 @@ export const CHARS = {
     stats: { hp: 12, speed: 80 }, dash: { speed: 260, time: 0.16, cd: 0.6, charges: 1 }, ultRate: 1, energyHit: 2.5,
     melee: {
       col: 'steel', heavySfx: true, steps: [
+        // sweep, overhead slam, full hammer spin
         { reach: 34, arc: 3, dmg: 6, dur: 0.42, cancel: 0.24, lunge: 90, kb: 320, th: 11 },
-        { reach: 40, arc: 4.2, dmg: 12, dur: 0.6, cancel: 0.34, lunge: 120, kb: 420, th: 14, heavy: true },
+        { reach: 42, arc: 4.2, dmg: 12, dur: 0.6, cancel: 0.34, lunge: 120, kb: 420, th: 14, heavy: true, shape: 'slam' },
+        { reach: 38, arc: Math.PI * 2, dmg: 10, dur: 0.62, cancel: 0.36, lunge: 40, kb: 380, th: 14, heavy: true, shape: 'spin' },
       ],
     },
     primaryName: 'WAR HAMMER',
@@ -1012,7 +1021,7 @@ const AURA = {
   BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
   TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
 };
-const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#ff4f7a', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
+const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#a070ff', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
 for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].drawAura = AURA[id]; CHARS[id].eyeColor = EYES[id]; }
 
 // ---------- heroes: names, lore, and the mission that unlocks each one ----------

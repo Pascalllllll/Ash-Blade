@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js';
-import { SPR, icon } from './sprites.js';
-import { input, keyHit, TOUCH_BTNS } from './input.js';
-import { A } from './audio.js';
-import { settings, best, OPTIONS } from './store.js';
-import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js';
-import { CHARS } from './chars.js';
-import { BOSSES, bossFor } from './bosses.js';
-import { MAPS } from './maps.js';
-import { rollUpgrades, UPGRADES } from './upgrades.js';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=32';
+import { SPR, icon } from './sprites.js?v=32';
+import { input, keyHit, TOUCH_BTNS } from './input.js?v=32';
+import { A } from './audio.js?v=32';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=32';
+import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js?v=32';
+import { CHARS } from './chars.js?v=32';
+import { BOSSES, bossFor } from './bosses.js?v=32';
+import { MAPS } from './maps.js?v=32';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=32';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -153,7 +153,7 @@ export function drawHUD(menu) {
     else {
       const ch = CHARS[un.id], k2 = ease(un.t / 0.3), y = 118 + Math.round((1 - k2) * 30);
       rect(60, y - 4, 200, 26, P.ink0); rect(60, y - 4, 200, 1, P.gold); rect(60, y + 21, 200, 1, P.gold);
-      drawSprite(SPR.chars[un.id].idle, 66, y - 1, false);
+      bust(SPR.chars[un.id].idle, 66, y - 1, 18);
       textO('NEW FIGHTER UNLOCKED', 160, y, Math.floor(un.t * 6) % 2 ? P.gold : P.paper, 1, 'c');
       textO(ch.hero + '  THE ' + ch.name.replace('THE ', ''), 160, y + 10, ch.color(), 1, 'c');
     }
@@ -231,7 +231,7 @@ export function drawTitle(t, items) {
   const ids = roster();
   ids.forEach((id, i) => {
     const s = SPR.chars[id].run[Math.floor(t * 8 + i) % 4], x = W / 2 - (ids.length * 22) / 2 + i * 22 + 11 - s.w / 2;
-    drawSprite(s, x, 92 - s.h - (Math.floor(t * 8 + i) % 2), false);
+    drawSprite(s, x, 97 - s.h - (Math.floor(t * 8 + i) % 2), false);
   });
   const mw = 150, mx = (W - mw) / 2, my = 104;
   rect(mx - 2, my - 6, mw + 4, items.length * 12 + 6, P.ink1);
@@ -244,8 +244,12 @@ export function drawTitle(t, items) {
 // ---------- character select ----------
 export const sel = { i: 0, row: 0, t: 0 };
 const NCH = OPTIONS.char.length, PW = 36, PG = 2, PX0 = Math.round((W - (NCH * PW + (NCH - 1) * PG)) / 2), PY = 12;
-export const roster = () => OPTIONS.char.filter((id) => best.unlocked.includes(id));
-const locked = (id) => !best.unlocked.includes(id);
+// draws only the top rows of a sprite (head and shoulders), optionally scaled
+function bust(s, x, y, rows, scale = 1, tint = null) {
+  ctx.drawImage(tint ? s.tint(tint, false) : s.n, 0, 0, s.w, rows, Math.round(x), Math.round(y), s.w * scale, rows * scale);
+}
+export const roster = () => OPTIONS.char.filter(isUnlocked);
+const locked = (id) => !isUnlocked(id);
 const cycle = (list, cur, dir) => list[(list.indexOf(cur) + dir + list.length) % list.length];
 export function updateSelect(dt) {
   sel.t += dt;
@@ -288,7 +292,8 @@ export function drawSelect(t) {
     rect(x, PY, PW, 36, on ? P.ink2 : P.ink1);
     if (on) glow(x + PW / 2, PY + 18, ch.color(), 16, 0.18);
     const lk = locked(id), s = on && !lk ? SPR.chars[id].run[Math.floor(t * 9) % 4] : SPR.chars[id].idle;
-    ctx.save(); ctx.beginPath(); ctx.rect(x, PY, PW, 36); ctx.clip(); ctx.translate(x + PW / 2 - s.w, PY + 36 - s.h * 2 + Math.max(0, s.h * 2 - 36) / 2 - (on && !lk ? Math.floor(t * 9) % 2 : 0)); ctx.scale(2, 2); drawSprite(s, 0, 0, false, lk ? '#0a0810' : null); ctx.restore();
+    // the whole fighter at 2x
+    ctx.save(); ctx.beginPath(); ctx.rect(x, PY, PW, 36); ctx.clip(); bust(s, x + PW / 2 - s.w, PY - (on && !lk ? Math.floor(t * 9) % 2 : 0), s.h, 2, lk ? '#0a0810' : null); ctx.restore();
     if (lk) {
       // a small padlock over the silhouette
       const lx2 = x + PW / 2 - 4, ly2 = PY + 13;
@@ -346,6 +351,7 @@ export function settingsItems(ctxInfo) {
     { label: 'BACK', act: () => 'back' },
   ];
   if (setm.tab === 1) return [
+    { label: 'RESOLUTION', value: () => (settings.res === 'AUTO' ? 'AUTO (SHARPEST)' : settings.res.replace('X', ' X ')), adjust: stepList('res') },
     { label: 'COLOR THEME', value: () => settings.theme, adjust: stepList('theme') },
     { label: 'VIBRANCY', value: () => pct(settings.vibrancy), adjust: stepNum('vibrancy', 0.1, 0, 2) },
     { label: 'BRIGHTNESS', value: () => pct(settings.bright), adjust: stepNum('bright', 0.05, 0.6, 1.4) },
@@ -374,7 +380,7 @@ export function updateSettings(items) {
   for (let i = 0; i < 3; i++) if (inBox(40 + i * 82, 14, 76, 11) && input.mouse.pressed) { setm.tab = i; setm.sel = 0; A.ui(); return 'changed'; }
   if (keyHit('Escape')) return 'back';
   const before = JSON.stringify(settings);
-  const r = runMenu(setm, items, 40, 36, 240, 11);
+  const r = runMenu(setm, items, 40, 36, 240, setm.tab === 1 ? 10 : 11);
   if (r) return r;
   return JSON.stringify(settings) !== before ? 'changed' : null;
 }
@@ -386,8 +392,8 @@ export function drawSettings(t, items, inRun) {
     rect(x, 14, 76, 11, on ? P.ember : P.ink2);
     text(n, x + 38, 17, on ? P.ink0 : P.dust, 1, 'c');
   });
-  drawMenu(setm, items, 40, 36, 240, 11);
-  if (setm.tab === 1) roster().forEach((id, i) => drawSprite(SPR.chars[id].run[Math.floor(t * 8 + i) % 4], 290, 36 + i * 18, false));
+  drawMenu(setm, items, 40, 36, 240, setm.tab === 1 ? 10 : 11);
+  if (setm.tab === 1) roster().forEach((id, i) => bust(SPR.chars[id].idle, 290, 34 + i * 17, 16));
   if (setm.tab === 2 && inRun) text('ARENA AND DIFFICULTY APPLY TO YOUR NEXT RUN', W / 2, 106, P.stone2, 1, 'c');
   text(input.touch ? 'TAP A TAB, TAP LEFT OR RIGHT SIDE OF A ROW TO CHANGE IT' : 'Q / E SWITCH TABS   ARROWS CHANGE   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
 }
@@ -530,7 +536,7 @@ export function drawIntro(t) {
     const k = Math.min(1, (t - (1.55 + i * 0.07)) / 0.28);
     if (k <= 0) return;
     const s = k < 1 ? SPR.chars[id].run[Math.floor(t * 16) % 4] : SPR.chars[id].idle, from = i % 2 ? W + 20 : -30;
-    const tx = paradeX(i, s), y = 92 - s.h, e = 1 - Math.pow(1 - k, 3), x = from + (tx - from) * e;
+    const tx = paradeX(i, s), y = 97 - s.h, e = 1 - Math.pow(1 - k, 3), x = from + (tx - from) * e;
     if (k < 1) for (let g = 1; g <= 3; g++) { ctx.globalAlpha = 0.25 / g; drawSprite(s, x - (tx - from) * 0.08 * g, y, from > tx, CHARS[id].color()); }
     ctx.globalAlpha = 1;
     drawSprite(s, x, y, from > tx && k < 1);
@@ -590,4 +596,59 @@ export function touchBack(t) {
   if (!input.touch) return false;
   text('< BACK', 6, 3, P.dust);
   return input.mouse.pressed && input.mouse.x < 44 && input.mouse.y < 12;
+}
+
+// ---------- lock-in: the cinematic after you confirm a fighter ----------
+export const LOCK_LEN = 1.45;
+const outC = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
+export function drawLockin(t, id) {
+  const ch = CHARS[id], col = ch.color(), set = SPR.chars[id];
+  const slam = t > 0.36 && t < 0.62 ? (0.62 - t) / 0.26 : 0;
+  ctx.save();
+  if (slam) ctx.translate(Math.round((Math.random() - 0.5) * 8 * slam), Math.round((Math.random() - 0.5) * 5 * slam));
+  rect(-10, -10, W + 20, H + 20, P.void);
+  // speed lines rushing past
+  for (let i = 0; i < 28; i++) {
+    const y = (i * 37 + 11) % H, len = 30 + ((i * 53) % 90), x = W + 120 - ((t * 760 * (1 + (i % 3) * 0.5) + i * 61) % (W + 260));
+    line(x, y, x + len, y, i % 4 ? P.ink2 : col);
+  }
+  // a tilted band the fighter stands on
+  ctx.save(); ctx.translate(W / 2, H / 2 + 6); ctx.rotate(-0.16);
+  const bh = 70 * outC(t / 0.22);
+  rect(-W, -bh / 2, W * 2, bh, P.ink1); rect(-W, -bh / 2, W * 2, 2, col); rect(-W, bh / 2 - 2, W * 2, 2, col);
+  for (let i = 0; i < 12; i++) rect(-W + ((i * 60 + t * 140) % (W * 2)), -bh / 2 + 4, 20, Math.max(0, bh - 8), P.ink0);
+  ctx.restore();
+  // the fighter dashes in at 5x with afterimages, then settles and breathes
+  const S = 5, k = outC((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % 4] : set.idle;
+  const tx = 34, x = -130 + (tx + 130) * k, y = Math.round(H / 2 + 8 - (fr.h * S) / 2 + (k >= 1 && Math.floor(t * 3) % 2 ? 1 : 0));
+  if (k < 1) for (let g = 4; g >= 1; g--) {
+    ctx.globalAlpha = 0.35 / g; ctx.save(); ctx.translate(Math.round(x - g * 16), y); ctx.scale(S, S); drawSprite(fr, 0, 0, false, col); ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  glow(x + (fr.w * S) / 2, y + (fr.h * S) / 2, col, 60, 0.25);
+  ctx.save(); ctx.translate(Math.round(x), y); ctx.scale(S, S); drawSprite(fr, 0, 0, false, t > 0.36 && t < 0.42 ? P.paper : null); ctx.restore();
+  // eyes flare once the name lands
+  if (t > 0.6) { const [ex, ey] = set.eye, a = Math.max(0, 1 - (t - 0.6) * 2.2); glow(x + ex * S + S / 2, y + ey * S + S / 2, ch.eyeColor || col, 10 + 24 * a, 0.5 + a * 0.4); }
+  // the slash across the screen
+  if (t > 0.3 && t < 0.62) {
+    const sk = outC((t - 0.3) / 0.08), fade = t > 0.45 ? 1 - (t - 0.45) / 0.17 : 1;
+    ctx.globalAlpha = Math.max(0, fade);
+    line(-10, H * 0.82, -10 + (W + 20) * sk, H * 0.82 - (W + 20) * sk * 0.5, P.paper, 3);
+    line(-10, H * 0.82 + 3, -10 + (W + 20) * sk, H * 0.82 + 3 - (W + 20) * sk * 0.5, col, 1);
+    ctx.globalAlpha = 1;
+  }
+  // the name slams down, then the title types in
+  if (t > 0.36) {
+    const nk = outC((t - 0.36) / 0.12);
+    textO(ch.hero, 222, 50 - Math.round((1 - nk) * 30), nk < 1 ? col : P.paper, nk < 1 ? 4 : 3, 'c');
+  }
+  if (t > 0.52) {
+    const sub = 'THE ' + ch.name.replace('THE ', ''), n = Math.min(sub.length, Math.floor((t - 0.52) * 40));
+    textO(sub.slice(0, n), 222, 82, col, 1, 'c');
+    rect(222 - 60 * outC((t - 0.6) / 0.25), 94, 120 * outC((t - 0.6) / 0.25), 1, col);
+  }
+  if (t > 0.8) textO('READY', 222, 102, Math.floor(t * 8) % 2 ? P.paper : P.dust, 1, 'c');
+  ctx.restore();
+  // a white flash carries into the arena
+  if (t > LOCK_LEN - 0.2) { ctx.globalAlpha = Math.min(1, (t - (LOCK_LEN - 0.2)) / 0.2); rect(0, 0, W, H, P.paper); ctx.globalAlpha = 1; }
 }

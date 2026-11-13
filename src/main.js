@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js';
-import { input, keyHit, endFrame } from './input.js';
-import { A } from './audio.js';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun } from './store.js';
-import { buildSprites } from './sprites.js';
-import { byId } from './upgrades.js';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=32';
+import { input, keyHit, endFrame } from './input.js?v=32';
+import { A } from './audio.js?v=32';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=32';
+import { buildSprites } from './sprites.js?v=32';
+import { byId } from './upgrades.js?v=32';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=32';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
-  sel, updateSelect, drawSelect, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
-} from './ui.js';
+  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
+} from './ui.js?v=32';
 
 loadAll();
 applyTheme(settings.theme);
@@ -21,6 +21,7 @@ fit();
 addEventListener('resize', fit);
 addEventListener('touchstart', fit, { once: true });
 
+let lockId = null;
 let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
 let save = loadRun((id) => !!byId(id));
 
@@ -81,16 +82,21 @@ function tick(now) {
     const items = titleItems(save, (r) => r);
     const r = runMenu(titleMenu, items, (W - 150) / 2, 104, 150, 12);
     if (r === 'continue' && save) startRun(save.char, save);
-    else if (r === 'select') { sel.i = Math.max(0, OPTIONS.char.indexOf(settings.char)); if (!best.unlocked.includes(settings.char)) sel.i = 0; sel.row = 0; sel.t = 0; go('select'); }
+    else if (r === 'select') { sel.i = Math.max(0, OPTIONS.char.indexOf(settings.char)); if (!isUnlocked(settings.char)) sel.i = 0; sel.row = 0; sel.t = 0; go('select'); }
     else if (r === 'settings') { settingsFrom = 'title'; setm.tab = 0; setm.sel = 0; go('settings'); }
     drawTitle(sceneT, items);
   } else if (scene === 'select') {
     const r = updateSelect(rdt);
     if (r?.map || r?.diff) { const prev = { ...settings }; Object.assign(settings, r); applySettings(prev); }
     if (r?.back) toTitle();
-    else if (r?.start) { settings.char = r.start; saveSettings(); clearRun(); startRun(r.start, null); checkpoint(); }
+    else if (r?.start) { settings.char = r.start; saveSettings(); clearRun(); lockId = r.start; A.init(settings); go('lockin'); }
     else drawSelect(sceneT);
     if (scene === 'play') drawWorld();
+  } else if (scene === 'lockin') {
+    const cues = [[0, () => A.rift()], [0.1, () => A.dash()], [0.32, () => A.riftCut()], [0.37, () => { A.boom(0.9); buzz('heavy'); }], [0.62, () => A.charAtk(lockId, true)]];
+    for (const [ct, fn] of cues) if (sceneT >= ct && sceneT - rdt < ct) fn();
+    if (sceneT >= LOCK_LEN || (sceneT > 0.5 && (keyHit('Enter', 'Space', 'Escape') || input.mouse.pressed))) { startRun(lockId, null); checkpoint(); drawWorld(); }
+    else drawLockin(sceneT, lockId);
   } else if (scene === 'settings') {
     const items = settingsItems({ hasSave: !!save });
     const prev = { ...settings };
