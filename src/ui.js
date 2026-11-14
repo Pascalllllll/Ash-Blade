@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=39';
-import { SPR, icon } from './sprites.js?v=39';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=39';
-import { A } from './audio.js?v=39';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=39';
-import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=39';
-import { CHARS } from './chars.js?v=39';
-import { BOSSES, bossFor } from './bosses.js?v=39';
-import { MAPS } from './maps.js?v=39';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=39';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=40';
+import { SPR, icon } from './sprites.js?v=40';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=40';
+import { A } from './audio.js?v=40';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=40';
+import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=40';
+import { CHARS } from './chars.js?v=40';
+import { BOSSES, bossFor } from './bosses.js?v=40';
+import { MAPS } from './maps.js?v=40';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=40';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);

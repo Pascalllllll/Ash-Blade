@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=39';
-import { input, keyHit, endFrame } from './input.js?v=39';
-import { A } from './audio.js?v=39';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=39';
-import { buildSprites } from './sprites.js?v=39';
-import { byId } from './upgrades.js?v=39';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=39';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=40';
+import { input, keyHit, endFrame } from './input.js?v=40';
+import { A } from './audio.js?v=40';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=40';
+import { buildSprites } from './sprites.js?v=40';
+import { byId } from './upgrades.js?v=40';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=40';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=39';
+} from './ui.js?v=40';
 
 loadAll();
 applyTheme(settings.theme);

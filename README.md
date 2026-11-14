@@ -2,6 +2,8 @@
 
 Ashblade is a pixel-art hack and slash game that runs in the browser, on a computer or a phone. You pick a fighter and hold an arena against waves of enemies. Every fifth wave is a boss, and the fourth boss, the Ashen King on wave 20, ends the story. After that the game goes endless, and every wave adds 15% enemy health, more enemies and more elites.
 
+**Play it at [ash-blade.vercel.app](https://ash-blade.vercel.app/).**
+
 ![Title screen](docs/title.png)
 
 ## Story
@@ -97,7 +99,7 @@ When a boss arrives, your fighter freezes until its entrance is over: you can't 
 
 Each boss has its own entrance and its own music. When a boss is off screen, an arrow on the edge of the screen points to it and shows how far away it is. The music adds reverb, a choir on the slow themes and a crowd shout on the fast ones.
 
-![The Brood Mother's acid](docs/boss.png)
+![Fighting The Dev, the final boss on wave 50](docs/boss.png)
 
 ## Controls
 
@@ -120,7 +122,7 @@ Hitting a pink orb sends it back at the enemies. Orbs with a red ring can't be s
 
 On a phone, the game asks you to turn the phone sideways. It pauses whenever you turn it back upright.
 
-![Playing on a phone](docs/mobile.png)
+![Phone controls: dragging a power to aim it](docs/mobile.png)
 
 ## Settings
 

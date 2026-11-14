@@ -1,10 +1,10 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=39';
-import { A } from './audio.js?v=39';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=40';
+import { A } from './audio.js?v=40';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor, glitch, heroSet,
-} from './world.js?v=39';
-import { SPR } from './sprites.js?v=39';
+} from './world.js?v=40';
+import { SPR } from './sprites.js?v=40';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'devboss'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
@@ -893,8 +893,8 @@ Object.assign(BOSSES, {
     draw(e, x, y, s) {
       // glasses burn like headlights, code drips off him
       const sc = 3, set = SPR.devbossSet, ex = x + (e.face < 0 ? s.w - 1 - set.eye[0] : set.eye[0]) * sc + 1, ey = y + set.eye[1] * sc + 1;
-      glow(ex, ey, CODE, 10 + Math.sin(G.time * 10) * 2, 0.8); glow(ex - 12 * (e.face < 0 ? -1 : 1), ey, CODE, 10, 0.6);
-      glow(e.x, y + 30, CODE, 40, 0.18);
+      // small glints only: big glows here sit on top of the sprite and smear his face
+      glow(ex, ey, CODE, 4 + Math.sin(G.time * 10), 0.55); glow(ex - 12 * (e.face < 0 ? -1 : 1), ey, CODE, 4, 0.4);
       if (Math.random() < 0.4) part(x + rnd(0, s.w * sc), y + rnd(10, s.h * sc), 0, rnd(20, 60), rnd(0.4, 0.8), Math.random() < 0.7 ? CODE : P.paper, { drag: 0.5 });
       // an RGB split while he compiles
       if (e.state === 'intro' && e.t > 0.9 && e.t < 2.2) for (const [ox, c] of [[-4, '#ff4fa8'], [4, CODE]]) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(Math.round(x + ox), Math.round(y)); ctx.scale(sc, sc); drawSprite(s, 0, 0, e.face < 0, c); ctx.restore(); ctx.globalAlpha = 1; }
