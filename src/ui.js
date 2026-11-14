@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=35';
-import { SPR, icon } from './sprites.js?v=35';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=35';
-import { A } from './audio.js?v=35';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=35';
-import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js?v=35';
-import { CHARS } from './chars.js?v=35';
-import { BOSSES, bossFor } from './bosses.js?v=35';
-import { MAPS } from './maps.js?v=35';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=35';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=36';
+import { SPR, icon } from './sprites.js?v=36';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=36';
+import { A } from './audio.js?v=36';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=36';
+import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js?v=36';
+import { CHARS } from './chars.js?v=36';
+import { BOSSES, bossFor } from './bosses.js?v=36';
+import { MAPS } from './maps.js?v=36';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=36';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -282,6 +282,27 @@ export function updateSelect(dt) {
   if (keyHit('Escape') || (input.touch && input.mouse.pressed && input.mouse.x < 44 && input.mouse.y < 12)) return { back: true };
   return null;
 }
+// The Dev's stats are corrupted: bars fill at random, jitter, change color and the labels scramble.
+// The noise changes 12 times a second (not every frame) so it reads as a glitch, not a strobe.
+const GLITCH_LABELS = { POWER: ['P0W3R', 'PWR??', 'ERR', 'P_WER'], SPEED: ['SP33D', 'S?EED', 'NULL', '0x5P'], RANGE: ['R4NG3', 'RANG#', 'UNDEF', 'R@NGE'], TOUGH: ['T0UGH', 'TOU??', 'NaN', 'T#UGH'] };
+function glitchBars(bars, t) {
+  const tick = Math.floor(t * 12);
+  const rnd = (n) => { const x = Math.sin(tick * 12.9898 + n * 78.233) * 43758.5453; return x - Math.floor(x); };
+  const cols = ['#39ff6a', '#ff4fa8', P.paper, '#1a6a2a'];
+  bars.forEach(([n], i) => {
+    const r0 = rnd(i), lab = r0 < 0.55 ? n : GLITCH_LABELS[n][Math.floor(rnd(i + 10) * 4)];
+    const jx = rnd(i + 20) < 0.25 ? Math.round((rnd(i + 30) - 0.5) * 6) : 0;
+    text(lab, 206 + jx, 54 + i * 7, r0 < 0.55 ? P.dust : cols[Math.floor(rnd(i + 40) * 3)]);
+    const fill = Math.floor(rnd(i + 50) * 6);
+    for (let j = 0; j < 5; j++) {
+      const sx = rnd(i * 5 + j + 60) < 0.18 ? Math.round((rnd(i * 5 + j + 70) - 0.5) * 8) : 0;
+      const w = rnd(i * 5 + j + 80) < 0.15 ? 4 + Math.floor(rnd(i * 5 + j + 90) * 14) : 12;
+      rect(238 + j * 14 + jx + sx, 55 + i * 7, w, 3, j < fill ? cols[Math.floor(rnd(i * 5 + j + 100) * 4)] : P.ink3);
+    }
+    if (rnd(i + 110) < 0.2) text('?', 238 + Math.floor(rnd(i + 120) * 64), 54 + i * 7, '#ff4fa8');
+  });
+  if (rnd(200) < 0.12) text('NaN', 238 + Math.floor(rnd(201) * 50), 53 + Math.floor(rnd(202) * 26), P.paper);
+}
 export function drawSelect(t) {
   drawBackdrop(t, 0.75);
   const ids = OPTIONS.char, k = CHARS[ids[sel.i]], col = locked(ids[sel.i]) ? P.dust : k.color();
@@ -314,7 +335,8 @@ export function drawSelect(t) {
   if (k.hero !== k.name) text(k.name, 12 + k.hero.length * 8 + 4, 59, P.dust);
   text(k.lore[0], 12, 68, P.bone); text(k.lore[1], 12, 75, P.bone);
   const bars = [['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]];
-  bars.forEach(([n, v], i) => { text(n, 206, 54 + i * 7, P.dust); for (let j = 0; j < 5; j++) rect(238 + j * 14, 55 + i * 7, 12, 3, j < v ? col : P.ink3); });
+  if (ids[sel.i] === 'DEV' && !locked('DEV')) glitchBars(bars, t);
+  else bars.forEach(([n, v], i) => { text(n, 206, 54 + i * 7, P.dust); for (let j = 0; j < 5; j++) rect(238 + j * 14, 55 + i * 7, 12, 3, j < v ? col : P.ink3); });
   const ab = [['CLICK', k.primaryName, ''], ['Q', k.q.name + ' ' + k.q.cost, k.q.desc], ['E', k.e.name + ' ' + k.e.cost, k.e.desc], ['R', k.r.name, k.r.desc]];
   ab.forEach(([key, name, d], i) => { const y = 86 + i * 8; text(key, 34, y, P.ember2, 1, 'r'); text(name, 40, y, P.paper); text(d, 308, y, P.dust, 1, 'r'); });
   const rec = best.chars[ids[sel.i]];

@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=35';
-import { SPR } from './sprites.js?v=35';
-import { A } from './audio.js?v=35';
-import { input } from './input.js?v=35';
-import { best } from './store.js?v=35';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=36';
+import { SPR } from './sprites.js?v=36';
+import { A } from './audio.js?v=36';
+import { input } from './input.js?v=36';
+import { best } from './store.js?v=36';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
   explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo,
-} from './world.js?v=35';
+} from './world.js?v=36';
 
 // ---------- helpers ----------
 function aimPoint(p, max) {
