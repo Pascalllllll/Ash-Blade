@@ -1,4 +1,4 @@
-import { canvas, W, H } from './gfx.js?v=40';
+import { canvas, W, H } from './gfx.js?v=42';
 
 // the movement stick sits in a fixed spot; any touch on the left side drives it from there
 export const STICK_X = 50, STICK_Y = 135, STICK_R = 22;

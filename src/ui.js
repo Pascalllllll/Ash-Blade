@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=40';
-import { SPR, icon } from './sprites.js?v=40';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=40';
-import { A } from './audio.js?v=40';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=40';
-import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=40';
-import { CHARS } from './chars.js?v=40';
-import { BOSSES, bossFor } from './bosses.js?v=40';
-import { MAPS } from './maps.js?v=40';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=40';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=42';
+import { SPR, icon } from './sprites.js?v=42';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=42';
+import { A } from './audio.js?v=42';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=42';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=42';
+import { CHARS } from './chars.js?v=42';
+import { BOSSES, bossFor } from './bosses.js?v=42';
+import { MAPS } from './maps.js?v=42';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=42';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -118,6 +118,8 @@ export function drawHUD(menu) {
   // score and high score, top right
   const hi = Math.max(best.score, G.startBest ?? best.score), beat = G.score > hi && hi > 0;
   textO('WAVE ' + G.wave, W - 6, 4, P.bone, 1, 'r');
+  // the wave twist, tagged next to the wave number
+  if (G.twist) { const tw = TWISTS[G.twist]; textO(tw.name, W - 12 - ('WAVE ' + G.wave).length * 4, 4, Math.floor(G.time * 2) % 2 ? tw.c : P.paper, 1, 'r'); }
   textO('SCORE ' + String(G.score).padStart(7, '0'), W - 6, 12, P.paper, 1, 'r');
   textO((beat ? 'NEW BEST ' : 'BEST ') + String(Math.max(hi, G.score)).padStart(7, '0'), W - 6, 20, beat && Math.floor(G.time * 4) % 2 ? P.paper : P.gold, 1, 'r');
 
@@ -146,6 +148,17 @@ export function drawHUD(menu) {
     for (const m of bd.marks || (bd.final ? [0.33, 0.66] : [0.5])) rect(x + Math.round(w * m), y - 1, 1, 5, P.ink0);
     if (b.enraged) textO('ENRAGED', x + w, y - 8, Math.floor(G.time * 6) % 2 ? P.blood : P.paper, 1, 'r');
     else if ((b.fightT || 0) > 45) textO('ENRAGE IN ' + Math.ceil(60 - b.fightT), x + w, y - 8, P.ember3, 1, 'r');
+  }
+  // multi-kill callout: pops in, colour climbs with the count, the bonus lands when the chain ends
+  const mk = G.mkShow;
+  if (mk && !lb) {
+    const n = mk.n, col = n >= 9 ? '#ff4fa8' : n >= 6 ? P.blood : n >= 4 ? P.ember : n >= 3 ? P.gold : P.paper;
+    const pop = mk.t < 0.08 ? 1 : 0, fade = mk.t > 1.2 && Math.floor(G.time * 20) % 2;
+    if (!fade) {
+      textO(multiName(n), W / 2, 24 - pop, col, 2 + pop, 'c');
+      if (n >= 6) glow(W / 2, 29, col, 30, 0.12 + Math.sin(G.time * 12) * 0.04);
+      if (mk.bonus) textO('+' + mk.bonus, W / 2, 38, P.gold, 1, 'c'); else if (n > 2) textO('X' + n, W / 2, 38, P.dust, 1, 'c');
+    }
   }
   if (bossLock()) textO('GET READY', W / 2, H - 30, Math.floor(G.time * 4) % 2 ? P.paper : P.dust, 1, 'c');
 
@@ -484,13 +497,23 @@ export function drawPause(items) {
 }
 
 // ---------- game over & victory ----------
+// two columns of run stats; each number counts up as it appears
 function stats(y0, t) {
-  const rows = [['SCORE', String(G.score)], ['KILLS', String(G.kills)], ['LONGEST COMBO', String(G.maxCombo)], ['TOP RANK', RANKS[G.bestRank].l + '  ' + RANKS[G.bestRank].w]];
+  const tm = Math.floor(G.time), clock = Math.floor(tm / 60) + ':' + String(tm % 60).padStart(2, '0');
+  const rows = [
+    ['SCORE', G.score], ['TIME', clock],
+    ['KILLS', G.kills], ['BOSSES SLAIN', G.bosses],
+    ['DAMAGE DEALT', G.dmg], ['BEST MULTI', G.bestMulti >= 2 ? multiName(G.bestMulti) : '-'],
+    ['LONGEST COMBO', G.maxCombo], ['PERFECT DODGES', G.perfects],
+    ['TOP RANK', RANKS[G.bestRank].l + '  ' + RANKS[G.bestRank].w], ['LOOTLINGS', G.loot],
+  ];
   rows.forEach((r, i) => {
-    if (t < 0.4 + i * 0.12) return;
-    const y = y0 + i * 11;
-    text(r[0], 96, y, P.dust);
-    text(r[1], 224, y, i === 3 ? C(RANKS[G.bestRank].c) : P.paper, 1, 'r');
+    const t0 = 0.35 + i * 0.07;
+    if (t < t0) return;
+    const col = i % 2, x0 = col ? 166 : 22, x1 = col ? 298 : 154, y = y0 + Math.floor(i / 2) * 10;
+    const k = Math.min(1, (t - t0) / 0.6), v = typeof r[1] === 'number' ? String(Math.round(r[1] * (1 - Math.pow(1 - k, 3)))) : r[1];
+    text(r[0], x0, y, P.dust);
+    text(v, x1, y, i === 8 ? C(RANKS[G.bestRank].c) : i === 0 ? P.gold : P.paper, 1, 'r');
   });
 }
 export function drawOver(t, isBest) {
@@ -499,7 +522,7 @@ export function drawOver(t, isBest) {
   textO('YOU FELL', W / 2, 26 - Math.round((1 - k) * 12), P.blood, 4, 'c');
   textO(G.kit.name + ' ON WAVE ' + G.wave, W / 2, 52, P.bone, 1, 'c');
   stats(72, t);
-  if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 122, P.gold, 2, 'c');
+  if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 127, P.gold, 2, 'c');
   if (t > 1) textO(input.touch ? 'TAP LEFT  AGAIN       TAP RIGHT  MENU' : 'ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
 }
 export function drawVictory(t) {
@@ -509,7 +532,7 @@ export function drawVictory(t) {
   textO('VICTORY', W / 2, 18 - Math.round((1 - k) * 14), P.gold, 4, 'c');
   textO('THE ASHEN KING HAS FALLEN', W / 2, 44, P.ember3, 1, 'c');
   text(G.kit.name + '  ' + MAPS[G.mapKey].name + '  ' + G.diffKey, W / 2, 54, P.dust, 1, 'c');
-  stats(70, t);
+  stats(66, t);
   if (t > 1.2) { textO((input.touch ? 'TAP LEFT' : 'ENTER') + '  KEEP GOING (ENDLESS)', W / 2, 128, P.paper, 1, 'c'); textO((input.touch ? 'TAP RIGHT' : 'ESC') + '  BACK TO MENU', W / 2, 140, P.dust, 1, 'c'); }
 }
 

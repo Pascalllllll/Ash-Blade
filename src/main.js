@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=40';
-import { input, keyHit, endFrame } from './input.js?v=40';
-import { A } from './audio.js?v=40';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=40';
-import { buildSprites } from './sprites.js?v=40';
-import { byId } from './upgrades.js?v=40';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=40';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=42';
+import { input, keyHit, endFrame } from './input.js?v=42';
+import { A } from './audio.js?v=42';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=42';
+import { buildSprites } from './sprites.js?v=42';
+import { byId } from './upgrades.js?v=42';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=42';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=40';
+} from './ui.js?v=42';
 
 loadAll();
 applyTheme(settings.theme);
@@ -62,6 +62,9 @@ function tick(now) {
   const sh = fx.trauma * fx.trauma * settings.shake;
   fx.ox = Math.round(10 * sh * Math.sin(fx.shakeT * 1.7));
   fx.oy = Math.round(7 * sh * Math.sin(fx.shakeT * 2.3 + 1));
+  // the directional kick springs back fast, in real time so it settles during hit-stop
+  const kd = Math.exp(-16 * rdt); fx.kx *= kd; fx.ky *= kd;
+  fx.ox += Math.round(fx.kx); fx.oy += Math.round(fx.ky);
   fx.flashT -= rdt;
   if (input.any || input.mouse.pressed) A.init(settings);
   input.touchPlay = scene === 'play' && G && !G.dead && !G.cine;

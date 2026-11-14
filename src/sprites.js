@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=40';
+import { makeSprite, P } from './gfx.js?v=42';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -217,6 +217,11 @@ export function buildSprites() {
   const SH = { o: O, V: '#4a3a8a', v: '#9a7aff', G: '#e8d8ff' };
   const SHADE = ['...ooooo...', '..oVVVVVo..', '.oVvVVVVVo.', '.oVoooooVo.', '.oVoGoGoVo.', '.oVoooooVo.', 'oVVVVVVVVVo', 'oVvVVVVVvVo', '.oVVVVVVVo.', '..oVVVVVo..'];
   SPR.shade = [makeSprite([...SHADE, '...oVVVo...', '....oVo....'], SH, 'G'), makeSprite([...SHADE, '...oVVo....', '...oVo.....'], SH, 'G')];
+
+  // the lootling: a greedy little goblin hauling a sack of gold over its head
+  const LT = { o: O, G: '#5f9a3a', S: '#c9a24a', s: '#fff2a8', y: '#ffd447', e: '#ff4f4f', m: '#3a0a14', B: '#4a3a2a' };
+  const LOOT = ['...oooooo...', '..oSsSSySo..', '.oSSSySSSSo.', '.oSySSSSsSo.', '.oGoSSSSoGo.', '.oGooooooGo.', '..oGGGGGGo..', '..oGeGGeGo..', '..oGGmmGGo..', '...oGGGGo...'];
+  SPR.lootling = [makeSprite([...LOOT, '..oBo..oBo..'], LT, 'e'), makeSprite([...LOOT, '...oBooBo...'], LT, 'e')];
 
   // ---------- bosses ----------
   const WA = { o: O, B: '#c2b294', b: '#8a7a64', W: '#4a4068', w: '#7d6ea6', g: P.hex, R: '#4c2f4a', r: '#7c4a70', C: '#221a2c', c: '#3a2a48' };

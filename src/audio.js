@@ -537,6 +537,29 @@ export const A = {
     tone('sawtooth', 112, 60, 1.2, 0.3, crunch, ac.currentTime, 0.1);
     hiss(1.2, 0.4, 'lowpass', 700, 120, 2, sfx, ac.currentTime, 0.1);
   },
+  // multi-kills: a power chord that climbs with the count
+  multi(n) {
+    if (!ac || !gate('multi', 0.06)) return;
+    const t = ac.currentTime, b = 62 + Math.min(n, 10) * 2;
+    [0, 7, 12].forEach((iv, i) => tone('triangle', mtof(b + iv), mtof(b + iv), 0.32, 0.09, sfx, t + i * 0.025));
+    tone('square', mtof(b + 24), mtof(b + 19), 0.12, 0.05, sfx, t);
+    hiss(0.18, 0.25, 'bandpass', 3000, 9000, 2, sfx, t);
+    if (n >= 5) tone('sawtooth', mtof(b - 12), mtof(b - 24), 0.5, 0.18, crunch, t);
+  },
+  heartbeat() { if (!ac) return; const t = ac.currentTime; tone('sine', 62, 38, 0.14, 0.5, crunch, t); tone('sine', 58, 34, 0.12, 0.35, crunch, t + 0.16); },
+  coin() { if (gate('coin', 0.05)) { tone('square', 1976, 1976, 0.04, 0.05); tone('square', 2637, 2637, 0.12, 0.05, sfx, ac.currentTime + 0.05); } },
+  jackpot() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    [72, 76, 79, 84, 88, 91, 96].forEach((n, i) => { tone('square', mtof(n), mtof(n), 0.1, 0.06, sfx, t + i * 0.045); tone('triangle', mtof(n), mtof(n), 0.3, 0.07, sfx, t + i * 0.045); });
+    this.boom(0.6);
+  },
+  twist() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    tone('sawtooth', 110, 55, 1, 0.25, crunch, t); tone('triangle', mtof(69), mtof(68), 0.9, 0.1, sfx, t + 0.1); tone('triangle', mtof(75), mtof(74), 0.9, 0.08, sfx, t + 0.2);
+    hiss(0.8, 0.3, 'bandpass', 400, 3000, 3, sfx, t);
+  },
   ultStart() { if (!ac) return; tone('sine', 70, 30, 1.2, 0.8, crunch); hiss(0.5, 0.4, 'bandpass', 200, 6000, 2, sfx, ac.currentTime, 0.4); },
   ultCut(i) { if (!ac) return; hiss(0.05, 0.4, 'bandpass', 6000, 9500, 3); tone('sine', 1800 + i * 70, 1700 + i * 70, 0.07, 0.05); },
   ultRelease() { if (!ac) return; last.boom = -1; this.boom(2.6); tone('sine', 2600, 2400, 1.3, 0.1); hiss(1, 0.5, 'lowpass', 8000, 200, 0.7); },

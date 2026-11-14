@@ -26,7 +26,7 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 
 Every fighter, monster and boss breathes, blinks and leans into attacks. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
-The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. He starts as an ordinary programmer with a laptop on his lap, riding a motorized wheelchair. At 250% power a laser rewrites him into his hooded form, riding a rebuilt chair with neon wheels and a holo screen. He starts at full power with a two-shot spread and gets stronger every wave and every 20 kills, faster still after wave 20: about 1.8x by wave 10, 4.5x by wave 30 and close to 10x by wave 50. His shots plant bugs, and four bugs crash an enemy.
+The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. He starts as an ordinary programmer with a laptop on his lap, riding a motorized wheelchair. At 250% power a laser rewrites him into his hooded form, riding a rebuilt chair with neon wheels and a holo screen. He starts below the other fighters, with one shot at a time and 6 health, and grows with every wave and every 20 kills. He's about even by wave 15, then ramps hard after wave 20: about 0.8x power on wave 1, 1.2x by wave 10, 1.7x by wave 20, 3.2x by wave 30, 5x by wave 40 and 7.5x by wave 50. His spread widens past waves 20 and 35. His shots plant bugs that crash an enemy: five bugs early, four from wave 15 and three from wave 30.
 
 Every other fighter also awakens into a new look once per run: on its first evolution upgrade or at wave 25. A beam of light hits them, they change skin and gain 1 max health. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom and Unit-7 Omega.
 
@@ -72,6 +72,29 @@ After every wave you pick one of three upgrades. Each fighter has about 60 picks
 | Brute | 4 | Charges in a straight line and stuns itself on walls |
 | Spitter | 5 | A rooted plant that lobs acid where you are heading. The acid stays on the floor for 4 seconds |
 | Shade | 8 | Fades out, reappears behind you, and slashes after a short warning |
+| Lootling | 4 (rare) | A goblin with a sack of gold that runs from you and never fights. Every hit knocks a coin loose. Kill it for a jackpot of energy, two hearts and a big score bonus. After 11 seconds it digs out and is gone |
+
+### Wave twists
+
+From wave 6, about one normal wave in three comes with a twist, announced when the wave starts and tagged next to the wave number. Survive it for a score bonus, full energy and a heart.
+
+| Twist | What changes |
+| --- | --- |
+| Blood Moon | The arena turns red, enemies are 25% faster, and every kill scores double |
+| Swarm | Almost twice as many enemies, with half the health |
+| Elite Hunt | Half the enemies are elites, and every elite drops a heart |
+| Gold Rush | Three lootlings join the wave |
+| Glass | Enemies have half health, and every hit you take costs an extra heart |
+| Blackout | The lights go out except around you. 1.5x score |
+
+### Big hits
+
+- Heavy blows (combo finishers, counters, explosions and ultimates) launch the body across the arena. A flying body knocks over and damages every enemy it hits, so one good hit can bowl through a crowd. Lighter cuts still slice enemies in two.
+- Kills within half a second of each other chain into a multi-kill: Double Kill, Triple Kill, up to Annihilation at 20. The bonus score grows with the square of the chain.
+- Enemies squash and wobble when hit, the camera kicks in the direction of each blow, and damage numbers hop out of the target.
+- The last kill of a wave freezes the frame and sends out a shockwave.
+- On your last two hearts, a heartbeat plays, and it beats faster on the last one.
+- The end-of-run screen shows score, time, kills, bosses slain, damage dealt, best multi-kill, longest combo, perfect dodges, top rank and lootlings caught.
 
 ## Bosses
 
