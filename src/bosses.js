@@ -1,12 +1,12 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas } from './gfx.js?v=36';
-import { A } from './audio.js?v=36';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=39';
+import { A } from './audio.js?v=39';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
-  spawnEnemy, scorch, atWall, sprFor,
-} from './world.js?v=36';
-import { SPR } from './sprites.js?v=36';
+  spawnEnemy, scorch, atWall, sprFor, glitch, heroSet,
+} from './world.js?v=39';
+import { SPR } from './sprites.js?v=39';
 
-const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse'];
+export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'devboss'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
 
 const pick = (e, opts) => { let k = opts[Math.floor(rnd(opts.length))]; if (k === e.last) k = opts[Math.floor(rnd(opts.length))]; e.last = k; return k; };
@@ -669,7 +669,7 @@ Object.assign(BOSSES, {
       if (e.state === 'dashW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x, e.y, e.x + cx * 110, e.y + cy * 110, blink ? P.blood : P.bloodD, 2); }
     },
     draw(e, x, y) {
-      const set = SPR.chars[G.char], s = sprFor(e), ex = x + (e.face < 0 ? s.w - 1 - set.eye[0] : set.eye[0]) * 1.5, ey = y + set.eye[1] * 1.5;
+      const set = heroSet(), s = sprFor(e), ex = x + (e.face < 0 ? s.w - 1 - set.eye[0] : set.eye[0]) * 1.5, ey = y + set.eye[1] * 1.5;
       rect(ex, ey, 2, 2, P.paper); glow(ex, ey, P.paper, 5, 0.6);
     },
     bars: introBars,
@@ -736,6 +736,174 @@ Object.assign(BOSSES, {
     bars: introBars,
   },
 });
+
+// ---------------------------------------------------------------- wave 45 and wave 50
+const BRASS = '#e8c070', CODE = '#39ff6a';
+// remember the shots a volley fired, so time can stop and restart them
+const volley = (fn) => { const n0 = G.shots.length; fn(); return G.shots.slice(n0); };
+Object.assign(BOSSES, {
+  clock: {
+    name: 'THE CLOCKWORK', short: 'CLOCKWORK', sub: 'TIME BENDS TO IT', col: BRASS, colD: '#5a3a10', hp: 4300, r: 15, speed: 26, score: 52000, music: 'boss_clock',
+    init(e) { e.state = 'intro'; e.t = 2.8; e.under = true; e.hand = 0; e.handM = 0; },
+    update(e, dt, d, ang) {
+      const p = G.p, spd = e.phase === 2 ? 1.35 : 1;
+      e.superArmor = true; e.kx = e.ky = 0; e.z = 6 + Math.sin(e.anim * 1.2) * 2;
+      e.hand += dt * 0.5 * spd; e.handM += dt * 3 * spd;
+      if (e.state === 'intro') {
+        // it ticks louder and louder, then appears with a chime
+        e.t -= dt;
+        if (Math.floor(e.t * 4) !== Math.floor((e.t + dt) * 4)) { A.click(); if (e.t < 2) shake(0.15); }
+        if (e.under && e.t < 1) { e.under = false; flash(BRASS, 0.2, true); A.bossRoar(); A.victory(); addRing(e.x, e.y - 15, BRASS, 360, 0.6, 3); addRing(e.x, e.y - 15, P.paper, 260, 0.4, 1); }
+        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
+        return;
+      }
+      if (e.phase === 1 && e.hp < e.maxHp * 0.5) { e.phase = 2; e.state = 'rec'; e.t = 1; phaseBanner('TIME FRACTURES', BRASS); A.bossRoar(); shake(0.8); flash(BRASS, 0.2, true); }
+      switch (e.state) {
+        case 'walk': {
+          walkTo(e, clamp(p.x + Math.cos(e.anim * 0.4) * 110, B.x0 + 30, B.x1 - 30), clamp(p.y - 70, B.y0 + 30, B.y1 - 30), e.speed * spd);
+          e.cd -= dt;
+          if (e.cd <= 0) {
+            const opts = ['hands', 'freeze', 'tick', 'freeze'];
+            if (e.phase === 2) opts.push('alarm', 'alarm', 'rewind', 'hands');
+            const k = pick(e, opts);
+            if (k === 'hands') {
+              // the hour and minute hands sweep the arena as beams
+              const a0 = rnd(TAU);
+              G.hbeams.push({ owner: e, oy: 15, x: e.x, y: e.y - 15, a: a0, rot: 0.5 * spd, w: 7, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              G.hbeams.push({ owner: e, oy: 15, x: e.x, y: e.y - 15, a: a0 + Math.PI, rot: -1.1 * spd, w: 4, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              if (e.phase === 2) G.hbeams.push({ owner: e, oy: 15, x: e.x, y: e.y - 15, a: a0 + Math.PI / 2, rot: 1.7, w: 3, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3.6, fn: () => A.loop('bossbeam', false) });
+              e.state = 'rec'; e.t = 3.6;
+            } else if (k === 'freeze') {
+              // a ring of shots stops dead, then every one turns toward you
+              const shots = volley(() => orbRing(e, e.phase === 2 ? 30 : 22, 95, undefined, { oy: 15, c: BRASS, life: 5 }));
+              G.timers.push({ t: 0.65, fn: () => { for (const s of shots) { s.vx = s.vy = 0; } A.click(); flash(BRASS, 0.08, false); G.banner = { text: 'TIME STOP', sub: '', t: 0, life: 0.8, c: BRASS }; } });
+              G.timers.push({ t: 1.35, fn: () => { for (const s of shots) { if (s.dead) continue; const a = Math.atan2(G.p.y - 6 - s.y, G.p.x - s.x) + rnd(-0.08, 0.08); s.vx = Math.cos(a) * 150; s.vy = Math.sin(a) * 150; } A.zip(); } });
+              e.state = 'rec'; e.t = 1.8;
+            } else if (k === 'tick') {
+              // tick, tock: rings with the gaps shifting each beat
+              for (let i = 0; i < 6; i++) G.timers.push({ t: i * 0.32, fn: () => { if (!e.dead && !e.dying) { orbRing(e, 18, 80, (i % 2 ? 0.5 : 0) + e.hand, { oy: 15, c: i % 2 ? P.paper : BRASS, noparry: i % 2 === 0 }); A.click(); } } });
+              e.state = 'rec'; e.t = 2.1;
+            } else if (k === 'alarm') {
+              // twelve strikes go off around you like the hours on a dial
+              const a0 = rnd(TAU);
+              for (let i = 0; i < 12; i++) { const a = a0 + (i * TAU) / 12; G.strikes.push({ x: clamp(p.x + Math.cos(a) * 46, B.x0 + 8, B.x1 - 8), y: clamp(p.y + Math.sin(a) * 34, B.y0 + 8, B.y1 - 4), t: -i * 0.08, delay: 0.75, R: 15, dmg: 2, friendly: false, kind: 'lightning', c: BRASS }); }
+              G.strikes.push({ x: p.x, y: p.y, t: -1.1, delay: 0.7, R: 18, dmg: 2, friendly: false, kind: 'lightning', c: BRASS });
+              A.warn(); e.state = 'rec'; e.t = 2;
+            } else {
+              // rewinds to the far side of the arena and fires as it lands
+              G.ghosts.push({ x: e.x, y: e.y, flip: false, t: 0, life: 0.5, c: BRASS, spr: sprFor(e) });
+              e.x = clamp(AWc() - (p.x - AWc()), B.x0 + 30, B.x1 - 30); e.y = clamp(B.y0 + 40 + rnd(0, 40), B.y0 + 30, B.y1 - 30);
+              orbRing(e, 24, 85, undefined, { oy: 15, c: BRASS }); A.zip(); flash(BRASS, 0.1, false);
+              e.state = 'rec'; e.t = 0.7;
+            }
+          }
+          break;
+        }
+        case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
+      }
+    },
+    draw(e, x, y) {
+      // the hands, drawn live over the dial
+      const cx = x + 15, cy = y + 15;
+      line(cx, cy, cx + Math.cos(e.hand) * 8, cy + Math.sin(e.hand) * 8, '#3a2410', 2);
+      line(cx, cy, cx + Math.cos(e.handM) * 12, cy + Math.sin(e.handM) * 12, '#3a2410', 1);
+      disc(cx, cy, 2, BRASS); px(cx, cy, P.paper);
+      ring(cx, cy, 17 + Math.sin(G.time * 4), 1, BRASS); glow(cx, cy, BRASS, 24, 0.3);
+    },
+    bars: introBars,
+  },
+
+  devboss: {
+    name: 'THE DEV', short: 'THE DEV', sub: 'ROOT ACCESS GRANTED', col: CODE, colD: '#0a2a12', hp: 5600, r: 18, speed: 46, score: 90000, music: 'boss_dev', scale: 3,
+    death: 'THE DEV CRASHED', marks: [0.25, 0.6],
+    init(e) { e.state = 'intro'; e.t = 3.4; e.typed = 0; e.alpha = 0; e.y = Math.max(e.y, B.y0 + 95); },
+    update(e, dt, d, ang, dx) {
+      const p = G.p, spd = e.phase === 3 ? 1.5 : e.phase === 2 ? 1.25 : 1;
+      e.superArmor = true; e.kx = e.ky = 0; e.z = 4 + Math.sin(e.anim * 2) * 3;
+      if (Math.random() < dt * (e.phase === 3 ? 6 : 2)) glitch(e.x + rnd(-24, 24), e.y - rnd(10, 50), rnd(10, 30), rnd(3, 8), 0.15, 6);
+      if (e.state === 'intro') {
+        // a terminal types the command, the screen tears, and he compiles into the arena
+        e.t -= dt; e.typed += dt;
+        if (Math.floor(e.typed * 14) !== Math.floor((e.typed - dt) * 14) && e.typed < 1.6) A.click();
+        // he flickers in like a corrupted file, then locks solid
+        e.alpha = e.t > 2.2 ? 0 : e.t > 0.9 ? (Math.random() < 0.5 ? 0.25 : 0.7) : 1;
+        if (e.t < 2.2 && Math.random() < 0.6) glitch(e.x + rnd(-30, 30), e.y - rnd(0, 60), rnd(20, 50), rnd(3, 8), 0.2, 8);
+        if (!e.shown && e.t < 0.9) { e.shown = true; delete e.alpha; flash(CODE, 0.3, true); A.bossRoar(); A.ultRelease(); shake(1); for (let i = 0; i < 3; i++) addRing(e.x, e.y - 24, i % 2 ? P.paper : CODE, 300 + i * 90, 0.6, 3); glitch(e.x, e.y - 24, 90, 60, 0.5, 30); }
+        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; }
+        return;
+      }
+      if (e.phase === 1 && e.hp < e.maxHp * 0.6) { e.phase = 2; e.state = 'rec'; e.t = 0.9; phaseBanner('SUDO MODE', CODE); A.bossRoar(); shake(0.8); glitch(e.x, e.y - 24, 120, 80, 0.5, 30); }
+      if (e.phase === 2 && e.hp < e.maxHp * 0.25) { e.phase = 3; e.state = 'rec'; e.t = 1; phaseBanner('KERNEL PANIC', P.blood); A.bossRoar(); A.ultStart(); shake(1); flash(P.blood, 0.3, true); }
+      if (e.phase === 3) G.dark = Math.min(0.5, G.dark + dt);
+      switch (e.state) {
+        case 'walk': {
+          const radial = d > 130 ? 1 : d < 90 ? -1 : 0;
+          e.vx = (Math.cos(ang) * radial + Math.cos(ang + Math.PI / 2) * 0.5) * e.speed * spd; e.vy = (Math.sin(ang) * radial + Math.sin(ang + Math.PI / 2) * 0.5) * e.speed * spd;
+          e.face = dx < 0 ? -1 : 1; e.cd -= dt;
+          if (e.cd <= 0) {
+            const opts = ['ping', 'ping', 'rmrf', 'firewall', 'fork'];
+            if (e.phase >= 2) opts.push('ddos', 'lag', 'rmrf');
+            if (e.phase === 3) opts.push('kernel', 'kernel');
+            const k = pick(e, opts);
+            if (k === 'ping') {
+              // packet volleys, a wider spread every burst
+              for (let v = 0; v < 3; v++) G.timers.push({ t: v * 0.28, fn: () => { if (e.dead || e.dying) return; const a = Math.atan2(G.p.y - 6 - (e.y - 30), G.p.x - e.x), n = 5 + v * 2; for (let i = 0; i < n; i++) fire(e.x, e.y - 30, a + (i - (n - 1) / 2) * 0.13, 125, { c: CODE, noparry: i % 3 === 1 }); A.charAtk('DEV', false, v); } });
+              e.state = 'rec'; e.t = 1.1;
+            } else if (k === 'rmrf') {
+              for (let i = 0; i < (e.phase >= 2 ? 9 : 6); i++) { const a = rnd(TAU), cx = p.x + (i < 2 ? 0 : rnd(-80, 80)), cy = p.y - 5 + (i < 2 ? 0 : rnd(-55, 55)); G.hlines.push({ x0: cx - Math.cos(a) * 150, y0: cy - Math.sin(a) * 150, x1: cx + Math.cos(a) * 150, y1: cy + Math.sin(a) * 150, t: -i * 0.08, pend: 0.9, done: false }); }
+              G.banner = { text: 'RM -RF /', sub: 'DASH THROUGH THE LINES', t: 0, life: 1.2, c: CODE }; A.warn(); A.rift();
+              e.state = 'rec'; e.t = 1.6;
+            } else if (k === 'firewall') {
+              for (let i = 0; i < 3; i++) G.timers.push({ t: i * 0.5, fn: () => { if (!e.dead && !e.dying) orbRing(e, 32, 70 + i * 10, Math.atan2(G.p.y - e.y, G.p.x - e.x) + rnd(-1.2, 1.2), { oy: 30, c: CODE, noparry: true }); } });
+              e.state = 'rec'; e.t = 1.6;
+            } else if (k === 'fork') {
+              for (let i = 0; i < (e.phase >= 2 ? 4 : 3); i++) { const a = rnd(TAU); spawnEnemy(i % 2 ? 'shade' : 'tick', clamp(e.x + Math.cos(a) * 50, B.x0 + 10, B.x1 - 10), clamp(e.y + Math.sin(a) * 40, B.y0 + 10, B.y1 - 4)); }
+              G.banner = { text: 'FORK BOMB', sub: '', t: 0, life: 1, c: CODE }; A.sigil(); e.state = 'rec'; e.t = 0.8;
+            } else if (k === 'ddos') {
+              // strikes sweep the arena row by row, with one safe gap per row
+              const rows = 5, gapCol = Math.floor(rnd(6));
+              for (let r = 0; r < rows; r++) for (let c = 0; c < 7; c++) {
+                if (c === (gapCol + r) % 7) continue;
+                G.strikes.push({ x: B.x0 + 30 + (c * (B.x1 - B.x0 - 60)) / 6, y: B.y0 + 30 + (r * (B.y1 - B.y0 - 50)) / (rows - 1), t: -r * 0.35, delay: 0.8, R: 18, dmg: 2, friendly: false, kind: 'lightning', c: CODE });
+              }
+              G.banner = { text: 'DDOS', sub: 'FIND THE GAP', t: 0, life: 1.2, c: CODE }; A.warn(); e.state = 'rec'; e.t = 2.6;
+            } else if (k === 'lag') {
+              // lag spike: he blinks around the arena three times, firing on each landing
+              for (let i = 0; i < 3; i++) G.timers.push({ t: i * 0.4, fn: () => { if (e.dead || e.dying) return; glitch(e.x, e.y - 27, 50, 54, 0.3, 16); e.x = clamp(G.p.x + rnd(-120, 120), B.x0 + 30, B.x1 - 30); e.y = clamp(G.p.y + rnd(-80, 80), B.y0 + 40, B.y1 - 10); if (hyp(e.x - G.p.x, e.y - G.p.y) < 60) e.x = clamp(e.x + 80, B.x0 + 30, B.x1 - 30); orbRing(e, 16, 90, undefined, { oy: 30, c: CODE }); glitch(e.x, e.y - 24, 40, 30, 0.3, 14); A.zip(); } });
+              e.state = 'rec'; e.t = 1.6;
+            } else {
+              // kernel panic: eight spinning beams and a packet spiral at once
+              const off = rnd(TAU), dir = Math.random() < 0.5 ? 1 : -1;
+              for (let i = 0; i < 6; i++) G.hbeams.push({ owner: e, oy: 30, x: e.x, y: e.y - 30, a: off + (i * TAU) / 6, rot: dir * 0.6, w: 4, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3.6, fn: () => A.loop('bossbeam', false) });
+              e.state = 'spiral'; e.t = 3.6; e.fireT = 0.9; e.spin = off;
+            }
+          }
+          break;
+        }
+        case 'spiral':
+          e.t -= dt; e.fireT -= dt;
+          if (e.fireT <= 0) { e.fireT = 0.11; for (let k = 0; k < 3; k++) fire(e.x, e.y - 30, e.spin + (k * TAU) / 3, 80, { c: CODE, noparry: k === 0 }); e.spin -= 0.25; A.shoot(); }
+          if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
+          break;
+        case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.25, 0.6) / spd; } break;
+      }
+    },
+    draw(e, x, y, s) {
+      // glasses burn like headlights, code drips off him
+      const sc = 3, set = SPR.devbossSet, ex = x + (e.face < 0 ? s.w - 1 - set.eye[0] : set.eye[0]) * sc + 1, ey = y + set.eye[1] * sc + 1;
+      glow(ex, ey, CODE, 10 + Math.sin(G.time * 10) * 2, 0.8); glow(ex - 12 * (e.face < 0 ? -1 : 1), ey, CODE, 10, 0.6);
+      glow(e.x, y + 30, CODE, 40, 0.18);
+      if (Math.random() < 0.4) part(x + rnd(0, s.w * sc), y + rnd(10, s.h * sc), 0, rnd(20, 60), rnd(0.4, 0.8), Math.random() < 0.7 ? CODE : P.paper, { drag: 0.5 });
+      // an RGB split while he compiles
+      if (e.state === 'intro' && e.t > 0.9 && e.t < 2.2) for (const [ox, c] of [[-4, '#ff4fa8'], [4, CODE]]) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(Math.round(x + ox), Math.round(y)); ctx.scale(sc, sc); drawSprite(s, 0, 0, e.face < 0, c); ctx.restore(); ctx.globalAlpha = 1; }
+      if (e.state === 'intro' && e.typed < 2.2) textO('> sudo ./boss.exe'.slice(0, Math.floor(e.typed * 12)), e.x - 50, y - 12, CODE);
+    },
+    bars: introBars,
+  },
+});
+const AWc = () => (B.x0 + B.x1) / 2;
 
 function riftLines(e, n) {
   const p = G.p;

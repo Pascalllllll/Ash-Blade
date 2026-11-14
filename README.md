@@ -24,7 +24,9 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 
 Every fighter, monster and boss breathes, blinks and leans into attacks. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
-The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. It starts at full power with a two-shot spread and gets stronger every wave and every 20 kills, faster still after wave 20: about 1.8x by wave 10, 4.5x by wave 30 and close to 10x by wave 50. Its shots plant bugs, and four bugs crash an enemy.
+The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. He starts as an ordinary programmer with a laptop on his lap, riding a motorized wheelchair. At 250% power a laser rewrites him into his hooded form, riding a rebuilt chair with neon wheels and a holo screen. He starts at full power with a two-shot spread and gets stronger every wave and every 20 kills, faster still after wave 20: about 1.8x by wave 10, 4.5x by wave 30 and close to 10x by wave 50. His shots plant bugs, and four bugs crash an enemy.
+
+Every other fighter also awakens into a new look once per run: on its first evolution upgrade or at wave 25. A beam of light hits them, they change skin and gain 1 max health. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom and Unit-7 Omega.
 
 ### Unlocking fighters
 
@@ -78,7 +80,7 @@ After every wave you pick one of three upgrades. Each fighter has about 60 picks
 | 15 | Iron Colossus | Sweeping lasers, missile strikes, a rocket fist that flies back to its arm, and four spinning lasers. Its shield breaks only when you hit it with an orb you knocked back |
 | 20 | The Ashen King | Twice the size of the other bosses, with three phases. He summons armored knights, sends out rings of fire, and in the last phase darkens the arena, spins six beams around himself and uses Thousand Cuts on you |
 
-After wave 20 four more bosses join, then all eight repeat with more health each time:
+After wave 20 six more bosses join, ending with The Dev himself on wave 50. Then all ten repeat with more health each time:
 
 | Wave | Boss | What it does |
 | --- | --- | --- |
@@ -86,8 +88,12 @@ After wave 20 four more bosses join, then all eight repeat with more health each
 | 30 | Storm Herald | Calls lightning on your position, teleports, keeps four storm orbs firing at you, and fires lightning lances |
 | 35 | The Mirror | A dark copy of your own fighter. Dashes, slash combos and rift lines like yours, and brings elite husks in its second half |
 | 40 | Eclipse | A giant eye. Spirals, rings and rotating beams of light, and darkens the arena in its second half |
+| 45 | The Clockwork | A brass clock. Its hour and minute hands sweep the arena as beams, it freezes a ring of shots in mid-air and then turns every one toward you, fires rings in a tick-tock rhythm, and in its second half sets off twelve strikes around you like the hours on a dial |
+| 50 | The Dev | The final boss: The Dev at three times the size, compiling into the arena from a terminal. Packet volleys, RM -RF lines you have to dash through, firewalls of shots with one gap, fork bombs of minions, a DDOS that sweeps the arena row by row with one safe gap, and lag-spike teleports. Sudo Mode at 60% health speeds him up, and Kernel Panic at 25% darkens the arena and spins beams while he fires a spiral |
 
-Every boss has 25% more health than its base, acts 15% faster than the other enemies, and enrages after 75 seconds, which makes it 40% faster again.
+Every boss has 50% more health than its base, acts 25% faster than the other enemies, and enrages after 60 seconds, which makes it 50% faster. The health bar counts down the last 15 seconds before the enrage.
+
+When a boss arrives, your fighter freezes until its entrance is over: you can't move, attack or use powers, and nothing can hurt you.
 
 Each boss has its own entrance and its own music. When a boss is off screen, an arrow on the edge of the screen points to it and shows how far away it is. The music adds reverb, a choir on the slow themes and a crowd shout on the fast ones.
 
@@ -99,9 +105,9 @@ Each boss has its own entrance and its own music. When a boss is off screen, an 
 | --- | --- | --- |
 | Move | WASD or arrow keys | Fixed stick in the bottom-left. Touch anywhere on the left side to use it |
 | Aim | Mouse | Drag from the attack button toward where you want to hit. A plain tap aims at the nearest enemy |
-| Attack | Left click or J, hold to keep attacking | Big button on the right |
+| Attack | Left click or J, hold to keep attacking | Big button on the right. Tap for one attack, hold to keep attacking |
 | Dash | Space or right click | Dash button |
-| Powers | Q, E, R | Buttons around the attack button |
+| Powers | Q, E, R | Buttons around the attack button. Tap to cast at the nearest enemy. For aimed powers, hold and drag to aim (further means farther), lift to cast, or drag back onto the button to cancel |
 | Pause | Esc | Button at the top |
 
 You can't be hit while dashing. If you dash through an attack just as it lands, time slows down, you get energy back, and your next hit within 2.5 seconds is a counter: triple damage and a shockwave that hits everything nearby.

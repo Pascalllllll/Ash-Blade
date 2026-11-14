@@ -1,12 +1,12 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js?v=36';
-import { SPR, IDLE_BREATH } from './sprites.js?v=36';
-import { A } from './audio.js?v=36';
-import { input, keyDown, keyHit } from './input.js?v=36';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=36';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=36';
-import { CHARS, ALLY } from './chars.js?v=36';
-import { BOSSES, bossFor } from './bosses.js?v=36';
-import { byId } from './upgrades.js?v=36';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js?v=39';
+import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=39';
+import { A } from './audio.js?v=39';
+import { input, keyDown, keyHit } from './input.js?v=39';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=39';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=39';
+import { CHARS, ALLY } from './chars.js?v=39';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=39';
+import { byId } from './upgrades.js?v=39';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -236,10 +236,10 @@ export function spawnEnemy(type, x, y) {
     wx: x, wy: y, elite: false,
   };
   if (type === 'boss') {
-    const key = bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / 8);
+    const key = bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / ORDER.length);
     d = { r: bd.r, hp: bd.hp, kbRes: 0.97, col: bd.col, colD: bd.colD, score: bd.score, speed: bd.speed, energy: 0 };
     e.def = d; e.boss = key;
-    e.hp = Math.round(bd.hp * 1.25 * (1 + tier * 0.6) * G.D.hp * (1 + 0.12 * ef));
+    e.hp = Math.round(bd.hp * 1.5 * (1 + tier * 0.7) * G.D.hp * (1 + 0.12 * ef));
     d.scale = bd.scale || 1; d.tint = bd.tint;
     e.speed = bd.speed * (1 + tier * 0.1);
     e.phase = 1; e.last = ''; e.cd = 1;
@@ -279,6 +279,40 @@ export function dust(x, y, n, sp = 50) {
 }
 export function addText(x, y, s, c, sc = 1, num = false) { if (num && !settings.numbers) return; G.texts.push({ x, y, s, c, sc, t: 0, life: 0.75 }); }
 // the moment an evolution is picked: a pillar of light, slow motion, a burst
+// ---------- skin evolution ----------
+// Every fighter awakens once: on its first EVOLUTION upgrade or at wave 25. The Dev awakens at 250% power,
+// when a laser from the sky rewrites him into his hooded form.
+function wantsEvo() {
+  if (G.char === 'DEV') return G.kit.dmgScale() >= 2.5;
+  return G.wave >= 25 || Object.keys(G.taken).some((id) => byId(id)?.req);
+}
+function checkEvo() {
+  if (G.evo || G.phase !== 'fight' || G.banner || G.p.state === 'dead' || bossLock() || !wantsEvo()) return;
+  const p = G.p, dev = G.char === 'DEV', col = dev ? '#39ff6a' : P.gold;
+  p.inv = Math.max(p.inv, 2);
+  // the warning ring, then the beam, then the new look
+  addRing(p.x, p.y - 6, col, 60, 0.6, 1);
+  for (let i = 0; i < 3; i++) G.timers.push({ t: i * 0.18, fn: () => addRing(G.p.x, G.p.y - 6, col, 80, 0.4, 1) });
+  G.timers.push({ t: 0.6, fn: () => {
+    G.evo = true;
+    const q = G.p;
+    q.evoFlash = 1.8; q.evoCol = col; q.maxHp++; q.hp = Math.min(q.maxHp, q.hp + 1);
+    G.banner = { text: EVO_NAMES[G.char], sub: dev ? 'ROOT ACCESS: POWER 250%' : 'AWAKENED   +1 MAX HEALTH', t: 0, life: 2.6, c: col };
+    slowmo(1, 0.3); flash(col, 0.35, true); shake(1); hitstop(0.12); A.ultRelease(); A.zap(); buzz('boss');
+    for (let i = 0; i < 4; i++) addRing(q.x, q.y - 6, i % 2 ? P.paper : col, 220 + i * 80, 0.7, 3);
+    for (let i = 0; i < 80; i++) { const a = rnd(TAU), v = rnd(60, 300); part(q.x, q.y - 8, Math.cos(a) * v, Math.sin(a) * v, rnd(0.4, 1), Math.random() < 0.6 ? col : P.paper, { drag: 3, glow: true, keep: true }); }
+    if (dev) glitch(q.x, q.y - 10, 60, 50, 0.6, 30);
+  } });
+  G.timers.push({ t: 2.5, fn: () => { G.p.evoCol = null; } });
+  G.evo = 'pending';
+}
+// during a boss entrance the fighter waits: no moving, attacking or powers until the boss is ready
+export function bossLock() {
+  if (!G || !isBossWave(G.wave)) return false;
+  const b = G.boss;
+  return G.queue.includes('boss') || G.sigils.some((s) => s.type === 'boss') || !!(b && !b.dead && b.state === 'intro');
+}
+
 export function evolveFx(name) {
   const p = G.p;
   G.banner = { text: name, sub: 'EVOLVED', t: 0, life: 2.8, c: P.gold };
@@ -303,8 +337,10 @@ export function bankStats() {
 }
 export function glitch(x, y, w, h, life = 0.3, n = 8) { G.glitches.push({ x, y, w, h, t: 0, life, n }); }
 export function addRing(x, y, c, vr, life, th = 2, r = 2) { G.rings.push({ x, y, r, vr, t: 0, life, c, th }); }
+// the fighter's current look: the evolved skin once it has awakened
+export const heroSet = () => (G && G.evo === true ? SPR.evo[G.char] : SPR.chars[G.char]);
 export function ghost(p, c = P.volt, spr) {
-  G.ghosts.push({ x: p.x, y: p.y, flip: Math.cos(p.aim) < 0, t: 0, life: 0.26, c, spr: spr || SPR.chars[G.char].idle });
+  G.ghosts.push({ x: p.x, y: p.y, flip: Math.cos(p.aim) < 0, t: 0, life: 0.26, c, spr: spr || heroSet().idle });
 }
 
 // ---------- combo ----------
@@ -325,7 +361,7 @@ export function addCombo(n) {
 export const pd = (x) => Math.max(1, Math.round(x * G.up.dmg));
 
 export function sprFor(e) {
-  const frames = e.type === 'boss' ? (e.boss === 'mirror' ? [SPR.chars[G.char].idle, ...SPR.chars[G.char].run] : SPR[e.boss]) : SPR[e.type];
+  const frames = e.type === 'boss' ? (e.boss === 'mirror' ? [heroSet().idle, ...heroSet().run] : SPR[e.boss]) : SPR[e.type];
   const speed = e.type === 'slime' ? 5 : e.type === 'slimelet' ? 9 : e.type === 'spitter' || e.type === 'shade' ? 4 : e.type === 'wisp' ? 4 : e.type === 'tick' || e.type === 'larva' ? 14 : e.type === 'egg' ? 3 : 7;
   const f = frames[Math.floor(e.anim * speed) % frames.length];
   // everyone blinks now and then, each on their own clock
@@ -510,7 +546,7 @@ function die() {
   A.death(); A.scene('dead'); A.stopLoops();
   bleed(p.x, p.y, rnd(TAU), 40, P.blood, P.bloodD, 1.4);
   splat(p.x, p.y, 12, P.blood, P.bloodD);
-  const s = SPR.chars[G.char].idle;
+  const s = heroSet().idle;
   G.gibs.push(...[1, -1].map((side) => ({ s, flip: false, x: p.x, y: p.y, z: 0, vz: 60, sa: 0.4, side, t: 0, life: 2.5, vx: side * 20, vy: side * 30, col: P.blood, col2: P.bloodD })));
 }
 
@@ -569,6 +605,9 @@ export function explode(x, y, friendly, R0 = 34, dmg0 = 14) {
 export function controls() {
   const p = G.p, m = input.mouse, kit = G.kit;
   if (p.state === 'dead') return;
+  for (const k of ['q', 'e', 'r']) input.aimable[k] = isAimed(kit[k]);
+  if (bossLock()) { p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0; p.castAim = null; return; }
+  if (input.cast) p.castAim = { ...input.cast, t: 0.4 };
   if (keyHit('KeyJ', 'KeyZ')) { p.bufAtk = 0.2; input.device = 'keys'; }
   if (m.pressed) p.bufAtk = 0.2;
   if ((m.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ')) p.bufAtk = Math.max(p.bufAtk, 0.04);
@@ -587,6 +626,15 @@ export function controls() {
   if (keyHit('KeyR', 'KeyO') || input.thit.has('r')) { if (p.ult >= 100 && G.E.some(alive)) p.bufR = 0.25; else { G.deny.r = 0.35; A.deny(); } }
 }
 
+// a skill wants aiming when its code reads the aim (a kit can say so outright with aim: true/false)
+const aimedCache = new WeakMap();
+function isAimed(sk) {
+  if (!sk) return false;
+  if (sk.aim !== undefined) return sk.aim;
+  if (!aimedCache.has(sk)) aimedCache.set(sk, /\baim(Point)?\b|p\.aim/.test(String(sk.use)));
+  return aimedCache.get(sk);
+}
+
 // ---------- player ----------
 function updatePlayer(dt) {
   const p = G.p, up = G.up, kit = G.kit;
@@ -594,6 +642,14 @@ function updatePlayer(dt) {
   p.inv = Math.max(0, p.inv - dt); p.hurtT -= dt; p.comboWin -= dt;
   if (p.counter > 0) { p.counter -= dt; if (p.counter <= 0) p.counterHit = false; }
   p.bufAtk -= dt; p.bufDash -= dt; p.bufQ -= dt; p.bufE -= dt; p.bufR -= dt;
+  if (p.castAim && (p.castAim.t -= dt) <= 0) p.castAim = null;
+  if (bossLock()) {
+    // frozen in place for the boss entrance, and safe while frozen
+    p.inv = Math.max(p.inv, 0.15); p.vx = p.vy = 0; p.state = 'move';
+    if (p.k) p.k.firing = false;
+    A.loop('beam', false);
+    return;
+  }
   p.cdQ -= dt; p.cdE -= dt; p.ultLock -= dt;
   p.invis = Math.max(0, p.invis - dt); p.fortress = Math.max(0, p.fortress - dt);
   if (p.shieldT > 0) { p.shieldT -= dt; if (p.shieldT <= 0 && p.shield > 0) { p.shield = 0; kit.onShieldBreak?.(p); } }
@@ -706,9 +762,9 @@ function updatePlayer(dt) {
     const canAct = free || (p.state === 'attack' && p.atkT >= p.cancelAt);
     const canDash = p.state !== 'dash' && p.state !== 'skill';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
-    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); buzz('ult'); if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = 25; p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
-    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; if (kit.q.use(p) !== false) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); } }
-    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; if (kit.e.use(p) !== false) { p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); } }
+    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); p.castAim = null; buzz('ult'); if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = 25; p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
+    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const okQ = kit.q.use(p) !== false; p.castAim = null; if (okQ) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); } }
+    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const okE = kit.e.use(p) !== false; p.castAim = null; if (okE) { p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); } }
     else if (kit.melee) { if (p.bufAtk > 0 && canAct) startAttack(); }
     if (!kit.melee && p.state !== 'dead') {
       const held = (input.mouse.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || input.tb.attack;
@@ -724,6 +780,8 @@ function updatePlayer(dt) {
 
 // phones: aim at the nearest enemy, otherwise where you're walking
 function touchAim(p, ml) {
+  if (p.castAim) { p.aim = p.castAim.a; return; }
+  if (input.skill.active) { p.aim = input.skill.a; return; }
   if (input.aim.active) { p.aim = input.aim.a; return; }
   let best = null, bd = 170;
   for (const e of G.E) { if (!alive(e)) continue; const d = hyp(e.x - p.x, e.y - p.y); if (d < bd) { bd = d; best = e; } }
@@ -906,14 +964,14 @@ function updateEnemy(e, dt) {
     return;
   }
   if (e.type === 'boss') {
-    // bosses act 15% faster, and 40% faster once they enrage after 75 seconds
+    // bosses act 25% faster, and 50% faster once they enrage after 60 seconds
     e.fightT = (e.fightT || 0) + dt;
-    if (!e.enraged && e.fightT > 75 && e.state !== 'intro') {
+    if (!e.enraged && e.fightT > 60 && e.state !== 'intro') {
       e.enraged = true; e.speed *= 1.2;
       G.banner = { text: 'ENRAGED', sub: 'FINISH IT FAST', t: 0, life: 1.4, c: P.blood };
       A.bossRoar(); shake(0.6); addRing(e.x, e.y - 16, P.blood, 300, 0.5, 3);
     }
-    BOSSES[e.boss].update(e, dt * (e.enraged ? 1.4 : 1.15), d, ang, dx);
+    BOSSES[e.boss].update(e, dt * (e.enraged ? 1.5 : 1.25), d, ang, dx);
     return;
   }
   if (e.frozen > 0) { e.frozen -= dt; return; }
@@ -1095,7 +1153,7 @@ function bossDeath(e) {
   slowmo(2.2, 0.3);
   A.bossRoar(); A.stopLoops();
   const bd = BOSSES[e.boss];
-  G.banner = { text: bd.final ? 'THE KING FALLS' : bd.short + ' SLAIN', sub: '', t: 0, life: 2.6, c: P.gold };
+  G.banner = { text: bd.death || (bd.final ? 'THE KING FALLS' : bd.short + ' SLAIN'), sub: '', t: 0, life: 2.6, c: P.gold };
   G.queue.length = 0; G.sigils.length = 0; G.hbeams.length = 0; G.hlines.length = 0; G.dark = 0;
   for (const s of G.strikes) if (!s.friendly) s.dead = true;
   for (const o of G.E) if (o !== e && alive(o)) damage(o, 9999, { dir: Math.atan2(o.y - e.y, o.x - e.x), kb: 200, src: 'boom' });
@@ -1187,6 +1245,7 @@ export function update(dt, rdt) {
     if (G.phaseT <= 0 && (G.picks.length === 0 || G.phaseT < -1.2) && !G.victory) G.wantUpgrade = true;
   }
 
+  checkEvo();
   for (const s of G.sigils) {
     s.t += dt;
     const col = s.type === 'boss' ? BOSSES[bossFor(G.wave)].col : DEF[s.type].col;
@@ -1581,7 +1640,7 @@ function drawPlayer() {
   const p = G.p, kit = G.kit;
   if (p.state === 'dead' || p.state === 'cine') return;
   if (p.inv > 0 && p.hurtT > -0.8 && p.state !== 'dash' && Math.floor(G.time * 22) % 2) return;
-  const set = SPR.chars[G.char];
+  const set = heroSet();
   const flip = Math.cos(p.state === 'attack' ? p.atkAng : p.aim) < 0;
   const moving = (p.state === 'move' || p.state === 'skill') && hyp(p.vx, p.vy) > 20;
   const fi = Math.floor(p.runT * 11) % 4;
@@ -1626,8 +1685,9 @@ function drawPlayer() {
   }
   if (p.evoFlash > 0) {
     const w = Math.round(14 * Math.min(1, p.evoFlash));
-    rect(p.x - w / 2, fx.cam.y - 10, w, p.y - fx.cam.y + 10, P.gold); rect(p.x - w / 4, fx.cam.y - 10, Math.max(1, w / 2), p.y - fx.cam.y + 10, P.paper);
-    glow(p.x, p.y - 9, P.gold, 30, 0.6);
+    const ec = p.evoCol || P.gold;
+    rect(p.x - w / 2, fx.cam.y - 10, w, p.y - fx.cam.y + 10, ec); rect(p.x - w / 4, fx.cam.y - 10, Math.max(1, w / 2), p.y - fx.cam.y + 10, P.paper);
+    glow(p.x, p.y - 9, ec, 30, 0.6);
   }
   if (p.shield > 0) { ring(p.x, p.y - 8, 13 + Math.sin(G.time * 8), 1, P.volt); glow(p.x, p.y - 8, P.volt, 12, 0.2); }
   if (p.fortress > 0) { ring(p.x, p.y - 8, 15 + Math.sin(G.time * 12) * 1.5, 2, P.gold); glow(p.x, p.y - 8, P.gold, 18, 0.3); }
@@ -1665,6 +1725,7 @@ export function drawEnemy(e) {
   const crouch = e.state === 'windup' || e.state === 'aim' || e.state === 'sweepW' || e.state === 'kslashW' || e.state === 'slashW' || e.state === 'dashW';
   const br = crouch ? 1 : Math.sin(e.anim * (e.type === 'boss' ? 2.2 : 3.4)) > 0.2 ? 1 : 0;
   if (e.type === 'shade') ctx.globalAlpha = e.state === 'vanish' ? Math.max(0.05, e.t / 0.3) : e.state === 'stalk' ? 0.55 : 1;
+  else if (e.alpha !== undefined) ctx.globalAlpha = e.alpha;
   if (sc > 1) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(sc, sc); drawBreath(s, 0, 0, e.face < 0, tint, br); ctx.restore(); }
   else drawBreath(s, x, y, e.face < 0, tint, br);
   ctx.globalAlpha = 1;

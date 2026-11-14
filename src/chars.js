@@ -1,17 +1,18 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=36';
-import { SPR } from './sprites.js?v=36';
-import { A } from './audio.js?v=36';
-import { input } from './input.js?v=36';
-import { best } from './store.js?v=36';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=39';
+import { SPR } from './sprites.js?v=39';
+import { A } from './audio.js?v=39';
+import { input } from './input.js?v=39';
+import { best } from './store.js?v=39';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
   explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo,
-} from './world.js?v=36';
+} from './world.js?v=39';
 
 // ---------- helpers ----------
 function aimPoint(p, max) {
   let x, y;
   if (input.device === 'mouse') { x = input.mouse.x + fx.cam.x; y = input.mouse.y + fx.cam.y; }
+  else if (p.castAim) { const r = max * p.castAim.k; x = p.x + Math.cos(p.castAim.a) * r; y = p.y + Math.sin(p.castAim.a) * r; }
   else { aimAssist(); x = p.x + Math.cos(p.aim) * max; y = p.y + Math.sin(p.aim) * max; }
   const d = hyp(x - p.x, y - p.y);
   if (d > max) { x = p.x + ((x - p.x) / d) * max; y = p.y + ((y - p.y) / d) * max; }
@@ -30,7 +31,7 @@ function muzzle(x, y, a, c, n = 5) { for (let i = 0; i < n; i++) { const s = a +
 function entrance(kind) {
   const p = G.p, k = { t: 0, life: kind === 'robot' ? 1.6 : 1.4, done: false, hit: false };
   p.state = 'cine';
-  const spr = () => SPR.chars[G.char].idle;
+  const spr = () => (G.evo === true ? SPR.evo : SPR.chars)[G.char].idle;
   const land = (big) => {
     k.hit = true;
     shake(big ? 1 : 0.55); hitstop(0.08); A.boom(big ? 1.8 : 1);
@@ -231,7 +232,7 @@ export const CHARS = {
             const a = (u.phase === 'gather' ? Math.min(1, u.t / 0.4) : 1) * 0.86;
             ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(cx, cy, 320, 180); ctx.globalAlpha = 1;
             for (const e of G.E) if (!e.dead) { const s = sprFor(e); drawSprite(s, e.x - s.w / 2, e.y - s.h + 1, e.face < 0, P.bone); }
-            { const s = SPR.chars.BLADE.idle; drawSprite(s, p.x - s.w / 2, p.y - s.h + 1, Math.cos(p.aim) < 0, P.ember); }
+            { const s = (G.evo === true ? SPR.evo : SPR.chars).BLADE.idle; drawSprite(s, p.x - s.w / 2, p.y - s.h + 1, Math.cos(p.aim) < 0, P.ember); }
             for (const c of u.cuts) {
               const ux = (Math.cos(c.a) * c.L) / 2, uy = (Math.sin(c.a) * c.L) / 2;
               line(c.x - ux, c.y - uy + 1, c.x + ux, c.y + uy + 1, P.blood); line(c.x - ux, c.y - uy, c.x + ux, c.y + uy, P.paper);
@@ -779,7 +780,7 @@ export const ALLY = {
         const live = G.E.filter(alive);
         if (!live.length) return;
         const e = live[Math.floor(rnd(live.length))], side = Math.random() < 0.5 ? -1 : 1;
-        G.ghosts.push({ x: a.x, y: a.y, flip: a.face < 0, t: 0, life: 0.2, c: '#3b2a66', spr: SPR.chars.NINJA.idle });
+        G.ghosts.push({ x: a.x, y: a.y, flip: a.face < 0, t: 0, life: 0.2, c: '#3b2a66', spr: (G.evo === true ? SPR.evo : SPR.chars).NINJA.idle });
         a.x = clamp(e.x - side * 12, B.x0 + 6, B.x1 - 6); a.y = clamp(e.y + rnd(-3, 3), B.y0 + 6, B.y1 - 4);
         a.face = side;
         const ang = Math.atan2(e.y - a.y, e.x - a.x);
@@ -789,7 +790,7 @@ export const ALLY = {
       }
     },
     draw(a) {
-      const s = SPR.chars.NINJA.idle;
+      const s = (G.evo === true ? SPR.evo : SPR.chars).NINJA.idle;
       ctx.globalAlpha = 0.85;
       drawSprite(s, a.x - s.w / 2, a.y - s.h + 1, a.face < 0, '#3b2a66');
       ctx.globalAlpha = 1;
@@ -941,6 +942,8 @@ CHARS.DEV = {
     },
   },
   drawWeapon(p, flip) {
+    // before he evolves the laptop is part of his sprite, on his lap
+    if (G.evo !== true) return;
     const [hx, hy] = hand(p, flip), d = flip ? -1 : 1;
     rect(hx + (flip ? -6 : 0), hy - 1, 6, 1, '#3a3f4a');
     rect(hx + (flip ? -6 : 0), hy - 5, 6, 4, '#1f232c');

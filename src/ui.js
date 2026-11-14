@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=36';
-import { SPR, icon } from './sprites.js?v=36';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=36';
-import { A } from './audio.js?v=36';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=36';
-import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js?v=36';
-import { CHARS } from './chars.js?v=36';
-import { BOSSES, bossFor } from './bosses.js?v=36';
-import { MAPS } from './maps.js?v=36';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=36';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=39';
+import { SPR, icon } from './sprites.js?v=39';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=39';
+import { A } from './audio.js?v=39';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=39';
+import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=39';
+import { CHARS } from './chars.js?v=39';
+import { BOSSES, bossFor } from './bosses.js?v=39';
+import { MAPS } from './maps.js?v=39';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=39';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -142,8 +142,12 @@ export function drawHUD(menu) {
     rect(x, y, Math.round((w * Math.max(0, b.chip)) / b.maxHp), 3, P.paper);
     rect(x, y, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 3, bd.col);
     if (b.shieldUp) rect(x, y - 1, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 1, '#62efff');
-    if (bd.final) { rect(x + w * 0.66, y - 1, 1, 5, P.ink0); rect(x + w * 0.33, y - 1, 1, 5, P.ink0); } else rect(x + w / 2, y - 1, 1, 5, P.ink0);
+    // phase marks where the boss changes, an enrage countdown, then the enraged tag
+    for (const m of bd.marks || (bd.final ? [0.33, 0.66] : [0.5])) rect(x + Math.round(w * m), y - 1, 1, 5, P.ink0);
+    if (b.enraged) textO('ENRAGED', x + w, y - 8, Math.floor(G.time * 6) % 2 ? P.blood : P.paper, 1, 'r');
+    else if ((b.fightT || 0) > 45) textO('ENRAGE IN ' + Math.ceil(60 - b.fightT), x + w, y - 8, P.ember3, 1, 'r');
   }
+  if (bossLock()) textO('GET READY', W / 2, H - 30, Math.floor(G.time * 4) % 2 ? P.paper : P.dust, 1, 'c');
 
   // a fighter was just unlocked
   const un = G.unlocks[0];
@@ -596,6 +600,19 @@ function drawTouch(p, kit, full) {
     for (let i = 10; i < 60; i += 6) { ctx.globalAlpha = 0.8 - i / 80; line(px0 + ca * i, py0 + sa * i, px0 + ca * (i + 3), py0 + sa * (i + 3), kit.color()); }
     ctx.globalAlpha = 1;
   }
+  // aimed skill held: a line and a landing ring out of the fighter, red while it will cancel
+  const sk = input.skill;
+  if (sk.id !== null && sk.was) {
+    const px0 = p.x - fx.cam.x - fx.ox, py0 = p.y - 6 - fx.cam.y - fx.oy, ca = Math.cos(sk.a), sa = Math.sin(sk.a);
+    const col = sk.cancel ? P.blood : sk.key === 'r' ? P.gold : kit.color(), L = 18 + sk.k * 70;
+    ctx.globalAlpha = sk.cancel ? 0.35 : 0.85;
+    for (let i = 8; i < L; i += 5) line(px0 + ca * i, py0 + sa * i, px0 + ca * (i + 3), py0 + sa * (i + 3), col);
+    ring(px0 + ca * L, py0 + sa * L, 5, 1, col); px(px0 + ca * L, py0 + sa * L, col);
+    ctx.globalAlpha = 1;
+    const b = TOUCH_BTNS.find((t) => t.id === sk.key);
+    if (sk.cancel) textO('CANCEL', b.x - b.r - 4, b.y - 3, P.blood, 1, 'r');
+    else textO('BACK TO CANCEL', W - 4, 60, P.dust, 1, 'r');
+  }
   const state = {
     attack: [true, 1, PRIMARY_ICON[G.char], kit.color()],
     dash: [p.charges > 0, p.charges > 0 ? 1 : 1 - p.dashCd / kit.dash.cd, 'dash', P.paper],
@@ -615,6 +632,8 @@ function drawTouch(p, kit, full) {
     if (!ready) { ctx.globalAlpha = 0.6; ring(b.x, b.y, Math.max(1, b.r * Math.min(1, frac)), Math.max(1, b.r * Math.min(1, frac)), P.ink3); ctx.globalAlpha = 1; }
     ring(b.x, b.y, b.r, 1, ready ? col : P.stone2);
     const s = icon(ic, ready ? col : P.stone2);
+    if (sk.key === b.id && sk.was) { const l = Math.min(b.r - 3, Math.hypot(sk.dx, sk.dy)); ring(b.x + Math.cos(sk.a) * l, b.y + Math.sin(sk.a) * l, 3, 3, sk.cancel ? P.blood : col); }
+    if (sk.key === b.id && sk.cancel) ring(b.x, b.y, b.r + 1, 1, P.blood);
     if (b.id === 'attack' && am.active) { const l = Math.min(b.r - 4, Math.hypot(am.dx, am.dy)); ring(b.x + Math.cos(am.a) * l, b.y + Math.sin(am.a) * l, 5, 5, kit.color()); }
     if (b.id === 'attack') { ctx.save(); ctx.translate(b.x - 9, b.y - 9); ctx.scale(2, 2); drawSprite(s, 0, 0, false); ctx.restore(); }
     else drawSprite(s, b.x - 4, b.y - 4, false);

@@ -158,6 +158,9 @@ const SCENES = {
   boss_herald: { track: 'TEMPEST', pad: 0.5, bass: 1, drums: 1, arp: 0.9, lead: 1 },
   boss_mirror: { track: 'REFLECTION', pad: 0.8, bass: 1, drums: 1, arp: 0.6, lead: 1 },
   boss_eclipse: { track: 'ECLIPSE', pad: 1, bass: 1, drums: 1, arp: 0.8, lead: 1 },
+  boss_clock: { track: 'TEMPEST', pad: 0.8, bass: 1, drums: 1, arp: 1, lead: 0.8 },
+  // the final boss plays the title theme at full force: he wrote it
+  boss_dev: { track: 'HYPERDRIVE', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
   dead: { track: null, pad: 0.6, bass: 0, drums: 0, arp: 0, lead: 0 },
 };
 let choice = 'AUTO', combat = 'PIT DIRGE', scene = 'title', cur = TRACKS['ASHEN HYMN'], pending = null;

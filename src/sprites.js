@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=36';
+import { makeSprite, P } from './gfx.js?v=39';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -79,7 +79,43 @@ const BODIES = {
     leg: '#5c6678', boot: '#3a4252',
   },
 };
+// The Dev starts as an ordinary programmer: laptop on the lap, riding a motorized wheelchair.
+// At 250% power a laser rewrites him into the hooded form (EVO.DEV below).
 BODIES.DEV = {
+  lids: 'Q', eye: [10, 6], legs: 'none',
+  rows: ['.....oooooo.....', '....oHHhHHHo....', '...oHHHHhHHHo...', '..oHHHHHHHHHHo..', '..oHHHHHHHHHHo..', '..oHfKKKfKKKfo..',
+    '..oHfKQKfKQKfo..', '..offffffffffo..', '..offfffmmfffo..', '...offffffffo...', '.oCo.oTTTTo.....', '.oCooTTTTTTo.oAo',
+    '.oCoTTTTTfffoAo.', '.oCoTTTTToAAAAo.', '.oCCCPPPPPPPPo..', 'oWWWWoMMMMMMPPo.', 'oWsWsWoMMMMoPPo.', 'oWWoWWo.oBBoPPo.',
+    'oWsWsWo..oo.oSSo', '.oWWWo.....oMMo.', '..ooo......oWo..'],
+  alt: { 16: 'oWWsWWoMMMMoPPo.', 17: 'oWsoWso.oBBoPPo.', 18: 'oWWsWWo..oo.oSSo', 20: '..ooo.......oWo.' },
+  map: () => ({ H: '#4a2e1e', h: '#6a4430', f: '#e0b090', K: '#1a1a20', Q: '#a8d8ff', m: '#a05a4a', T: '#3a6ac8', C: '#2a2f3a', A: '#8a96a8', g: '#39ff6a', P: '#2a3550', W: '#1a1a20', s: '#8a96a8', M: '#5a6a82', B: '#3a4252', S: '#e6e6f0' }),
+};
+
+// ---------- evolved skins ----------
+// Every fighter changes look once evolved (first EVOLUTION upgrade or wave 25; The Dev at 250% power).
+// map recolors the base sprite, rows replaces whole rows. The Dev's evolved form is a full body.
+const EVO = {
+  BLADE: { name: 'ASHEN KAEL', map: { C: '#2a1418', l: '#ff6a2b', m: '#ffd447', M: '#c9a24a', s: '#ffd447', S: '#ff6a2b', E: '#fff2c0', a: '#3a2028', A: '#ff8a4a' } },
+  GUNNER: { name: 'DEADEYE VEGA', map: { H: '#e8e0d0', h: '#c9a24a', r: '#1a1a24', R: '#0a0a10', D: '#7a1424', w: '#ffd447', e: '#ffd447' } },
+  WIZARD: { name: 'ARCHMAGE MORROW', map: { H: '#f0eaff', h: '#b48cff', R: '#e8e0f0', r: '#ffd447', g: '#ff4fa8', e: '#ff4fa8' } },
+  NINJA: { name: 'ONI RIN', map: { B: '#e8ecf4', h: '#ffffff', s: '#9aa4c0', V: '#e0223f', E: '#ff3b3b', e: '#7a0a1a', W: '#2a2838', N: '#c81e36', r: '#ffd447', S: '#14101c' }, rows: { 0: '.Ro.oooooooo.oR.' } },
+  MECHANIC: { name: 'RIVET MK-II', map: { W: '#c9a24a', w: '#ffe08a', G: '#62efff', g: '#e0ffff', O: '#8b98ab', h: '#62efff', y: '#62efff' } },
+  TANK: { name: 'TITAN GROM', map: { S: '#c9a24a', s: '#ffe08a', P: '#8a6a2a', h: '#2a2230', v: '#ff3b3b', w: '#ffd0d0' } },
+  ROBOT: { name: 'UNIT-7 OMEGA', map: { M: '#2a2f3a', m: '#14161c', R: '#ffd447', A: '#ffd447', V: '#ff4fa8', C: '#5a1420' } },
+  DEV: { name: 'ROOT', body: {
+    // the hooded form keeps his chair, rebuilt: carbon frame, neon rims, a glowing hub and a holo screen
+    lids: 'Vv', eye: [10, 6], legs: 'none',
+    rows: ['....oooooooo....', '..ooHHhgghHHoo..', '.oHHhHHHHHHHHHo.', '.oHHHHHHHHHHHHo.', 'aoHHooooooooHHoa', 'aoHoffffffffoHoa',
+      'aoHVVVVoVVVVoHoa', 'aoHVvVVoVvVVoHoa', 'aoHoffffffffoHoa', '.oHoffffmnffoHo.', '.oHHooooooooHHo.', '..ooHHHHHHHHoo..',
+      '.ogoCCwCCwCCoyyo', '.oXoCCCCCffoyyyo', '.oXoCCCCCoKKKKo.', '.oXXXPPPPPPPPo..', 'oggggoXggggXPPo.', 'ogDDDgoXXXXoPPo.',
+      'ogDcDgo.oZZoPPo.', 'ogDDDgo..oo.oSSo', '.ogggo.....oXXo.', '..ooo......ogo..'],
+    alt: { 17: 'ogDcDgoXXXXoPPo.', 18: 'ogcDcgo.oZZoPPo.', 19: 'ogDcDgo..oo.oSSo', 21: '..ooo.......ogo.' },
+    map: () => ({ H: '#1b1f27', h: '#2c3240', g: '#39ff6a', a: '#0f1014', V: '#39ff6a', v: '#c8ffd8', f: '#c8916a', m: '#39ff6a', n: '#5a2a20', C: '#20242e', w: '#e6e6f0',
+      K: '#2a2f3a', y: '#9dffc0', X: '#2c3442', D: '#0b0c10', c: '#c8ffd8', Z: '#39ff6a', P: '#26304a', S: '#e6e6f0' }),
+  } },
+};
+// the wave 50 boss stands: the hooded form without the chair
+const DEV_HOOD = {
   lids: 'Vv', eye: [10, 6],
   rows: ['....oooooooo....', '..ooHHhgghHHoo..', '.oHHhHHHHHHHHHo.', '.oHHHHHHHHHHHHo.', 'aoHHooooooooHHoa', 'aoHoffffffffoHoa',
     'aoHVVVVoVVVVoHoa', 'aoHVvVVoVvVVoHoa', 'aoHoffffffffoHoa', '.oHoffffmnffoHo.', '.oHHooooooooHHo.', '..ooHHHHHHHHoo..',
@@ -101,31 +137,41 @@ const IDLE = {
   MECHANIC: { seq: 'AAAABBCC', B: { 5: '.oWogGGoogGGoWo.' }, C: { 5: '.oWoGGgooGGgoWo.' } },
   TANK: { seq: 'AABBCCBB', A: { 7: '.oSSowvvvvvoSSo.' }, B: { 7: '.oSSovvwvvvoSSo.' }, C: { 7: '.oSSovvvvwvoSSo.' } },
   ROBOT: { seq: 'AABBAACC', B: { 0: '...o........o...' }, C: { 7: '.oMoKKKRRKKKoMo.', 8: '.oMoKKRRRRKKoMo.', 9: '.oMoKKKRRKKKoMo.' } },
-  DEV: { seq: 'AAAABBCC', B: { 7: 'aoHvVVVoVvVVoHoa' }, C: { 7: 'aoHVVvVoVVVvoHoa' } },
+  // the laptop's status light blinks while he types
+  DEV: { seq: 'AABBAACC', B: { 13: '.oCoTTTTToAgAAo.' }, C: { 13: '.oCoTTTTToAAgAo.', 12: '.oCoTTTTTffooAo.' } },
+  DEV_EVO: { seq: 'AAAABBCC', B: { 7: 'aoHvVVVoVvVVoHoa', 12: '.ogoCCwCCwCCoy.o' }, C: { 7: 'aoHVVvVoVVVvoHoa', 13: '.oXoCCCCCffoy.yo' } },
 };
 
-function buildChar(id) {
-  const d = BODIES[id];
-  const map = { o: P.ink0, L: d.leg, b: d.boot, ...d.map() };
-  const body = (alt) => d.rows.map((r, i) => (alt && d.alt && d.alt[i]) || r);
-  const legs = (k) => (d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : LEGS[k]);
+function buildChar(d, il, recolor = {}, rowOver = {}) {
+  const map = { o: P.ink0, L: d.leg, b: d.boot, ...d.map(), ...recolor };
+  const base = d.rows.map((r, i) => rowOver[i] || r);
+  const body = (alt) => base.map((r, i) => (alt && d.alt && d.alt[i]) || r);
+  const legs = (k) => (d.legs === 'none' ? [] : d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : LEGS[k]);
   const sp = (alt, k) => makeSprite([...body(alt), ...legs(k)], map, d.lids);
   const set = { idle: sp(false, 'idle'), run: [sp(false, 'r0'), sp(true, 'r1'), sp(false, 'r2'), sp(true, 'r3')] };
-  const il = IDLE[id], poses = {};
+  const poses = {};
   const pose = (k) => {
     if (k === 'A' && !il.A) return set.idle;
     const o = il[k] || {};
-    return poses[k] || (poses[k] = makeSprite([...d.rows.map((r, i) => o[i] || r), ...legs('idle')], map, d.lids));
+    return poses[k] || (poses[k] = makeSprite([...base.map((r, i) => o[i] || r), ...legs('idle')], map, d.lids));
   };
   set.idles = [...il.seq].map(pose);
   set.eye = d.eye;
   return set;
 }
+export const EVO_NAMES = Object.fromEntries(Object.entries(EVO).map(([k, v]) => [k, v.name]));
 
 export function buildSprites() {
   const O = P.ink0;
-  SPR.chars = {};
-  for (const id in BODIES) SPR.chars[id] = buildChar(id);
+  SPR.chars = {}; SPR.evo = {};
+  for (const id in BODIES) {
+    SPR.chars[id] = buildChar(BODIES[id], IDLE[id]);
+    const ev = EVO[id];
+    SPR.evo[id] = ev.body ? buildChar(ev.body, IDLE[id + '_EVO']) : buildChar(BODIES[id], IDLE[id], ev.map, ev.rows);
+  }
+  // the wave 50 boss is the evolved Dev, drawn three times bigger
+  SPR.devbossSet = buildChar(DEV_HOOD, IDLE.DEV_EVO);
+  SPR.devboss = SPR.devbossSet.idles;
 
   const HU = { o: O, H: '#7c4674', h: '#b06ea2', g: P.ichor, w: P.paper };
   const HUSK = ['...ooooo...', '..oHHHHHo..', '.oHhhHHHHo.', '.oHgHHHgHo.', 'oHHHHHHHHHo', 'oHhHHHHHhHo', 'oHHowowoHHo', '.oHHHHHHHo.'];
@@ -235,6 +281,17 @@ export function buildSprites() {
     }
     ecl.push(row);
   }
+  // clockwork: a brass dial with twelve hour marks; its hands are drawn live
+  const clk = [];
+  for (let y = 0; y < 30; y++) {
+    let row = '';
+    for (let x = 0; x < 30; x++) {
+      const d = Math.hypot(x - 14.5, y - 14.5), a = Math.atan2(y - 14.5, x - 14.5), hour = Math.abs(((a / (Math.PI / 6)) % 1 + 1) % 1 - 0.5) > 0.38;
+      row += d > 14.5 ? '.' : d > 13.5 ? 'o' : d > 11.5 ? ((x + y) % 4 ? 'G' : 'g') : d > 10.5 ? 'o' : d > 8.5 && hour ? 'k' : d < 4 && x < 14 && y < 14 ? 'w' : 'F';
+    }
+    clk.push(row);
+  }
+  SPR.clock = [makeSprite(clk, { o: O, G: '#e8c070', g: '#a8803a', F: '#f4ead0', k: '#3a2410', w: '#fffaf0' })];
   SPR.eclipse = [makeSprite(ecl, { o: O, G: P.gold, g: P.ember2, B: '#0a0610', R: '#ff3b3b', w: '#2a1a30' })];
 
   // ---------- allies ----------

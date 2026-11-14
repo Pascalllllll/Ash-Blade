@@ -1,4 +1,4 @@
-import { canvas, W, H } from './gfx.js?v=36';
+import { canvas, W, H } from './gfx.js?v=39';
 
 // the movement stick sits in a fixed spot; any touch on the left side drives it from there
 export const STICK_X = 50, STICK_Y = 135, STICK_R = 22;
@@ -14,6 +14,10 @@ export const input = {
   stick: { id: null, ox: STICK_X, oy: STICK_Y, x: STICK_X, y: STICK_Y, dx: 0, dy: 0 },
   // dragging from the attack button aims; a short tap keeps auto-aim
   aim: { id: null, ox: 0, oy: 0, dx: 0, dy: 0, active: false, a: 0 },
+  // aimed skills: hold the button, drag to aim (further = farther), lift to cast; drag back onto the button to cancel
+  skill: { id: null, key: null, ox: 0, oy: 0, dx: 0, dy: 0, a: 0, k: 1, active: false, was: false, cancel: false },
+  aimable: { q: false, e: false, r: false },
+  cast: null,
   tb: { attack: false, dash: false, q: false, e: false, r: false, pause: false },
   thit: new Set(),
 };
@@ -59,6 +63,8 @@ function goFull() {
   wentFull = true;
   document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
 }
+const SKILL_GO = 12, SKILL_BACK = 9;
+function resetSkill() { Object.assign(input.skill, { id: null, key: null, dx: 0, dy: 0, active: false, was: false, cancel: false }); }
 function startAim(id, x, y) { Object.assign(input.aim, { id, ox: x, oy: y, dx: 0, dy: 0, active: false }); }
 function moveStick(x, y) {
   const s = input.stick;
@@ -77,9 +83,12 @@ addEventListener('touchstart', (e) => {
     const { x, y } = touchPt(t);
     if (input.touchPlay) {
       const b = TOUCH_BTNS.find((b) => Math.hypot(x - b.x, y - b.y) < b.r + 6);
-      if (b) {
+      if (b && !(input.aimable[b.id] && input.skill.id === null)) {
         roles.set(t.identifier, b.id); input.tb[b.id] = true; input.thit.add(b.id);
         if (b.id === 'attack') startAim(t.identifier, b.x, b.y);
+      } else if (b && input.aimable[b.id] && input.skill.id === null) {
+        roles.set(t.identifier, b.id); input.tb[b.id] = true;
+        Object.assign(input.skill, { id: t.identifier, key: b.id, ox: b.x, oy: b.y, dx: 0, dy: 0, active: false, was: false, cancel: false });
       } else if (x < W * 0.55 && input.stick.id === null) {
         input.stick.id = t.identifier;
         roles.set(t.identifier, 'stick');
@@ -96,7 +105,13 @@ addEventListener('touchmove', (e) => {
   for (const t of e.changedTouches) {
     const role = roles.get(t.identifier), { x, y } = touchPt(t);
     if (role === 'stick') moveStick(x, y);
-    else if (input.aim.id === t.identifier) {
+    else if (input.skill.id === t.identifier) {
+      const k = input.skill;
+      k.dx = x - k.ox; k.dy = y - k.oy;
+      const d = Math.hypot(k.dx, k.dy);
+      if (d > SKILL_GO) { k.active = k.was = true; k.cancel = false; k.a = Math.atan2(k.dy, k.dx); k.k = Math.max(0.25, Math.min(1, (d - SKILL_GO) / 30 + 0.25)); }
+      else if (k.was && d < SKILL_BACK) { k.active = false; k.cancel = true; }
+    } else if (input.aim.id === t.identifier) {
       const m = input.aim;
       m.dx = x - m.ox; m.dy = y - m.oy;
       if (Math.hypot(m.dx, m.dy) > AIM_DEAD) { m.active = true; m.a = Math.atan2(m.dy, m.dx); }
@@ -110,7 +125,14 @@ function touchEnd(e) {
     roles.delete(t.identifier);
     if (role === 'stick') { const s = input.stick; s.id = null; s.dx = s.dy = 0; s.x = STICK_X; s.y = STICK_Y; }
     if (input.aim.id === t.identifier) Object.assign(input.aim, { id: null, active: false, dx: 0, dy: 0 });
-    else if (role && role !== 'menu' && ![...roles.values()].includes(role)) input.tb[role] = false;
+    if (input.skill.id === t.identifier) {
+      const k = input.skill;
+      // a tap casts with auto-aim, a drag casts where it points, a drag back onto the button cancels
+      if (!k.cancel && input.touchPlay) { input.thit.add(k.key); if (k.active) input.cast = { key: k.key, a: k.a, k: k.k }; }
+      resetSkill();
+    }
+    // release the button unless another finger still holds it (the attack button used to stay held forever)
+    if (role && role !== 'menu' && role !== 'stick' && ![...roles.values()].includes(role)) input.tb[role] = false;
   }
 }
 addEventListener('touchend', touchEnd);
@@ -161,5 +183,6 @@ export function endFrame() {
   input.hit.clear();
   input.mouse.pressed = input.mouse.rpressed = input.mouse.moved = false;
   input.thit.clear();
+  input.cast = null;
   input.any = false;
 }
