@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=42';
-import { SPR } from './sprites.js?v=42';
-import { A } from './audio.js?v=42';
-import { input } from './input.js?v=42';
-import { best } from './store.js?v=42';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=52';
+import { SPR } from './sprites.js?v=52';
+import { A } from './audio.js?v=52';
+import { input } from './input.js?v=52';
+import { best } from './store.js?v=52';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo,
-} from './world.js?v=42';
+  explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo, buzz, shadow,
+} from './world.js?v=52';
 
 // ---------- helpers ----------
 function aimPoint(p, max) {
@@ -251,7 +251,7 @@ export const CHARS = {
     bars: { power: 3, speed: 4, range: 5, tough: 2 },
     stats: { hp: 7, speed: 100 }, dash: { speed: 310, time: 0.15, cd: 0.4, charges: 1 }, ultRate: 0.8, energyHit: 0.4,
     primaryName: 'REVOLVER',
-    init: () => ({ ammo: 14, reload: 0, fireT: 0, stand: 0, flashT: 0 }),
+    init: () => ({ ammo: 14, reload: 0, fireT: 0, stand: 0, flashT: 0, marks: [] }),
     primary(p, dt, held) {
       const k = p.k, mag = Math.floor(14 * (1 + 0.5 * G.up.mag));
       k.fireT -= dt; k.flashT -= dt;
@@ -280,25 +280,44 @@ export const CHARS = {
     },
     update(p, dt) {
       const k = p.k;
+      for (const m of k.marks) m.t -= dt;
+      k.marks = k.marks.filter((m) => m.t > 0 && !m.e.dead);
       if (k.stand > 0) { k.stand -= dt; p.slowMul = 0.55; if (k.stand <= 0) { p.slowMul = 1; k.ammo = Math.floor(14 * (1 + 0.5 * G.up.mag)); } }
     },
     q: {
       name: 'BUCKSHOT', cost: 25, cd: 1.2, icon: 'burst', desc: 'POINT-BLANK SHOTGUN BLAST',
       use(p) {
         const [hx, hy] = hand(p, Math.cos(p.aim) < 0);
-        for (let i = 0; i < 9; i++) { const a = p.aim + rnd(-0.42, 0.42); shoot({ x: hx, y: hy, a, sp: rnd(300, 380), dmg: pd(3), kb: 220, life: 0.35, kind: 'pellet', c: P.ember2, ug: false }); }
+        for (let i = 0; i < 11; i++) { const a = p.aim + rnd(-0.42, 0.42); shoot({ x: hx, y: hy, a, sp: rnd(300, 380), dmg: pd(3), kb: 220, life: 0.38, kind: 'pellet', c: P.ember2, ug: false }); }
         muzzle(hx + Math.cos(p.aim) * 6, hy + Math.sin(p.aim) * 6, p.aim, P.ember2, 14);
         p.vx = -Math.cos(p.aim) * 180; p.vy = -Math.sin(p.aim) * 180;
         p.state = 'recover'; p.recT = 0.15; p.k.flashT = 0.08;
         A.shotgun(); shake(0.35); hitstop(0.03);
       },
     },
+    // Deadeye: time slows, she marks the closest foes on screen, then fans the hammer, one sure shot each.
+    // No aiming needed; with fewer foes than shots, the spare shots go into the toughest one.
     e: {
-      name: 'GRENADE', cost: 35, cd: 3, icon: 'burst', desc: 'LOBBED, BIG BLAST',
+      name: 'DEADEYE', cost: 35, cd: 3, icon: 'eye', desc: 'SLOW TIME, SIX SURE SHOTS',
       use(p) {
-        const [x, y] = aimPoint(p, 130);
-        G.strikes.push({ x, y, x0: p.x, y0: p.y - 8, t: 0, delay: 0.55, R: 40, dmg: 16, friendly: true, kind: 'grenade', c: P.gold });
-        A.toss();
+        const pool = G.E.filter((e) => alive(e) && !e.under && hyp(e.x - p.x, e.y - p.y) < 230).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y));
+        if (!pool.length) return false;
+        const shots = 6 + G.up.mag * 2, list = pool.slice(0, shots), tough = [...list].sort((a, b) => b.hp - a.hp)[0];
+        while (list.length < shots) list.push(tough);
+        slowmo(0.55, 0.3); A.reload(); flash(P.gold, 0.06, false);
+        p.k.marks = list.map((e) => ({ e, t: 0.9 }));
+        list.forEach((e, i) => G.timers.push({ t: 0.16 + i * 0.06, fn: () => {
+          if (!alive(e)) return;
+          const [hx, hy] = hand(p, e.x < p.x), a = Math.atan2(e.y - e.r - hy, e.x - hx);
+          p.aim = a;
+          G.bolts.push({ x0: hx, y0: hy, x1: e.x, y1: e.y - e.r, t: 0, life: 0.12, c1: P.paper, c2: P.gold, c3: P.gold2 });
+          muzzle(hx + Math.cos(a) * 8, hy + Math.sin(a) * 8, a, P.gold, 6);
+          part(hx, hy, -Math.sin(a) * 50, Math.cos(a) * 50, 0.5, P.gold2, { z: 6, vz: 60, g: 300, drag: 2 });
+          damage(e, pd(11), { dir: a, kb: 170, src: 'bolt', crit: true });
+          sparks(e.x, e.y - e.r, a, 6, 0.5, P.gold, 200);
+          p.k.flashT = 0.05; A.gun(); shake(0.12); hitstop(0.02);
+        } }));
+        addText(p.x, p.y - 24, 'DEADEYE', P.gold);
       },
     },
     r: {
@@ -316,6 +335,15 @@ export const CHARS = {
         line(hx, hy, hx + cx * 6, hy + cy * 6, P.gold);
       }
       if (p.k.flashT > 0) { disc(hx + cx * 12, hy + cy * 12, 2, P.paper); glow(hx + cx * 12, hy + cy * 12, P.gold, 8, 0.7); }
+    },
+    // Deadeye's crosshairs on every marked foe
+    draw(p) {
+      for (const m of p.k.marks) {
+        const e = m.e, s = 4 + Math.round(m.t * 4), y = e.y - e.r, c = Math.floor(G.time * 20) % 2 ? P.gold : P.paper;
+        ring(e.x, y, s, 1, c);
+        line(e.x - s - 2, y, e.x - s + 1, y, c); line(e.x + s - 1, y, e.x + s + 2, y, c);
+        line(e.x, y - s - 2, e.x, y - s + 1, c); line(e.x, y + s - 1, e.x, y + s + 2, c);
+      }
     },
     hud(p, x, y) {
       const k = p.k, mag = Math.floor(14 * (1 + 0.5 * G.up.mag));
@@ -396,54 +424,147 @@ export const CHARS = {
     entrance: () => entrance('portal'),
   },
 
+  // Rin, samurai. (The id stays NINJA so saves and unlocks keep working.)
   NINJA: {
-    id: 'NINJA', name: 'NINJA', alias: 'SHADE', color: () => P.blood,
-    desc: ['VERY FAST, TWO DASHES,', 'HITS FROM HIDING X3'], tip: 'HIT FROM SMOKE TO BACKSTAB',
-    bars: { power: 3, speed: 5, range: 2, tough: 1 },
-    stats: { hp: 6, speed: 114 }, dash: { speed: 380, time: 0.11, cd: 0.7, charges: 2 }, ultRate: 1, energyHit: 1.2, backstab: true,
+    id: 'NINJA', name: 'SAMURAI', alias: 'SAKURA', color: () => P.blood,
+    desc: ['FAST KATANA, TWO DASHES,', 'COUNTER STANCE PUNISHES HITS'], tip: 'PRESS E RIGHT BEFORE A HIT TO COUNTER',
+    bars: { power: 4, speed: 5, range: 2, tough: 2 },
+    stats: { hp: 7, speed: 114 }, dash: { speed: 380, time: 0.11, cd: 0.65, charges: 2 }, ultRate: 1.05, energyHit: 1.4,
     melee: {
       col: 'blood', steps: [
         // quick cut, X-cut, lunging stab, iai draw (dashes through and cuts twice)
-        { reach: 23, arc: 2.3, dmg: 2, dur: 0.15, cancel: 0.07, lunge: 170, kb: 80, th: 6 },
-        { reach: 24, arc: 2.3, dmg: 2, dur: 0.2, cancel: 0.1, lunge: 150, kb: 80, th: 6, shape: 'cross' },
-        { reach: 36, arc: 0.6, dmg: 3, dur: 0.16, cancel: 0.08, lunge: 300, kb: 120, th: 4, shape: 'thrust' },
-        { reach: 34, arc: 1.2, dmg: 4, dur: 0.3, cancel: 0.15, lunge: 430, kb: 200, th: 9, heavy: true, shape: 'iai' },
+        { reach: 24, arc: 2.3, dmg: 2, dur: 0.15, cancel: 0.07, lunge: 170, kb: 80, th: 6 },
+        { reach: 25, arc: 2.3, dmg: 3, dur: 0.2, cancel: 0.1, lunge: 150, kb: 80, th: 6, shape: 'cross' },
+        { reach: 38, arc: 0.6, dmg: 3, dur: 0.16, cancel: 0.08, lunge: 300, kb: 120, th: 4, shape: 'thrust' },
+        { reach: 36, arc: 1.2, dmg: 5, dur: 0.3, cancel: 0.15, lunge: 430, kb: 220, th: 9, heavy: true, shape: 'iai' },
       ],
     },
     primaryName: 'KATANA',
+    init: () => ({ skillInv: false, guard: 0, countered: false, petalT: 0 }),
+    // Q: a crescent of wind off the blade. It flies through foes and cuts enemy shots out of the air.
     q: {
-      name: 'SHURIKEN FAN', cost: 20, cd: 1, icon: 'cross', desc: 'FIVE BOUNCING STARS',
+      name: 'SAKURA WAVE', cost: 20, cd: 1, icon: 'blade', desc: 'A FLYING SLASH THAT CUTS SHOTS',
       use(p) {
-        const [hx, hy] = hand(p, Math.cos(p.aim) < 0);
-        for (let i = -2; i <= 2; i++) shoot({ x: hx, y: hy, a: p.aim + i * 0.15, sp: 300, dmg: pd(4), kb: 80, life: 1.2, kind: 'shuriken', pierce: 2, bounce: 1, c: P.bone, poison: G.up.venom, ug: false, trail: false });
-        A.shuriken();
+        const [hx, hy] = hand(p, Math.cos(p.aim) < 0), a = p.aim;
+        shoot({ x: hx + Math.cos(a) * 6, y: hy + Math.sin(a) * 6, a, sp: 290, dmg: pd(6), kb: 160, life: 0.6, kind: 'crescent', r: 7, pierce: 99, c: '#ffb7d5', poison: G.up.venom, ug: true, slice: true, trail: false });
+        G.slashes.push({ follow: true, x: p.x, y: p.y, a, r: 20, arc: 2.4, dir: 1, t: 0, life: 0.14, th: 6, col: 'blood' });
+        p.state = 'recover'; p.recT = 0.08;
+        A.charAtk('NINJA', 3); A.rift();
       },
     },
+    // E: Kamae, the counter stance. Rooted and untouchable for a moment; the first hit that lands
+    // triggers a flash-step counter that cuts everything around the attacker and readies a triple-damage strike.
     e: {
-      name: 'SMOKE BOMB', cost: 35, cd: 6, icon: 'cloud', desc: 'TURN INVISIBLE FOR 3S',
+      name: 'KAMAE', cost: 30, cd: 3, icon: 'shield', desc: 'COUNTER STANCE: BLOCK, THEN STRIKE',
       use(p) {
-        G.zones.push({ type: 'smoke', x: p.x, y: p.y, r: 30, t: 0, life: 1.2 });
-        p.invis = 3;
-        for (const s of G.shots) if (s.owner === 'enemy' && hyp(s.x - p.x, s.y - p.y) < 40) s.dead = true;
-        A.smoke(); dust(p.x, p.y, 20, 80);
-        addText(p.x, p.y - 24, 'VANISHED', P.dust);
+        const k = p.k;
+        k.guard = 0.8; k.skillInv = true; k.countered = false;
+        p.state = 'skill'; p.vx = p.vy = 0;
+        A.shieldUp(); A.click();
+        addRing(p.x, p.y - 6, '#ffb7d5', 90, 0.25, 1);
       },
     },
+    skill(p, dt) {
+      const k = p.k;
+      p.vx *= Math.exp(-20 * dt); p.vy *= Math.exp(-20 * dt);
+      k.guard -= dt;
+      if (Math.random() < dt * 20) { const a = rnd(TAU); part(p.x + Math.cos(a) * 12, p.y - 6 + Math.sin(a) * 8, 0, -rnd(5, 15), 0.4, '#ffb7d5', { glow: true, drag: 1 }); }
+      if (k.guard > 0) return false;
+      k.skillInv = false;
+      // nothing came: she still draws, a small cut around her
+      if (!k.countered) {
+        for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 36) damage(e, pd(5), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 160, src: 'primary', ug: true, slice: true });
+        G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.aim, r: 26, arc: 6.2, dir: 1, t: 0, life: 0.2, th: 5, col: 'blood' });
+        A.charAtk('NINJA', 3);
+      }
+      return true;
+    },
+    onGuard(p, sx, sy) {
+      const k = p.k;
+      if (p.state !== 'skill' || k.countered) return;
+      k.countered = true; k.guard = Math.min(k.guard, 0.12);
+      // flash-step to the attacker (or toward the shot) and cut
+      const tgt = G.E.filter(alive).sort((a, b) => hyp(a.x - sx, a.y - sy) - hyp(b.x - sx, b.y - sy))[0];
+      const fx0 = tgt && hyp(tgt.x - sx, tgt.y - sy) < 90 ? tgt.x : sx, fy0 = tgt && hyp(tgt.x - sx, tgt.y - sy) < 90 ? tgt.y : sy;
+      const a = Math.atan2(fy0 - p.y, fx0 - p.x), d = Math.min(70, hyp(fx0 - p.x, fy0 - p.y));
+      ghost(p, '#ffb7d5');
+      p.x = clamp(p.x + Math.cos(a) * Math.max(0, d - 10), B.x0 + 6, B.x1 - 6); p.y = clamp(p.y + Math.sin(a) * Math.max(0, d - 10), B.y0 + 6, B.y1 - 4); p.aim = a;
+      for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 60) damage(e, e.type === 'boss' ? pd(20) : pd(16), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 260, src: 'primary', ug: true, crit: true, heavy: true });
+      for (const s of G.shots) if (s.owner === 'enemy' && hyp(s.x - p.x, s.y - p.y) < 70) { s.dead = true; sparks(s.x, s.y, rnd(TAU), 4, Math.PI, '#ffb7d5', 120); }
+      p.counter = 2.5; p.counterHit = false; p.inv = Math.max(p.inv, 0.5);
+      G.slashes.push({ follow: true, x: p.x, y: p.y, a, r: 34, arc: 6.2, dir: 1, t: 0, life: 0.26, th: 8, col: 'blood' });
+      for (let i = 0; i < 30; i++) { const b = rnd(TAU), v = rnd(60, 220); part(p.x, p.y - 6, Math.cos(b) * v, Math.sin(b) * v, rnd(0.4, 0.9), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 3, glow: true }); }
+      addText(p.x, p.y - 26, 'COUNTER', '#ffb7d5', 2);
+      slowmo(0.5, 0.3); hitstop(0.1); shake(0.6); flash(P.paper, 0.1, false); A.parry(); A.ultCut(5); buzz('parry');
+    },
+    // R: Issen, the single flash. Time stops; she flickers from foe to foe in a chain of cuts, sheathes
+    // her sword, and every foe she passed bursts into petals.
     r: {
-      name: 'SHADOW CLONES', icon: 'eye', desc: 'THREE CLONES HUNT FOR 7S',
+      name: 'ISSEN', icon: 'cross', desc: 'STOP TIME, A CHAIN OF CUTS',
       use(p) {
-        const nC = G.up.evoUlt ? 5 : 3; for (let i = 0; i < nC; i++) { const a = (i * TAU) / nC; G.allies.push({ type: 'clone', x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 10, t: 0, life: G.up.evoUlt ? 10 : 7, cd: 0.15 * i, face: 1 }); }
-        G.zones.push({ type: 'smoke', x: p.x, y: p.y, r: 26, t: 0, life: 0.8 });
-        banner('SHADOW CLONES', P.blood); A.smoke(); A.ultStart();
+        const hops = G.up.evoUlt ? 16 : 11;
+        const u = { t: 0, phase: 'draw', i: 0, hopT: 0, ox: p.x, oy: p.y, hit: new Set(), path: [] };
+        p.state = 'cine'; p.vx = p.vy = 0;
+        A.ultStart(); shake(0.25); banner('ISSEN', '#ffb7d5');
+        G.cine = {
+          update(dt) {
+            u.t += dt;
+            if (u.phase === 'draw') { if (u.t > 0.35) { u.phase = 'hops'; u.t = 0; } return; }
+            if (u.phase === 'hops') {
+              u.hopT -= dt;
+              while (u.hopT <= 0 && u.i < hops) {
+                u.hopT += 0.06;
+                const live = G.E.filter((e) => alive(e) && !e.under);
+                if (!live.length) { u.i = hops; break; }
+                // the nearest foe not cut yet, else the toughest
+                const fresh = live.filter((e) => !u.hit.has(e)).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y));
+                const e = fresh[0] || live.sort((a, b) => b.hp - a.hp)[0];
+                const a = Math.atan2(e.y - p.y, e.x - p.x), x0 = p.x, y0 = p.y;
+                ghost(p, '#ffb7d5');
+                p.x = clamp(e.x + Math.cos(a) * (e.r + 8), B.x0 + 6, B.x1 - 6); p.y = clamp(e.y + Math.sin(a) * 4, B.y0 + 6, B.y1 - 4); p.aim = a;
+                u.path.push([x0, y0 - 6, p.x, p.y - 6]);
+                u.hit.add(e);
+                damage(e, e.type === 'boss' ? pd(10) + Math.round(e.maxHp * 0.006) : pd(14), { dir: a, kb: 0, src: 'ult', slice: true, crit: true });
+                for (let j = 0; j < 6; j++) part(e.x, e.y - e.r, rnd(-90, 90), rnd(-90, 90), rnd(0.3, 0.6), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 4, glow: true });
+                A.ultCut(u.i); shake(0.1); u.i++;
+              }
+              if (u.i >= hops) { u.phase = 'sheath'; u.t = 0; }
+              return;
+            }
+            if (u.phase === 'sheath' && u.t > 0.45) {
+              // the sword clicks home: everything she cut bursts
+              G.cine = null; p.state = 'move'; p.inv = 0.8;
+              for (const e of u.hit) if (alive(e)) damage(e, e.type === 'boss' ? Math.round(40 + e.maxHp * 0.04) : pd(30), { dir: rnd(TAU), kb: 260, src: 'ult', slice: true, crit: true, heavy: true });
+              for (const [x0, y0, x1, y1] of u.path) for (let j = 0; j < 4; j++) { const k = Math.random(); part(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k, rnd(-80, 80), rnd(-80, 80), rnd(0.4, 0.9), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 3, glow: true }); }
+              addRing(p.x, p.y - 6, '#ffb7d5', 360, 0.4, 3); addRing(p.x, p.y - 6, P.paper, 280, 0.3, 1);
+              flash(P.paper, 0.3, true); shake(1); hitstop(0.14); A.click(); A.ultRelease();
+              addText(p.x, p.y - 28, 'CHIN', P.paper, 2);
+            }
+          },
+          draw(cx, cy) {
+            ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a0a1a'; ctx.fillRect(cx, cy, 320, 180); ctx.globalAlpha = 1;
+            for (const [x0, y0, x1, y1] of u.path) { line(x0, y0 + 1, x1, y1 + 1, P.blood); line(x0, y0, x1, y1, P.paper); }
+            for (let i = 0; i < 6; i++) { const x = cx + ((G.time * 40 + i * 57) % 320), y = cy + ((G.time * 25 + i * 31) % 180); px(x, y, '#ffb7d5'); }
+          },
+        };
       },
     },
     drawWeapon(p, flip) {
+      // sheathed while holding the stance: only the hilt shows at her hip
+      if (p.state === 'skill') { const [hx, hy] = hand(p, flip), d = flip ? 1 : -1; line(hx, hy, hx + d * 6, hy + 2, '#3a2030', 2); line(hx - d * 1, hy - 1, hx + d * 1, hy + 1, '#c81e36'); return; }
       const a = p.state === 'attack' ? swordAngle(p) : p.aim + (flip ? -0.8 : 0.8), [hx, hy] = hand(p, flip), cx = Math.cos(a), cy = Math.sin(a);
       // katana: red-wrapped hilt, gold guard, a long slim steel blade with a bright edge at the tip
       line(hx - cx * 3, hy - cy * 3, hx, hy, '#c81e36');
       line(hx - cy * 1.5, hy + cx * 1.5, hx + cy * 1.5, hy - cx * 1.5, P.gold);
       line(hx + cx, hy + cy, hx + cx * 11, hy + cy * 11, '#d8e4f0');
       px(hx + cx * 11, hy + cy * 11, P.paper);
+    },
+    // the stance: a pink ring that tightens until the counter window closes
+    draw(p) {
+      if (p.state !== 'skill' || p.k.guard <= 0) return;
+      const r = 10 + p.k.guard * 14;
+      ring(p.x, p.y - 6, r, 1, Math.floor(G.time * 16) % 2 ? '#ffb7d5' : P.paper);
+      glow(p.x, p.y - 6, '#ffb7d5', 14, 0.25);
     },
     entrance: () => entrance('smoke'),
   },
@@ -479,12 +600,13 @@ export const CHARS = {
       },
     },
     r: {
-      name: 'JUNK GOLEM', icon: 'fist', desc: 'A SCRAP GIANT FIGHTS FOR 12S',
+      name: 'IRON TITAN', icon: 'fist', desc: 'A MECH DROPS IN: PUNCHES AND MISSILES',
       use(p) {
         const [x, y] = aimPoint(p, 60);
-        G.allies.push({ type: 'golem', x, y, z: 140, t: 0, life: G.up.evoUlt ? 20 : 12, cd: 0.6, landed: false, face: 1, anim: 0 });
-        if (G.up.evoUlt) G.allies.push({ type: 'golem', x: clamp(x + 30, B.x0 + 10, B.x1 - 10), y, z: 200, t: 0, life: 20, cd: 0.9, landed: false, face: -1, anim: 0 });
-        banner('JUNK GOLEM', '#ffb347'); A.ultStart();
+        const titan = (tx, z, face, cd) => ({ type: 'golem', x: tx, y, z, vz: -60, t: 0, life: G.up.evoUlt ? 20 : 12, cd, mcd: 1.2, landed: false, face, anim: 0, step: 0 });
+        G.allies.push(titan(x, 160, 1, 0.6));
+        if (G.up.evoUlt) G.allies.push(titan(clamp(x + 34, B.x0 + 12, B.x1 - 12), 230, -1, 0.9));
+        banner('IRON TITAN', '#ff9a3c'); A.ultStart();
       },
     },
     drawWeapon(p, flip) {
@@ -737,67 +859,84 @@ export const ALLY = {
       if (Math.random() < 0.3) line(a.x, a.y - 10, a.x + rnd(-6, 6), a.y - 10 + rnd(-6, 2), P.paper);
     },
   },
+  // the Iron Titan: rockets down on its thrusters, stomps toward foes, punches with a piston arm,
+  // fires shoulder missiles, and jets off when its time is up
   golem: {
     update(a, dt) {
       a.anim += dt;
+      const flames = (n, spread) => { for (let i = 0; i < n; i++) part(a.x + rnd(-spread, spread), a.y - a.z + rnd(-1, 2), rnd(-20, 20), rnd(60, 140), rnd(0.15, 0.35), Math.random() < 0.5 ? '#ff9a3c' : Math.random() < 0.5 ? '#ffd447' : '#62efff', { drag: 3, glow: true }); };
       if (!a.landed) {
-        a.z = Math.max(0, 140 * (1 - a.t / 0.45));
+        // the descent slows as the thrusters fire
+        a.vz = Math.min(-40, a.vz + 600 * dt * (a.z < 70 ? 1 : 0)) - (a.z > 70 ? 500 * dt : 0);
+        a.z = Math.max(0, a.z + a.vz * dt);
+        if (a.z < 90) flames(3, 6);
         if (a.z <= 0) {
           a.landed = true;
-          G.quakes.push({ x: a.x, y: a.y, r: 0, delay: 0, max: 80, friendly: true, hit: new Set(), dmg: 10, speed: 200 });
-          shake(0.8); A.boom(1.8); dust(a.x, a.y, 30, 140); scorch(a.x, a.y, 14); hitstop(0.06);
+          G.quakes.push({ x: a.x, y: a.y, r: 0, delay: 0, max: 84, friendly: true, hit: new Set(), dmg: 12, speed: 220 });
+          shake(0.9); A.boom(1.8); dust(a.x, a.y, 34, 150); scorch(a.x, a.y, 16); hitstop(0.07);
+          addRing(a.x, a.y - 4, '#ff9a3c', 300, 0.35, 3);
         }
         return;
       }
-      a.cd -= dt;
+      // the last second: it lifts off on its jets
+      if (a.t > a.life - 1) { a.leaving = true; a.z += (60 + (a.t - (a.life - 1)) * 400) * dt; flames(4, 7); if (Math.random() < dt * 8) A.rocket(); return; }
+      a.cd -= dt; a.mcd -= dt; a.punch = (a.punch || 0) - dt; a.windup = (a.windup || 0) - dt;
       const e = nearest(a.x, a.y, 400);
-      if (!e) return;
+      if (!e) { a.walking = false; return; }
       const d = hyp(e.x - a.x, e.y - a.y);
       a.face = e.x < a.x ? -1 : 1;
-      if (d > 22) { a.x += ((e.x - a.x) / d) * 62 * dt; a.y += ((e.y - a.y) / d) * 62 * dt; a.walking = true; }
-      else a.walking = false;
-      if (d < 26 && a.cd <= 0) {
-        a.cd = 0.75; a.punch = 0.15;
-        for (const o of G.E) if (alive(o) && hyp(o.x - e.x, o.y - e.y) < 28) damage(o, pd(12), { dir: Math.atan2(o.y - a.y, o.x - a.x), kb: 300, src: 'boom' });
-        G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 36, friendly: true, hit: new Set([e]), dmg: 3, speed: 200 });
-        shake(0.4); A.boom(1); hitstop(0.04);
+      if (d > 30 && a.windup <= 0) {
+        a.x += ((e.x - a.x) / d) * 66 * dt; a.y += ((e.y - a.y) / d) * 66 * dt; a.walking = true;
+        // heavy steps
+        const st = Math.floor(a.anim * 6);
+        if (st !== a.step) { a.step = st; if (st % 2 === 0) { dust(a.x + rnd(-6, 6), a.y, 5, 40); shake(0.06); } }
+      } else a.walking = false;
+      if (d < 36 && a.cd <= 0 && a.windup <= 0) { a.windup = 0.16; a.cd = 0.8; a.target = e; }
+      if (a.windup > 0 && a.windup - dt <= 0 && a.target) {
+        // the piston punch
+        const t = a.target;
+        a.punch = 0.2;
+        for (const o of G.E) if (alive(o) && hyp(o.x - t.x, o.y - t.y) < 30) damage(o, pd(14), { dir: Math.atan2(o.y - a.y, o.x - a.x), kb: 320, src: 'boom', heavy: true });
+        G.quakes.push({ x: t.x, y: t.y, r: 0, delay: 0, max: 40, friendly: true, hit: new Set([t]), dmg: 3, speed: 220 });
+        sparks(a.x + a.face * 28, a.y - 22, a.face > 0 ? 0 : Math.PI, 12, 0.6, '#ff9a3c', 260);
+        shake(0.45); A.boom(1.1); hitstop(0.05);
       }
-      a.punch = (a.punch || 0) - dt;
-    },
-    draw(a) {
-      if (a.life - a.t < 1.5 && Math.floor(G.time * 10) % 2) return;
-      const s = SPR.golem[a.walking ? Math.floor(a.anim * 5) % 2 : 0];
-      if (a.z > 0) ring(a.x, a.y, Math.max(3, 18 - a.z / 8), 1, P.blood);
-      drawSprite(s, a.x - s.w / 2 + (a.punch > 0 ? a.face * 2 : 0), a.y - s.h + 1 - (a.z || 0), a.face < 0, a.z > 0 ? '#ffb347' : null);
-      glow(a.x, a.y - 14 - (a.z || 0), '#ffb347', 8, 0.35);
-    },
-  },
-  clone: {
-    update(a, dt) {
-      a.cd -= dt;
-      if (a.cd <= 0) {
-        a.cd = 0.45;
-        const live = G.E.filter(alive);
-        if (!live.length) return;
-        const e = live[Math.floor(rnd(live.length))], side = Math.random() < 0.5 ? -1 : 1;
-        G.ghosts.push({ x: a.x, y: a.y, flip: a.face < 0, t: 0, life: 0.2, c: '#3b2a66', spr: (G.evo === true ? SPR.evo : SPR.chars).NINJA.idle });
-        a.x = clamp(e.x - side * 12, B.x0 + 6, B.x1 - 6); a.y = clamp(e.y + rnd(-3, 3), B.y0 + 6, B.y1 - 4);
-        a.face = side;
-        const ang = Math.atan2(e.y - a.y, e.x - a.x);
-        G.slashes.push({ follow: false, x: a.x, y: a.y, a: ang, r: 22, arc: 2.6, dir: Math.random() < 0.5 ? 1 : -1, t: 0, life: 0.16, th: 7, col: 'hex' });
-        damage(e, pd(6), { dir: ang, kb: 120, src: 'dash', slice: true });
-        A.swing(0);
+      // a missile salvo from both shoulder pods
+      if (a.mcd <= 0) {
+        a.mcd = 2.2;
+        for (let i = 0; i < 4; i++) {
+          const side = i % 2 ? 1 : -1;
+          shoot({ x: a.x + side * 16, y: a.y - 46, a: -Math.PI / 2 + side * rnd(0.3, 0.8), sp: 170, dmg: pd(6), kb: 120, life: 1.8, kind: 'rocket', homing: 6, ug: false, splash: { R: 16, dmg: pd(3) } });
+        }
+        A.rocket(); addRing(a.x, a.y - 46, '#ff9a3c', 80, 0.15, 1);
       }
     },
     draw(a) {
-      const s = (G.evo === true ? SPR.evo : SPR.chars).NINJA.idle;
-      ctx.globalAlpha = 0.85;
-      drawSprite(s, a.x - s.w / 2, a.y - s.h + 1, a.face < 0, '#3b2a66');
-      ctx.globalAlpha = 1;
-      px(a.x + (a.face < 0 ? -2 : 2), a.y - 9, P.blood);
-      glow(a.x, a.y - 7, P.hex, 8, 0.3);
+      // drawn twice the size: a giant next to the fighters
+      const T = SPR.titan, s = a.walking ? T.walk[Math.floor(a.anim * 6) % 4] : T.idle, S = 2;
+      if (!a.landed) ring(a.x, a.y, Math.max(4, 26 - a.z / 7), 1, '#ff9a3c');
+      shadow(a.x, a.y, Math.max(5, 16 - (a.z || 0) / 10));
+      if (a.leaving && a.t > a.life - 0.3 && Math.floor(G.time * 20) % 2) return;
+      // a lean back on the windup, a lunge on the punch, a heavy bob when walking
+      const lunge = a.punch > 0 ? a.face * 6 : a.windup > 0 ? -a.face * 3 : 0;
+      const bob = a.walking ? Math.round(Math.abs(Math.sin(a.anim * 6 * Math.PI / 2)) * 2) : Math.round(Math.sin(a.anim * 2) * 1);
+      const fx = Math.round(a.x + lunge), fy = Math.round(a.y + 1 - (a.z || 0) - bob);
+      ctx.save(); ctx.translate(fx, fy); ctx.scale(S, S);
+      drawSprite(s, -Math.round(s.w / 2), -s.h, a.face < 0, a.z > 0 && !a.leaving ? '#ffb347' : null);
+      // the piston fist, thrown out ahead
+      if (a.punch > 0) {
+        const len = 7 * Math.min(1, (0.2 - a.punch) / 0.06 + 0.3), y = -s.h + 14, x0 = a.face * 9;
+        line(x0, y, x0 + a.face * len, y, '#8b98ab', 2); disc(x0 + a.face * (len + 2), y, 2, '#d8651e'); px(x0 + a.face * (len + 2), y, '#ffd447');
+      }
+      ctx.restore();
+      // the reactor and the visor glow
+      glow(fx, fy - (s.h - 10) * S, '#ffd447', 10 + Math.sin(G.time * 8) * 3, 0.55);
+      glow(fx + a.face * 2, fy - (s.h - 4) * S, '#62efff', 9, 0.5);
+      if (a.leaving || !a.landed) glow(a.x, a.y - a.z, '#ff9a3c', 16, 0.6);
     },
   },
+
+
 };
 
 
@@ -989,7 +1128,8 @@ const FLAIR = {
     if (Math.random() < dt * 10) part(p.x + rnd(-6, 6), p.y - rnd(0, 14), rnd(-5, 5), -rnd(10, 25), rnd(0.4, 0.8), Math.random() < 0.5 ? '#b48cff' : '#62efff', { drag: 1, glow: true });
   },
   NINJA(p, dt, moving) {
-    if (Math.random() < dt * (moving ? 45 : 8)) part(behindX(p, 4), p.y - 9, (Math.cos(p.aim) < 0 ? 1 : -1) * rnd(20, 50), rnd(-6, 6), rnd(0.2, 0.4), P.blood, { drag: 3 });
+    // sakura petals drift off her as she moves
+    if (Math.random() < dt * (moving ? 22 : 4)) part(behindX(p, 4) + rnd(-2, 2), p.y - rnd(6, 14), (Math.cos(p.aim) < 0 ? 1 : -1) * rnd(10, 30), rnd(4, 14), rnd(0.5, 0.9), Math.random() < 0.6 ? '#ffb7d5' : '#ff8fb8', { drag: 2 });
     p.k.shadowT = (p.k.shadowT || 0) - dt;
     if (moving && p.k.shadowT <= 0) { p.k.shadowT = 0.08; ghost(p, '#2a1f4a'); }
   },
@@ -1037,7 +1177,7 @@ const META = {
   BLADE: { hero: 'KAEL', lore: ['THE LAST GUARD OF THE PIT. HIS BLADE', 'HOLDS THE FINAL EMBER OF THE OLD SUN.'] },
   GUNNER: { hero: 'VEGA HALE', lore: ['A BOUNTY HUNTER WHO FOLLOWED ONE', 'BOUNTY TOO DEEP INTO THE PIT.'], mission: ['REACH WAVE 10', () => 'BEST WAVE ' + pct(best.wave, 10)] },
   WIZARD: { hero: 'MORROW', lore: ['A WARLOCK WHO TRADED HIS FACE', 'FOR THE NAMES OF THE STARS.'], mission: ['LAND A 100-HIT COMBO', () => 'BEST COMBO ' + pct(best.combo, 100)] },
-  NINJA: { hero: 'RIN', lore: ['A STUDENT BY DAY, THE LAST HEIR OF', 'THE RED ONI CLAN BY NIGHT.'], mission: ['25 PERFECT DODGES IN ONE RUN', () => 'BEST ' + pct(best.perfects, 25)] },
+  NINJA: { hero: 'RIN', lore: ['THE LAST SAMURAI OF THE RED ONI CLAN.', 'STILL HAS HOMEWORK DUE FRIDAY.'], mission: ['25 PERFECT DODGES IN ONE RUN', () => 'BEST ' + pct(best.perfects, 25)] },
   MECHANIC: { hero: 'RIVET', lore: ['A SALVAGER WHO BUILDS HER WEAPONS', 'FROM WHAT THE COLOSSUS LEFT BEHIND.'], mission: ['KILL 1500 ENEMIES IN TOTAL', () => 'KILLS ' + pct(best.kills, 1500)] },
   TANK: { hero: 'GROM', lore: ["THE LAST KNIGHT OF THE KING'S GUARD.", 'HE CAME BACK TO END WHAT HE SERVED.'], mission: ['BEAT A BOSS WITHOUT GETTING HIT', () => 'ANY BOSS, ANY FIGHTER'] },
   ROBOT: { hero: 'UNIT-7', lore: ['A WAR MACHINE THAT WOKE UP WITH', 'ONE ORDER LEFT: STOP THE KING.'], mission: ['DEFEAT THE ASHEN KING', () => (best.won ? 'DONE' : 'THE KING WAITS AT WAVE 20')] },

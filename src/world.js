@@ -1,12 +1,13 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js?v=42';
-import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=42';
-import { A } from './audio.js?v=42';
-import { input, keyDown, keyHit } from './input.js?v=42';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=42';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=42';
-import { CHARS, ALLY } from './chars.js?v=42';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=42';
-import { byId } from './upgrades.js?v=42';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO } from './gfx.js?v=52';
+import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=52';
+import { A } from './audio.js?v=52';
+import { input, keyDown, keyHit } from './input.js?v=52';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=52';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=52';
+import { CHARS, ALLY } from './chars.js?v=52';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=52';
+import { byId } from './upgrades.js?v=52';
+import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=52';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -59,6 +60,14 @@ const twistScore = () => (G.twist === 'BLOOD' ? 2 : G.twist === 'BLACKOUT' ? 1.5
 // multi-kills: kills within half a second of each other chain
 const MULTI = (n) => (n === 2 ? 'DOUBLE KILL' : n === 3 ? 'TRIPLE KILL' : n === 4 ? 'QUAD KILL' : n === 5 ? 'PENTA KILL' : n <= 8 ? 'RAMPAGE' : n <= 12 ? 'MASSACRE' : n <= 19 ? 'CARNAGE' : 'ANNIHILATION');
 export const multiName = MULTI;
+// elite affixes: every elite rolls one, shown as a coloured outline and a tag over its health bar
+export const AFFIX = {
+  REGEN: { name: 'REGEN', c: '#5aff7a' },
+  VOLATILE: { name: 'VOLATILE', c: '#ff9a3c' },
+  WARDED: { name: 'WARDED', c: '#62efff' },
+  FRENZIED: { name: 'FRENZY', c: '#ffd447' },
+  SPLITTING: { name: 'SPLIT', c: '#ff4fa8' },
+};
 export const DIFF = {
   EASY: { hp: 0.7, spd: 0.9, count: 0.85, dmg: 0, php: 4, score: 0.6 },
   NORMAL: { hp: 1, spd: 1, count: 1, dmg: 0, php: 0, score: 1 },
@@ -167,9 +176,9 @@ export function newRun(charId, save) {
     E: [], shots: [], parts: [], slashes: [], texts: [], bolts: [], rings: [], gibs: [], picks: [], sigils: [], ghosts: [],
     booms: [], cuts: [], quakes: [], timers: [], glitches: [], unlocks: [], perfects: 0, bossClean: false, killsBanked: 0, strikes: [], zones: [], hlines: [], hbeams: [], allies: [], amb: [],
     queue: [], spawnCd: 0, phase: 'intro', phaseT: 2, banner: null, dark: 0,
-    up: { wpn: 1, spell: 1, crit: 0, magnet: 0, thorns: 0, orbit: 0, dashMul: 1, cdMul: 1, evoWpn: 0, evoSpell: 0, evoUlt: 0, evoHeart: 0, evoSwift: 0, evoStatic: 0, evoEmber: 0, evoOrbit: 0, dmg: 1, spd: 1, reach: 1, regen: 1, static: 0, ember: 0, phantom: 0, mirror: 0, debt: 0, shrap: 1, exec: 0, focus: 1, echo: 0, storm: 0, mag: 0, pierce: 0, frost: 0, twin: 0, venom: 0, overclock: 0, hands: 0, after: 0, coolant: 0, cluster: 0 },
+    up: { wpn: 1, spell: 1, crit: 0, magnet: 0, thorns: 0, orbit: 0, dashMul: 1, cdMul: 1, evoWpn: 0, evoSpell: 0, evoUlt: 0, evoHeart: 0, evoSwift: 0, evoStatic: 0, evoEmber: 0, evoOrbit: 0, dmg: 1, spd: 1, reach: 1, regen: 1, static: 0, ember: 0, phantom: 0, mirror: 0, debt: 0, shrap: 1, exec: 0, focus: 1, echo: 0, storm: 0, mag: 0, pierce: 0, frost: 0, twin: 0, venom: 0, overclock: 0, hands: 0, after: 0, coolant: 0, cluster: 0, phoenix: 0, rage: 0, crown: 0, midas: 0, reaper: 0 },
     taken: {}, cine: null, boss: null, dead: false, deadT: 0, wantUpgrade: false, victory: false, won: false,
-    pickChain: 0, pickChainT: 0, debtKills: 0, corpses: [], twist: null, lastTwist: null, mk: 0, mkT: 0, mkShow: null, bestMulti: 0, dmg: 0, bosses: 0, loot: 0, deny: { q: 0, e: 0, r: 0 }, startBest: best.score,
+    phoenixUsed: false, pickChain: 0, pickChainT: 0, debtKills: 0, corpses: [], twist: null, lastTwist: null, mk: 0, mkT: 0, mkShow: null, bestMulti: 0, dmg: 0, bosses: 0, loot: 0, deny: { q: 0, e: 0, r: 0 }, startBest: best.score,
   };
   for (const [x, y, r] of G.map.pools) G.zones.push({ type: 'lava', x, y, r, t: 0, life: Infinity });
   fx.trauma = 0; fx.freeze = 0; fx.slowT = 0; fx.slowF = 1; fx.hurtVig = 0;
@@ -252,7 +261,7 @@ function buildQueue(n) {
     budget -= pick[1];
   }
   // lootlings: a rare treat from wave 4, three of them in a gold rush
-  const loot = G.twist === 'GOLD' ? 3 : n >= 4 && Math.random() < 0.16 ? 1 : 0;
+  const loot = G.twist === 'GOLD' ? 3 : n >= 4 && Math.random() < (G.up.midas ? 0.5 : 0.16) ? 1 : 0;
   for (let i = 0; i < loot; i++) q.splice(Math.floor(rnd(q.length * 0.7)) + 1, 0, 'lootling');
   return q;
 }
@@ -283,7 +292,14 @@ export function spawnEnemy(type, x, y) {
     if (G.twist === 'SWARM' || G.twist === 'GLASS') e.hp = Math.max(1, Math.round(e.hp * 0.5));
     if (type === 'lootling') e.life = 11;
     const eliteP = G.twist === 'ELITE' ? 0.5 : Math.min(0.6, 0.06 + G.wave * 0.012 + 0.03 * ef);
-    if (type !== 'egg' && type !== 'larva' && type !== 'slimelet' && type !== 'lootling' && G.wave >= 6 && Math.random() < eliteP) { e.elite = true; e.hp = Math.round(e.hp * 2.4); e.speed *= 1.1; }
+    if (type !== 'egg' && type !== 'larva' && type !== 'slimelet' && type !== 'lootling' && G.wave >= 6 && Math.random() < eliteP) {
+      e.elite = true; e.hp = Math.round(e.hp * 2.4); e.speed *= 1.1;
+      const keys = Object.keys(AFFIX);
+      e.affix = type === 'shade' && Math.random() < 0.5 ? 'FRENZIED' : keys[Math.floor(rnd(keys.length))];
+      e.tagT = 2;
+      if (e.affix === 'FRENZIED') e.speed *= 1.35;
+      if (e.affix === 'WARDED') e.ward = e.wardMax = Math.round(e.hp * 0.5);
+    }
   }
   e.r = d.r;
   e.maxHp = e.hp;
@@ -425,7 +441,18 @@ export function damage(e, dmg, o) {
   }
   if (up.exec && e.hp < e.maxHp * 0.2 && o.src !== 'lava') dmg *= 1.6;
   if (e.armor) dmg *= e.armor;
+  if (up.rage && p.hp <= p.maxHp / 2) dmg *= 1.6;
   dmg = Math.max(1, Math.round(dmg));
+  e.calm = 0;
+  if (e.affix) e.tagT = 1.2;
+  if (e.ward > 0) {
+    // a warded elite's shell soaks damage first
+    const soak = Math.min(e.ward, dmg);
+    e.ward -= soak; dmg -= soak;
+    sparks(e.x, e.y - e.r, o.dir ?? rnd(TAU), 4, 1, AFFIX.WARDED.c, 140);
+    if (e.ward <= 0) { addRing(e.x, e.y - e.r, AFFIX.WARDED.c, 160, 0.25, 2); addText(e.x, e.y - e.r * 2 - 10, 'SHELL BROKEN', AFFIX.WARDED.c); A.shieldHit(); }
+    if (dmg <= 0) { e.flash = 0.06; addCombo(1); return false; }
+  }
   G.dmg += Math.min(dmg, Math.max(0, e.hp));
   e.hp -= dmg;
   e.flash = 0.1; e.shakeT = 0.14;
@@ -459,13 +486,17 @@ export function kill(e, o) {
   e.dead = true;
   G.kills++;
   if (best.kills + G.kills - G.killsBanked >= 1500) unlock('MECHANIC');
+  // each fighter's signature kill (deaths.js); some take the body apart themselves
+  const gone = KILLS[G.char]?.(e, o, dir) === true;
   // heavy blows launch the body across the arena (it bowls into others); lighter cuts slice it in two
-  const launch = e.type !== 'tick' && e.type !== 'egg' && e.type !== 'larva' && (o.heavy || o.src === 'ult' || o.src === 'boom' || o.src === 'corpse' || (!o.slice && (o.kb || 0) >= 150));
+  const launch = !gone && e.type !== 'tick' && e.type !== 'egg' && e.type !== 'larva' && (o.heavy || o.src === 'ult' || o.src === 'boom' || o.src === 'corpse' || (!o.slice && (o.kb || 0) >= 150));
   if (launch) launchCorpse(e, dir, o.kb || 200);
-  else if (o.slice) { makeGibs(e, dir); A.slice(); }
-  bleed(e.x, e.y, dir, e.type === 'brute' ? 30 : 16, e.def.col, e.def.colD, 1.2);
-  bleed(e.x, e.y, rnd(TAU), 8, e.def.col, e.def.colD, 0.6);
-  if (!launch) splat(e.x, e.y, e.r + 4, e.def.col, e.def.colD);
+  else if (o.slice && !gone) { makeGibs(e, dir); A.slice(); }
+  if (!gone) {
+    bleed(e.x, e.y, dir, e.type === 'brute' ? 30 : 16, e.def.col, e.def.colD, 1.2);
+    bleed(e.x, e.y, rnd(TAU), 8, e.def.col, e.def.colD, 0.6);
+    if (!launch) splat(e.x, e.y, e.r + 4, e.def.col, e.def.colD);
+  }
   if (launch) kick(dir, 2.5);
   if (e.type !== 'slime' && !isBossWave(G.wave) && !G.queue.length && !G.sigils.length && !G.E.some((o) => o !== e && !o.dead)) {
     // the last kill of a wave lands harder
@@ -491,12 +522,16 @@ export function kill(e, o) {
   const motes = e.def.energy + (Math.random() < 0.5 ? 1 : 0) + (e.elite ? 4 : 0);
   for (let i = 0; i < motes; i++) dropPick(e.x, e.y, 'energy');
   if (G.p.hp < G.p.maxHp && Math.random() < (e.elite && G.twist === 'ELITE' ? 1 : e.type === 'brute' ? 0.4 : e.elite ? 0.3 : 0.05)) dropPick(e.x, e.y, 'heal');
-  G.score += Math.round(e.def.score * (e.elite ? 3 : 1) * (1 + G.combo * 0.02) * RANKS[G.rank].m * G.D.score * twistScore());
+  G.score += Math.round(e.def.score * (e.elite ? 3 : 1) * (1 + G.combo * 0.02) * RANKS[G.rank].m * G.D.score * twistScore() * (G.up.midas ? 1.25 : 1));
   if (o.ug && G.p.ultLock <= 0 && !G.cine) G.p.ult = Math.min(100, G.p.ult + 3 * G.up.focus * G.kit.ultRate);
   hitstop(o.src === 'primary' ? 0.06 : 0.03);
   shake(e.type === 'brute' ? 0.55 : 0.3);
   A.kill(G.combo); buzz('kill');
   if (e.type === 'tick') G.booms.push({ x: e.x, y: e.y, t: 0.09, friendly: true });
+  if (e.affix === 'VOLATILE') { G.strikes.push({ x: e.x, y: e.y, t: 0, delay: 0.75, R: 26, dmg: 1, friendly: false, kind: 'blast', c: AFFIX.VOLATILE.c }); A.fuse(); }
+  if (e.affix === 'SPLITTING') for (const side of [-1, 1]) { const c = spawnEnemy(e.type === 'brute' ? 'husk' : e.type, e.x + side * 5, e.y); c.hp = c.maxHp = Math.max(1, Math.round(c.maxHp * 0.4)); c.elite = false; c.affix = null; c.ward = 0; c.state = HOME[c.type] || 'chase'; c.kx = side * 140; }
+  if (G.up.midas) for (let i = 0; i < motes; i++) dropPick(e.x, e.y, 'energy');
+  if (G.up.reaper && Math.random() < 0.35) spirits(e.x, e.y - e.r - 4, 1);
   // a slime splits into two hopping slimelets
   if (e.type === 'slime') for (const side of [-1, 1]) { const c = spawnEnemy('slimelet', e.x + side * 4, e.y); c.state = 'hop'; c.cd = 0.15; c.kx = side * 120; }
   if (G.up.evoEmber && e.burn > 0) { G.booms.push({ x: e.x, y: e.y, t: 0.05, friendly: true, R: 40, dmg: 14 }); G.zones.push({ type: 'burn', x: e.x, y: e.y, r: 22, t: 0, life: 2.5 }); }
@@ -589,7 +624,7 @@ export function healPlayer(n) {
 export function tryHurt(dmg, sx, sy) {
   const p = G.p;
   if (p.state === 'dead' || G.cine || p.fortress > 0) return false;
-  if (p.state === 'dash' || (p.state === 'skill' && p.k.skillInv)) { if (p.state === 'dash' && !p.perfectUsed) perfectDodge(); return 'perfect'; }
+  if (p.state === 'dash' || (p.state === 'skill' && p.k.skillInv)) { if (p.state === 'dash' && !p.perfectUsed) perfectDodge(); if (p.state === 'skill') G.kit.onGuard?.(p, sx, sy); return 'perfect'; }
   if (p.inv > 0) return false;
   if (p.shield > 0) {
     p.shield--; p.inv = 0.5;
@@ -610,6 +645,16 @@ export function tryHurt(dmg, sx, sy) {
     for (let i = 0; i < 80; i++) { const a = rnd(TAU), v = rnd(80, 320); part(p.x, p.y - 6, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.8), Math.random() < 0.5 ? P.gold : P.paper, { drag: 4, glow: true, keep: true }); }
     p.evoFlash = 1.2;
     for (const e of G.E) if (alive(e)) damage(e, e.type === 'boss' ? pd(40) : pd(60), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 420, src: 'ult', slice: true, crit: true });
+    return 'blocked';
+  }
+  if (p.hp - dmg <= 0 && G.up.phoenix && !G.phoenixUsed) {
+    // the phoenix feather burns up instead of you
+    G.phoenixUsed = true; p.hp = p.maxHp; p.inv = 3; slowmo(1.2, 0.2); flash(P.ember, 0.4, true); A.ultRelease(); buzz('boss'); shake(1);
+    addText(p.x, p.y - 26, 'REBORN', P.ember2, 3);
+    for (let i = 0; i < 4; i++) addRing(p.x, p.y - 6, i % 2 ? P.ember3 : P.ember, 260 + i * 90, 0.6, 3);
+    for (let i = 0; i < 90; i++) { const a = rnd(TAU), v = rnd(80, 320); part(p.x, p.y - 6, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.9), Math.random() < 0.5 ? P.ember : P.ember2, { drag: 4, glow: true, keep: true }); }
+    for (const e of G.E) if (alive(e)) damage(e, e.type === 'boss' ? pd(50) : pd(80), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 420, src: 'ult', crit: true });
+    G.zones.push({ type: 'burn', x: p.x, y: p.y, r: 40, t: 0, life: 4 });
     return 'blocked';
   }
   p.hp -= dmg;
@@ -656,12 +701,12 @@ function perfectDodge() {
 function die() {
   const p = G.p;
   p.hp = 0; p.state = 'dead'; G.dead = true; G.deadT = 0;
-  slowmo(2, 0.25); shake(1); flash(P.blood, 0.4, true);
+  slowmo(0.9, 0.3); shake(1); flash(P.blood, 0.4, true);
   A.death(); A.scene('dead'); A.stopLoops();
-  bleed(p.x, p.y, rnd(TAU), 40, P.blood, P.bloodD, 1.4);
-  splat(p.x, p.y, 12, P.blood, P.bloodD);
-  const s = heroSet().idle;
-  G.gibs.push(...[1, -1].map((side) => ({ s, flip: false, x: p.x, y: p.y, z: 0, vz: 60, sa: 0.4, side, t: 0, life: 2.5, vx: side * 20, vy: side * 30, col: P.blood, col2: P.bloodD })));
+  bleed(p.x, p.y, rnd(TAU), 30, P.blood, P.bloodD, 1.2);
+  splat(p.x, p.y, 9, P.blood, P.bloodD);
+  // each fighter has a death scene of their own (deaths.js)
+  startDeath(p);
 }
 
 // ---------- projectiles ----------
@@ -786,6 +831,10 @@ function updatePlayer(dt) {
   if (up.evoStatic) {
     G.stormT = (G.stormT ?? 2.5) - dt;
     if (G.stormT <= 0) { G.stormT = 2.5; const live = G.E.filter(alive); if (live.length) { const e = live[Math.floor(rnd(live.length))]; skyStrike(e.x, e.y, 26, 14); } }
+  }
+  if (up.crown) {
+    G.crownT = (G.crownT ?? 2) - dt;
+    if (G.crownT <= 0) { G.crownT = 2; const live = G.E.filter(alive); if (live.length) { const e = live[Math.floor(rnd(live.length))]; skyStrike(e.x, e.y, 24, 16); } }
   }
   updateOrbit(p, dt);
 
@@ -1347,7 +1396,7 @@ export function update(dt, rdt) {
   for (const k in G.deny) G.deny[k] = Math.max(0, G.deny[k] - rdt);
   if (G.banner) { G.banner.t += rdt; if (G.banner.t > G.banner.life) G.banner = null; }
   if (G.mkShow) { G.mkShow.t += rdt; if (G.mkShow.t > 1.5) G.mkShow = null; }
-  if (G.dead) G.deadT += rdt;
+  if (G.dead) { G.deadT += rdt; updateDeath(rdt); }
   updateAmbient(rdt);
 
   if (G.cine) {
@@ -1411,7 +1460,7 @@ export function update(dt, rdt) {
 
   for (const e of G.E) {
     if (e.dead) continue;
-    e.flash -= dt; e.shakeT -= dt; e.anim += dt; if (e.sq > 0) e.sq = Math.max(0, e.sq - dt * 4.5);
+    e.flash -= dt; e.shakeT -= dt; e.anim += dt; if (e.tagT > 0) e.tagT -= dt; if (e.sq > 0) e.sq = Math.max(0, e.sq - dt * 4.5);
     if (e.dying) { bossDying(e, dt); continue; }
     if (e.burn > 0) {
       e.burn -= dt; e.burnTick -= dt;
@@ -1420,7 +1469,8 @@ export function update(dt, rdt) {
       if (e.dead || e.dying) continue;
     }
     if (e.marked > 0) { e.marked -= dt; continue; }
-    updateEnemy(e, dt);
+    if (e.affix === 'REGEN' && (e.calm = (e.calm || 0) + dt) > 1.2 && e.hp < e.maxHp) { e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.06 * dt); if (Math.random() < dt * 8) part(e.x + rnd(-4, 4), e.y - rnd(2, 12), 0, -20, 0.4, AFFIX.REGEN.c, { glow: true, drag: 1 }); }
+    updateEnemy(e, e.affix === 'FRENZIED' ? dt * 1.3 : dt);
     if (e.dead || e.dying) continue;
     const kd = Math.exp(-G.map.slide * dt);
     e.x += (e.vx + e.kx) * dt; e.y += (e.vy + e.ky) * dt;
@@ -1803,20 +1853,24 @@ function drawPlayer() {
   const blink = !moving && (G.time % 3.1) < 0.13;
   // standing still plays the 8-frame idle loop: breathing plus each fighter's own secondary motion
   const ii = Math.floor(G.time * 7) % set.idles.length, still = set.idles[ii];
-  const fr = moving ? set.run[fi] : blink ? still.blink : still;
-  const bob = moving && fi % 2 ? 1 : 0;
+  // Morrow doesn't walk: he floats, robe and beard streaming, while he moves
+  const floats = G.char === 'WIZARD' && moving;
+  const fr = floats ? still : moving ? set.run[fi] : blink && still.blink ? still.blink : still;
+  const hover = floats ? 4 + Math.round(Math.sin(G.time * 6) * 1.5) : 0;
+  const bob = (moving && !floats && fi % 2 ? 1 : 0) + hover;
   // idle breathing, and a lean into each swing
   const breathe = !moving && p.state === 'move' ? IDLE_BREATH[ii] : 0;
   const lean = p.state === 'attack' && p.atkT < 0.12 ? 2 : p.state === 'dash' ? 1 : 0, la = p.state === 'attack' ? p.atkAng : p.aim;
   const wa = p.state === 'attack' ? p.atkAng : p.aim;
   const behind = Math.sin(wa) < -0.3;
-  shadow(p.x, p.y, 6);
+  shadow(p.x, p.y, hover ? 4 : 6);
+  if (hover && Math.random() < 0.5) part(p.x + rnd(-4, 4), p.y - rnd(0, 2), rnd(-10, 10), rnd(-10, -2), 0.4, '#b48cff', { glow: true, drag: 3 });
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
   kit.drawAura?.(p, flip);
   // the weapon rises and sinks with the breath
-  if (breathe) { ctx.save(); ctx.translate(0, breathe); }
+  if (breathe || hover) { ctx.save(); ctx.translate(0, breathe - hover); }
   if (behind) kit.drawWeapon(p, flip);
-  if (breathe) ctx.restore();
+  if (breathe || hover) ctx.restore();
   const sx = Math.round(p.x - fr.w / 2 + Math.cos(la) * lean), sy = Math.round(p.y - fr.h + 1 - bob + Math.sin(la) * lean * 0.5);
   drawBreath(fr, sx, sy, flip, p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null, breathe);
   // glowing eyes
@@ -1824,9 +1878,9 @@ function drawPlayer() {
   if (!blink) glow(ex, ey, ec, 4, 0.7);
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
-  if (breathe) { ctx.save(); ctx.translate(0, breathe); }
+  if (breathe || hover) { ctx.save(); ctx.translate(0, breathe - hover); }
   if (!behind) kit.drawWeapon(p, flip);
-  if (breathe) ctx.restore();
+  if (breathe || hover) ctx.restore();
   ctx.globalAlpha = 1;
   glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 10, 0.2);
   drawOrbit(p);
@@ -1847,6 +1901,45 @@ function drawPlayer() {
   }
   if (p.shield > 0) { ring(p.x, p.y - 8, 13 + Math.sin(G.time * 8), 1, P.volt); glow(p.x, p.y - 8, P.volt, 12, 0.2); }
   if (p.fortress > 0) { ring(p.x, p.y - 8, 15 + Math.sin(G.time * 12) * 1.5, 2, P.gold); glow(p.x, p.y - 8, P.gold, 18, 0.3); }
+}
+
+// ---------- monster motion ----------
+// A pose for every frame, layered on the sprite frames: a bouncing step and lean when walking, idle sway,
+// a crouch and lean-back on wind-ups, a stretch on lunges and charges, a wobble when stunned,
+// and a manner of moving for each kind of monster.
+const WIND_UP = new Set(['windup', 'aim', 'sweepW', 'kslashW', 'slashW', 'dashW', 'fuse']);
+const LUNGE = new Set(['lunge', 'charge', 'strike', 'dash']);
+function enemyPose(e) {
+  const t = e.anim + e.x * 0.031 + e.y * 0.017; // each monster on its own clock
+  const v = hyp(e.vx || 0, e.vy || 0), mv = Math.min(1, v / Math.max(18, (e.speed || 40) * 0.5)), face = e.face < 0 ? -1 : 1;
+  let sx = 1, sy = 1, rot = 0, dy = 0, dx = 0;
+  // idle: breathing in and out, a slow sway
+  const idle = 1 - mv;
+  sx += Math.sin(t * 3.1) * 0.03 * idle; sy -= Math.sin(t * 3.1) * 0.045 * idle; rot += Math.sin(t * 1.7) * 0.03 * idle;
+  // walking: each step lifts and lands, the body leans into the motion
+  const pace = { tick: 18, larva: 16, lootling: 15, husk: 10, brute: 6, slimelet: 14 }[e.type] || 9;
+  if (mv > 0.05) {
+    const ph = t * pace, step = Math.abs(Math.sin(ph));
+    const lift = e.type === 'brute' ? 2.2 : e.type === 'lootling' ? 2.5 : e.type === 'tick' ? 1 : 1.6;
+    dy -= step * lift * mv;
+    sy += (step - 0.5) * 0.12 * mv; sx -= (step - 0.5) * 0.09 * mv;
+    rot += Math.sign(e.vx || face) * 0.08 * mv + Math.sin(ph) * (e.type === 'brute' ? 0.07 : 0.045) * mv;
+  }
+  // kinds with their own manner
+  if (e.type === 'slime' || e.type === 'slimelet') { const j = Math.sin(t * 7); sx += j * 0.07; sy -= j * 0.08; if ((e.z || 0) > 0.5) { sy += 0.18; sx -= 0.12; } }
+  if (e.type === 'larva') { sx += Math.sin(t * 14) * 0.12; rot += Math.sin(t * 9) * 0.1; }
+  if (e.type === 'wisp' || e.type === 'shade') { rot += Math.sin(t * 2.3) * 0.09; sx += Math.sin(t * 4.6) * 0.04; }
+  if (e.type === 'spitter') { rot += Math.sin(t * 1.9) * 0.08; sy += Math.sin(t * 3.8) * 0.04; }
+  if (e.type === 'egg') { const pulse = Math.sin(t * (5 + Math.max(0, 4 - (e.t || 4)) * 3)); sx += pulse * 0.06; sy -= pulse * 0.05; rot += Math.sin(t * 11) * 0.05 * Math.max(0, 1 - (e.t || 4) / 2); }
+  if (e.type === 'lootling') rot += Math.sin(t * 15) * 0.1 * mv;
+  // attacks: gather on the wind-up, stretch into the lunge
+  if (WIND_UP.has(e.state)) { sx += 0.1; sy -= 0.13; rot -= face * 0.12; dx += Math.sin(G.time * 60) * 0.6; }
+  if (LUNGE.has(e.state)) { sx += 0.18; sy -= 0.12; rot += face * 0.14; }
+  if (e.state === 'hurt') rot -= face * 0.22;
+  if (e.state === 'stun' || e.stunT > 0) rot += Math.sin(G.time * 18) * 0.16;
+  if (e.state === 'recover') { sy -= 0.06; sx += 0.04; }
+  if (e.frozen > 0) { sx = 1; sy = 1; rot = 0; dy = 0; dx = 0; }
+  return { sx, sy, rot, dy, dx };
 }
 
 export function drawEnemy(e) {
@@ -1876,21 +1969,30 @@ export function drawEnemy(e) {
     ctx.restore();
     return;
   }
-  if (e.elite) { for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, x + ox, y + oy, e.face < 0, P.gold); glow(e.x, e.y - e.r, P.gold, 10, 0.25); }
+  const ac = e.elite ? (e.affix ? AFFIX[e.affix].c : P.gold) : null;
+  if (e.elite) {
+    if (sc > 1) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, x + ox, y + oy, e.face < 0, ac);
+    glow(e.x, e.y - e.r, ac, 10, 0.25 + (e.affix === 'VOLATILE' ? Math.sin(G.time * 12) * 0.15 : 0));
+    if (e.ward > 0) ring(e.x, e.y - e.r, e.r + 4, 1, Math.floor(G.time * 10) % 2 ? AFFIX.WARDED.c : P.paper);
+  }
   // breathing, and a crouch while winding up an attack
   const crouch = e.state === 'windup' || e.state === 'aim' || e.state === 'sweepW' || e.state === 'kslashW' || e.state === 'slashW' || e.state === 'dashW';
   const br = crouch ? 1 : Math.sin(e.anim * (e.type === 'boss' ? 2.2 : 3.4)) > 0.2 ? 1 : 0;
   if (e.type === 'shade') ctx.globalAlpha = e.state === 'vanish' ? Math.max(0.05, e.t / 0.3) : e.state === 'stalk' ? 0.55 : 1;
   else if (e.alpha !== undefined) ctx.globalAlpha = e.alpha;
   if (sc > 1) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(sc, sc); drawBreath(s, 0, 0, e.face < 0, tint, br); ctx.restore(); }
-  else if (e.sq > 0) {
-    // squash and stretch around the feet, a damped wobble that leans away from the hit
-    const k = e.sq, w = Math.cos((1 - k) * Math.PI * 2.5) * k, lean = Math.cos(e.sqDir || 0) * 2 * k;
-    const ax = Math.round(e.x + lean), ay = Math.round(y + s.h);
-    ctx.save(); ctx.translate(ax, ay); ctx.scale(1 + 0.3 * w, 1 - 0.26 * w);
-    drawBreath(s, Math.round(x) - ax + Math.round(lean), -s.h, e.face < 0, tint, br);
+  else {
+    // the procedural pose: steps, sway, lean, crouch and stretch, plus the hit wobble, all around the feet
+    const ps = enemyPose(e);
+    let sx = ps.sx, sy = ps.sy, lean = 0;
+    if (e.sq > 0) { const k = e.sq, w = Math.cos((1 - k) * Math.PI * 2.5) * k; sx *= 1 + 0.3 * w; sy *= 1 - 0.26 * w; lean = Math.cos(e.sqDir || 0) * 2 * k; }
+    const ax = Math.round(e.x + lean + ps.dx), ay = Math.round(y + s.h + ps.dy), flip = e.face < 0;
+    ctx.save(); ctx.translate(ax, ay); if (ps.rot) ctx.rotate(ps.rot); ctx.scale(sx, sy);
+    const ox = -Math.round(s.w / 2);
+    if (ac) for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, ox + dx, -s.h + dy, flip, ac);
+    drawBreath(s, ox, -s.h, flip, tint, crouch ? 1 : 0);
     ctx.restore();
-  } else drawBreath(s, x, y, e.face < 0, tint, br);
+  }
   ctx.globalAlpha = 1;
   if (e.type === 'wisp' && e.state === 'windup') glow(e.x, y + 4, P.hex, 6 + (0.55 - e.t) * 18, 0.6);
   if (e.type === 'egg') glow(e.x, e.y - 3, DEF.egg.col, 6 + Math.sin(G.time * 8) * 2, 0.3);
@@ -1902,6 +2004,11 @@ export function drawEnemy(e) {
     const w = e.r * 2 + 2;
     rect(e.x - w / 2, y - 4, w, 2, P.ink0);
     rect(e.x - w / 2, y - 4, Math.max(1, Math.round((w * e.hp) / e.maxHp)), 1, e.burn > 0 ? P.ember : e.elite ? P.gold : P.blood);
+    if (e.ward > 0) rect(e.x - w / 2, y - 5, Math.max(1, Math.round((w * e.ward) / e.wardMax)), 1, AFFIX.WARDED.c);
+  }
+  if (e.affix && e.tagT > 0 && !e.dying && e.type !== 'boss') {
+    const t = AFFIX[e.affix];
+    text(t.name, e.x, y - 11, t.c, 1, 'c');
   }
 }
 
@@ -1963,7 +2070,7 @@ function drawTelegraphs() {
     ring(s.x, s.y, s.R * (0.3 + 0.7 * k), 1, s.friendly ? s.c : blink ? P.blood : P.paper);
     ring(s.x, s.y, s.R, 1, s.friendly ? P.ink3 : P.bloodD);
     const fy = s.y - (1 - k) * 140, fx2 = s.x + (1 - k) * 40;
-    if (k > 0.25 && s.kind !== 'lightning') {
+    if (k > 0.25 && s.kind !== 'lightning' && s.kind !== 'blast') {
       line(fx2, fy, fx2 + 10, fy - 26, s.c, 2);
       disc(fx2, fy, s.kind === 'missile' ? 2 : 4, s.c); px(fx2, fy, P.paper);
       glow(fx2, fy, s.c, 10, 0.5);
@@ -2076,6 +2183,7 @@ export function drawWorld() {
     else drawPlayer();
   }
 
+  drawDeath();
   for (const s of G.slashes) drawSlash(s);
   G.kit.draw?.(G.p);
 
@@ -2095,6 +2203,16 @@ export function drawWorld() {
       px(s.x - 1, s.y - 1, '#5a3a00'); px(s.x + 1, s.y - 1, '#5a3a00');
       line(s.x, s.y, s.x - s.vx * 0.06, s.y - s.vy * 0.06, P.ember2);
       glow(s.x, s.y, P.gold, 9, 0.6);
+    } else if (s.kind === 'crescent') {
+      // Rin's sakura wave: a pink crescent bowed forward, white on its leading edge, shedding petals
+      const a = Math.atan2(s.vy, s.vx), k = 1 - s.t / s.life;
+      for (let i = -5; i <= 5; i++) {
+        const b = a + i * 0.2, r = 7 - Math.abs(i) * 0.25;
+        px(s.x + Math.cos(b) * r - Math.cos(a) * 4, s.y + Math.sin(b) * r - Math.sin(a) * 4, Math.abs(i) < 4 ? '#ffb7d5' : '#ff8fb8');
+        if (Math.abs(i) < 3) px(s.x + Math.cos(b) * (r + 1) - Math.cos(a) * 4, s.y + Math.sin(b) * (r + 1) - Math.sin(a) * 4, P.paper);
+      }
+      glow(s.x, s.y, '#ffb7d5', 10, 0.35 * k + 0.15);
+      if (Math.random() < 0.5) part(s.x + rnd(-4, 4), s.y + rnd(-4, 4), -s.vx * 0.1, -s.vy * 0.1, rnd(0.3, 0.6), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 3 });
     } else if (s.kind === 'shuriken') {
       const a = s.spin;
       line(s.x - Math.cos(a) * 3, s.y - Math.sin(a) * 3, s.x + Math.cos(a) * 3, s.y + Math.sin(a) * 3, P.bone);

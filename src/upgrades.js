@@ -40,7 +40,7 @@ export const UPGRADES = [
   { id: 'frost', name: 'FROSTBITE', d: ['FROZEN FOES SHATTER', 'WHEN THEY DIE'], icon: 'snow', c: 'volt', max: 1, only: ['WIZARD'], f: (u) => { u.frost = 1; } },
   { id: 'twin', name: 'TWIN STAR', d: ['METEOR FALLS', 'TWICE'], icon: 'star', c: 'ember', max: 1, only: ['WIZARD'], f: (u) => { u.twin = 1; } },
   { id: 'charges', name: 'THIRD STEP', d: ['+1 DASH', 'CHARGE'], icon: 'dash', c: 'blood', max: 1, only: ['NINJA'], f: (u, p) => { p.dashMax++; p.charges++; } },
-  { id: 'venom', name: 'VENOM EDGE', d: ['SHURIKENS', 'POISON FOES'], icon: 'cross', c: 'ichor', max: 1, only: ['NINJA'], f: (u) => { u.venom = 1; } },
+  { id: 'venom', name: 'VENOM EDGE', d: ['SAKURA WAVES', 'POISON FOES'], icon: 'cross', c: 'ichor', max: 1, only: ['NINJA'], f: (u) => { u.venom = 1; } },
   { id: 'overclock', name: 'OVERCLOCK', d: ['TURRETS AND COILS', 'FIRE 40% FASTER'], icon: 'gear', c: 'ember2', max: 2, only: ['MECHANIC'], f: (u) => { u.overclock++; } },
   { id: 'hands', name: 'EXTRA HANDS', d: ['+1 TURRET', 'AT ONCE'], icon: 'gear', c: 'volt', max: 2, only: ['MECHANIC'], f: (u) => { u.hands++; } },
   { id: 'after', name: 'AFTERSHOCK', d: ['GROUND SLAM', 'SENDS ONE MORE WAVE'], icon: 'fist', c: 'ember2', max: 2, only: ['TANK'], f: (u) => { u.after++; } },
@@ -49,14 +49,28 @@ export const UPGRADES = [
   { id: 'cluster', name: 'CLUSTER PODS', d: ['+3 ROCKETS', 'PER SALVO'], icon: 'rocket', c: 'ember', max: 2, only: ['ROBOT'], f: (u) => { u.cluster++; } },
   { id: 'fork', name: 'FORK BOMB', d: ['CRASHED FOES SPLIT', 'BUGS TO NEIGHBORS'], icon: 'burst', c: 'ichor', max: 1, only: ['DEV'], f: (u) => { u.fork = 1; } },
   { id: 'overflow', name: 'STACK OVERFLOW', d: ['CRASH NEEDS', '1 FEWER BUG'], icon: 'bolt', c: 'ichor', max: 2, only: ['DEV'], f: (u) => { u.overflow++; } },
+  // ---- relics: legendary, one is chosen after every boss and never offered on normal waves ----
+  { id: 'phoenix', relic: true, name: 'PHOENIX FEATHER', d: ['ONCE PER RUN, RISE', 'FROM DEATH IN FIRE'], icon: 'flame', c: 'ember', max: 1, f: (u) => { u.phoenix = 1; } },
+  { id: 'rage', relic: true, name: 'BERSERKER MARK', d: ['+60% DAMAGE AT', 'HALF HEALTH OR LESS'], icon: 'blade', c: 'blood', max: 1, f: (u) => { u.rage = 1; } },
+  { id: 'crown', relic: true, name: 'STORM CROWN', d: ['LIGHTNING STRIKES A', 'FOE EVERY 2 SECONDS'], icon: 'bolt', c: 'volt', max: 1, f: (u) => { u.crown = 1; } },
+  { id: 'hourglass', relic: true, name: 'HOURGLASS', d: ['COOLDOWNS -25%', 'AND +1 DASH'], icon: 'dash', c: 'paper', max: 1, f: (u, p) => { u.cdMul *= 0.75; p.dashMax++; p.charges++; } },
+  { id: 'midas', relic: true, name: 'MIDAS COIN', d: ['MORE LOOTLINGS, X2', 'ENERGY, +25% SCORE'], icon: 'orb', c: 'gold', max: 1, f: (u) => { u.midas = 1; } },
+  { id: 'reaper', relic: true, name: 'REAPER SCYTHE', d: ['KILLS RELEASE SOULS', 'THAT HUNT THE NEXT'], icon: 'star', c: 'hex', max: 1, f: (u) => { u.reaper = 1; } },
+  { id: 'titan', relic: true, name: 'TITAN BELT', d: ['+4 MAX HEALTH', 'AND A FULL HEAL'], icon: 'heart', c: 'bone', max: 1, f: (u, p) => { p.maxHp += 4; p.hp = p.maxHp; } },
+  { id: 'eclipse', relic: true, name: 'ECLIPSE STONE', d: ['ULTIMATE CHARGES', 'TWICE AS FAST'], icon: 'eye', c: 'gold', max: 1, f: (u) => { u.focus *= 2; } },
 ];
 
 export const MEND = { id: 'mend', name: 'MEND', d: ['RESTORE 3 HEALTH', ''], icon: 'heart', c: 'blood', max: 999, f: (u, p) => { p.hp = Math.min(p.maxHp, p.hp + 3); } };
 export const byId = (id) => (id === 'mend' ? MEND : UPGRADES.find((u) => u.id === id));
 const maxed = (taken, id) => (taken[id] || 0) >= byId(id).max;
 
-export function rollUpgrades(taken, char) {
-  const pool = UPGRADES.filter((u) => (taken[u.id] || 0) < u.max && (!u.only || u.only.includes(char)) && (!u.req || maxed(taken, u.req)));
+export function rollUpgrades(taken, char, afterBoss = false) {
+  // after a boss: three relics, if any are left
+  if (afterBoss) {
+    const relics = UPGRADES.filter((u) => u.relic && !taken[u.id]).sort(() => Math.random() - 0.5);
+    if (relics.length) { const out = relics.slice(0, 3); while (out.length < 3) out.push(MEND); return out; }
+  }
+  const pool = UPGRADES.filter((u) => !u.relic && (taken[u.id] || 0) < u.max && (!u.only || u.only.includes(char)) && (!u.req || maxed(taken, u.req)));
   const out = [];
   const take = (u) => out.push(pool.splice(pool.indexOf(u), 1)[0]);
   // an unlocked evolution almost always shows up, then a signature upgrade often does

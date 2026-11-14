@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=42';
-import { input, keyHit, endFrame } from './input.js?v=42';
-import { A } from './audio.js?v=42';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=42';
-import { buildSprites } from './sprites.js?v=42';
-import { byId } from './upgrades.js?v=42';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=42';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=52';
+import { input, keyHit, endFrame } from './input.js?v=52';
+import { A } from './audio.js?v=52';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=52';
+import { buildSprites } from './sprites.js?v=52';
+import { byId } from './upgrades.js?v=52';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=52';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=42';
+} from './ui.js?v=52';
 
 loadAll();
 applyTheme(settings.theme);
@@ -117,7 +117,7 @@ function tick(now) {
       update(rdt * ts, rdt);
       if (G.victory && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); go('victory'); A.scene('title'); }
       else if (G.wantUpgrade) { G.wantUpgrade = false; openUpgrade(); go('upgrade'); }
-      if (G.dead && G.deadT > 2.2) { recordBest(false); clearRun(); save = null; go('over'); }
+      if (G.dead && G.deadT > 3.4) { recordBest(false); clearRun(); save = null; go('over'); }
     }
     drawWorld(); vignette(); drawHUD();
   } else if (scene === 'upgrade') {

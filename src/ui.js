@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=42';
-import { SPR, icon } from './sprites.js?v=42';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=42';
-import { A } from './audio.js?v=42';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=42';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=42';
-import { CHARS } from './chars.js?v=42';
-import { BOSSES, bossFor } from './bosses.js?v=42';
-import { MAPS } from './maps.js?v=42';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=42';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=52';
+import { SPR, icon } from './sprites.js?v=52';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=52';
+import { A } from './audio.js?v=52';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=52';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=52';
+import { CHARS } from './chars.js?v=52';
+import { BOSSES, bossFor } from './bosses.js?v=52';
+import { MAPS } from './maps.js?v=52';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=52';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -357,7 +357,8 @@ export function drawSelect(t) {
   const ab = [['CLICK', k.primaryName, ''], ['Q', k.q.name + ' ' + k.q.cost, k.q.desc], ['E', k.e.name + ' ' + k.e.cost, k.e.desc], ['R', k.r.name, k.r.desc]];
   ab.forEach(([key, name, d], i) => { const y = 86 + i * 8; text(key, 34, y, P.ember2, 1, 'r'); text(name, 40, y, P.paper); text(d, 308, y, P.dust, 1, 'r'); });
   const rec = best.chars[ids[sel.i]];
-  if (rec) text('BEST WAVE ' + rec.wave + (rec.won ? '  KING SLAIN' : ''), 308, 75, P.gold, 1, 'r');
+  // under the stat bars, where the CLICK row leaves the right side free
+  if (rec) text('BEST WAVE ' + rec.wave + (rec.won ? '  KING SLAIN' : ''), 308, 84, P.gold, 1, 'r');
   }
   const rowsY = [[1, 126, 'ARENA', MAPS[settings.map].name, MAPS[settings.map].desc], [2, 137, 'DIFFICULTY', settings.diff, { EASY: 'MORE HEALTH, SOFTER FOES', NORMAL: 'THE INTENDED FIGHT', HARD: 'TOUGHER, FASTER, MORE', NIGHTMARE: 'EVERY HIT HURTS MORE' }[settings.diff]]];
   for (const [row, y, label, val, d] of rowsY) {
@@ -439,7 +440,7 @@ export function drawSettings(t, items, inRun) {
 
 // ---------- upgrade pick ----------
 export const upg = { opts: [], sel: 0, t: 0 };
-export function openUpgrade() { upg.opts = rollUpgrades(G.taken, G.char); upg.sel = 0; upg.t = 0; }
+export function openUpgrade() { upg.opts = rollUpgrades(G.taken, G.char, isBossWave(G.wave)); upg.sel = 0; upg.t = 0; }
 const CW = 94, CH = 92, CG = 8, CY = 52;
 const cardX = (i) => Math.round((W - (CW * 3 + CG * 2)) / 2 + i * (CW + CG));
 export function updateUpgrade(rdt) {
@@ -456,14 +457,16 @@ export function drawUpgrade() {
   dim(0.78);
   const k0 = ease(upg.t / 0.3), next = G.wave + 1;
   textO('WAVE ' + G.wave + ' CLEARED', W / 2, 14 - Math.round((1 - k0) * 10), P.ember3, 2, 'c');
-  textO(isBossWave(next) ? 'NEXT: ' + BOSSES[bossFor(next)].name : 'TAKE ONE', W / 2, 32, isBossWave(next) ? P.blood : P.dust, 1, 'c');
+  const relicPick = upg.opts.some((o) => o.relic);
+  textO(relicPick ? 'THE BOSS DROPPED RELICS. CHOOSE ONE' : isBossWave(next) ? 'NEXT: ' + BOSSES[bossFor(next)].name : 'TAKE ONE', W / 2, 32, relicPick ? '#ff4fa8' : isBossWave(next) ? P.blood : P.dust, 1, 'c');
   for (let i = 0; i < 3; i++) {
     const o = upg.opts[i], oc = C(o.c), k = back((upg.t - 0.08 - i * 0.07) / 0.35), on = upg.sel === i && upg.t > 0.3;
     const x = cardX(i), y = Math.round(CY + (1 - k) * -120) - (on ? 3 : 0);
     rect(x - 1, y - 1, CW + 2, CH + 2, on ? oc : P.ink0); rect(x, y, CW, CH, P.ink1);
     rect(x, y, CW, 1, on ? P.paper : P.ink3);
     const nm = typeof o.name === 'function' ? o.name(G.kit) : o.name;
-    if (o.req) { rect(x, y, CW, CH, '#1d1608'); const gl = Math.floor(G.time * 8) % 2; rect(x - 1, y - 1, CW + 2, 1, gl ? P.gold : P.ember3); rect(x - 1, y + CH, CW + 2, 1, gl ? P.ember3 : P.gold); rect(x + 2, y + 3, CW - 4, 7, P.gold); text('EVOLUTION', x + CW / 2, y + 4, P.ink0, 1, 'c'); }
+    if (o.relic) { rect(x, y, CW, CH, '#1a0d1f'); const gl = Math.floor(G.time * 6) % 2; rect(x - 1, y - 1, CW + 2, 1, gl ? '#ff4fa8' : P.gold); rect(x - 1, y + CH, CW + 2, 1, gl ? P.gold : '#ff4fa8'); rect(x + 2, y + 3, CW - 4, 7, '#ff4fa8'); text('RELIC', x + CW / 2, y + 4, P.ink0, 1, 'c'); }
+    else if (o.req) { rect(x, y, CW, CH, '#1d1608'); const gl = Math.floor(G.time * 8) % 2; rect(x - 1, y - 1, CW + 2, 1, gl ? P.gold : P.ember3); rect(x - 1, y + CH, CW + 2, 1, gl ? P.ember3 : P.gold); rect(x + 2, y + 3, CW - 4, 7, P.gold); text('EVOLUTION', x + CW / 2, y + 4, P.ink0, 1, 'c'); }
     else if (o.only && o.only.length === 1) { rect(x + CW - 30, y + 3, 27, 7, P.ink3); text('UNIQUE', x + CW - 16, y + 4, P.gold, 1, 'c'); }
     ctx.save(); ctx.translate(x + CW / 2 - 9, y + 10); ctx.scale(2, 2); drawSprite(icon(o.icon, oc), 0, 0, false); ctx.restore();
     if (on) glow(x + CW / 2, y + 19, oc, 16, 0.3);
@@ -521,6 +524,7 @@ export function drawOver(t, isBest) {
   dim(0.75 * k);
   textO('YOU FELL', W / 2, 26 - Math.round((1 - k) * 12), P.blood, 4, 'c');
   textO(G.kit.name + ' ON WAVE ' + G.wave, W / 2, 52, P.bone, 1, 'c');
+  if (G.deathLine) text(G.deathLine, W / 2, 61, P.dust, 1, 'c');
   stats(72, t);
   if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 127, P.gold, 2, 'c');
   if (t > 1) textO(input.touch ? 'TAP LEFT  AGAIN       TAP RIGHT  MENU' : 'ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');

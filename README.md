@@ -10,6 +10,7 @@ What's in it:
 - 10 bosses up to wave 50, where the final boss is The Dev, the game's own developer
 - Wave twists that change the rules: Blood Moon, Swarm, Elite Hunt, Gold Rush, Glass and Blackout
 - Heavy hits that launch bodies into crowds, multi-kill chains, perfect dodges and counters
+- Elites with affixes, a relic to choose after every boss, and a signature kill and death scene for every fighter
 - Endless mode, 5 arenas, 4 difficulties, phone controls, and saves at every wave
 
 ![Title screen](docs/title.png)
@@ -25,18 +26,33 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 | Fighter | Hero | Basic attack | Q | E | R |
 | --- | --- | --- | --- | --- | --- |
 | Blade | Kael | 4-hit sword combo: slash, X-cut, thrust, whirlwind | Rift: blinks forward and cuts every enemy on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
-| Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: shotgun blast that pushes you back | Grenade | Last Stand: 4 seconds of minigun |
+| Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: 11-pellet shotgun blast that pushes you back | Deadeye: time slows, crosshairs lock onto the 6 nearest enemies (8 or 10 with Extended Mag), then she fans the hammer, one sure critical shot each. No aiming needed | Last Stand: 4 seconds of minigun |
 | Wizard | Morrow | Homing magic bolt | Frost Blink: teleports and freezes enemies at both ends | Meteor | Starfall: meteors land on enemies for about 3 seconds |
-| Ninja | Rin | 4-hit katana combo: cut, X-cut, lunging stab, a quick-draw that dashes through and cuts twice. 2 dashes | Shuriken Fan: 5 stars that bounce off walls | Smoke Bomb: 3 seconds invisible, next hit does triple damage | Shadow Clones: 3 clones attack for 7 seconds |
-| Mechanic | Rivet | Wrench combo: swing, twirl, ground slam | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Junk Golem: a scrap giant fights for 12 seconds |
+| Samurai | Rin | 4-hit katana combo: cut, X-cut, lunging stab, a quick-draw that dashes through and cuts twice. 2 dashes, 7 health | Sakura Wave: a flying crescent slash that passes through enemies and cuts their shots out of the air | Kamae: a counter stance. If anything hits you in it, you flash-step to the attacker, cut everything around it and your next hit does triple damage. If nothing comes, you still draw for a small cut | Issen: time stops while you flicker from enemy to enemy in 11 cuts, then you sheathe your sword and everything you cut bursts |
+| Mechanic | Rivet | Wrench combo: swing, twirl, ground slam | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Iron Titan: a giant mech rockets down onto the arena with a shockwave, stomps after enemies, throws piston punches and fires homing missile salvos from its shoulder pods for 12 seconds, then jets away |
 | Tank | Grom | Slow hammer combo: sweep, ground slam, full spin. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
 | Robot | Unit-7 | Laser that overheats if you hold it too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
-Every fighter, monster and boss breathes, blinks and leans into attacks. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
+Every fighter, monster and boss breathes, blinks and leans into attacks. Monsters move with a full set of motion on top of their frames: each step bounces and lands, they lean into where they're going, sway and breathe while idle, crouch and lean back on a wind-up, stretch into lunges and charges, wobble when stunned and tilt from hits. Each kind moves its own way: slimes jiggle, larvae wiggle, wisps and shades sway, ticks scuttle and brutes stomp. The fighters' hair and clothes blow in the wind, streaming behind whichever way they face: Rin's side-swept blue hair fading to pink at the tips and the red jacket tied around her hips, Morrow's cowl and beard, Vega's bandana and coat. Grom's crimson cape snaps behind him, Morrow floats instead of walking when he moves, and Unit-7 rolls on tank treads. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
 The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. He starts as an ordinary programmer with a laptop on his lap, riding a motorized wheelchair. At 250% power a laser rewrites him into his hooded form, riding a rebuilt chair with neon wheels and a holo screen. He starts below the other fighters, with one shot at a time and 6 health, and grows with every wave and every 20 kills. He's about even by wave 15, then ramps hard after wave 20: about 0.8x power on wave 1, 1.2x by wave 10, 1.7x by wave 20, 3.2x by wave 30, 5x by wave 40 and 7.5x by wave 50. His spread widens past waves 20 and 35. His shots plant bugs that crash an enemy: five bugs early, four from wave 15 and three from wave 30.
 
 Every other fighter also awakens into a new look once per run: on its first evolution upgrade or at wave 25. A beam of light hits them, they change skin and gain 1 max health. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom and Unit-7 Omega.
+
+### How each fighter kills, and how each one dies
+
+Every fighter finishes enemies their own way, and every fighter has a death scene of their own. It ends on an epitaph, which also shows on the game-over screen.
+
+| Fighter | Kills | Death |
+| --- | --- | --- |
+| Kael | Enemies catch fire; embers and ash rise off the body | Drops to one knee, plants his sword and crumbles to ash from the head down. The sword stays, its flame going out. *The last ember goes out* |
+| Vega | Head shots: blood jets up, gun smoke, a spent casing | Spins, falls flat on her back, and her dropped revolver fires one last shot into the sky. *One bullet short* |
+| Morrow | Enemies unravel into motes of arcane light | Rises as his last spell turns on him and implodes. His hat falls where he stood. *The spell was never finished* |
+| Rin | A burst of petals, and the cut line hangs in the air | A storm of cherry blossoms rises around her and thickens until she fades behind it, then she scatters into petals and the wind carries them away. *She scatters with the blossoms* |
+| Rivet | Enemies come apart into bolts, nuts and springs | Her suit overloads, beeping faster and faster, then blows apart. Her goggles bounce away. *Warranty void* |
+| Grom | Enemies are flattened into a wide splat and a ring of dust | His armor cracks plate by plate and he falls forward like a wall. The ground shakes and his helmet rolls away. *The wall has fallen* |
+| Unit-7 | The laser disintegrates enemies into white-hot pixels and ash | Shorts out with sparks and ERR. Its head pops off on a spring and the red eye fades to dark. *Shutdown complete* |
+| The Dev | Enemies are deleted into glitch pixels, now and then with a 404 | The screen tears, a FATAL ERROR box pops up, and he is deleted line by line. His empty wheelchair rolls away. *Process terminated* |
 
 ### Unlocking fighters
 
@@ -46,7 +62,7 @@ You start with Blade. Every other fighter unlocks when you finish its mission, a
 | --- | --- |
 | Gunner | Reach wave 10 |
 | Wizard | Land a 100-hit combo |
-| Ninja | Make 25 perfect dodges in one run |
+| Samurai | Make 25 perfect dodges in one run |
 | Mechanic | Kill 1500 enemies in total, across all runs |
 | Tank | Beat any boss without getting hit |
 | Robot | Defeat the Ashen King |
@@ -82,6 +98,18 @@ After every wave you pick one of three upgrades. Each fighter has about 60 picks
 | Shade | 8 | Fades out, reappears behind you, and slashes after a short warning |
 | Lootling | 4 (rare) | A goblin with a sack of gold that runs from you and never fights. Every hit knocks a coin loose. Kill it for a jackpot of energy, two hearts and a big score bonus. After 11 seconds it digs out and is gone |
 
+### Elite affixes
+
+From wave 6 some enemies are elites: more health, a coloured outline, and one affix. The affix name shows over an elite when it appears and whenever you hit it.
+
+| Affix | What it does |
+| --- | --- |
+| Regen | Heals fast if you stop hitting it for a moment |
+| Volatile | Pulses orange. When it dies it leaves a blast that goes off after a short warning |
+| Warded | A cyan shell soaks damage before its health. Break the shell first |
+| Frenzy | Moves and attacks about 30% faster |
+| Split | Splits into two smaller copies when it dies |
+
 ### Wave twists
 
 From wave 6, about one normal wave in three comes with a twist, announced when the wave starts and tagged next to the wave number. Survive it for a score bonus, full energy and a heart.
@@ -105,6 +133,21 @@ From wave 6, about one normal wave in three comes with a twist, announced when t
 - The last kill of a wave freezes the frame and sends out a shockwave.
 - On your last two hearts, a heartbeat plays, and it beats faster on the last one.
 - The end-of-run screen shows score, time, kills, bosses slain, damage dealt, best multi-kill, longest combo, perfect dodges, top rank and lootlings caught.
+
+## Relics
+
+Every boss drops three relics, and you keep one. Relics are only offered after bosses, and each one changes the run.
+
+| Relic | Effect |
+| --- | --- |
+| Phoenix Feather | Once per run, when a hit would kill you, you rise again at full health in a fire blast that damages every enemy |
+| Berserker Mark | +60% damage while you're at half health or less |
+| Storm Crown | Lightning strikes a random enemy every 2 seconds |
+| Hourglass | Cooldowns 25% shorter and one more dash |
+| Midas Coin | Lootlings show up far more often, kills drop twice the energy, +25% score |
+| Reaper Scythe | Kills often release a soul that hunts the next enemy |
+| Titan Belt | +4 max health and a full heal |
+| Eclipse Stone | Your ultimate charges twice as fast |
 
 ## Bosses
 
@@ -176,7 +219,8 @@ The page makes no network requests. A Content Security Policy only allows the ga
 | File | Contents |
 | --- | --- |
 | `src/main.js` | Main loop, screens, saving |
-| `src/world.js` | Combat, enemies, wave twists, projectiles, arena drawing |
+| `src/world.js` | Combat, enemies, elite affixes, wave twists, projectiles, arena drawing |
+| `src/deaths.js` | Each fighter's signature kills and death scenes |
 | `src/chars.js` | The eight fighters |
 | `src/bosses.js` | The ten bosses |
 | `src/ui.js` | HUD, menus, settings, title intro, phone controls |
