@@ -177,8 +177,9 @@ export function drawBreath(s, x, y, flip, tint, off, split = 0.58) {
   if (!off) { drawSprite(s, x, y, flip, tint); return; }
   const img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, cut = Math.round(s.h * split);
   x = Math.round(x); y = Math.round(y);
-  C.drawImage(img, 0, 0, s.w, cut, x, y + off, s.w, cut);
+  // lower body first, so the sinking head overlaps the neck instead of losing its chin
   C.drawImage(img, 0, cut, s.w, s.h - cut, x, y + cut, s.w, s.h - cut);
+  C.drawImage(img, 0, 0, s.w, cut, x, y + off, s.w, cut);
 }
 
 export function drawSprite(s, x, y, flip, tint) {

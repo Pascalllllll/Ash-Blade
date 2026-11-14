@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=32';
-import { SPR } from './sprites.js?v=32';
-import { A } from './audio.js?v=32';
-import { input } from './input.js?v=32';
-import { best } from './store.js?v=32';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=35';
+import { SPR } from './sprites.js?v=35';
+import { A } from './audio.js?v=35';
+import { input } from './input.js?v=35';
+import { best } from './store.js?v=35';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
   explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo,
-} from './world.js?v=32';
+} from './world.js?v=35';
 
 // ---------- helpers ----------
 function aimPoint(p, max) {
@@ -800,14 +800,14 @@ export const ALLY = {
 };
 
 
-// ---------- THE DEV: secret fighter. Weak at first, scales with every wave and every 20 kills ----------
+// ---------- THE DEV: secret fighter. Strong from wave 1, scales with every wave and every 20 kills, and ramps hard after wave 20 ----------
 const GREEN = '#39ff6a';
 const devVer = () => Math.min(99, 1 + Math.floor(G.kills / 20));
-const devScale = () => 0.5 + 0.05 * (G.wave - 1) + 0.025 * (devVer() - 1);
+const devScale = () => 1 + 0.07 * (G.wave - 1) + 0.03 * (devVer() - 1) + (G.wave > 20 ? 0.03 * Math.pow(G.wave - 20, 1.3) : 0);
 function bugHit(e, n = 1) {
   if (e.dead || e.dying) return;
   e.bugs = (e.bugs || 0) + n;
-  if (e.bugs >= 5 - G.up.overflow) {
+  if (e.bugs >= 4 - G.up.overflow) {
     e.bugs = 0;
     glitch(e.x, e.y - e.r, 22, 16, 0.35, 14);
     addText(e.x, e.y - e.r * 2 - 14, 'CRASHED', GREEN);
@@ -842,9 +842,9 @@ function devEntrance() {
 }
 CHARS.DEV = {
   id: 'DEV', name: 'THE DEV', alias: 'ROOT', color: () => GREEN,
-  desc: ['STARTS WEAK. GETS STRONGER', 'EVERY WAVE AND EVERY 20 KILLS'], tip: '5 HITS CRASH A FOE',
-  bars: { power: 1, speed: 4, range: 4, tough: 1 },
-  stats: { hp: 6, speed: 98 }, dash: { speed: 420, time: 0.09, cd: 0.45, charges: 1 }, ultRate: 1, energyHit: 1,
+  desc: ['STRONG FROM WAVE 1, STRONGER', 'EVERY WAVE AND EVERY 20 KILLS'], tip: '4 HITS CRASH A FOE',
+  bars: { power: 4, speed: 4, range: 4, tough: 2 },
+  stats: { hp: 7, speed: 98 }, dash: { speed: 420, time: 0.09, cd: 0.45, charges: 1 }, ultRate: 1, energyHit: 1,
   primaryName: 'PING',
   dmgScale: devScale,
   init: () => ({ fireT: 0, wall: 0, wallT: 0, flashT: 0, marks: [] }),
@@ -852,8 +852,8 @@ CHARS.DEV = {
     const k = p.k, v = devVer();
     k.fireT -= dt; k.flashT -= dt;
     if (held && k.fireT <= 0) {
-      k.fireT = (0.24 / G.up.spd) * Math.max(0.45, 1 - (v - 1) * 0.02) / (p.ascend > 0 ? 1.4 : 1);
-      const n = Math.min(5, 1 + Math.floor((v - 1) / 8)), [hx, hy] = hand(p, Math.cos(p.aim) < 0);
+      k.fireT = (0.2 / G.up.spd) * Math.max(0.4, 1 - (v - 1) * 0.02) / (p.ascend > 0 ? 1.4 : 1);
+      const n = Math.min(6, 2 + Math.floor((v - 1) / 6)), [hx, hy] = hand(p, Math.cos(p.aim) < 0);
       for (let i = 0; i < n; i++) {
         const a = p.aim + (i - (n - 1) / 2) * 0.14;
         shoot({ x: hx + Math.cos(a) * 6, y: hy + Math.sin(a) * 6, a, sp: 330, dmg: pd(2), kb: 40, life: 0.75, kind: 'packet', c: GREEN, trail: false, onHit: (e, killed) => { if (!killed) bugHit(e); } });

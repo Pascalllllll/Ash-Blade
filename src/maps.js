@@ -1,4 +1,4 @@
-import { BAYER, target, rect, px, line, disc, ring } from './gfx.js?v=32';
+import { BAYER, target, rect, px, line, disc, ring } from './gfx.js?v=35';
 
 export const AW = 560, AH = 352;
 export const B = { x0: 20, y0: 50, x1: AW - 20, y1: AH - 18 };

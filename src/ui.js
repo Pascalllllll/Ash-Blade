@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=32';
-import { SPR, icon } from './sprites.js?v=32';
-import { input, keyHit, TOUCH_BTNS } from './input.js?v=32';
-import { A } from './audio.js?v=32';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=32';
-import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js?v=32';
-import { CHARS } from './chars.js?v=32';
-import { BOSSES, bossFor } from './bosses.js?v=32';
-import { MAPS } from './maps.js?v=32';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=32';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=35';
+import { SPR, icon } from './sprites.js?v=35';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=35';
+import { A } from './audio.js?v=35';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=35';
+import { G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate } from './world.js?v=35';
+import { CHARS } from './chars.js?v=35';
+import { BOSSES, bossFor } from './bosses.js?v=35';
+import { MAPS } from './maps.js?v=35';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=35';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -291,7 +291,7 @@ export function drawSelect(t) {
     rect(x - 1, PY - 1, PW + 2, 38, on ? ch.color() : P.ink0);
     rect(x, PY, PW, 36, on ? P.ink2 : P.ink1);
     if (on) glow(x + PW / 2, PY + 18, ch.color(), 16, 0.18);
-    const lk = locked(id), s = on && !lk ? SPR.chars[id].run[Math.floor(t * 9) % 4] : SPR.chars[id].idle;
+    const lk = locked(id), s = on && !lk ? SPR.chars[id].run[Math.floor(t * 9) % 4] : lk ? SPR.chars[id].idle : SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % 8];
     // the whole fighter at 2x
     ctx.save(); ctx.beginPath(); ctx.rect(x, PY, PW, 36); ctx.clip(); bust(s, x + PW / 2 - s.w, PY - (on && !lk ? Math.floor(t * 9) % 2 : 0), s.h, 2, lk ? '#0a0810' : null); ctx.restore();
     if (lk) {
@@ -393,7 +393,7 @@ export function drawSettings(t, items, inRun) {
     text(n, x + 38, 17, on ? P.ink0 : P.dust, 1, 'c');
   });
   drawMenu(setm, items, 40, 36, 240, setm.tab === 1 ? 10 : 11);
-  if (setm.tab === 1) roster().forEach((id, i) => bust(SPR.chars[id].idle, 290, 34 + i * 17, 16));
+  if (setm.tab === 1) roster().forEach((id, i) => bust(SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % 8], 290, 34 + i * 17, 16));
   if (setm.tab === 2 && inRun) text('ARENA AND DIFFICULTY APPLY TO YOUR NEXT RUN', W / 2, 106, P.stone2, 1, 'c');
   text(input.touch ? 'TAP A TAB, TAP LEFT OR RIGHT SIDE OF A ROW TO CHANGE IT' : 'Q / E SWITCH TABS   ARROWS CHANGE   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
 }
@@ -535,7 +535,7 @@ export function drawIntro(t) {
   roster().forEach((id, i) => {
     const k = Math.min(1, (t - (1.55 + i * 0.07)) / 0.28);
     if (k <= 0) return;
-    const s = k < 1 ? SPR.chars[id].run[Math.floor(t * 16) % 4] : SPR.chars[id].idle, from = i % 2 ? W + 20 : -30;
+    const s = k < 1 ? SPR.chars[id].run[Math.floor(t * 16) % 4] : SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % 8], from = i % 2 ? W + 20 : -30;
     const tx = paradeX(i, s), y = 97 - s.h, e = 1 - Math.pow(1 - k, 3), x = from + (tx - from) * e;
     if (k < 1) for (let g = 1; g <= 3; g++) { ctx.globalAlpha = 0.25 / g; drawSprite(s, x - (tx - from) * 0.08 * g, y, from > tx, CHARS[id].color()); }
     ctx.globalAlpha = 1;
@@ -559,14 +559,21 @@ export function drawIntro(t) {
   if (t >= 2.3 && t < 2.5) { ctx.globalAlpha = (2.5 - t) / 0.2 * (settings.flash ? 0.6 : 0.12); ctx.fillStyle = P.paper; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
 }
 
-// ---------- phone controls: a floating stick on the left, buttons on the right ----------
+// ---------- phone controls: a fixed stick on the left, buttons on the right (drag the attack button to aim) ----------
 const PRIMARY_ICON = { BLADE: 'blade', GUNNER: 'gun', WIZARD: 'star', NINJA: 'cross', MECHANIC: 'gear', TANK: 'fist', ROBOT: 'bolt', DEV: 'eye' };
 function drawTouch(p, kit, full) {
-  const st = input.stick;
-  if (st.id !== null) {
-    ctx.globalAlpha = 0.35; ring(st.ox, st.oy, 22, 1, P.paper); ctx.globalAlpha = 0.6;
-    ring(st.ox + st.dx * 22, st.oy + st.dy * 22, 8, 8, P.paper); ctx.globalAlpha = 1;
-  } else if (G.time < 6) { ctx.globalAlpha = 0.3; ring(50, 135, 22, 1, P.paper); text('MOVE', 50, 133, P.paper, 1, 'c'); ctx.globalAlpha = 1; }
+  // the fixed movement stick: always visible, brighter while held
+  const st = input.stick, on = st.id !== null;
+  ctx.globalAlpha = on ? 0.45 : 0.25; ring(STICK_X, STICK_Y, STICK_R, 1, P.paper); ring(STICK_X, STICK_Y, STICK_R - 1, 1, P.ink0);
+  ctx.globalAlpha = on ? 0.7 : 0.35; ring(st.x, st.y, 8, 8, P.paper); ctx.globalAlpha = 1;
+  if (!on && G.time < 6) { ctx.globalAlpha = 0.5; text('MOVE', STICK_X, STICK_Y - 30, P.paper, 1, 'c'); ctx.globalAlpha = 1; }
+  // swipe-aim: a line out of the fighter while the attack thumb drags
+  const am = input.aim;
+  if (am.active) {
+    const px0 = p.x - fx.cam.x - fx.ox, py0 = p.y - 6 - fx.cam.y - fx.oy, ca = Math.cos(am.a), sa = Math.sin(am.a);
+    for (let i = 10; i < 60; i += 6) { ctx.globalAlpha = 0.8 - i / 80; line(px0 + ca * i, py0 + sa * i, px0 + ca * (i + 3), py0 + sa * (i + 3), kit.color()); }
+    ctx.globalAlpha = 1;
+  }
   const state = {
     attack: [true, 1, PRIMARY_ICON[G.char], kit.color()],
     dash: [p.charges > 0, p.charges > 0 ? 1 : 1 - p.dashCd / kit.dash.cd, 'dash', P.paper],
@@ -586,6 +593,7 @@ function drawTouch(p, kit, full) {
     if (!ready) { ctx.globalAlpha = 0.6; ring(b.x, b.y, Math.max(1, b.r * Math.min(1, frac)), Math.max(1, b.r * Math.min(1, frac)), P.ink3); ctx.globalAlpha = 1; }
     ring(b.x, b.y, b.r, 1, ready ? col : P.stone2);
     const s = icon(ic, ready ? col : P.stone2);
+    if (b.id === 'attack' && am.active) { const l = Math.min(b.r - 4, Math.hypot(am.dx, am.dy)); ring(b.x + Math.cos(am.a) * l, b.y + Math.sin(am.a) * l, 5, 5, kit.color()); }
     if (b.id === 'attack') { ctx.save(); ctx.translate(b.x - 9, b.y - 9); ctx.scale(2, 2); drawSprite(s, 0, 0, false); ctx.restore(); }
     else drawSprite(s, b.x - 4, b.y - 4, false);
     if (b.id === 'r' && full) glow(b.x, b.y, P.gold, b.r + 6, 0.4);
@@ -619,7 +627,7 @@ export function drawLockin(t, id) {
   for (let i = 0; i < 12; i++) rect(-W + ((i * 60 + t * 140) % (W * 2)), -bh / 2 + 4, 20, Math.max(0, bh - 8), P.ink0);
   ctx.restore();
   // the fighter dashes in at 5x with afterimages, then settles and breathes
-  const S = 5, k = outC((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % 4] : set.idle;
+  const S = 5, k = outC((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % 4] : set.idles[Math.floor(t * 7) % 8];
   const tx = 34, x = -130 + (tx + 130) * k, y = Math.round(H / 2 + 8 - (fr.h * S) / 2 + (k >= 1 && Math.floor(t * 3) % 2 ? 1 : 0));
   if (k < 1) for (let g = 4; g >= 1; g--) {
     ctx.globalAlpha = 0.35 / g; ctx.save(); ctx.translate(Math.round(x - g * 16), y); ctx.scale(S, S); drawSprite(fr, 0, 0, false, col); ctx.restore();

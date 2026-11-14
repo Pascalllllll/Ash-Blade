@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=32';
+import { makeSprite, P } from './gfx.js?v=35';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -63,11 +63,11 @@ const BODIES = {
     leg: '#b85416', boot: '#2a1f1a',
   },
   TANK: {
-    lids: 'v', eye: [10, 7],
+    lids: 'vw', eye: [10, 7],
     rows: ['.h............h.', '.hh..oooooo..hh.', '..hhoSSssSSohh..', '..oSSSSSSSSSSo..', '.oSSSsSSSSSSSSo.', '.oSSSSSSSSSSSSo.',
       '.oSSooooooooSSo.', '.oSSovvvvvvoSSo.', '.oSSooooooooSSo.', '.oSSSSkSSkSSSSo.', '.oSSSSSSSSSSSSo.', '..ooSSSSSSSSoo..',
       '.oPPoSSSSSSoPPo.', '.okkoSSKKSSokko.', '..ooSSsSSsSSoo..', '...okkkkkkkko...'],
-    map: () => ({ h: '#e6d8bd', S: '#5a6a82', s: '#8fa2bd', v: '#ff9a3c', P: '#3c4a63', K: P.gold, k: '#2a2f3a' }),
+    map: () => ({ h: '#e6d8bd', S: '#5a6a82', s: '#8fa2bd', v: '#ff9a3c', w: '#ffe08a', P: '#3c4a63', K: P.gold, k: '#2a2f3a' }),
     leg: '#4a586e', boot: '#2a2f3a',
   },
   ROBOT: {
@@ -88,6 +88,22 @@ BODIES.DEV = {
   leg: '#26304a', boot: '#e6e6f0',
 };
 
+// ---------- idle loops ----------
+// Each fighter idles through 8 frames (about 7 per second). seq picks a pose per frame: A is the
+// base sprite, B and C replace a few rows to move hair, scarves, antennas or a glint.
+// IDLE_BREATH is how far the head and chest sink on each frame.
+export const IDLE_BREATH = [0, 0, 0, 1, 1, 1, 1, 0];
+const IDLE = {
+  BLADE: { seq: 'AABBCCBB', B: { 14: '.SSoCaaKKaaCo...', 12: '...osSSSSSSso...' }, C: { 14: 'S.SoCaaKKaaCo...', 12: '..sosSSSSSSso...' } },
+  GUNNER: { seq: 'AABBCCBB', B: { 11: '..orrrrrrrrro...' }, C: { 11: '.orrrrrrrrrro...', 15: '...oDDDooDDo....' } },
+  WIZARD: { seq: 'AABBAACC', B: { 0: '..........oo....', 14: '..oRRRgrgRRRRo..' }, C: { 0: '........oo......', 14: '..oRRRrRrRRRRo..' } },
+  NINJA: { seq: 'AABBAACC', B: { 11: '.oVVoffffffoVo..', 14: '..RoRRRRRRRRo...' }, C: { 11: '..oVoffffffoVVo.', 14: '.RRoRRRRRRRRo...' } },
+  MECHANIC: { seq: 'AAAABBCC', B: { 5: '.oWogGGoogGGoWo.' }, C: { 5: '.oWoGGgooGGgoWo.' } },
+  TANK: { seq: 'AABBCCBB', A: { 7: '.oSSowvvvvvoSSo.' }, B: { 7: '.oSSovvwvvvoSSo.' }, C: { 7: '.oSSovvvvwvoSSo.' } },
+  ROBOT: { seq: 'AABBAACC', B: { 0: '...o........o...' }, C: { 7: '.oMoKKKRRKKKoMo.', 8: '.oMoKKRRRRKKoMo.', 9: '.oMoKKKRRKKKoMo.' } },
+  DEV: { seq: 'AAAABBCC', B: { 7: 'aoHvVVVoVvVVoHoa' }, C: { 7: 'aoHVVvVoVVVvoHoa' } },
+};
+
 function buildChar(id) {
   const d = BODIES[id];
   const map = { o: P.ink0, L: d.leg, b: d.boot, ...d.map() };
@@ -95,6 +111,13 @@ function buildChar(id) {
   const legs = (k) => (d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : LEGS[k]);
   const sp = (alt, k) => makeSprite([...body(alt), ...legs(k)], map, d.lids);
   const set = { idle: sp(false, 'idle'), run: [sp(false, 'r0'), sp(true, 'r1'), sp(false, 'r2'), sp(true, 'r3')] };
+  const il = IDLE[id], poses = {};
+  const pose = (k) => {
+    if (k === 'A' && !il.A) return set.idle;
+    const o = il[k] || {};
+    return poses[k] || (poses[k] = makeSprite([...d.rows.map((r, i) => o[i] || r), ...legs('idle')], map, d.lids));
+  };
+  set.idles = [...il.seq].map(pose);
   set.eye = d.eye;
   return set;
 }

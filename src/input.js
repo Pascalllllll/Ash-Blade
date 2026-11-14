@@ -1,5 +1,8 @@
-import { canvas, W, H } from './gfx.js?v=32';
+import { canvas, W, H } from './gfx.js?v=35';
 
+// the movement stick sits in a fixed spot; any touch on the left side drives it from there
+export const STICK_X = 50, STICK_Y = 135, STICK_R = 22;
+const AIM_DEAD = 6;
 export const input = {
   down: new Set(),
   hit: new Set(),
@@ -8,7 +11,9 @@ export const input = {
   any: false,
   touch: false,
   touchPlay: false,
-  stick: { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 },
+  stick: { id: null, ox: STICK_X, oy: STICK_Y, x: STICK_X, y: STICK_Y, dx: 0, dy: 0 },
+  // dragging from the attack button aims; a short tap keeps auto-aim
+  aim: { id: null, ox: 0, oy: 0, dx: 0, dy: 0, active: false, a: 0 },
   tb: { attack: false, dash: false, q: false, e: false, r: false, pause: false },
   thit: new Set(),
 };
@@ -22,7 +27,6 @@ export const TOUCH_BTNS = [
   { id: 'r', x: 290, y: 95, r: 11 },
   { id: 'pause', x: 160, y: 9, r: 9 },
 ];
-const STICK_R = 22;
 const roles = new Map();
 let wentFull = false;
 function touchPt(t) {
@@ -55,6 +59,16 @@ function goFull() {
   wentFull = true;
   document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
 }
+function startAim(id, x, y) { Object.assign(input.aim, { id, ox: x, oy: y, dx: 0, dy: 0, active: false }); }
+function moveStick(x, y) {
+  const s = input.stick;
+  let vx = x - STICK_X, vy = y - STICK_Y;
+  const l = Math.hypot(vx, vy);
+  if (l > STICK_R) { vx = (vx / l) * STICK_R; vy = (vy / l) * STICK_R; }
+  s.x = STICK_X + vx; s.y = STICK_Y + vy;
+  const k = l < STICK_R * 0.18 ? 0 : 1 / STICK_R;
+  s.dx = vx * k; s.dy = vy * k;
+}
 addEventListener('touchstart', (e) => {
   e.preventDefault();
   becomeTouch();
@@ -63,12 +77,14 @@ addEventListener('touchstart', (e) => {
     const { x, y } = touchPt(t);
     if (input.touchPlay) {
       const b = TOUCH_BTNS.find((b) => Math.hypot(x - b.x, y - b.y) < b.r + 6);
-      if (b) { roles.set(t.identifier, b.id); input.tb[b.id] = true; input.thit.add(b.id); }
-      else if (x < W * 0.55 && input.stick.id === null) {
-        const s = input.stick;
-        s.id = t.identifier; s.ox = s.x = x; s.oy = s.y = y; s.dx = s.dy = 0;
+      if (b) {
+        roles.set(t.identifier, b.id); input.tb[b.id] = true; input.thit.add(b.id);
+        if (b.id === 'attack') startAim(t.identifier, b.x, b.y);
+      } else if (x < W * 0.55 && input.stick.id === null) {
+        input.stick.id = t.identifier;
         roles.set(t.identifier, 'stick');
-      } else { roles.set(t.identifier, 'attack'); input.tb.attack = true; input.thit.add('attack'); }
+        moveStick(x, y);
+      } else { roles.set(t.identifier, 'attack'); input.tb.attack = true; input.thit.add('attack'); startAim(t.identifier, x, y); }
     } else {
       input.mouse.x = x; input.mouse.y = y; input.mouse.pressed = true; input.mouse.moved = true;
       roles.set(t.identifier, 'menu');
@@ -79,13 +95,11 @@ addEventListener('touchmove', (e) => {
   e.preventDefault();
   for (const t of e.changedTouches) {
     const role = roles.get(t.identifier), { x, y } = touchPt(t);
-    if (role === 'stick') {
-      const s = input.stick;
-      let vx = x - s.ox, vy = y - s.oy, l = Math.hypot(vx, vy);
-      if (l > STICK_R) { s.ox = x - (vx / l) * STICK_R; s.oy = y - (vy / l) * STICK_R; vx = x - s.ox; vy = y - s.oy; l = STICK_R; }
-      s.x = x; s.y = y;
-      const k = l < STICK_R * 0.18 ? 0 : 1 / STICK_R;
-      s.dx = vx * k; s.dy = vy * k;
+    if (role === 'stick') moveStick(x, y);
+    else if (input.aim.id === t.identifier) {
+      const m = input.aim;
+      m.dx = x - m.ox; m.dy = y - m.oy;
+      if (Math.hypot(m.dx, m.dy) > AIM_DEAD) { m.active = true; m.a = Math.atan2(m.dy, m.dx); }
     } else if (role === 'menu') { input.mouse.x = x; input.mouse.y = y; input.mouse.moved = true; }
   }
 }, { passive: false });
@@ -94,7 +108,8 @@ function touchEnd(e) {
   for (const t of e.changedTouches) {
     const role = roles.get(t.identifier);
     roles.delete(t.identifier);
-    if (role === 'stick') { const s = input.stick; s.id = null; s.dx = s.dy = 0; }
+    if (role === 'stick') { const s = input.stick; s.id = null; s.dx = s.dy = 0; s.x = STICK_X; s.y = STICK_Y; }
+    if (input.aim.id === t.identifier) Object.assign(input.aim, { id: null, active: false, dx: 0, dy: 0 });
     else if (role && role !== 'menu' && ![...roles.values()].includes(role)) input.tb[role] = false;
   }
 }

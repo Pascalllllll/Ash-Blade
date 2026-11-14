@@ -24,7 +24,7 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 
 Every fighter, monster and boss breathes, blinks and leans into attacks. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
-The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. It starts at half power and gets stronger every wave and every 20 kills, reaching roughly 4x power by wave 50. Its shots plant bugs, and five bugs crash an enemy.
+The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. It starts at full power with a two-shot spread and gets stronger every wave and every 20 kills, faster still after wave 20: about 1.8x by wave 10, 4.5x by wave 30 and close to 10x by wave 50. Its shots plant bugs, and four bugs crash an enemy.
 
 ### Unlocking fighters
 
@@ -97,8 +97,8 @@ Each boss has its own entrance and its own music. When a boss is off screen, an 
 
 | Action | Keyboard and mouse | Phone |
 | --- | --- | --- |
-| Move | WASD or arrow keys | Left thumb anywhere on the left side |
-| Aim | Mouse | Automatic, aims at the nearest enemy |
+| Move | WASD or arrow keys | Fixed stick in the bottom-left. Touch anywhere on the left side to use it |
+| Aim | Mouse | Drag from the attack button toward where you want to hit. A plain tap aims at the nearest enemy |
 | Attack | Left click or J, hold to keep attacking | Big button on the right |
 | Dash | Space or right click | Dash button |
 | Powers | Q, E, R | Buttons around the attack button |

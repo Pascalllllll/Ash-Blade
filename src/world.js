@@ -1,12 +1,12 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js?v=32';
-import { SPR } from './sprites.js?v=32';
-import { A } from './audio.js?v=32';
-import { input, keyDown, keyHit } from './input.js?v=32';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=32';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=32';
-import { CHARS, ALLY } from './chars.js?v=32';
-import { BOSSES, bossFor } from './bosses.js?v=32';
-import { byId } from './upgrades.js?v=32';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, textO } from './gfx.js?v=35';
+import { SPR, IDLE_BREATH } from './sprites.js?v=35';
+import { A } from './audio.js?v=35';
+import { input, keyDown, keyHit } from './input.js?v=35';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=35';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=35';
+import { CHARS, ALLY } from './chars.js?v=35';
+import { BOSSES, bossFor } from './bosses.js?v=35';
+import { byId } from './upgrades.js?v=35';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -724,6 +724,7 @@ function updatePlayer(dt) {
 
 // phones: aim at the nearest enemy, otherwise where you're walking
 function touchAim(p, ml) {
+  if (input.aim.active) { p.aim = input.aim.a; return; }
   let best = null, bd = 170;
   for (const e of G.E) { if (!alive(e)) continue; const d = hyp(e.x - p.x, e.y - p.y); if (d < bd) { bd = d; best = e; } }
   if (best) p.aim = Math.atan2(best.y - best.r - (p.y - 6), best.x - p.x);
@@ -1585,17 +1586,22 @@ function drawPlayer() {
   const moving = (p.state === 'move' || p.state === 'skill') && hyp(p.vx, p.vy) > 20;
   const fi = Math.floor(p.runT * 11) % 4;
   const blink = !moving && (G.time % 3.1) < 0.13;
-  const fr = moving ? set.run[fi] : blink ? set.idle.blink : set.idle;
+  // standing still plays the 8-frame idle loop: breathing plus each fighter's own secondary motion
+  const ii = Math.floor(G.time * 7) % set.idles.length, still = set.idles[ii];
+  const fr = moving ? set.run[fi] : blink ? still.blink : still;
   const bob = moving && fi % 2 ? 1 : 0;
   // idle breathing, and a lean into each swing
-  const breathe = !moving && p.state === 'move' ? Math.floor(G.time * 1.7) % 2 : 0;
+  const breathe = !moving && p.state === 'move' ? IDLE_BREATH[ii] : 0;
   const lean = p.state === 'attack' && p.atkT < 0.12 ? 2 : p.state === 'dash' ? 1 : 0, la = p.state === 'attack' ? p.atkAng : p.aim;
   const wa = p.state === 'attack' ? p.atkAng : p.aim;
   const behind = Math.sin(wa) < -0.3;
   shadow(p.x, p.y, 6);
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
   kit.drawAura?.(p, flip);
+  // the weapon rises and sinks with the breath
+  if (breathe) { ctx.save(); ctx.translate(0, breathe); }
   if (behind) kit.drawWeapon(p, flip);
+  if (breathe) ctx.restore();
   const sx = Math.round(p.x - fr.w / 2 + Math.cos(la) * lean), sy = Math.round(p.y - fr.h + 1 - bob + Math.sin(la) * lean * 0.5);
   drawBreath(fr, sx, sy, flip, p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null, breathe);
   // glowing eyes
@@ -1603,7 +1609,9 @@ function drawPlayer() {
   if (!blink) glow(ex, ey, ec, 4, 0.7);
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
+  if (breathe) { ctx.save(); ctx.translate(0, breathe); }
   if (!behind) kit.drawWeapon(p, flip);
+  if (breathe) ctx.restore();
   ctx.globalAlpha = 1;
   glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 10, 0.2);
   drawOrbit(p);
