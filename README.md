@@ -4,6 +4,14 @@ Ashblade is a pixel-art hack and slash game that runs in the browser, on a compu
 
 **Play it at [ash-blade.vercel.app](https://ash-blade.vercel.app/).**
 
+What's in it:
+- 8 fighters, each with its own combo, three powers, entrance, sounds and an awakened second look
+- 8 kinds of enemies, including the Lootling, a goblin that runs off with a sack of gold
+- 10 bosses up to wave 50, where the final boss is The Dev, the game's own developer
+- Wave twists that change the rules: Blood Moon, Swarm, Elite Hunt, Gold Rush, Glass and Blackout
+- Heavy hits that launch bodies into crowds, multi-kill chains, perfect dodges and counters
+- Endless mode, 5 arenas, 4 difficulties, phone controls, and saves at every wave
+
 ![Title screen](docs/title.png)
 
 ## Story
@@ -87,6 +95,8 @@ From wave 6, about one normal wave in three comes with a twist, announced when t
 | Glass | Enemies have half health, and every hit you take costs an extra heart |
 | Blackout | The lights go out except around you. 1.5x score |
 
+![A Blood Moon wave](docs/twist.png)
+
 ### Big hits
 
 - Heavy blows (combo finishers, counters, explosions and ultimates) launch the body across the arena. A flying body knocks over and damages every enemy it hits, so one good hit can bowl through a crowd. Lighter cuts still slice enemies in two.
@@ -166,9 +176,9 @@ The page makes no network requests. A Content Security Policy only allows the ga
 | File | Contents |
 | --- | --- |
 | `src/main.js` | Main loop, screens, saving |
-| `src/world.js` | Combat, enemies, projectiles, arena drawing |
-| `src/chars.js` | The seven fighters |
-| `src/bosses.js` | The four bosses |
+| `src/world.js` | Combat, enemies, wave twists, projectiles, arena drawing |
+| `src/chars.js` | The eight fighters |
+| `src/bosses.js` | The ten bosses |
 | `src/ui.js` | HUD, menus, settings, title intro, phone controls |
 | `src/maps.js` | Arenas |
 | `src/audio.js` | Music and sound effects |
