@@ -1,14 +1,14 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=57';
-import { loadModels, modelsReady, hasModel, modelFrame, modelFlat } from './models.js?v=57';
-import { SPR, icon } from './sprites.js?v=57';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=57';
-import { A } from './audio.js?v=57';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=57';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=57';
-import { CHARS } from './chars.js?v=57';
-import { BOSSES, bossFor } from './bosses.js?v=57';
-import { MAPS } from './maps.js?v=57';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=57';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=59';
+import { loadModels, modelsReady, hasModel, modelFrame, modelFlat, modelStill } from './models.js?v=59';
+import { SPR, icon } from './sprites.js?v=59';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=59';
+import { A } from './audio.js?v=59';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=59';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=59';
+import { CHARS } from './chars.js?v=59';
+import { BOSSES, bossFor } from './bosses.js?v=59';
+import { MAPS } from './maps.js?v=59';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=59';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -602,16 +602,43 @@ export function drawVictory(t) {
 }
 
 // ---------- opening: a press-to-begin gate (browsers need a gesture for sound), then the intro cinematic ----------
-export const INTRO_LEN = 3.1;
-const LETTER = (i) => 0.62 + i * 0.09;
+// The cinematic, any key skips it:
+//   a white cut splits the black screen open on two lines of story,
+//   all eight fighters cut in one after another: their big portrait slams in on a slanted band with
+//   their name and attack sound (locked fighters show too, tagged LOCKED; only the secret one stays a
+//   lit silhouette),
+//   the eight stand side by side in slanted slices,
+//   a slash wipes them away and the logo slams down letter by letter over the running roster.
+const BEAT0 = 1.75, BEAT = 0.42, LINEUP = BEAT0 + 8 * BEAT, LOGO0 = LINEUP + 1.05;
+export const INTRO_LEN = LOGO0 + 2.25;
+const LETTER = (i) => LOGO0 + 0.12 + i * 0.07;
+const PARADE = (i) => LOGO0 + 0.8 + i * 0.06, ULT = LOGO0 + 1.4;
 const paradeX = (i, s) => W / 2 - (roster().length * 22) / 2 + i * 22 + 11 - s.w / 2;
+const STORY = [[0.5, 'THE ASHEN KING SWALLOWED THE SUN.'], [1.1, 'EIGHT STILL STAND.']];
+// a cue is [time, sound, phone buzz]; the beats play each fighter's own heavy attack as they land
 export const INTRO_CUES = [
-  [0, 'rift'], [0.35, 'riftCut'],
-  ...Array.from({ length: 8 }, (_, i) => [LETTER(i) + 0.14, 'wall']),
-  ...Array.from({ length: 7 }, (_, i) => [1.55 + i * 0.07, 'dash']),
-  [2.3, 'ultRelease'],
+  [0, () => A.rift()], [0.35, () => A.riftCut(), 'heavy'],
+  ...STORY.map(([t]) => [t, () => A.wall(), 'tap']),
+  ...OPTIONS.char.flatMap((id, i) => [[BEAT0 + i * BEAT, () => A.dash()], [BEAT0 + i * BEAT + 0.1, () => A.charAtk(id, true), 'tap']]),
+  ...OPTIONS.char.map((_, i) => [LINEUP + i * 0.05, () => A.wall()]),
+  [LOGO0, () => A.riftCut(), 'heavy'],
+  ...Array.from({ length: 8 }, (_, i) => [LETTER(i) + 0.1, () => A.wall(), 'tap']),
+  ...Array.from({ length: 8 }, (_, i) => [PARADE(i), () => A.dash()]),
+  [ULT, () => A.ultRelease(), 'heavy'],
 ];
+// screen shake: [time, strength]
+const SHAKES = [[0.35, 4], ...STORY.map(([t]) => [t, 1.5]), ...OPTIONS.char.map((_, i) => [BEAT0 + i * BEAT + 0.1, 3]), [LINEUP + 0.35, 2], [LOGO0, 4], ...Array.from({ length: 8 }, (_, i) => [LETTER(i) + 0.1, 2]), [ULT, 5]];
+// the portraits load while the press-to-begin gate waits; one still is painted per frame
+let warm = 0;
+function warmPortraits() {
+  loadModels();
+  if (!modelsReady() || warm >= OPTIONS.char.length * 2) return;
+  const id = OPTIONS.char[warm % 8];
+  if (warm < 8) modelStill(id); else modelFlat(id, hidden(id) ? '#07050b' : '#ffffff');
+  warm++;
+}
 export function drawSplash(t, touch) {
+  warmPortraits();
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   const w = Math.round(60 + Math.sin(t * 2) * 10);
   rect(W / 2 - w / 2, H / 2 - 12, w, 1, P.ember);
@@ -619,35 +646,110 @@ export function drawSplash(t, touch) {
   if (Math.floor(t * 1.6) % 2 === 0) text(touch ? 'TAP TO BEGIN' : 'PRESS ANY KEY', W / 2, H / 2, P.bone, 1, 'c');
   text('SOUND ON', W / 2, H / 2 + 14, P.stone2, 1, 'c');
 }
-export function drawIntro(t) {
-  const lx = Math.round((W - LOGO.width) / 2), ly = 22;
-  // shake from the most recent impact
-  let sh = 0;
-  for (const [ct, kind] of INTRO_CUES) if (t >= ct && t - ct < 0.15 && kind !== 'rift' && kind !== 'dash') sh = Math.max(sh, (kind === 'ultRelease' ? 5 : kind === 'riftCut' ? 4 : 2) * (1 - (t - ct) / 0.15));
-  const ox = Math.round((Math.random() - 0.5) * sh * 2), oy = Math.round((Math.random() - 0.5) * sh * 2);
-  ctx.save(); ctx.translate(ox, oy);
-  if (t < 0.35) {
-    ctx.fillStyle = '#000'; ctx.fillRect(-8, -8, W + 16, H + 16);
-    const k = t / 0.35, x = Math.round(W * k);
-    rect(0, H / 2, x, 1, P.paper); rect(0, H / 2 + 1, x, 1, P.ember);
-    glow(x, H / 2, P.paper, 18, 0.8);
-    ctx.restore();
-    return;
+const veil = (a, col = P.paper) => { if (a <= 0) return; ctx.globalAlpha = Math.min(1, a) * (settings.flash ? 1 : 0.2); rect(0, 0, W, H, col); ctx.globalAlpha = 1; };
+// the portrait (or, while it loads, the big sprite) for one fighter; the secret fighter is a silhouette
+const hidden = (id) => id === 'DEV' && locked(id);
+function portrait(id) {
+  if (!hasModel(id) || !modelsReady()) return null;
+  return hidden(id) ? modelFlat(id, '#07050b') : modelStill(id);
+}
+// one fighter's beat: a slanted band in their color, the portrait slamming in from its side, the name
+// slamming down on the other side
+function drawBeat(i, t, h) {
+  const id = OPTIONS.char[i], ch = CHARS[id], lk = hidden(id), col = lk ? P.dust : ch.color(), right = i % 2 === 1;
+  const k = ease(t / 0.16), dir = right ? 1 : -1;
+  rect(-10, -10, W + 20, H + 20, P.void);
+  // speed lines in the fighter's color, rushing the way the portrait came from
+  for (let j = 0; j < 22; j++) {
+    const y = (j * 37 + i * 13) % H, len = 24 + ((j * 53) % 80), run = (t * 900 * (1 + (j % 3) * 0.4) + j * 71) % (W + 200);
+    const x = right ? W + 100 - run : run - 100 - len;
+    line(x, y, x + len, y, j % 4 ? P.ink2 : col);
   }
+  ctx.save(); ctx.translate(W / 2, H / 2 + 10); ctx.rotate(right ? 0.18 : -0.18);
+  const bh = 78 * ease(t / 0.12);
+  rect(-W, -bh / 2, W * 2, bh, P.ink1); rect(-W, -bh / 2, W * 2, 2, col); rect(-W, bh / 2 - 2, W * 2, 2, col);
+  for (let j = 0; j < 12; j++) rect(-W + ((j * 60 + t * 220 * -dir + 4000) % (W * 2)), -bh / 2 + 5, 18, Math.max(0, bh - 10), P.ink0);
+  ctx.restore();
+  // the portrait: 160 x 240, a third off the bottom, sliding in with afterimages and drifting slowly
+  const pic = portrait(id), PW = 160 * (1 + t * 0.06), PH = PW * 1.5;
+  const tx = right ? W - PW + 6 : -6, from = right ? W + 40 : -PW - 40, x = from + (tx - from) * k - dir * t * 10, y = -14 - (PH - 240) * 0.3;
+  glow(x + PW / 2, H / 2, col, 80, lk ? 0.12 : 0.32);
+  if (pic) {
+    if (lk) { h.globalAlpha = 0.9; const rim = modelFlat(id, col) || pic; h.drawImage(rim, x - 1.5, y, PW, PH); h.drawImage(rim, x + 1.5, y, PW, PH); h.globalAlpha = 1; }
+    if (k < 1) for (let g = 3; g >= 1; g--) { h.globalAlpha = 0.3 / g; h.drawImage(modelFlat(id, col) || pic, x + dir * g * 22, y, PW, PH); }
+    h.globalAlpha = 1;
+    h.drawImage(pic, x, y, PW, PH);
+    if (!lk && t > 0.1 && t < 0.24) { h.globalAlpha = 1 - (t - 0.1) / 0.14; h.drawImage(modelFlat(id, '#ffffff') || pic, x, y, PW, PH); h.globalAlpha = 1; }
+  } else {
+    const s = SPR.chars[id].idles[Math.floor(t * 7) % 8], S = 6, sx = Math.round(x + PW / 2 - (s.w * S) / 2), sy = 176 - s.h * S;
+    ctx.save(); ctx.translate(sx, sy); ctx.scale(S, S); drawSprite(s, 0, 0, right, lk ? '#07050b' : t > 0.1 && t < 0.16 ? P.paper : null); ctx.restore();
+  }
+  // the name, on the other half
+  const nx = right ? 82 : 238, nk = ease((t - 0.08) / 0.1);
+  if (t > 0.08) {
+    const secret = lk && id === 'DEV';
+    textO(secret ? '???' : ch.hero, nx, 62 - Math.round((1 - nk) * 26), nk < 1 ? col : P.paper, 3, 'c');
+    const sub = secret ? 'A SECRET FIGHTER' : 'THE ' + ch.name.replace('THE ', ''), n = Math.min(sub.length, Math.floor((t - 0.14) * 70));
+    if (n > 0) textO(sub.slice(0, n), nx, 90, col, 1, 'c');
+    rect(nx - 50 * ease((t - 0.14) / 0.2), 100, 100 * ease((t - 0.14) / 0.2), 1, col);
+    if (locked(id) && t > 0.22) text('LOCKED', nx, 106, P.stone2, 1, 'c');
+  }
+  // the slash that cuts to this beat
+  if (t < 0.14) {
+    const sk = ease(t / 0.06);
+    ctx.globalAlpha = 1 - t / 0.14;
+    const y0 = right ? H * 0.15 : H * 0.85, y1 = right ? H * 0.85 : H * 0.15;
+    line(-10, y0, -10 + (W + 20) * sk, y0 + (y1 - y0) * sk, P.paper, 3);
+    ctx.globalAlpha = 1;
+  }
+}
+// where each fighter's face sits on its portrait (0-1 across, 0-1 down), for the lineup slices
+const FOCUS = { BLADE: [0.68, 0.2], GUNNER: [0.6, 0.25], WIZARD: [0.57, 0.23], NINJA: [0.6, 0.21], MECHANIC: [0.57, 0.19], TANK: [0.57, 0.27], ROBOT: [0.5, 0.16], DEV: [0.5, 0.25] };
+// all eight side by side in slanted slices, dropping in from alternate sides
+function drawLineup(t, h) {
+  rect(-10, -10, W + 20, H + 20, P.void);
+  const SW = W / 8, SL = 14;
+  OPTIONS.char.forEach((id, i) => {
+    const k = ease((t - i * 0.05) / 0.22);
+    if (k <= 0) return;
+    const lk = hidden(id), col = lk ? P.dust : CHARS[id].color(), dy = Math.round((i % 2 ? 1 : -1) * (1 - k) * H), x0 = i * SW;
+    const path = (c) => { c.beginPath(); c.moveTo(x0 + SL / 2, dy); c.lineTo(x0 + SW + SL / 2, dy); c.lineTo(x0 + SW - SL / 2, H + dy); c.lineTo(x0 - SL / 2, H + dy); c.closePath(); };
+    ctx.save(); path(ctx); ctx.clip(); rect(x0 - SL, dy, SW + SL * 2, H, P.ink1); glow(x0 + SW / 2, H / 2 + dy, col, 40, 0.3); ctx.restore();
+    const pic = portrait(id), [fx0, fy0] = FOCUS[id];
+    if (pic) {
+      const PW = 150, PH = 225, px0 = x0 + SW / 2 - PW * fx0, py0 = 60 - PH * fy0 + dy;
+      h.save(); path(h); h.clip();
+      if (lk) { const rim = modelFlat(id, col) || pic; h.drawImage(rim, px0 - 1, py0, PW, PH); h.drawImage(rim, px0 + 1, py0, PW, PH); }
+      h.drawImage(pic, px0, py0, PW, PH);
+      if (k < 1) { h.globalAlpha = 1 - k; h.drawImage(modelFlat(id, col) || pic, px0, py0, PW, PH); }
+      h.restore();
+    } else {
+      const s = SPR.chars[id].idles[Math.floor(t * 7 + i) % 8], S = 4;
+      ctx.save(); path(ctx); ctx.clip(); ctx.translate(Math.round(x0 + SW / 2 - (s.w * S) / 2), Math.round(150 - s.h * S + dy)); ctx.scale(S, S); drawSprite(s, 0, 0, false, lk ? '#07050b' : null); ctx.restore();
+    }
+    // the slice edges glow in the fighter's color
+    line(x0 + SW + SL / 2, dy, x0 + SW - SL / 2, H + dy, col);
+  });
+  // on the HD layer, above the portraits
+  if (t > 0.45 && h) { h.globalAlpha = 0.75 * ease((t - 0.45) / 0.15); h.fillStyle = P.void; h.fillRect(0, H - 27, W, 20); h.globalAlpha = 1; target(h); textO('HOLD THE PIT', W / 2, H - 20, P.paper, 2, 'c'); target(null); }
+  else if (t > 0.45) textO('HOLD THE PIT', W / 2, H - 20, P.paper, 2, 'c');
+}
+// the logo: letters slam down one at a time over the arena, the fighters run in under it
+function drawLogoPhase(t) {
+  const lx = Math.round((W - LOGO.width) / 2), ly = 22;
   drawBackdrop(t, 0.6);
-  // logo letters slam down one at a time
+  glow(W / 2, ly + 16, P.ember, 70, 0.14);
   for (let i = 0; i < 8; i++) {
-    const k = (t - LETTER(i)) / 0.14;
+    const k = (t - LETTER(i)) / 0.1;
     if (k <= 0) continue;
     const y = k >= 1 ? 0 : -60 * (1 - k * k);
     ctx.save(); ctx.beginPath(); ctx.rect(lx + i * 24, 0, 24, H); ctx.clip();
     ctx.drawImage(LOGO, lx, ly + Math.round(y));
     ctx.restore();
-    if (k >= 1 && k < 2.2) glow(lx + i * 24 + 12, ly + 28, P.ember, 14, 0.5 * (1 - (k - 1) / 1.2));
+    if (k >= 1 && k < 2.6) glow(lx + i * 24 + 12, ly + 28, P.ember, 16, 0.55 * (1 - (k - 1) / 1.6));
   }
-  // the seven fighters dash in from both sides with trails
   roster().forEach((id, i) => {
-    const k = Math.min(1, (t - (1.55 + i * 0.07)) / 0.28);
+    const k = Math.min(1, (t - PARADE(i)) / 0.28);
     if (k <= 0) return;
     const s = k < 1 ? SPR.chars[id].run[Math.floor(t * 16) % 4] : SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % 8], from = i % 2 ? W + 20 : -30;
     const tx = paradeX(i, s), y = 97 - s.h, e = 1 - Math.pow(1 - k, 3), x = from + (tx - from) * e;
@@ -655,22 +757,63 @@ export function drawIntro(t) {
     ctx.globalAlpha = 1;
     drawSprite(s, x, y, from > tx && k < 1);
   });
-  if (t > 2.3) {
-    const k = (t - 2.3) / 0.8;
+  if (t > ULT) {
+    const k = (t - ULT) / 0.8;
     ring(W / 2, ly + 16, 20 + k * 220, Math.max(1, Math.round(4 * (1 - k))), P.paper);
     ring(W / 2, ly + 16, 10 + k * 160, 1, P.ember);
     textO('THE KING SWALLOWED THE SUN. HOLD THE PIT.'.slice(0, Math.floor(k * 70)), W / 2, ly + 40, P.bone, 1, 'c');
   }
+}
+export function drawIntro(t) {
+  warmPortraits();
+  let sh = 0;
+  for (const [ct, s] of SHAKES) if (t >= ct && t - ct < 0.15) sh = Math.max(sh, s * (1 - (t - ct) / 0.15));
+  sh *= settings.shake;
+  const ox = Math.round((Math.random() - 0.5) * sh * 2), oy = Math.round((Math.random() - 0.5) * sh * 2);
+  // the first cut: a white line runs across the black screen
+  if (t < 0.35) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    const x = Math.round(W * (t / 0.35));
+    rect(0, H / 2, x, 1, P.paper); rect(0, H / 2 + 1, x, 1, P.ember);
+    glow(x, H / 2, P.paper, 18, 0.8);
+    return;
+  }
+  ctx.save(); ctx.translate(ox, oy);
+  const usesHd = t >= BEAT0 && t < LOGO0, [h] = usesHd ? hdBegin() : [null];
+  if (h) { h.save(); h.translate(ox, oy); }
+  if (t < BEAT0) {
+    // the story, typed over the dark arena
+    drawBackdrop(t, 0.85);
+    STORY.forEach(([s, line_], j) => {
+      if (t < s) return;
+      const n = Math.min(line_.length, Math.floor((t - s) * 60));
+      textO(line_.slice(0, n), W / 2, 70 + j * 22, j ? P.ember3 : P.bone, j ? 2 : 1, 'c');
+    });
+    // the screen closes to black for the first fighter
+    if (t > BEAT0 - 0.2) { ctx.globalAlpha = (t - (BEAT0 - 0.2)) / 0.2; rect(-10, -10, W + 20, H + 20, P.void); ctx.globalAlpha = 1; }
+  } else if (t < LINEUP) {
+    const i = Math.floor((t - BEAT0) / BEAT);
+    drawBeat(i, t - BEAT0 - i * BEAT, h);
+  } else if (t < LOGO0) drawLineup(t - LINEUP, h);
+  else drawLogoPhase(t);
   ctx.restore();
-  // the black halves split along the cut
+  if (h) h.restore();
+  // the black halves split along the first cut
   if (t < 0.8) {
-    const k = Math.min(1, (t - 0.35) / 0.45), e = k * k, half = Math.round((H / 2) * (1 - e));
+    const k = Math.min(1, (t - 0.35) / 0.45), e = k * k;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, -Math.round((H / 2) * e), W, H / 2); ctx.fillRect(0, H / 2 + Math.round((H / 2) * e), W, H / 2);
-    if (half > 0) { rect(0, H / 2 - Math.round((H / 2) * e), W, 1, P.ember); rect(0, H / 2 + Math.round((H / 2) * e), W, 1, P.ember); }
+    rect(0, H / 2 - Math.round((H / 2) * e), W, 1, P.ember); rect(0, H / 2 + Math.round((H / 2) * e), W, 1, P.ember);
   }
-  if (t >= 0.35 && t < 0.55) { ctx.globalAlpha = (0.55 - t) / 0.2 * (settings.flash ? 0.8 : 0.15); ctx.fillStyle = P.paper; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
-  if (t >= 2.3 && t < 2.5) { ctx.globalAlpha = (2.5 - t) / 0.2 * (settings.flash ? 0.6 : 0.12); ctx.fillStyle = P.paper; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+  // flashes: the first cut, a soft one on each fighter, and white wipes into the logo and the ultimate ring
+  veil((0.55 - t) / 0.2 * 0.8 * (t < 0.55 ? 1 : 0));
+  if (t >= BEAT0 && t < LINEUP) { const bt = (t - BEAT0) % BEAT; if (bt > 0.1 && bt < 0.2) veil((0.2 - bt) / 0.1 * 0.3); }
+  if (t >= LOGO0 - 0.12 && t < LOGO0 + 0.25) {
+    const a = t < LOGO0 ? (t - (LOGO0 - 0.12)) / 0.12 : 1 - (t - LOGO0) / 0.25;
+    veil(a * 0.95);
+    if (t < LOGO0 && h) { h.globalAlpha = a * (settings.flash ? 1 : 0.2); h.fillStyle = P.paper; h.fillRect(0, 0, W, H); h.globalAlpha = 1; }
+  }
+  if (t >= ULT && t < ULT + 0.2) veil((ULT + 0.2 - t) / 0.2 * 0.6);
 }
 
 // ---------- phone controls: a fixed stick on the left, buttons on the right (drag the attack button to aim) ----------
@@ -729,15 +872,8 @@ function drawTouch(p, kit, full) {
     if (G.deny[b.id] > 0) ring(b.x, b.y, b.r + 1, 1, P.blood);
   }
 }
-export function touchBack(t) {
-  if (!input.touch) return false;
-  text('< BACK', 6, 3, P.dust);
-  return input.mouse.pressed && input.mouse.x < 44 && input.mouse.y < 12;
-}
-
 // ---------- lock-in: the cinematic after you confirm a fighter ----------
 export const LOCK_LEN = 1.45;
-const outC = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
 export function drawLockin(t, id) {
   const ch = CHARS[id], col = ch.color(), set = SPR.chars[id];
   const slam = t > 0.36 && t < 0.62 ? (0.62 - t) / 0.26 : 0;
@@ -751,7 +887,7 @@ export function drawLockin(t, id) {
   }
   // a tilted band the fighter stands on
   ctx.save(); ctx.translate(W / 2, H / 2 + 6); ctx.rotate(-0.16);
-  const bh = 70 * outC(t / 0.22);
+  const bh = 70 * ease(t / 0.22);
   rect(-W, -bh / 2, W * 2, bh, P.ink1); rect(-W, -bh / 2, W * 2, 2, col); rect(-W, bh / 2 - 2, W * 2, 2, col);
   for (let i = 0; i < 12; i++) rect(-W + ((i * 60 + t * 140) % (W * 2)), -bh / 2 + 4, 20, Math.max(0, bh - 8), P.ink0);
   ctx.restore();
@@ -760,7 +896,7 @@ export function drawLockin(t, id) {
   const pic = modelFrame(id, t);
   if (pic) {
     // bigger than the screen: the poster runs off the bottom edge, and pushes in slowly once it lands
-    const [h] = hdBegin(), k = outC((t - 0.06) / 0.28), push = 1 + Math.max(0, t - 0.34) * 0.05;
+    const [h] = hdBegin(), k = ease((t - 0.06) / 0.28), push = 1 + Math.max(0, t - 0.34) * 0.05;
     const MW2 = 156 * push, MH2 = 234 * push, x = -170 + (2 + 170) * k - (MW2 - 156) / 2, y = -16 - (MH2 - 234) * 0.3;
     h.save();
     if (slam) h.translate(Math.round((Math.random() - 0.5) * 8 * slam), Math.round((Math.random() - 0.5) * 5 * slam));
@@ -772,7 +908,7 @@ export function drawLockin(t, id) {
     h.restore();
   }
   // the fighter dashes in at 5x with afterimages, then settles and breathes
-  const S = 5, k = outC((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % 4] : set.idles[Math.floor(t * 7) % 8];
+  const S = 5, k = ease((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % 4] : set.idles[Math.floor(t * 7) % 8];
   if (!pic) {
   const tx = 34, x = -130 + (tx + 130) * k, y = Math.round(H / 2 + 8 - (fr.h * S) / 2 + (k >= 1 && Math.floor(t * 3) % 2 ? 1 : 0));
   if (k < 1) for (let g = 4; g >= 1; g--) {
@@ -786,7 +922,7 @@ export function drawLockin(t, id) {
   }
   // the slash across the screen
   if (t > 0.3 && t < 0.62) {
-    const sk = outC((t - 0.3) / 0.08), fade = t > 0.45 ? 1 - (t - 0.45) / 0.17 : 1;
+    const sk = ease((t - 0.3) / 0.08), fade = t > 0.45 ? 1 - (t - 0.45) / 0.17 : 1;
     ctx.globalAlpha = Math.max(0, fade);
     line(-10, H * 0.82, -10 + (W + 20) * sk, H * 0.82 - (W + 20) * sk * 0.5, P.paper, 3);
     line(-10, H * 0.82 + 3, -10 + (W + 20) * sk, H * 0.82 + 3 - (W + 20) * sk * 0.5, col, 1);
@@ -794,13 +930,13 @@ export function drawLockin(t, id) {
   }
   // the name slams down, then the title types in
   if (t > 0.36) {
-    const nk = outC((t - 0.36) / 0.12);
+    const nk = ease((t - 0.36) / 0.12);
     textO(ch.hero, 222, 50 - Math.round((1 - nk) * 30), nk < 1 ? col : P.paper, nk < 1 ? 4 : 3, 'c');
   }
   if (t > 0.52) {
     const sub = 'THE ' + ch.name.replace('THE ', ''), n = Math.min(sub.length, Math.floor((t - 0.52) * 40));
     textO(sub.slice(0, n), 222, 82, col, 1, 'c');
-    rect(222 - 60 * outC((t - 0.6) / 0.25), 94, 120 * outC((t - 0.6) / 0.25), 1, col);
+    rect(222 - 60 * ease((t - 0.6) / 0.25), 94, 120 * ease((t - 0.6) / 0.25), 1, col);
   }
   if (t > 0.8) textO('READY', 222, 102, Math.floor(t * 8) % 2 ? P.paper : P.dust, 1, 'c');
   ctx.restore();

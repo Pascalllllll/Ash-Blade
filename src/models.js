@@ -2,7 +2,7 @@
 // that animates it). They are plain scripts, loaded here only when the select screen first opens so
 // the game itself starts as fast as before. Frames are painted as they are needed and cached; only
 // the current fighter keeps its whole animation in memory.
-const Q = '?v=57';
+const Q = '?v=59';
 const FILES = { BLADE: 'kael', GUNNER: 'vega', WIZARD: 'morrow', NINJA: 'rin', MECHANIC: 'rivet', TANK: 'grom', ROBOT: 'unit7', DEV: 'dev' };
 export const hasModel = (id) => id in FILES;
 let state = 'idle';

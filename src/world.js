@@ -1,13 +1,13 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=57';
-import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=57';
-import { A } from './audio.js?v=57';
-import { input, keyDown, keyHit } from './input.js?v=57';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=57';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=57';
-import { CHARS, ALLY } from './chars.js?v=57';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=57';
-import { byId } from './upgrades.js?v=57';
-import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=57';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=59';
+import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=59';
+import { A } from './audio.js?v=59';
+import { input, keyDown, keyHit } from './input.js?v=59';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=59';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=59';
+import { CHARS, ALLY } from './chars.js?v=59';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=59';
+import { byId } from './upgrades.js?v=59';
+import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=59';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;

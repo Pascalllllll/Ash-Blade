@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=57';
-import { input, keyHit, endFrame } from './input.js?v=57';
-import { A } from './audio.js?v=57';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=57';
-import { buildSprites } from './sprites.js?v=57';
-import { byId } from './upgrades.js?v=57';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=57';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=59';
+import { input, keyHit, endFrame } from './input.js?v=59';
+import { A } from './audio.js?v=59';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=59';
+import { buildSprites } from './sprites.js?v=59';
+import { byId } from './upgrades.js?v=59';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=59';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=57';
+} from './ui.js?v=59';
 
 loadAll();
 applyTheme(settings.theme);
@@ -76,7 +76,7 @@ function tick(now) {
     if (input.any || input.mouse.pressed) { A.init(settings); A.scene('title'); go('intro'); }
     drawSplash(sceneT, input.touch);
   } else if (scene === 'intro') {
-    for (const [ct, cue] of INTRO_CUES) if (sceneT >= ct && sceneT - rdt < ct) { A[cue](); if (cue === 'riftCut' || cue === 'ultRelease') buzz('heavy'); else if (cue === 'wall') buzz('tap'); }
+    for (const [ct, cue, bz] of INTRO_CUES) if (sceneT >= ct && sceneT - rdt < ct) { cue(); if (bz) buzz(bz); }
     if (sceneT > 0.3 && (input.any || input.mouse.pressed)) go('title');
     else if (sceneT >= INTRO_LEN) go('title');
     else drawIntro(sceneT);
