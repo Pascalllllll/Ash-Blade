@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=60';
-import { input, keyHit, endFrame } from './input.js?v=60';
-import { A } from './audio.js?v=60';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=60';
-import { buildSprites } from './sprites.js?v=60';
-import { byId } from './upgrades.js?v=60';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=60';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=61';
+import { input, keyHit, endFrame } from './input.js?v=61';
+import { A } from './audio.js?v=61';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=61';
+import { buildSprites } from './sprites.js?v=61';
+import { byId } from './upgrades.js?v=61';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=61';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
-  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=60';
+  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, INTRO_CUES,
+} from './ui.js?v=61';
 
 loadAll();
 applyTheme(settings.theme);
@@ -53,6 +53,7 @@ function tick(now) {
   const rdt = Math.max(0, Math.min(0.05, (now - last) / 1000));
   last = now;
   sceneT += rdt;
+  if (scene === 'intro') sceneT = introClock(sceneT, rdt);
 
   let ts = 1;
   if (fx.freeze > 0) { fx.freeze -= rdt; ts = 0; }

@@ -1,14 +1,14 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=60';
-import { loadModels, modelsReady, hasModel, modelFrame, modelFlat, modelStill } from './models.js?v=60';
-import { SPR, icon } from './sprites.js?v=60';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=60';
-import { A } from './audio.js?v=60';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=60';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=60';
-import { CHARS } from './chars.js?v=60';
-import { BOSSES, bossFor } from './bosses.js?v=60';
-import { MAPS } from './maps.js?v=60';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=60';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=61';
+import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill } from './models.js?v=61';
+import { SPR, icon } from './sprites.js?v=61';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=61';
+import { A } from './audio.js?v=61';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=61';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=61';
+import { CHARS } from './chars.js?v=61';
+import { BOSSES, bossFor } from './bosses.js?v=61';
+import { MAPS } from './maps.js?v=61';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=61';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -629,7 +629,17 @@ export const INTRO_CUES = [
 // screen shake: [time, strength]
 const SHAKES = [[0.35, 4], ...STORY.map(([t]) => [t, 1.5]), ...OPTIONS.char.map((_, i) => [BEAT0 + i * BEAT + 0.1, 3]), [LINEUP + 0.35, 2], [LOGO0, 4], ...Array.from({ length: 8 }, (_, i) => [LETTER(i) + 0.1, 2]), [ULT, 5]];
 // the portraits load while the press-to-begin gate waits; one still is painted per frame
-let warm = 0;
+let warm = 0, held = 0;
+const portraitsWarm = () => warm >= OPTIONS.char.length;
+// The opening waits on its story lines until every portrait is ready, so the fighter cuts never fall
+// back to the small sprites. A very slow connection gives up after 12 seconds and uses the sprites.
+const HOLD = BEAT0 - 0.25;
+export function introClock(t, dt) {
+  if (t <= HOLD || t - dt > HOLD || portraitsWarm() || modelsFailed() || held > 12) return t;
+  held += dt;
+  return HOLD;
+}
+const holding = (t) => t >= HOLD - 0.001 && t <= HOLD + 0.001 && !portraitsWarm();
 function warmPortraits() {
   loadModels();
   if (!modelsReady() || warm >= OPTIONS.char.length * 2) return;
@@ -789,6 +799,8 @@ export function drawIntro(t) {
       const n = Math.min(line_.length, Math.floor((t - s) * 60));
       textO(line_.slice(0, n), W / 2, 70 + j * 22, j ? P.ember3 : P.bone, j ? 2 : 1, 'c');
     });
+    // still waiting on the portraits: a thin bar fills under the story
+    if (holding(t)) { const w = 120; rect(W / 2 - w / 2, 128, w, 1, P.ink3); rect(W / 2 - w / 2, 128, Math.round(w * (0.1 + 0.9 * modelsProgress()) * (modelsReady() ? 0.9 + 0.1 * warm / 8 : 0.9)), 1, P.ember); }
     // the screen closes to black for the first fighter
     if (t > BEAT0 - 0.2) { ctx.globalAlpha = (t - (BEAT0 - 0.2)) / 0.2; rect(-10, -10, W + 20, H + 20, P.void); ctx.globalAlpha = 1; }
   } else if (t < LINEUP) {

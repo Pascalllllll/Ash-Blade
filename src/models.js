@@ -1,25 +1,27 @@
-// The big animated fighter portraits for the select screen live in model/ (pixel data plus the code
-// that animates it). They are plain scripts, loaded here only when the select screen first opens so
-// the game itself starts as fast as before. Frames are painted as they are needed and cached; only
+// The big animated fighter portraits live in model/ (pixel data plus the code that animates it). They
+// are plain scripts, all requested at once as the page opens (downloaded in parallel, run in order),
+// so the opening cinematic can show them. Frames are painted as they are needed and cached; only
 // the current fighter keeps its whole animation in memory.
-const Q = '?v=60';
+const Q = '?v=61';
 const FILES = { BLADE: 'kael', GUNNER: 'vega', WIZARD: 'morrow', NINJA: 'rin', MECHANIC: 'rivet', TANK: 'grom', ROBOT: 'unit7', DEV: 'dev' };
 export const hasModel = (id) => id in FILES;
-let state = 'idle';
+let state = 'idle', loaded = 0, total = 1;
 export const modelsReady = () => state === 'ready';
+export const modelsFailed = () => state === 'failed';
+// 0 to 1, how much of the portrait data has arrived
+export const modelsProgress = () => (state === 'ready' ? 1 : loaded / total);
 export function loadModels() {
   if (state !== 'idle') return;
   state = 'loading';
   const files = ['model/pixel.js', ...Object.values(FILES).flatMap((n) => [`model/data/${n}.js`, `model/${n}.js`])];
-  const next = (i) => {
-    if (i >= files.length) { state = 'ready'; return; }
+  total = files.length;
+  for (const f of files) {
     const el = document.createElement('script');
-    el.src = files[i] + Q;
-    el.onload = () => next(i + 1);
+    el.src = f + Q; el.async = false;
+    el.onload = () => { if (++loaded === total && state === 'loading') state = 'ready'; };
     el.onerror = () => { state = 'failed'; };
     document.head.append(el);
-  };
-  next(0);
+  }
 }
 const frames = new Map(), recent = [];
 const paint = (name, i) => { const m = window.Pixel.models[name], img = window.Pixel.load(m.data); return window.Pixel.toCanvas(window.Pixel.render(name, i), img.w, img.h, 1); };
