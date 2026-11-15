@@ -1,13 +1,14 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=53';
-import { SPR, icon } from './sprites.js?v=53';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=53';
-import { A } from './audio.js?v=53';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=53';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=53';
-import { CHARS } from './chars.js?v=53';
-import { BOSSES, bossFor } from './bosses.js?v=53';
-import { MAPS } from './maps.js?v=53';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=53';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=57';
+import { loadModels, modelsReady, hasModel, modelFrame, modelFlat } from './models.js?v=57';
+import { SPR, icon } from './sprites.js?v=57';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=57';
+import { A } from './audio.js?v=57';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=57';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=57';
+import { CHARS } from './chars.js?v=57';
+import { BOSSES, bossFor } from './bosses.js?v=57';
+import { MAPS } from './maps.js?v=57';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=57';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -41,6 +42,12 @@ export function cursor() {
   const c = G && G.p && G.p.state === 'attack' ? P.ember2 : P.paper;
   for (const [dx, dy] of [[-4, 0], [-3, 0], [3, 0], [4, 0], [0, -4], [0, -3], [0, 3], [0, 4]]) { px(x + dx + 1, y + dy + 1, P.ink0); px(x + dx, y + dy, c); }
   px(x, y, P.ember);
+  // the HD layer covers the screen on the select screen: draw the same cursor on it
+  if (hdActive()) {
+    const h = hdCtx();
+    for (const [dx, dy] of [[-4, 0], [-3, 0], [3, 0], [4, 0], [0, -4], [0, -3], [0, 3], [0, 4]]) { h.fillStyle = P.ink0; h.fillRect(x + dx + 1, y + dy + 1, 1, 1); h.fillStyle = c; h.fillRect(x + dx, y + dy, 1, 1); }
+    h.fillStyle = P.ember; h.fillRect(x, y, 1, 1);
+  }
 }
 
 // ---------- a reusable list menu ----------
@@ -259,8 +266,10 @@ export function drawTitle(t, items) {
 }
 
 // ---------- character select ----------
-export const sel = { i: 0, row: 0, t: 0 };
-const NCH = OPTIONS.char.length, PW = 36, PG = 2, PX0 = Math.round((W - (NCH * PW + (NCH - 1) * PG)) / 2), PY = 12;
+// The chosen fighter stands big on the left: an animated portrait from model/, drawn on the HD layer
+// so every one of its pixels shows. The roster is a grid of slanted face tiles on the right, with
+// lore, stats, attacks, arena, difficulty and START under it.
+export const sel = { i: 0, row: 0, t: 0, shown: -1, swap: 0 };
 // draws only the top rows of a sprite (head and shoulders), optionally scaled
 function bust(s, x, y, rows, scale = 1, tint = null) {
   ctx.drawImage(tint ? s.tint(tint, false) : s.n, 0, 0, s.w, rows, Math.round(x), Math.round(y), s.w * scale, rows * scale);
@@ -268,12 +277,22 @@ function bust(s, x, y, rows, scale = 1, tint = null) {
 export const roster = () => OPTIONS.char.filter(isUnlocked);
 const locked = (id) => !isUnlocked(id);
 const cycle = (list, cur, dir) => list[(list.indexOf(cur) + dir + list.length) % list.length];
+// roster tiles: 4 x 2, each a parallelogram leaning right by SLANT pixels
+const TW = 38, TH = 26, TG = 3, SLANT = 4, TX0 = 154, TY0 = 10;
+const tilePos = (i) => [TX0 + (i % 4) * (TW + TG), TY0 + Math.floor(i / 4) * (TH + TG)];
+const ROW_Y = { 1: 139, 2: 148 }, START_Y = 158, PANEL_C = 236;
 export function updateSelect(dt) {
   sel.t += dt;
+  loadModels();
   const ids = OPTIONS.char;
-  const rows = 4;
-  if (keyHit('ArrowUp', 'KeyW')) { sel.row = (sel.row + rows - 1) % rows; A.ui(); }
-  if (keyHit('ArrowDown', 'KeyS')) { sel.row = (sel.row + 1) % rows; A.ui(); }
+  const up = keyHit('ArrowUp', 'KeyW'), down = keyHit('ArrowDown', 'KeyS');
+  // up and down walk the two tile rows first, then the arena, difficulty and START rows
+  if (up || down) {
+    A.ui();
+    if (sel.row === 0 && down && sel.i < 4) sel.i += 4;
+    else if (sel.row === 0 && up && sel.i >= 4) sel.i -= 4;
+    else sel.row = (sel.row + (down ? 1 : 3)) % 4;
+  }
   const lr = keyHit('ArrowLeft', 'KeyA') ? -1 : keyHit('ArrowRight', 'KeyD') ? 1 : 0;
   if (lr) {
     A.ui();
@@ -282,19 +301,19 @@ export function updateSelect(dt) {
     else if (sel.row === 2) return { diff: cycle(OPTIONS.diff, settings.diff, lr) };
   }
   for (let i = 0; i < ids.length; i++) {
-    if (!inBox(PX0 + i * (PW + PG), PY, PW, 36)) continue;
+    const [x, y] = tilePos(i);
+    if (!inBox(x, y, TW + SLANT, TH)) continue;
     if (input.mouse.moved && sel.i !== i) { sel.i = i; sel.row = 0; A.ui(); }
-    if (input.mouse.pressed) {
-      sel.i = i; sel.row = 0; A.ui();
-    }
+    if (input.mouse.pressed) { sel.i = i; sel.row = 0; A.ui(); }
   }
-  for (const [row, y, key] of [[1, 126, 'map'], [2, 137, 'diff']]) {
-    if (!inBox(12, y - 3, 296, 11)) continue;
+  for (const row of [1, 2]) {
+    const y = ROW_Y[row], key = row === 1 ? 'map' : 'diff';
+    if (!inBox(152, y - 2, 164, 9)) continue;
     if (input.mouse.moved) sel.row = row;
-    if (input.mouse.pressed) { A.ui(); return { [key]: cycle(OPTIONS[key], settings[key], input.mouse.x > W / 2 ? 1 : -1) }; }
+    if (input.mouse.pressed) { A.ui(); return { [key]: cycle(OPTIONS[key], settings[key], input.mouse.x > PANEL_C ? 1 : -1) }; }
   }
   const go = () => { if (locked(ids[sel.i])) { A.deny(); return null; } return { start: ids[sel.i] }; };
-  if (inBox(W / 2 - 50, 151, 100, 12)) { if (input.mouse.moved) sel.row = 3; if (input.mouse.pressed) return go(); }
+  if (inBox(PANEL_C - 40, START_Y, 80, 11)) { if (input.mouse.moved) sel.row = 3; if (input.mouse.pressed) return go(); }
   if (keyHit('Enter', 'Space') && sel.t > 0.2) return go();
   if (keyHit('Escape') || (input.touch && input.mouse.pressed && input.mouse.x < 44 && input.mouse.y < 12)) return { back: true };
   return null;
@@ -302,76 +321,118 @@ export function updateSelect(dt) {
 // The Dev's stats are corrupted: bars fill at random, jitter, change color and the labels scramble.
 // The noise changes 12 times a second (not every frame) so it reads as a glitch, not a strobe.
 const GLITCH_LABELS = { POWER: ['P0W3R', 'PWR??', 'ERR', 'P_WER'], SPEED: ['SP33D', 'S?EED', 'NULL', '0x5P'], RANGE: ['R4NG3', 'RANG#', 'UNDEF', 'R@NGE'], TOUGH: ['T0UGH', 'TOU??', 'NaN', 'T#UGH'] };
-function glitchBars(bars, t) {
+// stat bars in two columns; glitch scrambles them for The Dev
+function drawBars(bars, col, t, glitch) {
   const tick = Math.floor(t * 12);
   const rnd = (n) => { const x = Math.sin(tick * 12.9898 + n * 78.233) * 43758.5453; return x - Math.floor(x); };
   const cols = ['#39ff6a', '#ff4fa8', P.paper, '#1a6a2a'];
-  bars.forEach(([n], i) => {
+  bars.forEach(([n, v], i) => {
+    const lx = 154 + (i % 2) * 82, y = 85 + Math.floor(i / 2) * 7;
+    if (!glitch) { text(n, lx, y, P.dust); for (let j = 0; j < 5; j++) rect(lx + 24 + j * 10, y + 1, 8, 3, j < v ? col : P.ink3); return; }
     const r0 = rnd(i), lab = r0 < 0.55 ? n : GLITCH_LABELS[n][Math.floor(rnd(i + 10) * 4)];
     const jx = rnd(i + 20) < 0.25 ? Math.round((rnd(i + 30) - 0.5) * 6) : 0;
-    text(lab, 206 + jx, 54 + i * 7, r0 < 0.55 ? P.dust : cols[Math.floor(rnd(i + 40) * 3)]);
+    text(lab, lx + jx, y, r0 < 0.55 ? P.dust : cols[Math.floor(rnd(i + 40) * 3)]);
     const fill = Math.floor(rnd(i + 50) * 6);
     for (let j = 0; j < 5; j++) {
-      const sx = rnd(i * 5 + j + 60) < 0.18 ? Math.round((rnd(i * 5 + j + 70) - 0.5) * 8) : 0;
-      const w = rnd(i * 5 + j + 80) < 0.15 ? 4 + Math.floor(rnd(i * 5 + j + 90) * 14) : 12;
-      rect(238 + j * 14 + jx + sx, 55 + i * 7, w, 3, j < fill ? cols[Math.floor(rnd(i * 5 + j + 100) * 4)] : P.ink3);
+      const sx = rnd(i * 5 + j + 60) < 0.18 ? Math.round((rnd(i * 5 + j + 70) - 0.5) * 6) : 0;
+      const w = rnd(i * 5 + j + 80) < 0.15 ? 3 + Math.floor(rnd(i * 5 + j + 90) * 10) : 8;
+      rect(lx + 24 + j * 10 + jx + sx, y + 1, w, 3, j < fill ? cols[Math.floor(rnd(i * 5 + j + 100) * 4)] : P.ink3);
     }
-    if (rnd(i + 110) < 0.2) text('?', 238 + Math.floor(rnd(i + 120) * 64), 54 + i * 7, '#ff4fa8');
+    if (rnd(i + 110) < 0.2) text('?', lx + 24 + Math.floor(rnd(i + 120) * 48), y, '#ff4fa8');
   });
-  if (rnd(200) < 0.12) text('NaN', 238 + Math.floor(rnd(201) * 50), 53 + Math.floor(rnd(202) * 26), P.paper);
+}
+// one parallelogram tile path
+function tilePath(x, y, c = ctx) {
+  c.beginPath(); c.moveTo(x + SLANT, y); c.lineTo(x + TW + SLANT, y); c.lineTo(x + TW, y + TH); c.lineTo(x, y + TH); c.closePath();
+}
+const PANEL = [[0, 0], [150, 0], [132, H], [0, H]];
+const panelPath = (c) => { c.beginPath(); PANEL.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); };
+// the portrait's box in game units: the full screen height, centered in the left panel
+const MW = 120, MH = 180, NAME = makeCanvas(150, 40);
+// the big fighter on the left: slides in when picked, flashes white as it lands, then plays its loop
+function drawHero(id, t, col, lk, h) {
+  const e0 = (t - sel.swap) / 0.28, e = ease(e0), x0 = 12 - (1 - e) * 46;
+  ctx.save(); panelPath(ctx); ctx.clip();
+  rect(0, 0, 150, H, P.ink1);
+  ctx.globalAlpha = 0.14 + (1 - e) * 0.25;
+  for (let s = -H; s < 160; s += 9) { ctx.beginPath(); ctx.moveTo(s, H); ctx.lineTo(s + 3, H); ctx.lineTo(s + 3 + H * 0.35, 0); ctx.lineTo(s + H * 0.35, 0); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); }
+  ctx.globalAlpha = 1;
+  glow(x0 + MW / 2, 70, col, 70, lk ? 0.08 : 0.24);
+  // speed lines while it slides in
+  if (e0 < 1) for (let i = 0; i < 7; i++) { const yy = 30 + ((i * 37) % 130); rect(0, yy, Math.round(90 * (1 - e)) + (i % 3) * 8, 1, P.paper); }
+  ctx.globalAlpha = 0.45; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(x0 + MW / 2, 174, 34, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+  // no portrait for this fighter yet (or still loading): the in-game sprite, big
+  if (!hasModel(id) || !modelsReady()) {
+    const s = SPR.chars[id].idles[Math.floor(t * 7) % 8], k = 6;
+    ctx.globalAlpha = Math.min(1, e0 * 2.5 + 0.2);
+    ctx.drawImage(lk ? s.tint('#07050b', false) : s.n, Math.round(x0 + MW / 2 - (s.w * k) / 2), 172 - s.h * k, s.w * k, s.h * k);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  line(150, 0, 132, H, col);
+  if (!hasModel(id) || !modelsReady()) return;
+  const img = lk ? modelFlat(id, '#07050b') : modelFrame(id, t);
+  if (!img) return;
+  h.save(); panelPath(h); h.clip();
+  h.globalAlpha = Math.min(1, e0 * 2.5 + 0.2);
+  h.drawImage(img, x0, 0, MW, MH);
+  if (!lk && e0 >= 1 && e0 < 1.35) { h.globalAlpha = 1 - (e0 - 1) / 0.35; const wf = modelFlat(id, '#ffffff'); if (wf) h.drawImage(wf, x0, 0, MW, MH); }
+  h.restore();
 }
 export function drawSelect(t) {
   drawBackdrop(t, 0.75);
-  const ids = OPTIONS.char, k = CHARS[ids[sel.i]], col = locked(ids[sel.i]) ? P.dust : k.color();
-  text('CHOOSE YOUR FIGHTER', W / 2, 3, P.dust, 1, 'c');
-  ids.forEach((id, i) => {
-    const x = PX0 + i * (PW + PG), on = i === sel.i, ch = CHARS[id];
-    rect(x - 1, PY - 1, PW + 2, 38, on ? ch.color() : P.ink0);
-    rect(x, PY, PW, 36, on ? P.ink2 : P.ink1);
-    if (on) glow(x + PW / 2, PY + 18, ch.color(), 16, 0.18);
-    const lk = locked(id), s = on && !lk ? SPR.chars[id].run[Math.floor(t * 9) % 4] : lk ? SPR.chars[id].idle : SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % 8];
-    // the whole fighter at 2x
-    ctx.save(); ctx.beginPath(); ctx.rect(x, PY, PW, 36); ctx.clip(); bust(s, x + PW / 2 - s.w, PY - (on && !lk ? Math.floor(t * 9) % 2 : 0), s.h, 2, lk ? '#0a0810' : null); ctx.restore();
-    if (lk) {
-      // a small padlock over the silhouette
-      const lx2 = x + PW / 2 - 4, ly2 = PY + 13;
-      ring(lx2 + 4, ly2, 3, 1, P.dust); rect(lx2, ly2, 9, 7, P.stone2); rect(lx2 + 4, ly2 + 2, 1, 3, P.ink0);
-    }
-    const rec = best.chars[id];
-    if (rec && rec.won) px(x + PW - 4, PY + 3, P.gold);
+  const ids = OPTIONS.char, id = ids[sel.i], k = CHARS[id], lk = locked(id), col = lk ? P.dust : k.color();
+  if (sel.shown !== sel.i) { sel.shown = sel.i; sel.swap = t; }
+  const [h] = hdBegin();
+  drawHero(id, t, col, lk, h);
+  // name over the left panel: painted into its own small canvas and put on the HD layer, above the portrait
+  const secret = lk && id === 'DEV', ny = input.touch ? 12 : 6;
+  const g = NAME.getContext('2d'); g.clearRect(0, 0, NAME.width, NAME.height); target(g);
+  textO(secret ? '???' : k.hero, 8, ny, col, 2);
+  text(secret ? 'A SECRET FIGHTER' : k.name, 8, ny + 13, lk ? P.stone2 : P.bone);
+  const rec = best.chars[id];
+  if (rec && !lk) text('BEST WAVE ' + rec.wave + (rec.won ? '  KING SLAIN' : ''), 8, ny + 20, P.gold);
+  target(null);
+  h.drawImage(NAME, 0, 0);
+  // roster
+  text('CHOOSE YOUR FIGHTER', PANEL_C, 2, P.dust, 1, 'c');
+  ids.forEach((cid, i) => {
+    const [x, y] = tilePos(i), on = i === sel.i, ch = CHARS[cid], tlk = locked(cid);
+    ctx.save(); tilePath(x, y); ctx.fillStyle = on ? P.ink2 : P.ink1; ctx.fill(); ctx.clip();
+    if (on) glow(x + TW / 2, y + TH / 2, ch.color(), 22, 0.25);
+    // the in-game pixel fighter: the picked one runs, the others breathe and blink, locked ones are dark
+    const set = SPR.chars[cid], s = on && !tlk ? set.run[Math.floor(t * 9) % 4] : tlk ? set.idle : set.idles[Math.floor(t * 7 + i * 3) % 8];
+    // at 1x the whole fighter fits inside the tile
+    bust(s, x + Math.round((TW + SLANT - s.w) / 2), y + TH - s.h - 4 - (on && !tlk ? Math.floor(t * 9) % 2 : 0), s.h, 1, tlk ? '#0a0810' : null);
+    if (!on && !tlk) { ctx.globalAlpha = 0.3; rect(x, y, TW + SLANT, TH, P.ink0); ctx.globalAlpha = 1; }
+    ctx.restore();
+    tilePath(x, y); ctx.lineWidth = 1; ctx.strokeStyle = on ? ch.color() : P.ink3; ctx.stroke();
+    if (tlk) { const lx = x + TW / 2 - 2, ly = y + 12; ring(lx + 4, ly, 3, 1, P.dust); rect(lx, ly, 9, 7, P.stone2); rect(lx + 4, ly + 2, 1, 3, P.ink0); }
+    const r = best.chars[cid];
+    if (r && r.won) px(x + TW + SLANT - 5, y + 3, P.gold);
+    if (on) { const mx = x + TW / 2 + SLANT, my = y - 1 + (Math.floor(t * 4) % 2); for (let j = 0; j < 3; j++) rect(mx - j, my - 3 + j, 1 + j * 2, 1, ch.color()); }
   });
-  if (locked(ids[sel.i])) {
-    const secret = ids[sel.i] === 'DEV';
-    textO(secret ? '???' : k.hero, 12, 54, P.dust, 2);
-    text(secret ? 'A SECRET FIGHTER' : k.name, 12 + (secret ? 3 : k.hero.length) * 8 + 4, 59, P.stone2);
-    textO('LOCKED', 12, 70, P.blood);
-    text('TO UNLOCK: ' + k.mission[0], 12, 82, P.gold);
-    text(k.mission[1](), 12, 92, P.bone);
+  if (lk) {
+    textO('LOCKED', PANEL_C, 74, P.blood, 2, 'c');
+    text('TO UNLOCK', PANEL_C, 92, P.dust, 1, 'c');
+    text(k.mission[0], PANEL_C, 100, P.gold, 1, 'c');
+    text(k.mission[1](), PANEL_C, 108, P.bone, 1, 'c');
   } else {
-  textO(k.hero, 12, 54, col, 2);
-  if (k.hero !== k.name) text(k.name, 12 + k.hero.length * 8 + 4, 59, P.dust);
-  text(k.lore[0], 12, 68, P.bone); text(k.lore[1], 12, 75, P.bone);
-  const bars = [['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]];
-  if (ids[sel.i] === 'DEV' && !locked('DEV')) glitchBars(bars, t);
-  else bars.forEach(([n, v], i) => { text(n, 206, 54 + i * 7, P.dust); for (let j = 0; j < 5; j++) rect(238 + j * 14, 55 + i * 7, 12, 3, j < v ? col : P.ink3); });
-  const ab = [['CLICK', k.primaryName + (k.charge ? '   HOLD: ' + k.charge.name : ''), ''], ['Q', k.q.name + ' ' + k.q.cost, k.q.desc], ['E', k.e.name + ' ' + k.e.cost, k.e.desc], ['R', k.r.name, k.r.desc]];
-  ab.forEach(([key, name, d], i) => { const y = 86 + i * 8; text(key, 34, y, P.ember2, 1, 'r'); text(name, 40, y, P.paper); text(d, 308, y, P.dust, 1, 'r'); });
-  const rec = best.chars[ids[sel.i]];
-  // under the stat bars, where the CLICK row leaves the right side free
-  if (rec) text('BEST WAVE ' + rec.wave + (rec.won ? '  KING SLAIN' : ''), 308, 84, P.gold, 1, 'r');
+    text(k.lore[0], 154, 70, P.bone); text(k.lore[1], 154, 77, P.bone);
+    drawBars([['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]], col, t, id === 'DEV');
+    const ab = [['CLICK', k.primaryName], ...(k.charge ? [['HOLD', k.charge.name]] : []), ['Q', k.q.name + ' ' + k.q.cost], ['E', k.e.name + ' ' + k.e.cost], ['R', k.r.name]];
+    ab.forEach(([key, name], i) => { const y = 101 + i * 7; text(key, 174, y, P.ember2, 1, 'r'); text(name, 178, y, P.paper); });
   }
-  const rowsY = [[1, 126, 'ARENA', MAPS[settings.map].name, MAPS[settings.map].desc], [2, 137, 'DIFFICULTY', settings.diff, { EASY: 'MORE HEALTH, SOFTER FOES', NORMAL: 'THE INTENDED FIGHT', HARD: 'TOUGHER, FASTER, MORE', NIGHTMARE: 'EVERY HIT HURTS MORE' }[settings.diff]]];
-  for (const [row, y, label, val, d] of rowsY) {
-    const on = sel.row === row;
-    if (on) { rect(12, y - 3, 296, 10, P.ink3); rect(12, y - 3, 2, 10, P.ember); }
-    text(label, 20, y, on ? P.paper : P.dust);
-    text((on ? '< ' : '') + val + (on ? ' >' : ''), 140, y, on ? P.ember2 : P.bone, 1, 'c');
-    text(d, 304, y, P.stone2, 1, 'r');
+  for (const [row, label, val] of [[1, 'ARENA', MAPS[settings.map].name], [2, 'DIFFICULTY', settings.diff]]) {
+    const on = sel.row === row, y = ROW_Y[row];
+    if (on) { rect(152, y - 2, 164, 9, P.ink3); rect(152, y - 2, 2, 9, P.ember); }
+    text(label, 158, y, on ? P.paper : P.dust);
+    text((on ? '< ' : '') + val + (on ? ' >' : ''), 312, y, on ? P.ember2 : P.bone, 1, 'r');
   }
   const on = sel.row === 3, pulse = Math.floor(t * 3) % 2;
-  rect(W / 2 - 50, 151, 100, 12, on ? col : P.ink3);
-  textO('START', W / 2, 155, on && pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
-  if (input.touch) text('< BACK', 6, 3, P.dust); else text('ENTER START   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
+  rect(PANEL_C - 40, START_Y, 80, 11, on ? col : P.ink3);
+  textO('START', PANEL_C, START_Y + 3, on && pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
+  if (input.touch) text('< BACK', 6, 3, P.dust); else text('ENTER START   ESC BACK', PANEL_C, 173, P.stone2, 1, 'c');
 }
 
 // ---------- settings ----------
@@ -694,8 +755,25 @@ export function drawLockin(t, id) {
   rect(-W, -bh / 2, W * 2, bh, P.ink1); rect(-W, -bh / 2, W * 2, 2, col); rect(-W, bh / 2 - 2, W * 2, 2, col);
   for (let i = 0; i < 12; i++) rect(-W + ((i * 60 + t * 140) % (W * 2)), -bh / 2 + 4, 20, Math.max(0, bh - 8), P.ink0);
   ctx.restore();
+  // the fighter's big portrait dashes in on the HD layer with afterimages, flashes white as the slash
+  // lands, then plays its loop. Without the portrait (still loading) the 5x sprite does the same.
+  const pic = modelFrame(id, t);
+  if (pic) {
+    // bigger than the screen: the poster runs off the bottom edge, and pushes in slowly once it lands
+    const [h] = hdBegin(), k = outC((t - 0.06) / 0.28), push = 1 + Math.max(0, t - 0.34) * 0.05;
+    const MW2 = 156 * push, MH2 = 234 * push, x = -170 + (2 + 170) * k - (MW2 - 156) / 2, y = -16 - (MH2 - 234) * 0.3;
+    h.save();
+    if (slam) h.translate(Math.round((Math.random() - 0.5) * 8 * slam), Math.round((Math.random() - 0.5) * 5 * slam));
+    glow(x + MW2 / 2, H / 2, col, 70, 0.3);
+    if (k < 1) for (let g = 4; g >= 1; g--) { h.globalAlpha = 0.3 / g; h.drawImage(modelFlat(id, col) || pic, x - g * 18, y, MW2, MH2); }
+    h.globalAlpha = 1;
+    h.drawImage(pic, x, y, MW2, MH2);
+    if (t > 0.36 && t < 0.5) { h.globalAlpha = 1 - (t - 0.36) / 0.14; h.drawImage(modelFlat(id, '#ffffff') || pic, x, y, MW2, MH2); h.globalAlpha = 1; }
+    h.restore();
+  }
   // the fighter dashes in at 5x with afterimages, then settles and breathes
   const S = 5, k = outC((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % 4] : set.idles[Math.floor(t * 7) % 8];
+  if (!pic) {
   const tx = 34, x = -130 + (tx + 130) * k, y = Math.round(H / 2 + 8 - (fr.h * S) / 2 + (k >= 1 && Math.floor(t * 3) % 2 ? 1 : 0));
   if (k < 1) for (let g = 4; g >= 1; g--) {
     ctx.globalAlpha = 0.35 / g; ctx.save(); ctx.translate(Math.round(x - g * 16), y); ctx.scale(S, S); drawSprite(fr, 0, 0, false, col); ctx.restore();
@@ -705,6 +783,7 @@ export function drawLockin(t, id) {
   ctx.save(); ctx.translate(Math.round(x), y); ctx.scale(S, S); drawSprite(fr, 0, 0, false, t > 0.36 && t < 0.42 ? P.paper : null); ctx.restore();
   // eyes flare once the name lands
   if (t > 0.6) { const [ex, ey] = set.eye, a = Math.max(0, 1 - (t - 0.6) * 2.2); glow(x + ex * S + S / 2, y + ey * S + S / 2, ch.eyeColor || col, 10 + 24 * a, 0.5 + a * 0.4); }
+  }
   // the slash across the screen
   if (t > 0.3 && t < 0.62) {
     const sk = outC((t - 0.3) / 0.08), fade = t > 0.45 ? 1 - (t - 0.45) / 0.17 : 1;
@@ -725,6 +804,10 @@ export function drawLockin(t, id) {
   }
   if (t > 0.8) textO('READY', 222, 102, Math.floor(t * 8) % 2 ? P.paper : P.dust, 1, 'c');
   ctx.restore();
-  // a white flash carries into the arena
-  if (t > LOCK_LEN - 0.2) { ctx.globalAlpha = Math.min(1, (t - (LOCK_LEN - 0.2)) / 0.2); rect(0, 0, W, H, P.paper); ctx.globalAlpha = 1; }
+  // a white flash builds over everything (the portrait too) and carries into the arena, where it fades
+  if (t > LOCK_LEN - 0.2) {
+    const a = Math.min(1, (t - (LOCK_LEN - 0.2)) / 0.2);
+    ctx.globalAlpha = a; rect(0, 0, W, H, P.paper); ctx.globalAlpha = 1;
+    if (pic) { const h = hdCtx(); h.globalAlpha = a; h.fillStyle = P.paper; h.fillRect(0, 0, W, H); h.globalAlpha = 1; }
+  }
 }

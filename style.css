@@ -38,6 +38,9 @@ html, body {
 
 .ready #screen { opacity: 1; }
 
+/* the HD layer sits exactly over the game screen and never takes input */
+#hd { position: absolute; left: 0; top: 0; pointer-events: none; image-rendering: pixelated; }
+
 #frame { position: relative; line-height: 0; }
 
 .crt #frame::after {

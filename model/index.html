@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ashblade Models</title>
+<style>
+  :root { color-scheme: dark; --bg: #120e18; --panel: #1c1626; --text: #e6d8bd; --dim: #8a7795; --accent: #ff6a2b; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 16px; background: var(--panel); }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  button, select { background: #2b2337; color: var(--text); border: 1px solid #3d3250; border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button[aria-pressed="true"] { border-color: var(--accent); }
+  main { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; padding: 24px 16px; }
+  figure { margin: 0; text-align: center; }
+  canvas { display: block; image-rendering: pixelated; max-width: 100%; height: auto;
+    background: repeating-conic-gradient(#1a1522 0 25%, #221b2c 0 50%) 0 0 / 24px 24px; }
+  figcaption { color: var(--dim); margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ashblade models</h1>
+  <button id="play" aria-pressed="true">Pause</button>
+  <label>Zoom <select id="zoom"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+</header>
+<main id="stage"></main>
+<script src="pixel.js"></script>
+<script src="data/kael.js"></script>
+<script src="data/vega.js"></script>
+<script src="data/morrow.js"></script>
+<script src="data/rin.js"></script>
+<script src="data/rivet.js"></script>
+<script src="data/grom.js"></script>
+<script src="data/unit7.js"></script>
+<script src="data/dev.js"></script>
+<script src="kael.js"></script>
+<script src="vega.js"></script>
+<script src="morrow.js"></script>
+<script src="rin.js"></script>
+<script src="rivet.js"></script>
+<script src="grom.js"></script>
+<script src="unit7.js"></script>
+<script src="dev.js"></script>
+<script>
+  // Every frame of every model is painted once, then the page just flips through them.
+  const frames = {};
+  function bake(name) {
+    const m = Pixel.models[name], img = Pixel.load(m.data);
+    m.w = img.w; m.h = img.h;
+    const out = [];
+    for (let i = 0; i < m.frames; i++) out.push(Pixel.render(name, i));
+    return (frames[name] = out);
+  }
+  // used by export.mjs: one frame as a PNG data URL at a whole-number scale
+  window.frameURL = (name, i, scale) => {
+    const f = (frames[name] || bake(name))[i], m = Pixel.models[name];
+    return Pixel.toCanvas(f, m.w, m.h, scale).toDataURL('image/png');
+  };
+  window.ready = true;
+  if (!navigator.webdriver) {
+    const stage = document.getElementById('stage'), views = [];
+    for (const name of Object.keys(Pixel.models)) {
+      const m = Pixel.models[name], fig = document.createElement('figure'), cv = document.createElement('canvas'), cap = document.createElement('figcaption');
+      cap.textContent = m.name; fig.append(cv, cap); stage.append(fig);
+      views.push({ name, m, cv, f: bake(name) });
+    }
+    let playing = true, zoom = 2, start = performance.now();
+    document.getElementById('play').onclick = (e) => { playing = !playing; e.target.textContent = playing ? 'Pause' : 'Play'; e.target.setAttribute('aria-pressed', playing); };
+    document.getElementById('zoom').onchange = (e) => { zoom = +e.target.value; };
+    let paused = 0;
+    (function tick(now) {
+      if (playing) paused = now - start; else start = now - paused;
+      for (const v of views) Pixel.toCanvas(v.f[Math.max(0, Math.floor((paused / 1000) * v.m.fps)) % v.m.frames], v.m.w, v.m.h, zoom, v.cv);
+      requestAnimationFrame(tick);
+    })(performance.now());
+  }
+</script>
+</body>
+</html>

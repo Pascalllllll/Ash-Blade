@@ -30,6 +30,31 @@ export function makeCanvas(w, h) {
   return c;
 }
 
+// ---------- HD layer ----------
+// A second canvas over the game screen at the display's real resolution, for the select screen's big
+// fighter portraits: they have far more pixels than the 320 x 180 game screen. Drawn in game units
+// through hdBegin(); cleared on frames that don't use it.
+export const hd = document.createElement('canvas');
+hd.id = 'hd';
+hd.setAttribute('aria-hidden', 'true');
+canvas.after(hd);
+const hctx = hd.getContext('2d');
+let hdUsed = false, hdDirty = false;
+// starts an HD frame: returns the context scaled to game units, and the device pixels per game unit
+export function hdBegin() {
+  const k = hd.width / W;
+  hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hd.width, hd.height);
+  hctx.setTransform(k, 0, 0, k, 0, 0); hctx.imageSmoothingEnabled = false;
+  hdUsed = true; hdDirty = true;
+  return [hctx, k];
+}
+export const hdActive = () => hdUsed;
+export const hdCtx = () => hctx;
+export function hdEnd() {
+  if (!hdUsed && hdDirty) { hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hd.width, hd.height); hdDirty = false; }
+  hdUsed = false;
+}
+
 // AUTO: the biggest whole-number zoom (sharpest pixels). FILL SCREEN: as big as fits.
 // A fixed resolution is in device pixels and never grows past the window.
 export const view = { res: 'AUTO' };
@@ -42,6 +67,10 @@ export function fit() {
   else s = touch ? Math.max(0.5, raw) : Math.max(1, Math.floor(raw));
   canvas.style.width = W * s + 'px';
   canvas.style.height = H * s + 'px';
+  // the HD layer matches the screen in device pixels
+  const dpr = devicePixelRatio || 1;
+  hd.width = Math.round(W * s * dpr); hd.height = Math.round(H * s * dpr);
+  hd.style.width = W * s + 'px'; hd.style.height = H * s + 'px';
 }
 
 export function rect(x, y, w, h, c) { C.fillStyle = c; C.fillRect(Math.round(x), Math.round(y), w, h); }
@@ -328,7 +357,7 @@ export const THEMES = {
 };
 export function applyTheme(name) { Object.assign(P, THEMES[name] || THEMES.EMBER); }
 export function applyDisplay(s) {
-  canvas.style.filter = `saturate(${s.vibrancy}) brightness(${s.bright}) contrast(${s.contrast}) hue-rotate(${s.hue}deg)`;
+  canvas.style.filter = hd.style.filter = `saturate(${s.vibrancy}) brightness(${s.bright}) contrast(${s.contrast}) hue-rotate(${s.hue}deg)`;
   document.documentElement.classList.toggle('crt', !!s.crt);
   if (s.res && s.res !== view.res) { view.res = s.res; fit(); }
 }

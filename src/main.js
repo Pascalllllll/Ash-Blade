@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay } from './gfx.js?v=53';
-import { input, keyHit, endFrame } from './input.js?v=53';
-import { A } from './audio.js?v=53';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=53';
-import { buildSprites } from './sprites.js?v=53';
-import { byId } from './upgrades.js?v=53';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats } from './world.js?v=53';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=57';
+import { input, keyHit, endFrame } from './input.js?v=57';
+import { A } from './audio.js?v=57';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=57';
+import { buildSprites } from './sprites.js?v=57';
+import { byId } from './upgrades.js?v=57';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=57';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=53';
+} from './ui.js?v=57';
 
 loadAll();
 applyTheme(settings.theme);
@@ -98,7 +98,8 @@ function tick(now) {
   } else if (scene === 'lockin') {
     const cues = [[0, () => A.rift()], [0.1, () => A.dash()], [0.32, () => A.riftCut()], [0.37, () => { A.boom(0.9); buzz('heavy'); }], [0.62, () => A.charAtk(lockId, true)]];
     for (const [ct, fn] of cues) if (sceneT >= ct && sceneT - rdt < ct) fn();
-    if (sceneT >= LOCK_LEN || (sceneT > 0.5 && (keyHit('Enter', 'Space', 'Escape') || input.mouse.pressed))) { startRun(lockId, null); checkpoint(); drawWorld(); }
+    // into the arena: the lock-in's white flash fades out over the first moments of the run
+    if (sceneT >= LOCK_LEN || (sceneT > 0.5 && (keyHit('Enter', 'Space', 'Escape') || input.mouse.pressed))) { startRun(lockId, null); flash(P.paper, 0.55, true); checkpoint(); drawWorld(); }
     else drawLockin(sceneT, lockId);
   } else if (scene === 'settings') {
     const items = settingsItems({ hasSave: !!save });
@@ -159,6 +160,7 @@ function tick(now) {
   screenFlash();
   cursor();
   endFrame();
+  hdEnd();
   requestAnimationFrame(tick);
 }
 

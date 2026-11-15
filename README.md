@@ -6,6 +6,7 @@ Ashblade is a pixel-art hack and slash game that runs in the browser, on a compu
 
 What's in it:
 - 8 fighters, each with its own combo, three powers, entrance, sounds, death scene and an awakened second look, with hair and clothes that blow in the wind
+- A large animated portrait of every fighter on the fighter select screen and in their entrance
 - 8 kinds of enemies, including the Lootling, a goblin that runs off with a sack of gold
 - 10 bosses up to wave 50, where the final boss is The Dev, the game's own developer
 - Wave twists that change the rules: Blood Moon, Swarm, Elite Hunt, Gold Rush, Glass and Blackout
@@ -63,6 +64,23 @@ Every fighter finishes enemies their own way, and every fighter has a death scen
 | Grom | Enemies are flattened into a wide splat and a ring of dust | His armor cracks plate by plate and he falls forward like a wall. The ground shakes and his helmet rolls away. *The wall has fallen* |
 | Unit-7 | The laser disintegrates enemies into white-hot pixels and ash | Shorts out with sparks and ERR. Its head pops off on a spring and the red eye fades to dark. *Shutdown complete* |
 | The Dev | Enemies are deleted into glitch pixels, now and then with a 404 | The screen tears, a FATAL ERROR box pops up, and he is deleted line by line. His empty wheelchair rolls away. *Process terminated* |
+
+### Portraits
+
+Every fighter also has a large animated portrait, 512 x 768 pixels, drawn on its own layer at the screen's full resolution, over the 320 x 180 game screen. It stands on the left of the fighter select screen, next to a grid of the fighters at their in-game size, and slides in with a white flash when you switch. Each one moves:
+
+| Fighter | Portrait |
+| --- | --- |
+| Kael | His scarf burns and its flames flicker, the blade's glow pulses, embers rise |
+| Vega | Her coat tails and red scarf ripple, smoke curls out of the revolver |
+| Morrow | He floats up and down while his orbs and magic swirls shimmer and stars twinkle |
+| Rin | Her torn red jacket ripples, she blinks, cherry petals fall |
+| Rivet | The jumpsuit tied at her waist flaps, sparks jump off the wrench |
+| Grom | His red cape ripples, the visor flickers, a glint runs along the gold trim |
+| Unit-7 | The cannon and energy rings pulse, the red cross on its screen flickers |
+| The Dev | The neon on his chair and the holo screens shimmer, pixel bits float up |
+
+After you pick, the portrait dashes in for the fighter's entrance while the name slams down, and a white flash fades into the arena. The portraits load only when the select screen first opens, so the game starts as fast as before.
 
 ### Unlocking fighters
 
