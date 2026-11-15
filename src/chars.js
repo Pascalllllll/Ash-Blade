@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=52';
-import { SPR } from './sprites.js?v=52';
-import { A } from './audio.js?v=52';
-import { input } from './input.js?v=52';
-import { best } from './store.js?v=52';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=53';
+import { SPR } from './sprites.js?v=53';
+import { A } from './audio.js?v=53';
+import { input } from './input.js?v=53';
+import { best } from './store.js?v=53';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo, buzz, shadow,
-} from './world.js?v=52';
+  explode, chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, addCombo, buzz, shadow, chargeLevel, kick,
+} from './world.js?v=53';
 
 // ---------- helpers ----------
 function aimPoint(p, max) {
@@ -18,7 +18,7 @@ function aimPoint(p, max) {
   if (d > max) { x = p.x + ((x - p.x) / d) * max; y = p.y + ((y - p.y) / d) * max; }
   return [clamp(x, B.x0 + 6, B.x1 - 6), clamp(y, B.y0 + 6, B.y1 - 4)];
 }
-const hand = (p, flip) => [p.x + (flip ? -4 : 4), p.y - 4];
+const hand = (p, flip) => [p.x + (flip ? -4 : 4), p.y - (G.kit?.handY ?? 4)];
 const nearest = (x, y, range, skip) => {
   let best = null, bd = range;
   for (const e of G.E) { if (!alive(e) || (skip && skip.has(e))) continue; const d = hyp(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } }
@@ -118,8 +118,20 @@ function entrance(kind) {
   return k;
 }
 
+// ---------- charged attacks ----------
+// f is the charge, 0.15..1: damage, reach and spread scale with it, so a half charge is half the attack.
+const chargeAim = (p) => { if (input.device === 'keys') aimAssist(); return p.aim; };
+// the weapon swings from drawn-back through to the aim over `dur` seconds
+const swingThrough = (a, dur, from = 2.3) => (p) => { const k = Math.min(1, p.chg.t / dur), e = 1 - (1 - k) ** 3, back = Math.cos(a) < 0 ? 1 : -1; return a + back * from * (1 - e) - back * 0.9 * e; };
+function burst(x, y, n, cols, v0, v1, o = {}) {
+  for (let i = 0; i < n; i++) { const a = rnd(TAU), v = rnd(v0, v1); part(x, y, Math.cos(a) * v, Math.sin(a) * v * 0.6, rnd(0.3, 0.7), cols[i % cols.length], { drag: 3, keep: true, ...o }); }
+}
+
 // ---------- weapons drawn in hand ----------
 function swordAngle(p) {
+  // winding up: the weapon drawn back over the shoulder, trembling harder as the charge fills
+  if (p.state === 'charge') return p.aim + (Math.cos(p.aim) < 0 ? 1 : -1) * 2.3 + Math.sin(G.time * 50) * 0.06 * chargeLevel(p);
+  if (p.state === 'chg' && p.chg?.ang) return p.chg.ang(p);
   if (p.state === 'attack') {
     const k = Math.min(1, p.atkT / 0.06), e = 1 - (1 - k) * (1 - k);
     return p.atkAng + p.swing.dir * (-p.swing.arc / 2 + p.swing.arc * e);
@@ -138,7 +150,7 @@ function drawBlade(p, flip, len, col, guard) {
 export const CHARS = {
   BLADE: {
     id: 'BLADE', name: 'BLADE', alias: 'ASH', color: () => P.ember,
-    desc: ['A FAST SWORD COMBO', 'AND TIME-STOPPING CUTS'], tip: 'CLICK TO SLASH, SPACE TO DASH',
+    desc: ['A FAST SWORD COMBO', 'AND TIME-STOPPING CUTS'], tip: 'HOLD CLICK, LET GO FOR A FIRE CRESCENT',
     bars: { power: 3, speed: 4, range: 2, tough: 3 },
     stats: { hp: 8, speed: 98 }, dash: { speed: 330, time: 0.14, cd: 0.32, charges: 1 }, ultRate: 1, energyHit: 1.5,
     melee: {
@@ -148,9 +160,27 @@ export const CHARS = {
         { reach: 31, arc: 2.6, dmg: 2, dur: 0.26, cancel: 0.14, lunge: 120, kb: 120, th: 7, shape: 'cross' },
         { reach: 46, arc: 0.7, dmg: 4, dur: 0.24, cancel: 0.12, lunge: 260, kb: 220, th: 5, shape: 'thrust' },
         { reach: 38, arc: Math.PI * 2, dmg: 6, dur: 0.4, cancel: 0.22, lunge: 60, kb: 280, th: 12, heavy: true, shape: 'spin' },
-      ],
+      ], slow: 1.35,
     },
     primaryName: 'SWORD COMBO',
+    // hold: Ashen Crescent, a wide burning cut that throws a wave of fire ahead
+    charge: {
+      name: 'ASHEN CRESCENT', time: 0.8, move: 0.4,
+      release(p, f) {
+        const a = chargeAim(p), [hx, hy] = hand(p, Math.cos(a) < 0), R = 30 + 14 * f;
+        p.vx = Math.cos(a) * (120 + 160 * f); p.vy = Math.sin(a) * (120 + 160 * f);
+        G.slashes.push({ follow: true, x: p.x, y: p.y, a, r: R, arc: 3.4, dir: 1, t: 0, life: 0.26, th: 10 + 6 * f, col: f >= 1 ? 'gold' : 'ember' });
+        for (const e of G.E) {
+          if (!alive(e) || e.z > 8) continue;
+          const d = hyp(e.x - p.x, e.y - p.y), ea = Math.atan2(e.y - p.y, e.x - p.x);
+          if (d < R + e.r && Math.abs(Math.atan2(Math.sin(ea - a), Math.cos(ea - a))) < 1.8) damage(e, pd(16 * f), { dir: ea, kb: 160 + 200 * f, src: 'primary', ug: true, slice: true, heavy: true, crit: f >= 1 });
+        }
+        shoot({ x: hx + Math.cos(a) * 8, y: hy + Math.sin(a) * 8, a, sp: 260 + 120 * f, dmg: pd(12 * f), kb: 120 + 120 * f, life: 0.25 + 0.4 * f, kind: 'crescent', r: 4 + 6 * f, pierce: 99, c: f >= 1 ? P.gold : P.ember, ug: true, slice: true, trail: false });
+        A.charAtk('BLADE', true, 3); A.rift(); shake(0.25 + 0.45 * f); kick(a, 2 + 3 * f); hitstop(0.03 + 0.05 * f);
+        sparks(hx, hy, a, 10 + 14 * f, 0.6, P.ember2, 260);
+        return { t: 0, ang: swingThrough(a, 0.08), update(p, dt) { this.t += dt; return this.t >= 0.2; } };
+      },
+    },
     q: {
       name: 'RIFT', cost: 30, cd: 1.5, icon: 'blade', desc: 'BLINK AND CUT A LINE',
       use(p) {
@@ -437,9 +467,38 @@ export const CHARS = {
         { reach: 25, arc: 2.3, dmg: 3, dur: 0.2, cancel: 0.1, lunge: 150, kb: 80, th: 6, shape: 'cross' },
         { reach: 38, arc: 0.6, dmg: 3, dur: 0.16, cancel: 0.08, lunge: 300, kb: 120, th: 4, shape: 'thrust' },
         { reach: 36, arc: 1.2, dmg: 5, dur: 0.3, cancel: 0.15, lunge: 430, kb: 220, th: 9, heavy: true, shape: 'iai' },
-      ],
+      ], slow: 1.35,
     },
     primaryName: 'KATANA',
+    // hold: Iai Dash. Hand on the hilt, then a flash-step through everything ahead; the cuts open a beat later.
+    charge: {
+      name: 'IAI DASH', time: 0.7, move: 0.35,
+      release(p, f) {
+        const a = chargeAim(p), L = 24 + 100 * f, x0 = p.x, y0 = p.y;
+        const x1 = clamp(p.x + Math.cos(a) * L, B.x0 + p.r, B.x1 - p.r), y1 = clamp(p.y + Math.sin(a) * L, B.y0 + p.r, B.y1 - 2);
+        const passed = new Set(), dmg = pd(22 * f);
+        p.inv = Math.max(p.inv, 0.35);
+        A.dash(); A.rift(); shake(0.1 + 0.2 * f);
+        G.cuts.push({ x0, y0: y0 - 5, x1, y1: y1 - 5, a, t: 0, pend: 0.18 + 0.1 * f, marked: [], echo: 0, done: false, col: '#ff8fc8',
+          fire(c) {
+            for (const e of G.E) if (alive(e) && (passed.has(e) || segDist(e.x, e.y - e.r, c.x0, c.y0, c.x1, c.y1) < e.r + 8)) {
+              damage(e, dmg, { dir: a + Math.PI / 2, kb: 100 + 180 * f, src: 'primary', ug: true, slice: true, heavy: true, crit: f >= 1 });
+              sparks(e.x, e.y - e.r, a + Math.PI / 2, 8, 0.5, '#ffb7d5', 220);
+            }
+            for (let i = 0; i < 10 + 20 * f; i++) { const k = Math.random(); part(c.x0 + (c.x1 - c.x0) * k, c.y0 + (c.y1 - c.y0) * k, rnd(-40, 40), rnd(-50, 10), rnd(0.5, 1.1), Math.random() < 0.5 ? '#ffb7d5' : '#ff8fc8', { drag: 2, g: 40, keep: true }); }
+            A.riftCut(); hitstop(0.03 + 0.08 * f); shake(0.2 + 0.5 * f); kick(a, 2 + 4 * f);
+            if (f >= 1) flash('#ffb7d5', 0.1, false);
+          } });
+        return { t: 0, ang: () => a, update(p, dt) {
+          this.t += dt;
+          const k = Math.min(1, this.t / (0.06 + 0.05 * f));
+          p.x = x0 + (x1 - x0) * k; p.y = y0 + (y1 - y0) * k; p.vx = p.vy = 0;
+          for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, x0, y0 - 5, p.x, p.y - 5) < e.r + 8) passed.add(e);
+          ghost(p, '#ffb7d5');
+          if (k >= 1) { p.vx = Math.cos(a) * 70; p.vy = Math.sin(a) * 70; return true; }
+        } };
+      },
+    },
     init: () => ({ skillInv: false, guard: 0, countered: false, petalT: 0 }),
     // Q: a crescent of wind off the blade. It flies through foes and cuts enemy shots out of the air.
     q: {
@@ -551,8 +610,8 @@ export const CHARS = {
     },
     drawWeapon(p, flip) {
       // sheathed while holding the stance: only the hilt shows at her hip
-      if (p.state === 'skill') { const [hx, hy] = hand(p, flip), d = flip ? 1 : -1; line(hx, hy, hx + d * 6, hy + 2, '#3a2030', 2); line(hx - d * 1, hy - 1, hx + d * 1, hy + 1, '#c81e36'); return; }
-      const a = p.state === 'attack' ? swordAngle(p) : p.aim + (flip ? -0.8 : 0.8), [hx, hy] = hand(p, flip), cx = Math.cos(a), cy = Math.sin(a);
+      if (p.state === 'skill' || p.state === 'charge') { const [hx, hy] = hand(p, flip), d = flip ? 1 : -1; line(hx, hy, hx + d * 6, hy + 2, '#3a2030', 2); line(hx - d * 1, hy - 1, hx + d * 1, hy + 1, '#c81e36'); return; }
+      const a = p.state === 'attack' || p.state === 'chg' ? swordAngle(p) : p.aim + (flip ? -0.8 : 0.8), [hx, hy] = hand(p, flip), cx = Math.cos(a), cy = Math.sin(a);
       // katana: red-wrapped hilt, gold guard, a long slim steel blade with a bright edge at the tip
       line(hx - cx * 3, hy - cy * 3, hx, hy, '#c81e36');
       line(hx - cy * 1.5, hy + cx * 1.5, hx + cy * 1.5, hy - cx * 1.5, P.gold);
@@ -580,9 +639,38 @@ export const CHARS = {
         { reach: 28, arc: 2.4, dmg: 4, dur: 0.3, cancel: 0.16, lunge: 120, kb: 180, th: 8 },
         { reach: 26, arc: Math.PI * 2, dmg: 4, dur: 0.34, cancel: 0.2, lunge: 60, kb: 220, th: 9, shape: 'spin' },
         { reach: 32, arc: 3, dmg: 9, dur: 0.46, cancel: 0.26, lunge: 140, kb: 320, th: 11, heavy: true, shape: 'slam' },
-      ],
+      ], slow: 1.3,
     },
     primaryName: 'WRENCH',
+    // hold: Overclock Slam, the wrench crackling with current: it smashes the floor ahead, stuns, and arcs to more foes
+    charge: {
+      name: 'OVERCLOCK SLAM', time: 0.9, move: 0.4,
+      release(p, f) {
+        const a = chargeAim(p);
+        A.heavySwing();
+        return { t: 0, hit: false, ang: swingThrough(a, 0.1), update(p, dt) {
+          this.t += dt; p.vx *= 0.85; p.vy *= 0.85;
+          if (!this.hit && this.t >= 0.1) {
+            this.hit = true;
+            const cx = p.x + Math.cos(a) * 16, cy = p.y + Math.sin(a) * 10, R = 20 + 34 * f;
+            let first = null;
+            for (const e of G.E) {
+              if (!alive(e) || e.z > 8 || hyp(e.x - cx, e.y - cy) > R + e.r) continue;
+              first = first || e;
+              damage(e, pd(20 * f), { dir: Math.atan2(e.y - cy, e.x - cx), kb: 160 + 160 * f, src: 'primary', ug: true, heavy: true, crit: f >= 1 });
+              if (e.type !== 'boss') e.stunT = Math.max(e.stunT, 0.4 + 1.1 * f);
+            }
+            if (first && f >= 0.5) chainLightning(first, Math.round(1 + 4 * f), 6 * f);
+            addRing(cx, cy, P.paper, R / 0.25, 0.25, 2); addRing(cx, cy, P.volt, R / 0.35, 0.35, 2);
+            for (let i = 0; i < 3 + 4 * f; i++) { const b = rnd(TAU), d = rnd(R * 0.4, R); G.bolts.push({ x0: cx, y0: cy - 2, x1: cx + Math.cos(b) * d, y1: cy + Math.sin(b) * d * 0.6, t: 0, life: 0.2 }); }
+            burst(cx, cy, 12 + 20 * f, [P.volt, '#ff8a3c', P.paper], 60, 200, { glow: true });
+            dust(cx, cy, 10 + 14 * f, 120); scorch(cx, cy, 6 + 8 * f);
+            A.boom(0.6 + 0.6 * f); A.zap(); shake(0.3 + 0.5 * f); hitstop(0.04 + 0.06 * f); kick(a, 2 + 3 * f);
+          }
+          return this.t >= 0.3;
+        } };
+      },
+    },
     q: {
       name: 'TURRET', cost: 30, cd: 1, icon: 'gear', desc: 'AUTO-GUN, LASTS 14S',
       use(p) {
@@ -625,7 +713,7 @@ export const CHARS = {
 
   TANK: {
     id: 'TANK', name: 'TANK', alias: 'BULWARK', color: () => '#8fa2bd',
-    desc: ['SLOW, HUGE HAMMER,', 'LOTS OF HEALTH'], tip: 'Q CHARGES THROUGH FOES',
+    desc: ['SLOW, HUGE HAMMER,', 'LOTS OF HEALTH'], tip: 'HOLD CLICK TO SHATTER THE GROUND',
     bars: { power: 5, speed: 1, range: 3, tough: 5 },
     stats: { hp: 12, speed: 80 }, dash: { speed: 260, time: 0.16, cd: 0.6, charges: 1 }, ultRate: 1, energyHit: 2.5,
     melee: {
@@ -634,9 +722,43 @@ export const CHARS = {
         { reach: 34, arc: 3, dmg: 6, dur: 0.42, cancel: 0.24, lunge: 90, kb: 320, th: 11 },
         { reach: 42, arc: 4.2, dmg: 12, dur: 0.6, cancel: 0.34, lunge: 120, kb: 420, th: 14, heavy: true, shape: 'slam' },
         { reach: 38, arc: Math.PI * 2, dmg: 10, dur: 0.62, cancel: 0.36, lunge: 40, kb: 380, th: 14, heavy: true, shape: 'spin' },
-      ],
+      ], slow: 1.3,
     },
     primaryName: 'WAR HAMMER',
+    // hold: Earthshatter. The hammer comes down and the ground breaks in a wide ring: the fuller the charge, the wider
+    charge: {
+      name: 'EARTHSHATTER', time: 1, move: 0.3,
+      release(p, f) {
+        const a = chargeAim(p);
+        A.heavySwing();
+        p.vx = Math.cos(a) * 50 * f; p.vy = Math.sin(a) * 50 * f;
+        return { t: 0, hit: false, ang: swingThrough(a, 0.13, 2.6), update(p, dt) {
+          this.t += dt; p.vx *= 0.8; p.vy *= 0.8;
+          if (!this.hit && this.t >= 0.13) {
+            this.hit = true;
+            const cx = p.x + Math.cos(a) * 12, cy = p.y + Math.sin(a) * 7, R = 26 + 74 * f;
+            for (const e of G.E) {
+              if (!alive(e) || e.z > 8) continue;
+              const d = hyp(e.x - cx, e.y - cy);
+              if (d > R + e.r) continue;
+              damage(e, pd(30 * f), { dir: Math.atan2(e.y - cy, e.x - cx), kb: 220 + 320 * f, src: 'primary', ug: true, heavy: true, crit: f >= 1 });
+              if (e.type !== 'boss') e.stunT = Math.max(e.stunT, 0.5 + 1.3 * f);
+            }
+            addRing(cx, cy, P.paper, R / 0.22, 0.22, 3); addRing(cx, cy, '#8fa2bd', R / 0.32, 0.32, 3); addRing(cx, cy, P.gold, R / 0.45, 0.45, 1);
+            // cracks run out from the impact
+            for (let i = 0; i < 5 + 5 * f; i++) {
+              const b = rnd(TAU), L = R * rnd(0.5, 0.95);
+              G.bolts.push({ x0: cx, y0: cy, x1: cx + Math.cos(b) * L, y1: cy + Math.sin(b) * L * 0.6, t: 0, life: 0.35, c1: '#e8c890', c2: '#7a5a3a', c3: '#2a1f14' });
+            }
+            burst(cx, cy - 2, 14 + 26 * f, ['#7a6a5a', '#a8946e', '#5a4a3a'], 60, 220, { z: 4, vz: 120, g: 400, s: 2 });
+            dust(cx, cy, 20 + 40 * f, 100 + 150 * f); scorch(cx, cy, 8 + 16 * f);
+            A.boom(0.8 + 1.2 * f); A.wall(); shake(0.45 + 0.6 * f); hitstop(0.05 + 0.08 * f); kick(Math.PI / 2, 3 + 4 * f);
+            if (f >= 1) flash(P.paper, 0.12, false);
+          }
+          return this.t >= 0.36;
+        } };
+      },
+    },
     init: () => ({ skillInv: false, carry: null, pulseT: 0, slamSwing: -1 }),
     onHit(e, sw) {
       if (sw.heavy && G.p.k.slamSwing !== G.p.atkAng) {
@@ -708,7 +830,7 @@ export const CHARS = {
     id: 'ROBOT', name: 'ROBOT', alias: 'UNIT-7', color: () => P.volt,
     desc: ['A LASER BEAM THAT', 'OVERHEATS, PLUS ROCKETS'], tip: 'HOLD CLICK, WATCH THE HEAT',
     bars: { power: 4, speed: 3, range: 4, tough: 3 },
-    stats: { hp: 8, speed: 90 }, dash: { speed: 340, time: 0.13, cd: 0.45, charges: 1 }, ultRate: 0.85, energyHit: 0.35,
+    stats: { hp: 8, speed: 90 }, dash: { speed: 340, time: 0.13, cd: 0.45, charges: 1 }, ultRate: 0.85, energyHit: 0.35, handY: 9,
     primaryName: 'LASER BEAM',
     init: () => ({ heat: 0, over: 0, tick: 0, firing: false, orb: 0, ox: 0, oy: 0, otick: 0, end: [0, 0] }),
     primary(p, dt, held) {

@@ -5,10 +5,11 @@ Ashblade is a pixel-art hack and slash game that runs in the browser, on a compu
 **Play it at [ash-blade.vercel.app](https://ash-blade.vercel.app/).**
 
 What's in it:
-- 8 fighters, each with its own combo, three powers, entrance, sounds and an awakened second look
+- 8 fighters, each with its own combo, three powers, entrance, sounds, death scene and an awakened second look, with hair and clothes that blow in the wind
 - 8 kinds of enemies, including the Lootling, a goblin that runs off with a sack of gold
 - 10 bosses up to wave 50, where the final boss is The Dev, the game's own developer
 - Wave twists that change the rules: Blood Moon, Swarm, Elite Hunt, Gold Rush, Glass and Blackout
+- Charged attacks for the four melee fighters: hold to wind up, let go to unleash (Rin dashes through a line of enemies, Grom cracks the ground in a wide ring)
 - Heavy hits that launch bodies into crowds, multi-kill chains, perfect dodges and counters
 - Elites with affixes, a relic to choose after every boss, and a signature kill and death scene for every fighter
 - Endless mode, 5 arenas, 4 difficulties, phone controls, and saves at every wave
@@ -23,6 +24,15 @@ The Ashen King swallowed the sun and sealed the last of the world in a pit. Seve
 
 Every fighter has a basic attack, two powers on Q and E that cost energy, and an ultimate on R that charges as your basic attack lands.
 
+The four melee fighters recover more slowly between swings than they used to, so mashing the button isn't the best play. Hold the attack button instead and they wind up a charged attack, shown by a ring filling at their feet. Let go to unleash it. A full charge flashes MAX, and letting go early gives a weaker version: at half charge it does half the damage and reaches half as far.
+
+| Fighter | Charged attack |
+|---|---|
+| Kael | Ashen Crescent: a wide burning cut that also throws a wave of fire ahead |
+| Rin | Iai Dash: hand on the hilt, she flash-steps through everything ahead, untouchable, and the cuts open a beat later in a burst of petals |
+| Rivet | Overclock Slam: the wrench smashes the floor ahead, stuns, and arcs lightning to nearby foes |
+| Grom | Earthshatter: the hammer cracks the ground in a wide ring that stuns everything in it. The fuller the charge, the wider the ring |
+
 | Fighter | Hero | Basic attack | Q | E | R |
 | --- | --- | --- | --- | --- | --- |
 | Blade | Kael | 4-hit sword combo: slash, X-cut, thrust, whirlwind | Rift: blinks forward and cuts every enemy on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
@@ -33,9 +43,9 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 | Tank | Grom | Slow hammer combo: sweep, ground slam, full spin. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, shots bounce back |
 | Robot | Unit-7 | Laser that overheats if you hold it too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
-Every fighter, monster and boss breathes, blinks and leans into attacks. Monsters move with a full set of motion on top of their frames: each step bounces and lands, they lean into where they're going, sway and breathe while idle, crouch and lean back on a wind-up, stretch into lunges and charges, wobble when stunned and tilt from hits. Each kind moves its own way: slimes jiggle, larvae wiggle, wisps and shades sway, ticks scuttle and brutes stomp. The fighters' hair and clothes blow in the wind, streaming behind whichever way they face: Rin's side-swept blue hair fading to pink at the tips and the red jacket tied around her hips, Morrow's cowl and beard, Vega's bandana and coat. Grom's crimson cape snaps behind him, Morrow floats instead of walking when he moves, and Unit-7 rolls on tank treads. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
+Every fighter, monster and boss breathes, blinks and leans into attacks. Monsters move with a full set of motion on top of their frames: each step bounces and lands, they lean into where they're going, sway and breathe while idle, crouch and lean back on a wind-up, stretch into lunges and charges, wobble when stunned and tilt from hits. Each kind moves its own way: slimes jiggle, larvae wiggle, wisps and shades sway, ticks scuttle and brutes stomp. The fighters' hair and clothes blow in the wind, streaming behind whichever way they face: Rin's side-swept blue hair fading to pink at the tips, the red jacket tied around her hips and her short pleated skirt, Morrow's cowl and beard, Vega's bandana and coat. Grom's crimson cape snaps behind him, Morrow floats instead of walking when he moves, Rin runs like a ninja (leaning into the run, no bounce, afterimages behind her), and Unit-7 rolls on tank treads with three big turning road wheels. Unit-7 and The Dev glide instead of bobbing, since they ride. Every fighter also has its own attack and hit sounds: steel rings for the Blade, an anvil clang for the Mechanic, a chiptune arpeggio for The Dev, and so on. Hits rise in pitch as your combo grows. Each fighter also has its own entrance at the start of a run. The Tank falls from the sky and cracks the floor, the Robot teleports down in a beam, and the Mechanic breaks out of a crate.
 
-The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. He starts as an ordinary programmer with a laptop on his lap, riding a motorized wheelchair. At 250% power a laser rewrites him into his hooded form, riding a rebuilt chair with neon wheels and a holo screen. He starts below the other fighters, with one shot at a time and 6 health, and grows with every wave and every 20 kills. He's about even by wave 15, then ramps hard after wave 20: about 0.8x power on wave 1, 1.2x by wave 10, 1.7x by wave 20, 3.2x by wave 30, 5x by wave 40 and 7.5x by wave 50. His spread widens past waves 20 and 35. His shots plant bugs that crash an enemy: five bugs early, four from wave 15 and three from wave 30.
+The eighth fighter is The Dev, who wrote this world and is now debugging it from the inside. He starts as an ordinary programmer in a hoodie and shades, side-swept hair, a laptop on his lap, riding a motorized wheelchair. At 250% power a laser rewrites him into his hooded form, riding a rebuilt chair with neon wheels and a holo screen. He starts below the other fighters, with one shot at a time and 6 health, and grows with every wave and every 20 kills. He's about even by wave 15, then ramps hard after wave 20: about 0.8x power on wave 1, 1.2x by wave 10, 1.7x by wave 20, 3.2x by wave 30, 5x by wave 40 and 7.5x by wave 50. His spread widens past waves 20 and 35. His shots plant bugs that crash an enemy: five bugs early, four from wave 15 and three from wave 30.
 
 Every other fighter also awakens into a new look once per run: on its first evolution upgrade or at wave 25. A beam of light hits them, they change skin and gain 1 max health. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom and Unit-7 Omega.
 
@@ -123,7 +133,7 @@ From wave 6, about one normal wave in three comes with a twist, announced when t
 | Glass | Enemies have half health, and every hit you take costs an extra heart |
 | Blackout | The lights go out except around you. 1.5x score |
 
-![A Blood Moon wave](docs/twist.png)
+![Grom and his cape in a Blood Moon wave](docs/twist.png)
 
 ### Big hits
 
@@ -175,7 +185,7 @@ When a boss arrives, your fighter freezes until its entrance is over: you can't 
 
 Each boss has its own entrance and its own music. When a boss is off screen, an arrow on the edge of the screen points to it and shows how far away it is. The music adds reverb, a choir on the slow themes and a crowd shout on the fast ones.
 
-![Fighting The Dev, the final boss on wave 50](docs/boss.png)
+![Oni Rin fighting The Dev, the final boss on wave 50](docs/boss.png)
 
 ## Controls
 
@@ -183,7 +193,7 @@ Each boss has its own entrance and its own music. When a boss is off screen, an 
 | --- | --- | --- |
 | Move | WASD or arrow keys | Fixed stick in the bottom-left. Touch anywhere on the left side to use it |
 | Aim | Mouse | Drag from the attack button toward where you want to hit. A plain tap aims at the nearest enemy |
-| Attack | Left click or J, hold to keep attacking | Big button on the right. Tap for one attack, hold to keep attacking |
+| Attack | Left click or J. Guns keep firing while held; sword, katana, wrench and hammer charge up while held | Big button on the right. Tap for one attack, hold to keep firing or to charge |
 | Dash | Space or right click | Dash button |
 | Powers | Q, E, R | Buttons around the attack button. Tap to cast at the nearest enemy. For aimed powers, hold and drag to aim (further means farther), lift to cast, or drag back onto the button to cancel |
 | Pause | Esc | Button at the top |

@@ -1,13 +1,13 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO } from './gfx.js?v=52';
-import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=52';
-import { A } from './audio.js?v=52';
-import { input, keyDown, keyHit } from './input.js?v=52';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=52';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=52';
-import { CHARS, ALLY } from './chars.js?v=52';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=52';
-import { byId } from './upgrades.js?v=52';
-import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=52';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=53';
+import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=53';
+import { A } from './audio.js?v=53';
+import { input, keyDown, keyHit } from './input.js?v=53';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=53';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=53';
+import { CHARS, ALLY } from './chars.js?v=53';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=53';
+import { byId } from './upgrades.js?v=53';
+import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=53';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -158,7 +158,7 @@ function makePlayer(kit, D) {
     state: 'move', t: 0, step: 0, atkT: 0, atkDur: 0, cancelAt: 0, atkAng: 0, swing: null, swingHit: null, comboWin: 0,
     bufAtk: 0, bufDash: 0, bufQ: 0, bufE: 0, bufR: 0, dashT: 0, dashCd: 0, charges: kit.dash.charges, dashMax: kit.dash.charges,
     dx: 0, dy: 0, inv: 0, hurtT: -9, recT: 0, energy: 50, ult: 0, ultLock: 0, cdQ: 0, cdE: 0,
-    runT: 0, stepT: 0, ghostT: 0, ascend: 0, orbitA: 0, orbitHit: new Map(), perfectUsed: false, phantomHit: null, invis: 0, shield: 0, shieldT: 0, fortress: 0, slowMul: 1, hitCount: 0,
+    runT: 0, stepT: 0, ghostT: 0, holdT: 0, atkHeld: false, chargeT: 0, chargeFull: false, chg: null, ascend: 0, orbitA: 0, orbitHit: new Map(), perfectUsed: false, phantomHit: null, invis: 0, shield: 0, shieldT: 0, fortress: 0, slowMul: 1, hitCount: 0,
     k: kit.init ? kit.init() : {},
   };
 }
@@ -661,7 +661,7 @@ export function tryHurt(dmg, sx, sy) {
   p.inv = 0.8; p.hurtT = 0.3;
   const a = Math.atan2(p.y - sy, p.x - sx);
   p.vx = Math.cos(a) * 220; p.vy = Math.sin(a) * 220;
-  if (p.state === 'attack' || p.state === 'recover') p.state = 'move';
+  if (p.state === 'attack' || p.state === 'recover' || p.state === 'charge') p.state = 'move';
   hitstop(0.12); shake(0.65); kick(a, 4); flash(P.blood, 0.22, false); A.hurt();
   buzz('hurt');
   fx.hurtVig = 1;
@@ -765,15 +765,18 @@ export function controls() {
   const p = G.p, m = input.mouse, kit = G.kit;
   if (p.state === 'dead') return;
   for (const k of ['q', 'e', 'r']) input.aimable[k] = isAimed(kit[k]);
-  if (bossLock()) { p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0; p.castAim = null; return; }
+  if (bossLock()) { p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0; p.castAim = null; p.atkHeld = false; return; }
   if (input.cast) p.castAim = { ...input.cast, t: 0.4 };
   if (keyHit('KeyJ', 'KeyZ')) { p.bufAtk = 0.2; input.device = 'keys'; }
   if (m.pressed) p.bufAtk = 0.2;
-  if ((m.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ')) p.bufAtk = Math.max(p.bufAtk, 0.04);
+  // holding attack: guns keep firing, blades wind up a charged attack instead of repeating the combo
+  p.atkHeld = (m.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || (input.touch && input.tb.attack);
+  const repeats = !kit.charge;
+  if (repeats && ((m.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ'))) p.bufAtk = Math.max(p.bufAtk, 0.04);
   if (keyHit('Space', 'ShiftLeft', 'ShiftRight', 'KeyK', 'KeyX') || m.rpressed) p.bufDash = 0.18;
   if (input.touch) {
     if (input.thit.has('attack')) p.bufAtk = 0.2;
-    if (input.tb.attack) p.bufAtk = Math.max(p.bufAtk, 0.04);
+    if (repeats && input.tb.attack) p.bufAtk = Math.max(p.bufAtk, 0.04);
     if (input.thit.has('dash')) p.bufDash = 0.18;
   }
   const ask = (codes, cost, cd, key) => {
@@ -798,6 +801,7 @@ function isAimed(sk) {
 function updatePlayer(dt) {
   const p = G.p, up = G.up, kit = G.kit;
   p.t += dt; p.atkT += dt;
+  p.holdT = p.atkHeld ? p.holdT + dt : 0;
   p.inv = Math.max(0, p.inv - dt); p.hurtT -= dt; p.comboWin -= dt;
   if (p.counter > 0) { p.counter -= dt; if (p.counter <= 0) p.counterHit = false; }
   p.bufAtk -= dt; p.bufDash -= dt; p.bufQ -= dt; p.bufE -= dt; p.bufR -= dt;
@@ -916,19 +920,44 @@ function updatePlayer(dt) {
       if (p.recT <= 0) p.state = 'move';
       break;
     }
+    case 'charge': {
+      // winding up: slow steps, the weapon drawn back, power building until the button lets go
+      const k = 1 - Math.exp(-12 * dt), c = kit.charge;
+      p.vx += (mx * speed * c.move - p.vx) * k; p.vy += (my * speed * c.move - p.vy) * k;
+      p.chargeT += dt;
+      const f = chargeLevel(p);
+      if (f >= 1 && !p.chargeFull) {
+        p.chargeFull = true;
+        A.chargeFull(); buzz('hit'); flash(P.paper, 0.06, false);
+        addRing(p.x, p.y - 6, P.paper, 160, 0.25, 2); addRing(p.x, p.y - 6, kit.color(), 110, 0.35, 1);
+        addText(p.x, p.y - 26, 'MAX', P.gold);
+      } else if (f < 1) A.charge(f);
+      if (Math.random() < dt * (10 + f * 30)) {
+        // sparks drawn in toward the fighter
+        const a = rnd(TAU), d = rnd(14, 22);
+        part(p.x + Math.cos(a) * d, p.y - 6 + Math.sin(a) * d * 0.6, -Math.cos(a) * d * 3, -Math.sin(a) * d * 1.8, 0.3, f >= 1 ? P.paper : kit.color(), { glow: true, drag: 2 });
+      }
+      if (!p.atkHeld) releaseCharge(p, f);
+      break;
+    }
+    case 'chg': if (!p.chg || p.chg.update(p, dt) === true) { p.state = 'move'; p.chg = null; } break;
     case 'skill': if (kit.skill(p, dt, mx, my) === true) p.state = 'move'; break;
     case 'dead': p.vx *= Math.exp(-6 * dt); p.vy *= Math.exp(-6 * dt); break;
   }
 
   if (p.state !== 'dead' && p.state !== 'cine') {
     const free = p.state === 'move' || (p.state === 'recover' && p.recT < 0.05);
-    const canAct = free || (p.state === 'attack' && p.atkT >= p.cancelAt);
-    const canDash = p.state !== 'dash' && p.state !== 'skill';
+    const canAct = free || p.state === 'charge' || (p.state === 'attack' && p.atkT >= p.cancelAt);
+    const canDash = p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
     else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); p.castAim = null; buzz('ult'); if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = 25; p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
     else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const okQ = kit.q.use(p) !== false; p.castAim = null; if (okQ) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); } }
     else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const okE = kit.e.use(p) !== false; p.castAim = null; if (okE) { p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); } }
-    else if (kit.melee) { if (p.bufAtk > 0 && canAct) startAttack(); }
+    else if (kit.melee) {
+      if (p.bufAtk > 0 && canAct && p.state !== 'charge') startAttack();
+      // still holding once the swing can be cancelled: start winding up the charged attack
+      else if (kit.charge && p.atkHeld && p.holdT > 0.22 && p.bufAtk <= 0 && (free || (p.state === 'attack' && p.atkT >= p.cancelAt))) startCharge(p);
+    }
     if (!kit.melee && p.state !== 'dead') {
       const held = (input.mouse.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || input.tb.attack;
       kit.primary(p, dt, held && (p.state === 'move' || p.state === 'recover'));
@@ -963,6 +992,23 @@ export function aimAssist() {
   if (best) p.aim = Math.atan2(best.y - p.y, best.x - p.x);
 }
 
+// ---------- charged attacks ----------
+// Hold attack after a swing to wind up; let go to unleash. The power is the share of a full charge,
+// so letting go at half charge hits half as hard (and dashes or spreads half as far).
+export const chargeLevel = (p) => Math.min(1, p.chargeT / (G.kit.charge.time / (G.up.spd * (p.ascend > 0 ? 1.4 : 1))));
+function startCharge(p) {
+  p.state = 'charge'; p.chargeT = 0; p.chargeFull = false; p.comboWin = 0;
+  A.swing(0);
+}
+function releaseCharge(p, f) {
+  // letting go is not a new press (some browsers send a click when a finger lifts)
+  p.state = 'move'; p.bufAtk = 0;
+  if (f < 0.15) return; // a twitch, not a charge
+  const act = G.kit.charge.release(p, f);
+  buzz(f >= 1 ? 'heavy' : 'hit');
+  if (act) { p.state = 'chg'; p.chg = act; }
+}
+
 function startAttack() {
   const p = G.p, up = G.up, m = G.kit.melee;
   p.bufAtk = 0;
@@ -971,7 +1017,8 @@ function startAttack() {
   p.atkAng = p.aim;
   p.state = 'attack'; p.atkT = 0;
   const s = m.steps[p.step];
-  const spd = up.spd * (p.ascend > 0 ? 1.4 : 1);
+  // m.slow: every melee swing recovers slower than it used to, so mashing is weaker than timing and charging
+  const spd = (up.spd * (p.ascend > 0 ? 1.4 : 1)) / (m.slow || 1);
   p.atkDur = s.dur / spd;
   p.cancelAt = s.cancel / spd;
   p.vx = Math.cos(p.atkAng) * s.lunge; p.vy = Math.sin(p.atkAng) * s.lunge;
@@ -1848,8 +1895,12 @@ function drawPlayer() {
   if (p.inv > 0 && p.hurtT > -0.8 && p.state !== 'dash' && Math.floor(G.time * 22) % 2) return;
   const set = heroSet();
   const flip = Math.cos(p.state === 'attack' ? p.atkAng : p.aim) < 0;
-  const moving = (p.state === 'move' || p.state === 'skill') && hyp(p.vx, p.vy) > 20;
-  const fi = Math.floor(p.runT * 11) % 4;
+  const moving = (p.state === 'move' || p.state === 'skill' || p.state === 'charge') && hyp(p.vx, p.vy) > 20;
+  // Rin runs like a ninja: quicker steps, leaning hard into the run, no bounce, afterimages behind her
+  const ninja = G.char === 'NINJA' && moving && p.state === 'move';
+  // she leans the way she runs (whichever way she's facing)
+  const leanR = ninja ? Math.round(Math.cos(p.moveAng) * 2) : 0;
+  const fi = Math.floor(p.runT * (ninja ? 15 : 11)) % 4;
   const blink = !moving && (G.time % 3.1) < 0.13;
   // standing still plays the 8-frame idle loop: breathing plus each fighter's own secondary motion
   const ii = Math.floor(G.time * 7) % set.idles.length, still = set.idles[ii];
@@ -1857,7 +1908,9 @@ function drawPlayer() {
   const floats = G.char === 'WIZARD' && moving;
   const fr = floats ? still : moving ? set.run[fi] : blink && still.blink ? still.blink : still;
   const hover = floats ? 4 + Math.round(Math.sin(G.time * 6) * 1.5) : 0;
-  const bob = (moving && !floats && fi % 2 ? 1 : 0) + hover;
+  // Unit-7 and The Dev ride (treads, a wheelchair): they glide instead of bobbing
+  const rides = G.char === 'ROBOT' || G.char === 'DEV';
+  const bob = (moving && !floats && !rides && !ninja && fi % 2 ? 1 : 0) + hover;
   // idle breathing, and a lean into each swing
   const breathe = !moving && p.state === 'move' ? IDLE_BREATH[ii] : 0;
   const lean = p.state === 'attack' && p.atkT < 0.12 ? 2 : p.state === 'dash' ? 1 : 0, la = p.state === 'attack' ? p.atkAng : p.aim;
@@ -1872,9 +1925,25 @@ function drawPlayer() {
   if (behind) kit.drawWeapon(p, flip);
   if (breathe || hover) ctx.restore();
   const sx = Math.round(p.x - fr.w / 2 + Math.cos(la) * lean), sy = Math.round(p.y - fr.h + 1 - bob + Math.sin(la) * lean * 0.5);
-  drawBreath(fr, sx, sy, flip, p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null, breathe);
+  const tintP = p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null;
+  if (ninja) {
+    if (Math.floor(G.time * 16) !== Math.floor((G.time - 1 / 60) * 16)) G.ghosts.push({ x: p.x - Math.cos(p.moveAng) * 3, y: p.y, flip, t: 0, life: 0.16, c: '#ffb7d5', spr: fr });
+    drawLean(fr, sx, sy, flip, tintP, leanR);
+  } else drawBreath(fr, sx, sy, flip, tintP, breathe);
+  // winding up a charged attack: a ring at the feet fills, and flashes once full
+  if (p.state === 'charge') {
+    const f = chargeLevel(p), full = f >= 1, c = full ? (Math.floor(G.time * 20) % 2 ? P.paper : P.gold) : kit.color();
+    for (let i = 0; i < 24; i++) {
+      if (i / 24 > f) break;
+      const a = -Math.PI / 2 + (i / 24) * TAU;
+      px(p.x + Math.cos(a) * 9, p.y + Math.sin(a) * 4, c);
+    }
+    glow(p.x, p.y - 7, c, 8 + Math.round(f * 8), 0.2 + f * 0.3);
+    if (full) ring(p.x, p.y - 7, 12 + Math.sin(G.time * 30), 1, c);
+  }
   // glowing eyes
-  const ex = sx + (flip ? fr.w - 1 - set.eye[0] : set.eye[0]), ey = sy + set.eye[1] + breathe, ec = kit.eyeColor || kit.color();
+  const leanX = leanR ? Math.sign(leanR) * Math.min(Math.abs(leanR), Math.floor((1 - (set.eye[1] + 0.5) / fr.h) * (Math.abs(leanR) + 1))) : 0;
+  const ex = sx + leanX + (flip ? fr.w - 1 - set.eye[0] : set.eye[0]), ey = sy + set.eye[1] + breathe, ec = kit.eyeColor || kit.color();
   if (!blink) glow(ex, ey, ec, 4, 0.7);
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
@@ -2152,7 +2221,7 @@ export function drawWorld() {
     if (!c.done) line(c.x0, c.y0, c.x1, c.y1, Math.floor(G.time * 30) % 2 ? P.paper : P.dust);
     else {
       const k = Math.min(1, (c.t - c.pend) / 0.22), w = Math.max(1, Math.round(6 * (1 - k)));
-      if (k < 1) { line(c.x0, c.y0 + 1, c.x1, c.y1 + 1, P.ember, w + 2); line(c.x0, c.y0, c.x1, c.y1, P.paper, w); }
+      if (k < 1) { line(c.x0, c.y0 + 1, c.x1, c.y1 + 1, c.col || P.ember, w + 2); line(c.x0, c.y0, c.x1, c.y1, P.paper, w); }
     }
   }
 

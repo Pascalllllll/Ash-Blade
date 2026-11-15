@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=52';
+import { makeSprite, P } from './gfx.js?v=53';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -51,21 +51,22 @@ const BODIES = {
     map: () => ({ f: '#e0b898', F: '#c09878', K: '#0c0816', E: '#62efff', w: '#ffffff', m: '#7a3a3a', A: '#2a1d4a', a: '#4a3580', U: '#e6d8bd', u: '#b8aa90', z: '#b48cff', J: P.gold, T: '#3a2766', t: '#6a4ab8', B: '#3a2766', b: '#6a4ab8', L: '#2a1d4a', G: '#140c24' }),
   },
   NINJA: { auto: true, legs: 'baked', lids: 'Ee',
-    // slim legs in white tabi, kept close together: they stride apart and pass each other
+    // slim legs under a short pleated skirt: bare knees, white knee socks, little shoes.
+    // The first row is empty so the skirt hem shows over the thighs; the legs stride apart and pass each other.
     feet: {
-      idle: ['.....oBboBbo....', '.....oBboBbo....', '.....oGGoGGo....'],
-      r0: ['....oBbo.oBbo...', '...oBbo...oBbo..', '...oGGo...oGGo..'],
-      r1: ['.....oBboBbo....', '......oBbBo.....', '......oGGGo.....'],
-      r2: ['....oBbo.oBbo...', '..oBbo....oBbo..', '..oGGo.....oGGo.'],
-      r3: ['.....oBboBbo....', '......oBbBo.....', '.......oGGo.....'],
-    }, eye: [10, 7], flow: 'HhYqZBbXx',
+      idle: ['................', '.....offoffo....', '.....oWWoWWo....', '.....oWWoWWo....', '.....oVVoVVo....'],
+      r0: ['................', '....offo.offo...', '...oWWo...oWWo..', '...oWWo...oWWo..', '...oVVo...oVVo..'],
+      r1: ['................', '.....offoffo....', '.....oWWoWWo....', '......oWWWo.....', '......oVVVo.....'],
+      r2: ['................', '....offo.offo...', '...oWWo...oWWo..', '..oWWo.....oWWo.', '..oVVo.....oVVo.'],
+      r3: ['................', '.....offoffo....', '......oWWWo.....', '......oWWWo.....', '.......oVVo.....'],
+    }, eye: [10, 7], flow: 'HhYqZSsXx',
     rows: [
       '...HHHHHHHHH....', '..HHhhhHHHHHH...', '.YHhHHHHHHHYHH..', '.ZHHHHHHHYYZHHZ.',
       '..HHHHYYYZZfHH..', '.HHYYYZZZfffYH..', '.YHZZZKffKKfZH..', '.ZYffEEffEEffYZ.',
       '..ZffEeffEeffZ..', '...pffffmfffp...', '.....ffffff.....', '....UTTTTTTU....',
-      '...fUTzTTzTUf...', '..XXXXXXXXxXX...', '.XXXBBBBBBBBBX..', '.XxBBbB..BbBB...',
-      '.XX.GGG..GGG....'],
-    map: () => ({ Y: '#9a8ae8', q: '#d8b8ff', Z: '#ff8fc8', f: '#f4d2b8', K: '#14101c', E: '#a070ff', e: '#4a2a9a', m: '#c0504a', p: '#f08a9a', H: '#34a9c9', h: '#8be4f0', U: '#f2efe8', z: '#e0223f', T: '#f2efe8', B: '#24305a', b: '#3a4a7a', L: '#24305a', G: '#ecebf4', X: '#b8283c', x: '#e04a5a' }),
+      '...fUTzTTzTUf...', '..XXXXXXXXxXX...', '.XXSSsSSsSSsSX..', '.XxSsSSsSSsSSs..',
+      '.XX.............'],
+    map: () => ({ Y: '#9a8ae8', q: '#d8b8ff', Z: '#ff8fc8', f: '#f4d2b8', K: '#14101c', E: '#a070ff', e: '#4a2a9a', m: '#c0504a', p: '#f08a9a', H: '#34a9c9', h: '#8be4f0', U: '#f2efe8', z: '#e0223f', T: '#f2efe8', S: '#24305a', s: '#4a5c9a', W: '#f4f2fa', V: '#3a1a24', X: '#b8283c', x: '#e04a5a' }),
   },
   MECHANIC: { auto: true, legs: 'baked', lids: '', eye: [10, 8], flow: 'H',
     rows: [
@@ -86,11 +87,12 @@ const BODIES = {
     map: () => ({ K: '#2a2f3a', E: '#ff9a3c', f: '#d8a07a', z: '#ff9a3c', J: P.gold, A: '#5a6a82', a: '#8fa2bd', T: '#5a6a82', t: '#8fa2bd', L: '#4a586e', G: '#2a2f3a', C: '#8a1a2a', c: '#b8283c' }),
   },
   ROBOT: {
-    lids: 'R', eye: [10, 8], legs: 'treads', flow: 'A',
+    lids: 'R', eye: [10, 8], legs: 'treads', flow: 'A', pad: 1,
     rows: ['..o..........o..', '..oA........Ao..', '...oAooooooAo...', '..oMMMMMMMMMMo..', '.oMMmmmmmmmmMMo.', '.oMooooooooooMo.',
       '.oMoKKKKKKKKoMo.', '.oMoKKKKRRKKoMo.', '.oMoKKKRRRRKoMo.', '.oMoKKKKRRKKoMo.', '.oMooooooooooMo.', '..oMMmmmmmmMMo..',
       '..ooooMMMMoooo..', '..oFoMmVVmMoFo..', '...oCMVWWVMCo...', '...oMMmVVmMMo...'],
-    map: () => ({ M: '#8a96a8', m: '#4a5466', A: '#ff4f4f', K: '#14161c', R: '#ff3b3b', C: '#3a4252', V: '#62efff', W: '#ffffff', F: '#5c6678', G: '#2a2f3a', g: '#8a96a8' }),
+    map: () => ({ M: '#8a96a8', m: '#4a5466', A: '#ff4f4f', K: '#14161c', R: '#ff3b3b', C: '#3a4252', V: '#62efff', W: '#ffffff', F: '#5c6678',
+      T: '#2a2f3a', t: '#6a7488', D: '#14161c', I: '#9aa6b8', J: '#d8e0ec', j: '#62efff' }),
   },
 };
 // The Dev: the side-swept programmer in a hoodie, in his motorized wheelchair (digits are chair colours).
@@ -112,10 +114,10 @@ const EVO = {
   BLADE: { name: 'ASHEN KAEL', map: { H: '#d8d0dc', h: '#ffffff', T: '#2a1418', t: '#5a2028', z: '#ffd447', E: '#fff2c0', B: '#2a1418', L: '#2a1418', U: '#ff6a2b' } },
   GUNNER: { name: 'DEADEYE VEGA', map: { H: '#e8e0d0', h: '#c9a24a', r: '#1a1a24', R: '#0a0a10', D: '#7a1424', w: '#ffd447', e: '#ffd447' } },
   WIZARD: { name: 'ARCHMAGE MORROW', map: { A: '#f0eaff', a: '#ffffff', T: '#e8e0f0', t: '#ffffff', B: '#e8e0f0', b: '#ffffff', z: '#ffd447', E: '#ff4fa8', L: '#b48cff' } },
-  NINJA: { name: 'ONI RIN', map: { X: '#1a1624', x: '#3a3450', H: '#e8ecf4', h: '#ffffff', Y: '#ff8a9a', q: '#ffc0c8', Z: '#e0223f', E: '#ff3b3b', e: '#7a0a1a', T: '#2a2838', U: '#c81e36', B: '#14101c', b: '#2a2838', z: '#ffd447' } },
-  MECHANIC: { name: 'RIVET MK-II', map: { A: '#c9a24a', a: '#ffe08a', T: '#c8ccd8', B: '#8b98ab', z: '#62efff', U: '#62efff' } },
+  NINJA: { name: 'ONI RIN', map: { X: '#1a1624', x: '#3a3450', H: '#e8ecf4', h: '#ffffff', Y: '#ff8a9a', q: '#ffc0c8', Z: '#e0223f', E: '#ff3b3b', e: '#7a0a1a', T: '#2a2838', U: '#c81e36', S: '#14101c', s: '#3a3450', W: '#1a1624', V: '#c81e36', z: '#ffd447', O: '#ff3b3b' }, rows: { 0: '..OHHHHHHHHHO...', 1: '.OHHhhhHHHHHHO..' } },
+  MECHANIC: { name: 'RIVET MK-II', map: { A: '#c9a24a', a: '#ffe08a', T: '#c8ccd8', B: '#8b98ab', z: '#62efff', U: '#62efff', E: '#62efff', K: '#0e2a34' } },
   TANK: { name: 'TITAN GROM', map: { A: '#c9a24a', a: '#ffe08a', T: '#c9a24a', t: '#ffe08a', E: '#ff3b3b', z: '#ff3b3b', L: '#8a6a2a', C: '#2a1418', c: '#ff3b3b' } },
-  ROBOT: { name: 'UNIT-7 OMEGA', map: { M: '#2a2f3a', m: '#14161c', R: '#ffd447', A: '#ffd447', V: '#ff4fa8', C: '#5a1420' } },
+  ROBOT: { name: 'UNIT-7 OMEGA', map: { M: '#2a2f3a', m: '#14161c', R: '#ffd447', A: '#ffd447', V: '#ff4fa8', C: '#5a1420', I: '#c9a24a', J: '#ffe08a', j: '#ff4fa8' } },
   DEV: { name: 'ROOT', body: {
     // the hooded form keeps his chair, rebuilt: carbon frame, neon rims, a glowing hub and a holo screen
     lids: 'Vv', eye: [10, 6], legs: 'none',
@@ -188,14 +190,10 @@ function windRows(rows0, phase, d) {
   }
   return out.map((r) => r.join(''));
 }
-// Unit-7 rolls on tank treads; the wheels turn in the run frames
-const TREADS = {
-  idle: ['..oGGGGGGGGGGo..', '.oGgGGgGGgGGgGo.', '..oooooooooooo..'],
-  r0: ['..oGGGGGGGGGGo..', '.oGgGGgGGgGGgGo.', '..oooooooooooo..'],
-  r1: ['..oGGGGGGGGGGo..', '.oGGgGGgGGgGGgo.', '..oooooooooooo..'],
-  r2: ['..oGGGGGGGGGGo..', '.ogGGgGGgGGgGGo.', '..oooooooooooo..'],
-  r3: ['..oGGGGGGGGGGo..', '.oGGgGGgGGgGGgo.', '..oooooooooooo..'],
-};
+// Unit-7 rolls on tank treads: three big road wheels whose hubs turn and a track whose links run
+const WHEELS = (spin) => spin ? ['oTIJjITIJjITIJjITo', 'oTIjJITIjJITIjJITo'] : ['oTIjJITIjJITIjJITo', 'oTIJjITIJjITIJjITo'];
+const tread = (spin) => ['.oooooooooooooooo.', spin ? 'otTtTtTtTtTtTtTtTo' : 'oTtTtTtTtTtTtTtTto', 'oTDIIDTDIIDTDIIDTo', ...WHEELS(spin), 'oTDIIDTDIIDTDIIDTo', spin ? 'oTtTtTtTtTtTtTtTto' : 'otTtTtTtTtTtTtTtTo', '.oooooooooooooooo.'];
+const TREADS = { idle: tread(false), r0: tread(false), r1: tread(true), r2: tread(false), r3: tread(true) };
 
 function buildChar(d, il = { seq: 'AAAAAAAA' }, recolor = {}, rowOver = {}) {
   const map = { o: P.ink0, L: d.leg, b: d.boot, ...d.map(), ...recolor };

@@ -1,13 +1,13 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=52';
-import { SPR, icon } from './sprites.js?v=52';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=52';
-import { A } from './audio.js?v=52';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=52';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=52';
-import { CHARS } from './chars.js?v=52';
-import { BOSSES, bossFor } from './bosses.js?v=52';
-import { MAPS } from './maps.js?v=52';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=52';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas } from './gfx.js?v=53';
+import { SPR, icon } from './sprites.js?v=53';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=53';
+import { A } from './audio.js?v=53';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=53';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=53';
+import { CHARS } from './chars.js?v=53';
+import { BOSSES, bossFor } from './bosses.js?v=53';
+import { MAPS } from './maps.js?v=53';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=53';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -354,7 +354,7 @@ export function drawSelect(t) {
   const bars = [['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]];
   if (ids[sel.i] === 'DEV' && !locked('DEV')) glitchBars(bars, t);
   else bars.forEach(([n, v], i) => { text(n, 206, 54 + i * 7, P.dust); for (let j = 0; j < 5; j++) rect(238 + j * 14, 55 + i * 7, 12, 3, j < v ? col : P.ink3); });
-  const ab = [['CLICK', k.primaryName, ''], ['Q', k.q.name + ' ' + k.q.cost, k.q.desc], ['E', k.e.name + ' ' + k.e.cost, k.e.desc], ['R', k.r.name, k.r.desc]];
+  const ab = [['CLICK', k.primaryName + (k.charge ? '   HOLD: ' + k.charge.name : ''), ''], ['Q', k.q.name + ' ' + k.q.cost, k.q.desc], ['E', k.e.name + ' ' + k.e.cost, k.e.desc], ['R', k.r.name, k.r.desc]];
   ab.forEach(([key, name, d], i) => { const y = 86 + i * 8; text(key, 34, y, P.ember2, 1, 'r'); text(name, 40, y, P.paper); text(d, 308, y, P.dust, 1, 'r'); });
   const rec = best.chars[ids[sel.i]];
   // under the stat bars, where the CLICK row leaves the right side free

@@ -464,6 +464,9 @@ export const A = {
     n(0.2, 0.22, 'bandpass', 7000, 2200, 2.5, t + 0.02, { rev: 0.5 });
     v('triangle', 1320 * pm, 1310 * pm, 0.14, 0.06, t + 0.03, { rev: 0.6 });
   },
+  // a charged attack: a rising whine while it builds, a bright ping when it's full
+  charge(f) { if (gate('chg', 0.09)) tone('triangle', 260 + f * 700, 300 + f * 760, 0.08, 0.04 + f * 0.04); },
+  chargeFull() { if (!ac) return; tone('sine', 1760, 1760, 0.4, 0.14); tone('triangle', 2640, 2600, 0.25, 0.07); hiss(0.08, 0.3, 'highpass', 5000, 7000, 1); },
   slice() { if (gate('slice', 0.04)) hiss(0.1, 0.35, 'bandpass', 5000, 9500, 2); },
   dash() { if (gate('dash', 0.05)) { hiss(0.17, 0.32, 'bandpass', 280, 1900, 1.2); tone('sine', 300, 760, 0.12, 0.05); } },
   parry() {

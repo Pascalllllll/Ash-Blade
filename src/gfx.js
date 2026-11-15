@@ -182,6 +182,17 @@ export function drawBreath(s, x, y, flip, tint, off, split = 0.58) {
   C.drawImage(img, 0, 0, s.w, cut, x, y + off, s.w, cut);
 }
 
+// a lean: horizontal bands, each one a pixel further over than the one below (feet stay planted)
+export function drawLean(s, x, y, flip, tint, lean) {
+  if (!lean) { drawSprite(s, x, y, flip, tint); return; }
+  const img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, n = Math.abs(lean) + 1, d = Math.sign(lean);
+  x = Math.round(x); y = Math.round(y);
+  for (let i = 0; i < n; i++) {
+    const y0 = Math.round(s.h * (1 - (i + 1) / n)), y1 = Math.round(s.h * (1 - i / n));
+    if (y1 > y0) C.drawImage(img, 0, y0, s.w, y1 - y0, x + d * i, y + y0, s.w, y1 - y0);
+  }
+}
+
 export function drawSprite(s, x, y, flip, tint) {
   C.drawImage(tint ? s.tint(tint, flip) : flip ? s.f : s.n, Math.round(x), Math.round(y));
 }

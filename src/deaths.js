@@ -1,8 +1,8 @@
 // Signature deaths and kills. Every fighter dies their own way (a short scene played in real time,
 // so the death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, disc, glow, textO } from './gfx.js?v=52';
-import { A } from './audio.js?v=52';
-import { G, TAU, rnd, clamp, part, bleed, splat, dust, sparks, scorch, addRing, addText, glitch, flash, shake, heroSet, sprFor } from './world.js?v=52';
+import { ctx, P, rect, px, line, disc, glow, textO } from './gfx.js?v=53';
+import { A } from './audio.js?v=53';
+import { G, TAU, rnd, clamp, part, bleed, splat, dust, sparks, scorch, addRing, addText, glitch, flash, shake, heroSet, sprFor } from './world.js?v=53';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
