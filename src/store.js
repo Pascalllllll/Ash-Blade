@@ -13,7 +13,7 @@ export const OPTIONS = {
   char: ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT', 'DEV'],
   vibe: ['OFF', 'LIGHT', 'MEDIUM', 'STRONG'],
   blood: ['10 SEC', '30 SEC', 'NEVER FADES'],
-  res: ['AUTO', 'FILL SCREEN', '1280X720', '1600X900', '1920X1080', '2560X1440'],
+  res: ['AUTO', 'SHARP', '1280X720', '1600X900', '1920X1080', '2560X1440'],
 };
 
 const DEFAULTS = {

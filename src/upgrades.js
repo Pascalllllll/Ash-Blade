@@ -40,7 +40,7 @@ export const UPGRADES = [
   { id: 'frost', name: 'FROSTBITE', d: ['FROZEN FOES SHATTER', 'WHEN THEY DIE'], icon: 'snow', c: 'volt', max: 1, only: ['WIZARD'], f: (u) => { u.frost = 1; } },
   { id: 'twin', name: 'TWIN STAR', d: ['METEOR FALLS', 'TWICE'], icon: 'star', c: 'ember', max: 1, only: ['WIZARD'], f: (u) => { u.twin = 1; } },
   { id: 'charges', name: 'THIRD STEP', d: ['+1 DASH', 'CHARGE'], icon: 'dash', c: 'blood', max: 1, only: ['NINJA'], f: (u, p) => { p.dashMax++; p.charges++; } },
-  { id: 'venom', name: 'VENOM EDGE', d: ['SAKURA WAVES', 'POISON FOES'], icon: 'cross', c: 'ichor', max: 1, only: ['NINJA'], f: (u) => { u.venom = 1; } },
+  { id: 'venom', name: 'VENOM EDGE', d: ['SWALLOW CUTS', 'POISON FOES'], icon: 'cross', c: 'ichor', max: 1, only: ['NINJA'], f: (u) => { u.venom = 1; } },
   { id: 'overclock', name: 'OVERCLOCK', d: ['TURRETS AND COILS', 'FIRE 40% FASTER'], icon: 'gear', c: 'ember2', max: 2, only: ['MECHANIC'], f: (u) => { u.overclock++; } },
   { id: 'hands', name: 'EXTRA HANDS', d: ['+1 TURRET', 'AT ONCE'], icon: 'gear', c: 'volt', max: 2, only: ['MECHANIC'], f: (u) => { u.hands++; } },
   { id: 'after', name: 'AFTERSHOCK', d: ['GROUND SLAM', 'SENDS ONE MORE WAVE'], icon: 'fist', c: 'ember2', max: 2, only: ['TANK'], f: (u) => { u.after++; } },

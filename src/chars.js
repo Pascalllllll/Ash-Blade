@@ -1,14 +1,17 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=59';
-import { SPR } from './sprites.js?v=59';
-import { A } from './audio.js?v=59';
-import { input } from './input.js?v=59';
-import { best } from './store.js?v=59';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=60';
+import { SPR } from './sprites.js?v=60';
+import { A } from './audio.js?v=60';
+import { input } from './input.js?v=60';
+import { best } from './store.js?v=60';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick,
-} from './world.js?v=59';
+  chainLightning, parry, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick,
+} from './world.js?v=60';
 
 // ---------- helpers ----------
+// an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
+const canParry = (s) => s.owner === 'enemy' && !s.dead && !s.noparry && !s.ret && !s.fist;
+const STORM_R = 26;
 function aimPoint(p, max) {
   let x, y;
   if (input.device === 'mouse') { x = input.mouse.x + fx.cam.x; y = input.mouse.y + fx.cam.y; }
@@ -457,9 +460,9 @@ export const CHARS = {
   // Rin, samurai. (The id stays NINJA so saves and unlocks keep working.)
   NINJA: {
     id: 'NINJA', name: 'SAMURAI', alias: 'SAKURA', color: () => P.blood,
-    desc: ['FAST KATANA, TWO DASHES,', 'COUNTER STANCE PUNISHES HITS'], tip: 'PRESS E RIGHT BEFORE A HIT TO COUNTER',
+    desc: ['FAST KATANA, TWO DASHES,', 'CUTS THAT SEND SHOTS BACK'], tip: 'Q THROWS A CUT THAT FLIES BACK TO YOU',
     bars: { power: 4, speed: 5, range: 2, tough: 2 },
-    stats: { hp: 7, speed: 114 }, dash: { speed: 380, time: 0.11, cd: 0.65, charges: 2 }, ultRate: 1.05, energyHit: 1.4,
+    stats: { hp: 8, speed: 114 }, dash: { speed: 380, time: 0.11, cd: 0.65, charges: 2 }, ultRate: 1.05, energyHit: 1.4,
     melee: {
       col: 'blood', steps: [
         // quick cut, X-cut, lunging stab, iai draw (dashes through and cuts twice)
@@ -471,12 +474,13 @@ export const CHARS = {
     },
     primaryName: 'KATANA',
     // hold: Iai Dash. Hand on the hilt, then a flash-step through everything ahead; the cuts open a beat later.
+    // Every enemy shot on the path is parried back.
     charge: {
       name: 'IAI DASH', time: 0.7, move: 0.35,
       release(p, f) {
-        const a = chargeAim(p), L = 24 + 100 * f, x0 = p.x, y0 = p.y;
+        const a = chargeAim(p), L = 24 + 115 * f, x0 = p.x, y0 = p.y;
         const x1 = clamp(p.x + Math.cos(a) * L, B.x0 + p.r, B.x1 - p.r), y1 = clamp(p.y + Math.sin(a) * L, B.y0 + p.r, B.y1 - 2);
-        const passed = new Set(), dmg = pd(22 * f);
+        const passed = new Set(), dmg = pd(26 * f);
         p.inv = Math.max(p.inv, 0.35);
         A.dash(); A.rift(); shake(0.1 + 0.2 * f);
         G.cuts.push({ x0, y0: y0 - 5, x1, y1: y1 - 5, a, t: 0, pend: 0.18 + 0.1 * f, marked: [], echo: 0, done: false, col: '#ff8fc8',
@@ -494,67 +498,71 @@ export const CHARS = {
           const k = Math.min(1, this.t / (0.06 + 0.05 * f));
           p.x = x0 + (x1 - x0) * k; p.y = y0 + (y1 - y0) * k; p.vx = p.vy = 0;
           for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, x0, y0 - 5, p.x, p.y - 5) < e.r + 8) passed.add(e);
+          for (const s of G.shots) if (canParry(s) && segDist(s.x, s.y, x0, y0 - 5, p.x, p.y - 5) < s.r + 9) parry(s, a, true);
           ghost(p, '#ffb7d5');
           if (k >= 1) { p.vx = Math.cos(a) * 70; p.vy = Math.sin(a) * 70; return true; }
         } };
       },
     },
-    init: () => ({ skillInv: false, guard: 0, countered: false, petalT: 0 }),
-    // Q: a crescent of wind off the blade. It flies through foes and cuts enemy shots out of the air.
+    init: () => ({ swallows: [], storm: 0, stormHit: 0, stormA: 0 }),
+    // Q: Tsubame Gaeshi, the swallow return. A cut flies out, stops, and flies back to her. It cuts every
+    // enemy it passes on the way out and again on the way back, and parries the shots it touches.
     q: {
-      name: 'SAKURA WAVE', cost: 20, cd: 1, icon: 'blade', desc: 'A FLYING SLASH THAT CUTS SHOTS',
+      name: 'TSUBAME GAESHI', cost: 20, cd: 1.1, icon: 'blade', desc: 'A CUT THAT FLIES OUT AND BACK',
       use(p) {
         const [hx, hy] = hand(p, Math.cos(p.aim) < 0), a = p.aim;
-        shoot({ x: hx + Math.cos(a) * 6, y: hy + Math.sin(a) * 6, a, sp: 290, dmg: pd(6), kb: 160, life: 0.6, kind: 'crescent', r: 7, pierce: 99, c: '#ffb7d5', poison: G.up.venom, ug: true, slice: true, trail: false });
+        p.k.swallows.push({ x: hx + Math.cos(a) * 6, y: hy + Math.sin(a) * 6, a, t: 0, back: false, hit: new Set() });
         G.slashes.push({ follow: true, x: p.x, y: p.y, a, r: 20, arc: 2.4, dir: 1, t: 0, life: 0.14, th: 6, col: 'blood' });
         p.state = 'recover'; p.recT = 0.08;
         A.charAtk('NINJA', 3); A.rift();
       },
     },
-    // E: Kamae, the counter stance. Rooted and untouchable for a moment; the first hit that lands
-    // triggers a flash-step counter that cuts everything around the attacker and readies a triple-damage strike.
+    // E: Hana Arashi, the blossom storm. For 4 seconds a ring of petal blades whirls around her: it cuts
+    // whatever comes close, parries every shot that reaches it, and she moves 25% faster.
     e: {
-      name: 'KAMAE', cost: 30, cd: 3, icon: 'shield', desc: 'COUNTER STANCE: BLOCK, THEN STRIKE',
+      name: 'HANA ARASHI', cost: 30, cd: 7, icon: 'shield', desc: 'A STORM OF BLADES AROUND YOU',
       use(p) {
         const k = p.k;
-        k.guard = 0.8; k.skillInv = true; k.countered = false;
-        p.state = 'skill'; p.vx = p.vy = 0;
-        A.shieldUp(); A.click();
-        addRing(p.x, p.y - 6, '#ffb7d5', 90, 0.25, 1);
+        k.storm = 4; k.stormHit = 0; p.slowMul = 1.25;
+        for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < STORM_R + e.r) damage(e, pd(6), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 220, src: 'primary', ug: true, slice: true });
+        addRing(p.x, p.y - 6, '#ffb7d5', 160, 0.3, 2); addRing(p.x, p.y - 6, P.paper, 110, 0.2, 1);
+        A.shieldUp(); A.charAtk('NINJA', 3); shake(0.25);
       },
     },
-    skill(p, dt) {
+    // the swallow cuts and the storm, every frame
+    tick(p, dt) {
       const k = p.k;
-      p.vx *= Math.exp(-20 * dt); p.vy *= Math.exp(-20 * dt);
-      k.guard -= dt;
-      if (Math.random() < dt * 20) { const a = rnd(TAU); part(p.x + Math.cos(a) * 12, p.y - 6 + Math.sin(a) * 8, 0, -rnd(5, 15), 0.4, '#ffb7d5', { glow: true, drag: 1 }); }
-      if (k.guard > 0) return false;
-      k.skillInv = false;
-      // nothing came: she still draws, a small cut around her
-      if (!k.countered) {
-        for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 36) damage(e, pd(5), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 160, src: 'primary', ug: true, slice: true });
-        G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.aim, r: 26, arc: 6.2, dir: 1, t: 0, life: 0.2, th: 5, col: 'blood' });
-        A.charAtk('NINJA', 3);
+      for (const w of k.swallows) {
+        w.t += dt;
+        if (!w.back) {
+          const sp = 320 * Math.max(0, 1 - w.t / 0.34);
+          w.x += Math.cos(w.a) * sp * dt; w.y += Math.sin(w.a) * sp * dt;
+          if (w.t >= 0.34 || w.x < B.x0 || w.x > B.x1 || w.y < B.y0 || w.y > B.y1) { w.back = true; w.hit = new Set(); A.rift(); }
+        } else {
+          const ba = Math.atan2(p.y - 6 - w.y, p.x - w.x), d = hyp(p.x - w.x, p.y - 6 - w.y), sp = Math.min(420, 120 + (w.t - 0.34) * 900);
+          w.a = ba; w.x += Math.cos(ba) * Math.min(d, sp * dt); w.y += Math.sin(ba) * Math.min(d, sp * dt);
+          if (d < 8 || w.t > 2) w.done = true;
+        }
+        for (const e of G.E) if (alive(e) && !w.hit.has(e) && hyp(e.x - w.x, e.y - e.r - w.y) < e.r + 8) {
+          w.hit.add(e);
+          damage(e, pd(7), { dir: w.a, kb: 140, src: 'primary', ug: true, slice: true });
+          if (G.up.venom && alive(e)) { e.burn = 3; e.burnDps = 3; }
+          sparks(e.x, e.y - e.r, w.a + Math.PI / 2, 5, 0.5, '#ffb7d5', 200);
+        }
+        for (const s of G.shots) if (canParry(s) && hyp(s.x - w.x, s.y - w.y) < s.r + 8) parry(s, w.a, true);
+        if (Math.random() < dt * 40) part(w.x, w.y, rnd(-20, 20), rnd(-20, 20), 0.35, Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 3 });
       }
-      return true;
-    },
-    onGuard(p, sx, sy) {
-      const k = p.k;
-      if (p.state !== 'skill' || k.countered) return;
-      k.countered = true; k.guard = Math.min(k.guard, 0.12);
-      // flash-step to the attacker (or toward the shot) and cut
-      const tgt = G.E.filter(alive).sort((a, b) => hyp(a.x - sx, a.y - sy) - hyp(b.x - sx, b.y - sy))[0];
-      const fx0 = tgt && hyp(tgt.x - sx, tgt.y - sy) < 90 ? tgt.x : sx, fy0 = tgt && hyp(tgt.x - sx, tgt.y - sy) < 90 ? tgt.y : sy;
-      const a = Math.atan2(fy0 - p.y, fx0 - p.x), d = Math.min(70, hyp(fx0 - p.x, fy0 - p.y));
-      ghost(p, '#ffb7d5');
-      p.x = clamp(p.x + Math.cos(a) * Math.max(0, d - 10), B.x0 + 6, B.x1 - 6); p.y = clamp(p.y + Math.sin(a) * Math.max(0, d - 10), B.y0 + 6, B.y1 - 4); p.aim = a;
-      for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 60) damage(e, e.type === 'boss' ? pd(20) : pd(16), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 260, src: 'primary', ug: true, crit: true, heavy: true });
-      for (const s of G.shots) if (s.owner === 'enemy' && hyp(s.x - p.x, s.y - p.y) < 70) { s.dead = true; sparks(s.x, s.y, rnd(TAU), 4, Math.PI, '#ffb7d5', 120); }
-      p.counter = 2.5; p.counterHit = false; p.inv = Math.max(p.inv, 0.5);
-      G.slashes.push({ follow: true, x: p.x, y: p.y, a, r: 34, arc: 6.2, dir: 1, t: 0, life: 0.26, th: 8, col: 'blood' });
-      for (let i = 0; i < 30; i++) { const b = rnd(TAU), v = rnd(60, 220); part(p.x, p.y - 6, Math.cos(b) * v, Math.sin(b) * v, rnd(0.4, 0.9), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 3, glow: true }); }
-      addText(p.x, p.y - 26, 'COUNTER', '#ffb7d5', 2);
-      slowmo(0.5, 0.3); hitstop(0.1); shake(0.6); flash(P.paper, 0.1, false); A.parry(); A.ultCut(5); buzz('parry');
+      k.swallows = k.swallows.filter((w) => !w.done);
+      if (k.storm > 0) {
+        k.storm -= dt; k.stormA += dt * 9; k.stormHit -= dt;
+        if (k.stormHit <= 0) {
+          k.stormHit = 0.2;
+          for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < STORM_R + e.r) damage(e, pd(3), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 90, src: 'primary', ug: true, slice: true });
+        }
+        for (const s of G.shots) if (canParry(s) && hyp(s.x - p.x, s.y - (p.y - 6)) < STORM_R + s.r) parry(s, Math.atan2(s.y - (p.y - 6), s.x - p.x), true);
+        if (Math.random() < dt * 30) { const b = rnd(TAU); part(p.x + Math.cos(b) * STORM_R, p.y - 6 + Math.sin(b) * STORM_R * 0.7, -Math.sin(b) * 60, Math.cos(b) * 40, 0.4, Math.random() < 0.6 ? '#ffb7d5' : '#ff8fb8', { drag: 2 }); }
+        if (k.storm <= 0) { k.storm = 0; p.slowMul = 1; }
+      }
     },
     // R: Issen, the single flash. Time stops; she flickers from foe to foe in a chain of cuts, sheathes
     // her sword, and every foe she passed bursts into petals.
@@ -610,7 +618,7 @@ export const CHARS = {
     },
     drawWeapon(p, flip) {
       // sheathed while holding the stance: only the hilt shows at her hip
-      if (p.state === 'skill' || p.state === 'charge') { const [hx, hy] = hand(p, flip), d = flip ? 1 : -1; line(hx, hy, hx + d * 6, hy + 2, '#3a2030', 2); line(hx - d * 1, hy - 1, hx + d * 1, hy + 1, '#c81e36'); return; }
+      if (p.state === 'charge') { const [hx, hy] = hand(p, flip), d = flip ? 1 : -1; line(hx, hy, hx + d * 6, hy + 2, '#3a2030', 2); line(hx - d * 1, hy - 1, hx + d * 1, hy + 1, '#c81e36'); return; }
       const a = p.state === 'attack' || p.state === 'chg' ? swordAngle(p) : p.aim + (flip ? -0.8 : 0.8), [hx, hy] = hand(p, flip), cx = Math.cos(a), cy = Math.sin(a);
       // katana: red-wrapped hilt, gold guard, a long slim steel blade with a bright edge at the tip
       line(hx - cx * 3, hy - cy * 3, hx, hy, '#c81e36');
@@ -618,12 +626,23 @@ export const CHARS = {
       line(hx + cx, hy + cy, hx + cx * 11, hy + cy * 11, '#d8e4f0');
       px(hx + cx * 11, hy + cy * 11, P.paper);
     },
-    // the stance: a pink ring that tightens until the counter window closes
+    // the swallow cuts (a crescent facing the way it flies) and the storm's ring of petal blades
     draw(p) {
-      if (p.state !== 'skill' || p.k.guard <= 0) return;
-      const r = 10 + p.k.guard * 14;
-      ring(p.x, p.y - 6, r, 1, Math.floor(G.time * 16) % 2 ? '#ffb7d5' : P.paper);
-      glow(p.x, p.y - 6, '#ffb7d5', 14, 0.25);
+      for (const w of p.k.swallows) {
+        glow(w.x, w.y, '#ffb7d5', 10, 0.35);
+        for (let i = -3; i <= 3; i++) { const b = w.a + i * 0.32, r = 7 - Math.abs(i) * 0.6; px(w.x + Math.cos(b) * r, w.y + Math.sin(b) * r, Math.abs(i) < 2 ? P.paper : '#ffb7d5'); px(w.x + Math.cos(b) * (r - 1), w.y + Math.sin(b) * (r - 1), '#ff8fc8'); }
+      }
+      const k = p.k;
+      if (k.storm > 0) {
+        const fade = Math.min(1, k.storm / 0.4);
+        ctx.globalAlpha = 0.35 * fade; ring(p.x, p.y - 6, STORM_R, 1, '#ffb7d5'); ctx.globalAlpha = fade;
+        glow(p.x, p.y - 6, '#ffb7d5', STORM_R, 0.12 * fade);
+        for (let i = 0; i < 8; i++) {
+          const b = k.stormA + (i * TAU) / 8, x = p.x + Math.cos(b) * STORM_R, y = p.y - 6 + Math.sin(b) * STORM_R * 0.7;
+          line(x, y, x - Math.sin(b) * 4, y + Math.cos(b) * 3, i % 2 ? '#ffb7d5' : P.paper);
+        }
+        ctx.globalAlpha = 1;
+      }
     },
     entrance: () => entrance('smoke'),
   },

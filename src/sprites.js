@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=59';
+import { makeSprite, P } from './gfx.js?v=60';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};

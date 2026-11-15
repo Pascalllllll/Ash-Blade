@@ -55,16 +55,16 @@ export function hdEnd() {
   hdUsed = false;
 }
 
-// AUTO: the biggest whole-number zoom (sharpest pixels). FILL SCREEN: as big as fits.
-// A fixed resolution is in device pixels and never grows past the window.
+// AUTO: fills the window at 100%, whatever the device. SHARP: the biggest whole-number zoom, so every
+// game pixel is the same size. A fixed resolution is in device pixels and never grows past the window.
 export const view = { res: 'AUTO' };
 export function fit() {
   const raw = Math.min(innerWidth / W, innerHeight / H);
   const touch = document.documentElement.classList.contains('touch');
   let s;
-  if (view.res === 'FILL SCREEN') s = raw;
-  else if (view.res !== 'AUTO') s = Math.min(raw, parseInt(view.res, 10) / W / (devicePixelRatio || 1));
-  else s = touch ? Math.max(0.5, raw) : Math.max(1, Math.floor(raw));
+  if (view.res === 'AUTO') s = raw;
+  else if (view.res === 'SHARP') s = touch ? Math.max(0.5, raw) : Math.max(1, Math.floor(raw));
+  else s = Math.min(raw, parseInt(view.res, 10) / W / (devicePixelRatio || 1));
   canvas.style.width = W * s + 'px';
   canvas.style.height = H * s + 'px';
   // the HD layer matches the screen in device pixels

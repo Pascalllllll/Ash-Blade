@@ -1,13 +1,13 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=59';
-import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=59';
-import { A } from './audio.js?v=59';
-import { input, keyDown, keyHit } from './input.js?v=59';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=59';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=59';
-import { CHARS, ALLY } from './chars.js?v=59';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=59';
-import { byId } from './upgrades.js?v=59';
-import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=59';
+import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=60';
+import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=60';
+import { A } from './audio.js?v=60';
+import { input, keyDown, keyHit } from './input.js?v=60';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=60';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=60';
+import { CHARS, ALLY } from './chars.js?v=60';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=60';
+import { byId } from './upgrades.js?v=60';
+import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=60';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -964,7 +964,7 @@ function updatePlayer(dt) {
     }
   }
   kit.update?.(p, dt);
-  if (p.state !== 'dead') kit.flair?.(p, dt, hyp(p.vx, p.vy) > 20);
+  if (p.state !== 'dead') { kit.flair?.(p, dt, hyp(p.vx, p.vy) > 20); kit.tick?.(p, dt); }
 
   p.x = clamp(p.x + p.vx * dt, B.x0 + p.r, B.x1 - p.r);
   p.y = clamp(p.y + p.vy * dt, B.y0 + p.r, B.y1 - 2);
@@ -1071,8 +1071,10 @@ function meleeHit(e, sw, dir) {
   kit.onHit?.(e, sw, dir);
 }
 
-export function parry(s, a0) {
-  const p = G.p, up = G.up;
+// quiet: for skills that parry many shots at once. The freeze, shake and PARRY text then play at most
+// every quarter second, so a stream of shots can't stall the game.
+export function parry(s, a0, quiet = false) {
+  const p = G.p, up = G.up, loud = !quiet || Math.abs(G.time - (G.parryFxT ?? -9)) > 0.25;
   let a = a0, bd = 0.7;
   for (const e of G.E) {
     if (!alive(e)) continue;
@@ -1082,11 +1084,14 @@ export function parry(s, a0) {
   s.owner = 'player'; s.vx = Math.cos(a) * 300; s.vy = Math.sin(a) * 300;
   s.dmg = pd(10 * (1 + up.mirror)); s.pierce = up.mirror ? 99 : 0; s.life = 2; s.hit = new Set(); s.c = P.volt;
   s.kind = 'orb'; s.ug = true; s.kb = 200; s.bounce = 0; s.homing = 0; s.slice = true; s.trail = true; s.accel = 0;
-  hitstop(0.09); shake(0.25); A.parry(); buzz('parry');
-  addText(s.x, s.y - 10, 'PARRY', P.volt);
-  addRing(s.x, s.y, P.paper, 200, 0.2, 2);
-  sparks(s.x, s.y, a, 10, 0.6, P.volt, 260);
-  p.energy = Math.min(100, p.energy + 5);
+  if (loud) {
+    G.parryFxT = G.time;
+    hitstop(quiet ? 0.04 : 0.09); shake(0.25); A.parry(); buzz('parry');
+    addText(s.x, s.y - 10, 'PARRY', P.volt);
+    addRing(s.x, s.y, P.paper, 200, 0.2, 2);
+  }
+  sparks(s.x, s.y, a, quiet ? 5 : 10, 0.6, P.volt, 260);
+  p.energy = Math.min(100, p.energy + (quiet ? 2 : 5));
   addCombo(1);
 }
 

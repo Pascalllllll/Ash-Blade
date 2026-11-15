@@ -27,7 +27,7 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 | Blade | Kael | 4-hit sword combo | Rift: blinks forward and cuts everything on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
 | Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: an 11-pellet blast that pushes you back | Deadeye: time slows and she fires one sure critical shot at each of the 6 nearest enemies | Last Stand: 4 seconds of minigun |
 | Wizard | Morrow | Homing magic bolt | Frost Blink: teleports and freezes enemies at both ends | Meteor | Starfall: meteors rain on enemies for about 3 seconds |
-| Samurai | Rin | 4-hit katana combo ending in a quick-draw dash. 2 dashes, 7 health | Sakura Wave: a flying slash that cuts enemy shots out of the air | Kamae: a counter stance. Get hit in it and she flash-steps to the attacker, and her next hit does triple damage | Issen: time stops while she cuts from enemy to enemy 11 times |
+| Samurai | Rin | 4-hit katana combo ending in a quick-draw dash. 2 dashes, 8 health | Tsubame Gaeshi: a cut that flies out and back, hitting both ways and parrying shots | Hana Arashi: for 4 seconds a ring of petal blades cuts anything close, parries shots, and speeds her up | Issen: time stops while she cuts from enemy to enemy 11 times |
 | Mechanic | Rivet | Wrench combo | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Iron Titan: a giant mech lands and fights beside her for 12 seconds |
 | Tank | Grom | Slow hammer combo. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, and shots bounce back |
 | Robot | Unit-7 | Laser that overheats if held too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
@@ -37,7 +37,7 @@ The four melee fighters charge up when you hold attack. Let go early for a weake
 | Fighter | Charged attack |
 | --- | --- |
 | Kael | Ashen Crescent: a wide burning cut that throws a wave of fire ahead |
-| Rin | Iai Dash: she flash-steps through everything ahead, and the cuts open a beat later |
+| Rin | Iai Dash: she flash-steps through everything ahead, parrying every shot on the way, and the cuts open a beat later |
 | Rivet | Overclock Slam: the wrench smashes the floor, stuns, and arcs lightning to nearby enemies |
 | Grom | Earthshatter: the ground cracks in a ring that stuns everything in it |
 
@@ -172,7 +172,9 @@ Dashing makes you untouchable. Dash through an attack as it lands and time slows
 
 ## Settings
 
-Volume and music choice, resolution, color theme and screen filters, arena, difficulty, and vibration on Android phones. Screen shake, flashes, damage numbers and particles can all be turned down.
+The game fills the window on any screen by default. Sharp mode instead zooms by whole numbers so every pixel is the same size, and there are fixed sizes from 720p to 1440p.
+
+The other settings cover volume and music choice, color theme and screen filters, arena, difficulty, and vibration on Android phones. Screen shake, flashes, damage numbers and particles can all be turned down.
 
 ## How it's built
 
