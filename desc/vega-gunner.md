@@ -9,6 +9,8 @@ A wide-brimmed hat with a gold band, long brown hair, and a red bandana over the
 
 Awakened as **Deadeye Vega**, her hat turns pale with a gold band, her bandana goes black and her coat dark red.
 
+Awakened, her shots ricochet to the next enemy, her powers fire a fan of 10 gold rounds, and Last Stand opens with a homing volley at up to 10 enemies. Awakening also makes basic hits and the ultimate 30% stronger, Q and E a quarter cheaper and a fifth faster to recharge, and the ultimate charge a quarter faster, keeping 30% of its charge after each use.
+
 ## How she plays
 The longest reach in the game. Hold to shoot, and reloading is automatic. She is fragile, so keep your distance.
 

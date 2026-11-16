@@ -1,13 +1,13 @@
-import { W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=61';
-import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=61';
-import { A } from './audio.js?v=61';
-import { input, keyDown, keyHit } from './input.js?v=61';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=61';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=61';
-import { CHARS, ALLY } from './chars.js?v=61';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=61';
-import { byId } from './upgrades.js?v=61';
-import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=61';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=74';
+import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=74';
+import { A } from './audio.js?v=74';
+import { input, keyDown, keyHit } from './input.js?v=74';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=74';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=74';
+import { CHARS, ALLY } from './chars.js?v=74';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=74';
+import { byId } from './upgrades.js?v=74';
+import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=74';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -176,10 +176,12 @@ export function newRun(charId, save) {
     E: [], shots: [], parts: [], slashes: [], texts: [], bolts: [], rings: [], gibs: [], picks: [], sigils: [], ghosts: [],
     booms: [], cuts: [], quakes: [], timers: [], glitches: [], unlocks: [], perfects: 0, bossClean: false, killsBanked: 0, strikes: [], zones: [], hlines: [], hbeams: [], allies: [], amb: [],
     queue: [], spawnCd: 0, phase: 'intro', phaseT: 2, banner: null, dark: 0,
-    up: { wpn: 1, spell: 1, crit: 0, magnet: 0, thorns: 0, orbit: 0, dashMul: 1, cdMul: 1, evoWpn: 0, evoSpell: 0, evoUlt: 0, evoHeart: 0, evoSwift: 0, evoStatic: 0, evoEmber: 0, evoOrbit: 0, dmg: 1, spd: 1, reach: 1, regen: 1, static: 0, ember: 0, phantom: 0, mirror: 0, debt: 0, shrap: 1, exec: 0, focus: 1, echo: 0, storm: 0, mag: 0, pierce: 0, frost: 0, twin: 0, venom: 0, overclock: 0, hands: 0, after: 0, coolant: 0, cluster: 0, phoenix: 0, rage: 0, crown: 0, midas: 0, reaper: 0 },
+    up: { wpn: 1, overflow: 0, spell: 1, crit: 0, magnet: 0, thorns: 0, orbit: 0, dashMul: 1, cdMul: 1, evoWpn: 0, evoSpell: 0, evoUlt: 0, evoHeart: 0, evoSwift: 0, evoStatic: 0, evoEmber: 0, evoOrbit: 0, dmg: 1, spd: 1, reach: 1, regen: 1, static: 0, ember: 0, phantom: 0, mirror: 0, debt: 0, shrap: 1, exec: 0, focus: 1, echo: 0, storm: 0, mag: 0, pierce: 0, frost: 0, twin: 0, venom: 0, overclock: 0, hands: 0, after: 0, coolant: 0, cluster: 0, phoenix: 0, rage: 0, crown: 0, midas: 0, reaper: 0 },
     taken: {}, cine: null, boss: null, dead: false, deadT: 0, wantUpgrade: false, victory: false, won: false,
     phoenixUsed: false, pickChain: 0, pickChainT: 0, debtKills: 0, corpses: [], twist: null, lastTwist: null, mk: 0, mkT: 0, mkShow: null, bestMulti: 0, dmg: 0, bosses: 0, loot: 0, deny: { q: 0, e: 0, r: 0 }, startBest: best.score,
   };
+  // timers and delayed cuts remember whether the fighter made them, so their effects take its awakened colors
+  for (const arr of [G.timers, G.cuts, G.bolts, G.quakes, G.ghosts, G.booms, G.slashes]) arr.push = function (...a) { for (const o of a) { o.pfx = !!G.pfx; if (G.inCharge) o.chg = true; if (o.pfx && G.awPal && o.c) o.c = G.awPal[o.c] || o.c; } return Array.prototype.push.apply(this, a); };
   for (const [x, y, r] of G.map.pools) G.zones.push({ type: 'lava', x, y, r, t: 0, life: Infinity });
   fx.trauma = 0; fx.freeze = 0; fx.slowT = 0; fx.slowF = 1; fx.hurtVig = 0;
   if (save) {
@@ -309,6 +311,7 @@ export function spawnEnemy(type, x, y) {
 
 // ---------- particles & small effects ----------
 export function part(x, y, vx, vy, life, c, o) {
+  if (G.pfx && G.awPal) c = G.awPal[c] || c;
   const low = settings.particles === 'LOW';
   if (G.parts.length > (low ? 600 : 1500) || (low && !o?.keep && Math.random() < 0.5)) return;
   G.parts.push({ x, y, vx, vy, life, t: 0, c, z: o?.z ?? 0, vz: o?.vz ?? 0, g: o?.g ?? 0, drag: o?.drag ?? 5, s: o?.s ?? 1, blood: o?.blood, glow: o?.glow });
@@ -335,11 +338,12 @@ export function addText(x, y, s, c, sc = 1, num = false) {
 }
 // the moment an evolution is picked: a pillar of light, slow motion, a burst
 // ---------- skin evolution ----------
-// Every fighter awakens once: on its first EVOLUTION upgrade or at wave 25. The Dev awakens at 250% power,
-// when a laser from the sky rewrites him into his hooded form.
+// Every fighter awakens once, after any five evolutions (every upgrade has one). The Dev is rewritten into his
+// hooded form by a laser from the sky.
+export const AWAKEN_NEED = 5;
+export const evosDone = () => Object.keys(G.taken).filter((id) => byId(id)?.req).length;
 function wantsEvo() {
-  if (G.char === 'DEV') return G.kit.dmgScale() >= 2.5;
-  return G.wave >= 25 || Object.keys(G.taken).some((id) => byId(id)?.req);
+  return evosDone() >= AWAKEN_NEED;
 }
 function checkEvo() {
   if (G.evo || G.phase !== 'fight' || G.banner || G.p.state === 'dead' || bossLock() || !wantsEvo()) return;
@@ -349,10 +353,10 @@ function checkEvo() {
   addRing(p.x, p.y - 6, col, 60, 0.6, 1);
   for (let i = 0; i < 3; i++) G.timers.push({ t: i * 0.18, fn: () => addRing(G.p.x, G.p.y - 6, col, 80, 0.4, 1) });
   G.timers.push({ t: 0.6, fn: () => {
-    G.evo = true;
+    G.evo = true; G.kit = awakenKit(G.kit); G.awPal = G.kit.awake?.pal.map || null;
     const q = G.p;
     q.evoFlash = 1.8; q.evoCol = col; q.maxHp++; q.hp = Math.min(q.maxHp, q.hp + 1);
-    G.banner = { text: EVO_NAMES[G.char], sub: dev ? 'ROOT ACCESS: POWER 250%' : 'AWAKENED   +1 MAX HEALTH', t: 0, life: 2.6, c: col };
+    G.banner = { text: EVO_NAMES[G.char], sub: dev ? 'ROOT ACCESS GRANTED: ATTACKS EVOLVED' : 'AWAKENED: ATTACKS, POWERS AND ULTIMATE EVOLVED', t: 0, life: 2.6, c: col };
     slowmo(1, 0.3); flash(col, 0.35, true); shake(1); hitstop(0.12); A.ultRelease(); A.zap(); buzz('boss');
     for (let i = 0; i < 4; i++) addRing(q.x, q.y - 6, i % 2 ? P.paper : col, 220 + i * 80, 0.7, 3);
     for (let i = 0; i < 80; i++) { const a = rnd(TAU), v = rnd(60, 300); part(q.x, q.y - 8, Math.cos(a) * v, Math.sin(a) * v, rnd(0.4, 1), Math.random() < 0.6 ? col : P.paper, { drag: 3, glow: true, keep: true }); }
@@ -361,6 +365,15 @@ function checkEvo() {
   G.timers.push({ t: 2.5, fn: () => { G.p.evoCol = null; } });
   G.evo = 'pending';
 }
+// The awakened kit, for the rest of the run: Q and E cost a quarter less and recharge a fifth faster, and the
+// ultimate charges a quarter faster. Basic hits, powers and the ultimate also gain the fighter's awakened
+// effects (kit.awake in chars.js; applied in damage() and where the powers are cast).
+function awakenKit(k) {
+  const ev = (a) => ({ ...a, cost: Math.round(a.cost * 0.75), cd: a.cd * 0.8 });
+  const pal = k.awake?.pal;
+  return { ...k, q: ev(k.q), e: ev(k.e), ultRate: k.ultRate * 1.25, ...(pal ? { color: () => pal.col, melee: k.melee && { ...k.melee, col: pal.slash } } : {}) };
+}
+const awake = () => G.evo === true && G.kit.awake;
 // during a boss entrance the fighter waits: no moving, attacking or powers until the boss is ready
 export function bossLock() {
   if (!G || !isBossWave(G.wave)) return false;
@@ -368,9 +381,9 @@ export function bossLock() {
   return G.queue.includes('boss') || G.sigils.some((s) => s.type === 'boss') || !!(b && !b.dead && b.state === 'intro');
 }
 
-export function evolveFx(name) {
-  const p = G.p;
-  G.banner = { text: name, sub: 'EVOLVED', t: 0, life: 2.8, c: P.gold };
+export function evolveFx(name, id) {
+  const p = G.p, n = evosDone();
+  G.banner = { text: name, sub: n < AWAKEN_NEED ? 'EVOLVED   AWAKENING ' + n + '/' + AWAKEN_NEED : 'EVOLVED', t: 0, life: 2.8, c: P.gold };
   p.evoFlash = 1.6;
   slowmo(1.2, 0.3); flash(P.gold, 0.35, true); shake(0.9); A.ultRelease(); A.victory(); buzz('boss');
   for (let i = 0; i < 4; i++) addRing(p.x, p.y - 6, i % 2 ? P.paper : P.gold, 200 + i * 80, 0.7, 3);
@@ -391,7 +404,7 @@ export function bankStats() {
   saveBest();
 }
 export function glitch(x, y, w, h, life = 0.3, n = 8) { G.glitches.push({ x, y, w, h, t: 0, life, n }); }
-export function addRing(x, y, c, vr, life, th = 2, r = 2) { G.rings.push({ x, y, r, vr, t: 0, life, c, th }); }
+export function addRing(x, y, c, vr, life, th = 2, r = 2) { if (G.pfx && G.awPal) c = G.awPal[c] || c; G.rings.push({ x, y, r, vr, t: 0, life, c, th }); }
 // the fighter's current look: the evolved skin once it has awakened
 export const heroSet = () => (G && G.evo === true ? SPR.evo[G.char] : SPR.chars[G.char]);
 export function ghost(p, c = P.volt, spr) {
@@ -427,21 +440,23 @@ export function damage(e, dmg, o) {
   if (e.dead || e.dying || e.under) return false;
   const up = G.up, p = G.p;
   if (e.boss) BOSSES[e.boss].onHit?.(e, o);
-  if (e.frozen > 0) dmg *= 1.5;
+  if (e.frozen > 0) dmg *= up.evoFrost ? 2 : 1.5;
   const melee = o.ug, spell = !o.ug && o.src !== 'burn' && o.src !== 'lava' && o.src !== 'wall';
   if (melee) dmg *= up.wpn;
   if (spell) dmg *= up.spell;
   if (p.ascend > 0 && o.src !== 'lava') dmg *= 2;
   if (G.kit.dmgScale && o.src !== 'lava' && o.src !== 'wall') dmg *= G.kit.dmgScale();
-  if (melee && !o.crit && Math.random() < up.crit) { dmg *= 2; o.crit = true; }
+  if (melee && !o.crit && Math.random() < up.crit) { dmg *= up.evoCrit ? 3 : 2; o.crit = true; }
   // the first hit after a perfect dodge is a counter: triple damage and a shockwave
   if (o.ug && p.counter > 0) {
     dmg *= 3; o.crit = true;
     if (!p.counterHit) { p.counterHit = true; p.counter = 0.08; counterBlast(e, o.dir ?? 0); }
   }
-  if (up.exec && e.hp < e.maxHp * 0.2 && o.src !== 'lava') dmg *= 1.6;
+  if (up.exec && e.hp < e.maxHp * (up.evoExec ? 0.35 : 0.2) && o.src !== 'lava') dmg *= up.evoExec ? 2 : 1.6;
   if (e.armor) dmg *= e.armor;
   if (up.rage && p.hp <= p.maxHp / 2) dmg *= 1.6;
+  const basic = o.basic || (G.tagBasic && o.src === 'primary'), aw = awake();
+  if (aw && (basic || o.src === 'ult')) dmg *= 1.3;
   dmg = Math.max(1, Math.round(dmg));
   e.calm = 0;
   if (e.affix) e.tagT = 1.2;
@@ -476,6 +491,7 @@ export function damage(e, dmg, o) {
     }
     if (up.evoWpn && (o.crit || Math.random() < 0.4)) spirits(e.x, e.y - e.r - 4, o.crit ? 3 : 1);
   }
+  if (aw && basic && Math.abs(G.time - (e.awT ?? -9)) > 0.15) { e.awT = G.time; aw.hit(e, o); }
   if (e.hp <= 0) { kill(e, o); return true; }
   return false;
 }
@@ -537,7 +553,7 @@ export function kill(e, o) {
   if (G.up.evoEmber && e.burn > 0) { G.booms.push({ x: e.x, y: e.y, t: 0.05, friendly: true, R: 40, dmg: 14 }); G.zones.push({ type: 'burn', x: e.x, y: e.y, r: 22, t: 0, life: 2.5 }); }
   if (G.up.evoWpn && o.ug) spirits(e.x, e.y - e.r - 4, 5);
   if (e.frozen > 0 && G.up.frost) shatter(e);
-  if (G.up.debt && ++G.debtKills >= 20) { G.debtKills = 0; healPlayer(1); }
+  if (G.up.debt && ++G.debtKills >= (G.up.evoDebt ? 10 : 20)) { G.debtKills = 0; healPlayer(1); }
 }
 
 function shatter(e) {
@@ -715,8 +731,9 @@ export function shoot(o) {
     owner: 'player', x: o.x, y: o.y, vx: Math.cos(o.a) * o.sp, vy: Math.sin(o.a) * o.sp, r: o.r ?? 2, dmg: o.dmg, kb: o.kb ?? 60,
     life: o.life ?? 1, t: 0, kind: o.kind ?? 'bullet', c: o.c ?? P.gold, pierce: o.pierce ?? 0, bounce: o.bounce ?? 0,
     homing: o.homing ?? 0, splash: o.splash, hit: new Set(), ug: o.ug ?? true, slice: o.slice ?? false, poison: o.poison, freeze: o.freeze,
-    spin: 0, trail: o.trail ?? true, onHit: o.onHit,
+    spin: 0, trail: o.trail ?? true, onHit: o.onHit, basic: !!G.tagBasic,
   };
+  if (G.awPal) { s.c = G.awPal[s.c] || s.c; if (s.basic) { s.r += 1; s.thick = true; } }
   G.shots.push(s);
   return s;
 }
@@ -925,6 +942,8 @@ function updatePlayer(dt) {
       const k = 1 - Math.exp(-12 * dt), c = kit.charge;
       p.vx += (mx * speed * c.move - p.vx) * k; p.vy += (my * speed * c.move - p.vy) * k;
       p.chargeT += dt;
+      // a phone keeps the last direction the attack button was dragged, so letting go doesn't snap to an enemy
+      if (input.aim.active) p.chgDir = input.aim.a;
       const f = chargeLevel(p);
       if (f >= 1 && !p.chargeFull) {
         p.chargeFull = true;
@@ -950,9 +969,9 @@ function updatePlayer(dt) {
     const canAct = free || p.state === 'charge' || (p.state === 'attack' && p.atkT >= p.cancelAt);
     const canDash = p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
-    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); p.castAim = null; buzz('ult'); if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = 25; p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
-    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const okQ = kit.q.use(p) !== false; p.castAim = null; if (okQ) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); } }
-    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const okE = kit.e.use(p) !== false; p.castAim = null; if (okE) { p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); } }
+    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); p.castAim = null; buzz('ult'); if (awake()) { G.kit.awake.ult(p); p.ult = 30; addText(p.x, p.y - 30, 'AWAKENED', P.gold); } if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = Math.max(p.ult, 25); p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
+    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const okQ = kit.q.use(p) !== false; p.castAim = null; if (okQ) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); if (awake()) G.kit.awake.skill(p, 'q'); } }
+    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const okE = kit.e.use(p) !== false; p.castAim = null; if (okE) { p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); if (awake()) G.kit.awake.skill(p, 'e'); } }
     else if (kit.melee) {
       if (p.bufAtk > 0 && canAct && p.state !== 'charge') startAttack();
       // still holding once the swing can be cancelled: start winding up the charged attack
@@ -960,7 +979,9 @@ function updatePlayer(dt) {
     }
     if (!kit.melee && p.state !== 'dead') {
       const held = (input.mouse.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || input.tb.attack;
+      G.tagBasic = true;
       kit.primary(p, dt, held && (p.state === 'move' || p.state === 'recover'));
+      G.tagBasic = false;
     }
   }
   kit.update?.(p, dt);
@@ -997,14 +1018,25 @@ export function aimAssist() {
 // so letting go at half charge hits half as hard (and dashes or spreads half as far).
 export const chargeLevel = (p) => Math.min(1, p.chargeT / (G.kit.charge.time / (G.up.spd * (p.ascend > 0 ? 1.4 : 1))));
 function startCharge(p) {
-  p.state = 'charge'; p.chargeT = 0; p.chargeFull = false; p.comboWin = 0;
+  p.state = 'charge'; p.chargeT = 0; p.chargeFull = false; p.comboWin = 0; p.chgDir = null;
   A.swing(0);
+}
+// the awakened release: a flash and rings in the fighter's colors, bigger the fuller the charge
+function chargeBurst(p, f) {
+  const col = G.kit.color();
+  addRing(p.x, p.y - 6, col, 260 + 200 * f, 0.35, 3); addRing(p.x, p.y - 6, P.paper, 200 + 160 * f, 0.25, 1);
+  for (let i = 0; i < 40 * f; i++) { const a = rnd(TAU), v = rnd(80, 300); part(p.x, p.y - 6, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.8), Math.random() < 0.6 ? col : P.paper, { drag: 3, glow: true }); }
+  if (f >= 1) flash(col, 0.18, false);
+  shake(0.3 + 0.5 * f); hitstop(0.04 + 0.05 * f);
 }
 function releaseCharge(p, f) {
   // letting go is not a new press (some browsers send a click when a finger lifts)
   p.state = 'move'; p.bufAtk = 0;
   if (f < 0.15) return; // a twitch, not a charge
+  G.inCharge = true;
   const act = G.kit.charge.release(p, f);
+  if (awake()?.charge) { G.kit.awake.charge(p, f); chargeBurst(p, f); }
+  G.inCharge = false;
   buzz(f >= 1 ? 'heavy' : 'hit');
   if (act) { p.state = 'chg'; p.chg = act; }
 }
@@ -1030,7 +1062,13 @@ function startAttack() {
   p.swingHit = new Set();
   const col = RANKS[G.rank].l === 'SSS' ? 'gold' : m.col;
   p.swing.col = col;
-  if (shape !== 'slam') G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach, arc: s.arc, dir: p.swing.dir, t: 0, life: s.heavy ? 0.24 : Math.min(0.19, s.dur * 0.9), th: s.th, col });
+  const aw = G.evo === true && G.awPal;
+  if (shape !== 'slam') G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach + (aw ? 2 : 0), arc: s.arc, dir: p.swing.dir, t: 0, life: s.heavy ? 0.24 : Math.min(0.19, s.dur * 0.9), th: aw ? Math.round(s.th * 1.6) : s.th, col });
+  if (aw) {
+    // a second, wider arc trails the first
+    if (shape !== 'slam') G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach + 9, arc: s.arc * 1.1, dir: p.swing.dir, t: -0.03, life: (s.heavy ? 0.24 : 0.19) + 0.08, th: Math.max(3, Math.round(s.th * 0.7)), col: 'paper' });
+    G.kit.awake.swing?.(p, s, shape);
+  }
   A.charAtk(G.char, !!s.heavy, p.step);
 }
 
@@ -1061,7 +1099,7 @@ function meleeHit(e, sw, dir) {
   if (crit) mult *= 2;
   if (p.invis > 0 && kit.backstab) { mult *= 3; crit = true; p.invis = 0; addText(e.x, e.y - 24, 'BACKSTAB', P.blood); }
   if (e.stunT > 0 || e.state === 'stun') mult *= 1.5;
-  const killed = damage(e, sw.dmg * mult * G.up.dmg, { dir, kb: sw.kb, src: 'primary', ug: true, slice: true, crit, heavy: sw.heavy });
+  const killed = damage(e, sw.dmg * mult * G.up.dmg, { dir, kb: sw.kb, src: 'primary', ug: true, slice: true, crit, heavy: sw.heavy, basic: true });
   kick(dir, sw.heavy || crit ? 2 : 1);
   if (!killed) hitstop(e.type === 'boss' ? 0.035 : sw.heavy || crit ? 0.085 : 0.05);
   shake(sw.heavy ? 0.3 : 0.17);
@@ -1083,7 +1121,7 @@ export function parry(s, a0, quiet = false) {
   }
   s.owner = 'player'; s.vx = Math.cos(a) * 300; s.vy = Math.sin(a) * 300;
   s.dmg = pd(10 * (1 + up.mirror)); s.pierce = up.mirror ? 99 : 0; s.life = 2; s.hit = new Set(); s.c = P.volt;
-  s.kind = 'orb'; s.ug = true; s.kb = 200; s.bounce = 0; s.homing = 0; s.slice = true; s.trail = true; s.accel = 0;
+  s.kind = 'orb'; s.ug = true; s.kb = 200; s.bounce = 0; s.homing = up.evoMirror ? 8 : 0; s.slice = true; s.trail = true; s.accel = 0;
   if (loud) {
     G.parryFxT = G.time;
     hitstop(quiet ? 0.04 : 0.09); shake(0.25); A.parry(); buzz('parry');
@@ -1452,7 +1490,7 @@ export function update(dt, rdt) {
   updateAmbient(rdt);
 
   if (G.cine) {
-    G.cine.update(rdt);
+    G.pfx = !G.cine.boss; G.cine.update(rdt); G.pfx = false;
     updateFx(rdt * 0.5);
     updateCam(rdt);
     return;
@@ -1504,10 +1542,10 @@ export function update(dt, rdt) {
   }
   sweep(G.sigils, (s) => s.t < s.life);
 
-  updatePlayer(dt);
+  G.pfx = true; updatePlayer(dt); G.pfx = false;
   const p = G.p;
 
-  for (const a of G.allies) { a.t += dt; ALLY[a.type].update(a, dt); }
+  G.pfx = true; for (const a of G.allies) { a.t += dt; ALLY[a.type].update(a, dt); } G.pfx = false;
   sweep(G.allies, (a) => a.t < a.life && !a.dead);
 
   for (const e of G.E) {
@@ -1559,15 +1597,17 @@ export function update(dt, rdt) {
   updateHazards(dt);
 
   fadeStains(dt);
-  for (const tm of G.timers) { tm.t -= dt; if (tm.t <= 0) tm.fn(); }
+  for (const tm of G.timers) { tm.t -= dt; if (tm.t <= 0) { G.pfx = !!tm.pfx; tm.fn(); G.pfx = false; } }
   sweep(G.timers, (tm) => tm.t > 0);
   for (const c of G.cuts) {
     c.t += dt;
+    G.pfx = !!c.pfx;
     if (!c.done && c.t >= c.pend) { c.done = true; c.fire(c, false); }
     if (c.echo === 1 && c.t >= c.pend + 0.2) { c.echo = 2; c.fire(c, true); }
+    G.pfx = false;
   }
   sweep(G.cuts, (c) => c.t < c.pend + 0.5);
-  for (const b of G.booms) { b.t -= dt; if (b.t <= 0) explode(b.x, b.y, b.friendly, b.R ?? 36, b.dmg ?? 14); }
+  for (const b of G.booms) { b.t -= dt; if (b.t <= 0) { G.pfx = !!b.pfx; explode(b.x, b.y, b.friendly, b.R ?? 36, b.dmg ?? 14); G.pfx = false; } }
   sweep(G.booms, (b) => b.t > 0);
 
   // low health: a heartbeat that quickens on the last heart
@@ -1619,6 +1659,7 @@ function updateShots(dt) {
   const p = G.p;
   for (const s of G.shots) {
     if (s.dead) continue;
+    G.pfx = s.owner === 'player';
     s.t += dt; s.life -= dt; s.spin = (s.spin || 0) + dt * 20;
     if (s.accel) { s.vx *= 1 + s.accel * dt; s.vy *= 1 + s.accel * dt; }
     if (s.ret && s.t > s.retT) {
@@ -1653,7 +1694,7 @@ function updateShots(dt) {
         if (!alive(e) || s.hit.has(e)) continue;
         if (hyp(s.x - e.x, s.y - (e.y - e.r)) < s.r + e.r + 2) {
           s.hit.add(e);
-          const killed = damage(e, s.dmg, { dir: Math.atan2(s.vy, s.vx), kb: s.kb, src: s.kind === 'orb' ? 'orb' : 'primary', ug: s.ug, slice: s.slice });
+          const killed = damage(e, s.dmg, { dir: Math.atan2(s.vy, s.vx), kb: s.kb, src: s.kind === 'orb' ? 'orb' : 'primary', ug: s.ug, slice: s.slice, basic: s.basic });
           if (s.onHit) s.onHit(e, killed);
           if (!killed && s.poison) { e.burn = 3; e.burnDps = 3; }
           if (!killed && s.freeze && e.type !== 'boss') e.frozen = Math.max(e.frozen, s.freeze);
@@ -1858,13 +1899,18 @@ const SLASH_COLS = () => ({
   hex: [P.paper, P.hex, P.hex, P.hexD],
   blood: [P.paper, '#ff8a8a', P.blood, P.bloodD],
   steel: [P.paper, '#cfe0f5', '#8fa2bd', '#3c4a63'],
+  oni: [P.paper, '#ff3b3b', '#c81e36', '#2a0a14'],
+  paper: [P.paper, P.paper, '#fff2c0', '#c8b8a0'],
+  whitefire: [P.paper, '#ffffff', '#fff2c0', P.gold],
+  titan: [P.paper, P.gold, '#ff3b3b', '#7a0a1a'],
+  storm: [P.paper, '#c8ffff', P.volt, P.gold],
   fire: [P.paper, '#ffe08a', '#ff9a3c', '#c6380f'],
 });
 export function drawSlash(s) {
   const L = s.life, age = s.t;
   const reveal = Math.min(1, age / 0.05), tail = Math.max(0, (age - 0.05) / (L - 0.05));
   const cx = Math.round(s.x), cy = Math.round(s.y - 5), R = s.r, a0 = -s.arc / 2;
-  const cols = SLASH_COLS()[s.col];
+  const pal = G.awPal && G.kit.awake?.pal, cols = (s.chg && pal && SLASH_COLS()[pal.charge]) || (s.follow && pal && SLASH_COLS()[s.col === 'paper' ? 'paper' : G.kit.melee?.col]) || SLASH_COLS()[s.col];
   const ir = Math.ceil(R), rIn = Math.max(0, R - s.th - 1);
   for (let y = -ir; y <= ir; y++) {
     // only walk the pixels inside the ring, not the whole square
@@ -1927,7 +1973,7 @@ function drawPlayer() {
   kit.drawAura?.(p, flip);
   // the weapon rises and sinks with the breath
   if (breathe || hover) { ctx.save(); ctx.translate(0, breathe - hover); }
-  if (behind) kit.drawWeapon(p, flip);
+  if (behind) { remap(G.awPal); kit.drawWeapon(p, flip); remap(null); }
   if (breathe || hover) ctx.restore();
   const sx = Math.round(p.x - fr.w / 2 + Math.cos(la) * lean), sy = Math.round(p.y - fr.h + 1 - bob + Math.sin(la) * lean * 0.5);
   const tintP = p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null;
@@ -1945,6 +1991,13 @@ function drawPlayer() {
     }
     glow(p.x, p.y - 7, c, 8 + Math.round(f * 8), 0.2 + f * 0.3);
     if (full) ring(p.x, p.y - 7, 12 + Math.sin(G.time * 30), 1, c);
+    if (G.evo === true && G.awPal) {
+      // awakened: a second ring spins the other way, sparks rise, and the glow is twice as big
+      const col = kit.color();
+      for (let i = 0; i < 16; i++) { const a = -G.time * 6 + (i / 16) * TAU; if (i % 2) px(p.x + Math.cos(a) * 14, p.y - 2 + Math.sin(a) * 6, i % 4 === 1 ? P.paper : col); }
+      glow(p.x, p.y - 7, col, 14 + Math.round(f * 16), 0.15 + f * 0.35);
+      if (Math.random() < 0.5 + f) part(p.x + rnd(-10, 10), p.y - rnd(0, 4), 0, -rnd(30, 70), rnd(0.3, 0.6), Math.random() < 0.6 ? col : P.paper, { drag: 1, glow: true });
+    }
   }
   // glowing eyes
   const leanX = leanR ? Math.sign(leanR) * Math.min(Math.abs(leanR), Math.floor((1 - (set.eye[1] + 0.5) / fr.h) * (Math.abs(leanR) + 1))) : 0;
@@ -1953,7 +2006,7 @@ function drawPlayer() {
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
   if (breathe || hover) { ctx.save(); ctx.translate(0, breathe - hover); }
-  if (!behind) kit.drawWeapon(p, flip);
+  if (!behind) { remap(G.awPal); kit.drawWeapon(p, flip); remap(null); }
   if (breathe || hover) ctx.restore();
   ctx.globalAlpha = 1;
   glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 10, 0.2);
@@ -2218,11 +2271,14 @@ export function drawWorld() {
 
   for (const q of G.quakes) {
     if (q.delay > 0 || q.r < 2) continue;
+    remap(q.pfx ? G.awPal : null);
     ring(q.x, q.y, q.r, 3, q.c2 || (q.friendly ? P.gold2 : P.hexD));
     ring(q.x, q.y, q.r, 1, q.c || (q.friendly ? P.gold : P.hex));
   }
 
+  remap(null);
   for (const c of G.cuts) {
+    remap(c.pfx ? G.awPal : null);
     if (!c.done) line(c.x0, c.y0, c.x1, c.y1, Math.floor(G.time * 30) % 2 ? P.paper : P.dust);
     else {
       const k = Math.min(1, (c.t - c.pend) / 0.22), w = Math.max(1, Math.round(6 * (1 - k)));
@@ -2230,6 +2286,7 @@ export function drawWorld() {
     }
   }
 
+  remap(null);
   const list = [];
   for (const k of G.picks) list.push([k.y, 0, k]);
   for (const g of G.gibs) list.push([g.y, 1, g]);
@@ -2259,9 +2316,12 @@ export function drawWorld() {
 
   drawDeath();
   for (const s of G.slashes) drawSlash(s);
-  G.kit.draw?.(G.p);
+  remap(G.awPal); G.kit.draw?.(G.p); remap(null);
 
   for (const s of G.shots) {
+    remap(s.owner === 'player' ? G.awPal : null);
+    // awakened basic shots: thicker, with a glow
+    if (s.thick) { line(s.x, s.y + 1, s.x - s.vx * 0.02, s.y + 1 - s.vy * 0.02, s.c); glow(s.x, s.y, s.c, 6, 0.5); }
     if (s.kind === 'bullet' || s.kind === 'pellet') {
       line(s.x, s.y, s.x - s.vx * 0.02, s.y - s.vy * 0.02, s.c);
       px(s.x, s.y, P.paper);
@@ -2279,13 +2339,15 @@ export function drawWorld() {
       glow(s.x, s.y, P.gold, 9, 0.6);
     } else if (s.kind === 'crescent') {
       // Rin's sakura wave: a pink crescent bowed forward, white on its leading edge, shedding petals
-      const a = Math.atan2(s.vy, s.vx), k = 1 - s.t / s.life;
-      for (let i = -5; i <= 5; i++) {
-        const b = a + i * 0.2, r = 7 - Math.abs(i) * 0.25;
-        px(s.x + Math.cos(b) * r - Math.cos(a) * 4, s.y + Math.sin(b) * r - Math.sin(a) * 4, Math.abs(i) < 4 ? '#ffb7d5' : '#ff8fb8');
-        if (Math.abs(i) < 3) px(s.x + Math.cos(b) * (r + 1) - Math.cos(a) * 4, s.y + Math.sin(b) * (r + 1) - Math.sin(a) * 4, P.paper);
+      // (other fighters' crescents take their own color, and bigger ones draw bigger and thicker)
+      const a = Math.atan2(s.vy, s.vx), k = 1 - s.t / s.life, pink = !s.c || s.c === '#ffb7d5', c1 = pink ? '#ffb7d5' : s.c, c2 = pink ? '#ff8fb8' : s.c;
+      const R0 = Math.max(7, (s.r || 4) + 3), n = Math.round(R0 * 0.75), th = Math.max(1, Math.round((s.r || 4) / 3));
+      for (let i = -n; i <= n; i++) {
+        const b = a + i * (1.1 / n), r = R0 - Math.abs(i) * (R0 / (n * 4));
+        for (let t = 0; t < th; t++) px(s.x + Math.cos(b) * (r - t) - Math.cos(a) * 4, s.y + Math.sin(b) * (r - t) - Math.sin(a) * 4, Math.abs(i) < n * 0.75 ? c1 : c2);
+        if (Math.abs(i) < n * 0.6) px(s.x + Math.cos(b) * (r + 1) - Math.cos(a) * 4, s.y + Math.sin(b) * (r + 1) - Math.sin(a) * 4, P.paper);
       }
-      glow(s.x, s.y, '#ffb7d5', 10, 0.35 * k + 0.15);
+      glow(s.x, s.y, c1, R0 + 3, 0.35 * k + 0.15);
       if (Math.random() < 0.5) part(s.x + rnd(-4, 4), s.y + rnd(-4, 4), -s.vx * 0.1, -s.vy * 0.1, rnd(0.3, 0.6), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 3 });
     } else if (s.kind === 'shuriken') {
       const a = s.spin;
@@ -2304,6 +2366,7 @@ export function drawWorld() {
       glow(s.x, s.y, s.c, 9, 0.5);
     }
   }
+  remap(null);
 
   for (const q of G.parts) {
     if (q.t > q.life * 0.75 && !q.blood && Math.floor(G.time * 30) % 2) continue;
@@ -2312,7 +2375,8 @@ export function drawWorld() {
   }
   for (const a of G.amb) { px(a.x, a.y, a.c); if (a.glow) glow(a.x, a.y, a.c, 4, 0.4 * Math.sin((a.t / a.life) * Math.PI)); }
 
-  for (const b of G.bolts) drawBolt(b, b.c1, b.c2, b.c3);
+  for (const b of G.bolts) { remap(b.pfx ? G.awPal : null); drawBolt(b, b.c1, b.c2, b.c3); }
+  remap(null);
   for (const g of G.glitches) {
     // glitch blocks: green, magenta and white slices that jitter
     const k = 1 - g.t / g.life;

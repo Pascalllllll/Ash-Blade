@@ -19,12 +19,12 @@ export const OPTIONS = {
 const DEFAULTS = {
   master: 1, music: 0.6, sfx: 0.9, track: 'AUTO', combat: 'HYPERDRIVE',
   theme: 'EMBER', vibrancy: 1, bright: 1, contrast: 1, hue: 0, crt: false,
-  shake: 1, flash: true, numbers: true, particles: 'HIGH',
+  shake: 0.25, flash: true, numbers: true, particles: 'HIGH',
   map: 'PIT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC', res: 'AUTO',
 };
 const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], bright: [0.6, 1.4], contrast: [0.6, 1.6], hue: [0, 345], shake: [0, 1] };
 
-export const settings = { ...DEFAULTS, ver: 3 };
+export const settings = { ...DEFAULTS, ver: 4 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
 export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0 };
 // Testing switch: true makes every fighter pickable (unlock progress is still tracked). Keep it false for release.
@@ -51,7 +51,9 @@ export function loadAll() {
     for (const k of ['crt', 'flash', 'numbers']) settings[k] = typeof s[k] === 'boolean' ? s[k] : DEFAULTS[k];
     for (const k in OPTIONS) settings[k] = OPTIONS[k].includes(s[k]) ? s[k] : DEFAULTS[k];
     // settings saved before HYPERDRIVE existed move to it once
-    if (s.ver !== 3) { settings.combat = 'HYPERDRIVE'; settings.track = 'AUTO'; }
+    if (!(s.ver >= 3)) { settings.combat = 'HYPERDRIVE'; settings.track = 'AUTO'; }
+    // settings saved before the gentler default move to 25% screen shake once
+    if (!(s.ver >= 4)) settings.shake = DEFAULTS.shake;
   }
   const b = read(KEY_BEST);
   if (b) {

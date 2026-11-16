@@ -26,9 +26,9 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 | --- | --- | --- | --- | --- | --- |
 | Blade | Kael | 4-hit sword combo | Rift: blinks forward and cuts everything on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
 | Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: an 11-pellet blast that pushes you back | Deadeye: time slows and she fires one sure critical shot at each of the 6 nearest enemies | Last Stand: 4 seconds of minigun |
-| Wizard | Morrow | Homing magic bolt | Frost Blink: teleports and freezes enemies at both ends | Meteor | Starfall: meteors rain on enemies for about 3 seconds |
+| Wizard | Morrow | Homing magic bolt | Arcane Missiles: a rune circle flares and 5 homing missiles leave his staff | Blizzard: a 3-second frost storm where you aim that cuts and freezes everything in it | Starfall: meteors rain on enemies for about 3 seconds |
 | Samurai | Rin | 4-hit katana combo ending in a quick-draw dash. 2 dashes, 8 health | Tsubame Gaeshi: a cut that flies out and back, hitting both ways and parrying shots | Hana Arashi: for 4 seconds a ring of petal blades cuts anything close, parries shots, and speeds her up | Issen: time stops while she cuts from enemy to enemy 11 times |
-| Mechanic | Rivet | Wrench combo | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Iron Titan: a giant mech lands and fights beside her for 12 seconds |
+| Mechanic | Rivet | Wrench combo | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Iron Titan: a giant mech lands and fights beside her for 18 seconds, punching, firing missile salvos and ground-pounding to stun |
 | Tank | Grom | Slow hammer combo. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, and shots bounce back |
 | Robot | Unit-7 | Laser that overheats if held too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
@@ -43,7 +43,25 @@ The four melee fighters charge up when you hold attack. Let go early for a weake
 
 The eighth fighter is The Dev, a programmer in a motorized wheelchair who wrote this world and is now debugging it from the inside. He starts weaker than the others, with one shot at a time and 6 health, and grows with every wave and every 20 kills: about even by wave 15, 7.5 times as strong by wave 50. His shots plant bugs that crash an enemy.
 
-The others awaken into a new look once per run, on their first evolution upgrade or at wave 25: Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom and Unit-7 Omega. Each gains 1 max health.
+Every fighter awakens once per run, after any five evolutions (see Upgrades). The evolution banner counts them, AWAKENING 1/5 to 5/5. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom, Unit-7 Omega and Root. Awakening brings a new look, 1 more max health, and an evolved kit for the rest of the run:
+
+- **Look:** the fighter's slashes, shots, beams, particles and power effects switch to an awakened color scheme, and basic-attack slashes, shots and Unit-7's laser get thicker.
+- **Basic attack:** 30% more damage, plus an extra effect on every hit.
+- **Melee swings:** every awakened swing leaves a second, wider arc and adds the fighter's own extra: Ashen Kael throws flame crescents, Oni Rin sends crimson blade waves, Rivet Mk-II arcs lightning forward, and Titan Grom rolls gold shockwaves along the ground, with his slam and spin ending in a quake ringed by eruptions.
+- **Charged attack:** a double ring spins at the feet while charging, and the release bursts in the fighter's awakened colors. Ashen Kael throws five crescents and a line of white fire erupts along the cut. Oni Rin fans eight crimson waves out of her dash, then a second cut opens along it. Rivet Mk-II calls a ring of lightning strikes and a long chain. Titan Grom sends three aftershocks and a ring of eruptions.
+- **Q and E:** cost a quarter less, recharge a fifth faster, and release an awakened burst after each cast.
+- **Ultimate:** 30% more damage, an awakened finisher, and it keeps 30% of its charge. It also charges a quarter faster.
+
+| Awakened | Basic hits | After Q and E | After the ultimate |
+| --- | --- | --- | --- |
+| Ashen Kael | Set enemies on fire | A ring of fire | The whole screen burns |
+| Deadeye Vega | Shots ricochet to the next enemy | A fan of 10 gold rounds | A homing volley at up to 10 enemies |
+| Archmage Morrow | Bolts arc to a second enemy | Lightning on the 3 nearest enemies | Lightning on 8 enemies |
+| Oni Rin | A petal cut opens a beat later | A ring cut that parries every shot near her | The blossom storm rises around her for free |
+| Rivet Mk-II | Every third hit arcs to two more enemies | A tesla chain through 5 enemies | A 10-enemy chain and lightning strikes |
+| Titan Grom | A shockwave through the enemies around the target | A quake that stuns | A great quake that stuns everything near |
+| Unit-7 Omega | The laser scorches | 3 homing mini-rockets | A ring of 8 homing rockets |
+| Root | Each hit forks a bug into a nearby enemy | Crashes the 3 nearest enemies | Glitches everything in range |
 
 Each fighter also has their own sounds and their own entrance. Grom falls from the sky, Unit-7 teleports down in a beam, and Rivet breaks out of a crate.
 
@@ -78,18 +96,43 @@ You start with Blade. The select screen shows each mission and how close you are
 
 ## Upgrades
 
-After every wave you pick one of three upgrades. Maxing one unlocks its evolution:
+After every wave you pick one of three upgrades. Every upgrade has an evolution, offered once you max it. Any five evolutions awaken your fighter.
 
 | Max this | Evolution |
 | --- | --- |
-| Ultimate Mastery | Your ultimate gets stronger, then you deal double damage for 8 seconds |
+| Weapon Mastery | Spirit Strikes: basic hits release homing spirits |
 | Spell Mastery | Q and E cast a second time for free |
-| Weapon Mastery | Basic hits release homing spirits |
-| Heartwood | Survive one killing blow per wave |
-| Swift Step | An extra dash, and dashing cuts every enemy you pass |
-| Static Charge | Every 4th hit chains lightning to 7 enemies |
-| Kindling | Burning enemies explode when they die |
-| Orbit Blades | Twice the blades, on a wider orbit |
+| Ultimate Mastery | Your ultimate gets stronger, then you deal double damage for 8 seconds |
+| Whetstone | Razor Edge: all damage +30% more |
+| Quickhand | Frenzy: attack speed +25% more |
+| Long Edge (melee) | Giant's Reach: melee reach +30% more |
+| Keen Eye | Deathmark: +15% crit chance, and crits deal triple damage |
+| Heartwood | Undying: survive one killing blow per wave |
+| Swift Step | Blink Storm: an extra dash, and dashing cuts every enemy you pass |
+| Phantom Step | Shadow Step: dash cuts hit three times harder |
+| Mirror Guard (melee) | Reflect All: parried shots home in on enemies |
+| Deep Well | Wellspring: energy refills 60% faster again |
+| Lodestone | Lifeline: energy refills 30% faster, +1 max health |
+| Blood Debt | Blood Pact: heal 1 health every 10 kills |
+| Static Charge | Thundergod: every 4th hit chains lightning to 7 enemies |
+| Kindling | Inferno: burning enemies explode when they die |
+| Shrapnel | Cluster Blast: explosions 50% bigger again |
+| Executioner | Guillotine: enemies under 35% health take double damage |
+| Orbit Blades | Blade Storm: twice the blades, on a wider orbit |
+| Thorns | Bramble: the blast when you're hit is twice as strong |
+
+Each fighter's own upgrades evolve too:
+
+| Fighter | Upgrade → evolution |
+| --- | --- |
+| Kael | Rift Echo → Rift Master (powers +25% damage, cooldowns -20%). Storm Heart → Eye of the Storm (Tempest jumps to 3 more) |
+| Vega | Extended Mag → Bottomless Mag (+100% ammo). Hollow Points → Railgun (bullets pierce 3 more) |
+| Morrow | Frostbite → Absolute Zero (frozen enemies take double damage). Twin Cast → Arcane Storm (12 missiles, a huge blizzard) |
+| Rin | Third Step → Fourth Step (+1 dash). Venom Edge → Death Blossom (poison burns twice as hard) |
+| Rivet | Overclock → Hyperclock (turrets and coils fire faster still). Extra Hands → Assembly Line (+2 turrets) |
+| Grom | Aftershock → Earthquake (ground slam sends 2 more waves). Iron Skin → Adamant (+5 max health and a full heal) |
+| Unit-7 | Coolant → Cryo Core (the laser heats 75% slower). Cluster Pods → Swarm Pods (+6 rockets per salvo) |
+| The Dev | Fork Bomb → Recursion (a crash needs 1 fewer bug). Stack Overflow → Segfault (all damage +25%) |
 
 ## Relics
 

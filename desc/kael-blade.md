@@ -9,6 +9,8 @@ Spiky dark violet hair and an ember-orange scarf pulled up over his mouth. A bon
 
 Awakened as **Ashen Kael**, his hair burns white, his scarf turns gold and his clothes go a deep blood red.
 
+Awakened, his cuts set enemies on fire, his powers throw a ring of fire, and Thousand Cuts leaves the whole screen burning. Awakening also makes basic hits and the ultimate 30% stronger, Q and E a quarter cheaper and a fifth faster to recharge, and the ultimate charge a quarter faster, keeping 30% of its charge after each use. His charged Ashen Crescent throws three crescents instead of one, the middle one white flame.
+
 ## How he plays
 The all-rounder and the first fighter you get. Quick on his feet, solid in a fight, short on reach.
 

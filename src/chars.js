@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=61';
-import { SPR } from './sprites.js?v=61';
-import { A } from './audio.js?v=61';
-import { input } from './input.js?v=61';
-import { best } from './store.js?v=61';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=74';
+import { SPR } from './sprites.js?v=74';
+import { A } from './audio.js?v=74';
+import { input } from './input.js?v=74';
+import { best } from './store.js?v=74';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
   chainLightning, parry, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick,
-} from './world.js?v=61';
+} from './world.js?v=74';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -123,7 +123,14 @@ function entrance(kind) {
 
 // ---------- charged attacks ----------
 // f is the charge, 0.15..1: damage, reach and spread scale with it, so a half charge is half the attack.
-const chargeAim = (p) => { if (input.device === 'keys') aimAssist(); return p.aim; };
+// where a charged attack goes: on a phone, the way the attack button was last dragged while charging; on a
+// computer, at the mouse (even after attacking with J); keyboard-only players get a light aim assist
+const chargeAim = (p) => {
+  if (p.chgDir != null) return (p.aim = p.chgDir);
+  if (!input.touch && input.mouseUsed) return (p.aim = Math.atan2(input.mouse.y + fx.cam.y - (p.y - 6), input.mouse.x + fx.cam.x - p.x));
+  if (input.device === 'keys') aimAssist();
+  return p.aim;
+};
 // the weapon swings from drawn-back through to the aim over `dur` seconds
 const swingThrough = (a, dur, from = 2.3) => (p) => { const k = Math.min(1, p.chg.t / dur), e = 1 - (1 - k) ** 3, back = Math.cos(a) < 0 ? 1 : -1; return a + back * from * (1 - e) - back * 0.9 * e; };
 function burst(x, y, n, cols, v0, v1, o = {}) {
@@ -389,11 +396,11 @@ export const CHARS = {
 
   WIZARD: {
     id: 'WIZARD', name: 'WIZARD', alias: 'MOTH', color: () => '#b48cff',
-    desc: ['HOMING MAGIC, FROST', 'BLINK AND METEORS'], tip: 'HOLD CLICK TO CAST',
+    desc: ['HOMING MAGIC, ARCANE', 'MISSILES AND BLIZZARDS'], tip: 'E CALLS A BLIZZARD WHERE YOU AIM',
     bars: { power: 5, speed: 2, range: 4, tough: 1 },
     stats: { hp: 6, speed: 92 }, dash: { speed: 360, time: 0.12, cd: 0.5, charges: 1 }, ultRate: 1, energyHit: 1.5,
     primaryName: 'ARCANE BOLT',
-    init: () => ({ fireT: 0, star: 0, starT: 0, castT: 0 }),
+    init: () => ({ fireT: 0, star: 0, starT: 0, castT: 0, miss: 0, missT: 0, rune: 0, bliz: [] }),
     primary(p, dt, held) {
       const k = p.k;
       k.fireT -= dt; k.castT -= dt;
@@ -406,6 +413,25 @@ export const CHARS = {
     },
     update(p, dt) {
       const k = p.k;
+      k.rune -= dt;
+      // the missile volley leaves the staff one at a time
+      if (k.miss > 0 && (k.missT -= dt) <= 0) {
+        k.missT = 0.07; k.miss--;
+        const flip = Math.cos(p.aim) < 0, tx = p.x + (flip ? -1 : 1) * 4 + (flip ? -0.25 : 0.25) * 14, ty = p.y - 4 - 10;
+        const a = p.aim + rnd(-1.1, 1.1);
+        shoot({ x: tx, y: ty, a, sp: 190, dmg: pd(5), kb: 70, life: 1.8, kind: 'arcane', r: 3, c: '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) } });
+        sparks(tx, ty, a, 4, 0.5, '#b48cff', 120); A.zip();
+      }
+      // blizzards: ice rains inside the circle, every 0.3 s everything in it is cut and frozen
+      for (const z of k.bliz) {
+        z.t += dt; z.tick -= dt;
+        for (let i = 0; i < 3; i++) if (Math.random() < dt * 30) { const b = rnd(TAU), r = Math.sqrt(Math.random()) * z.R; part(z.x + Math.cos(b) * r + 10, z.y + Math.sin(b) * r * 0.6 - 30, -50, 140, 0.22, Math.random() < 0.5 ? P.paper : P.volt, { drag: 0 }); }
+        if (z.tick <= 0) {
+          z.tick = 0.3;
+          for (const e of G.E) if (alive(e) && hyp(e.x - z.x, e.y - z.y) < z.R + e.r) { damage(e, pd(3), { dir: rnd(TAU), kb: 10, src: 'bolt' }); if (e.type !== 'boss' && alive(e)) e.frozen = Math.max(e.frozen || 0, 0.8); }
+        }
+      }
+      k.bliz = k.bliz.filter((z) => z.t < z.life);
       if (k.star > 0) {
         k.star -= dt; k.starT -= dt;
         if (k.starT <= 0) {
@@ -417,35 +443,46 @@ export const CHARS = {
         }
       }
     },
+    // Q: Arcane Missiles. A rune circle flares at his feet and violet missiles leave the staff one after another,
+    // each hunting its own target.
     q: {
-      name: 'FROST BLINK', cost: 25, cd: 1.5, icon: 'snow', desc: 'TELEPORT, FREEZE BOTH ENDS',
+      name: 'ARCANE MISSILES', cost: 25, cd: 1.5, icon: 'orb', desc: 'A VOLLEY OF HOMING MISSILES',
       use(p) {
-        const [x, y] = aimPoint(p, 120);
-        const nova = (nx, ny) => {
-          addRing(nx, ny - 5, P.volt, 260, 0.28, 2); addRing(nx, ny - 5, P.paper, 200, 0.2, 1);
-          for (const e of G.E) if (alive(e) && hyp(e.x - nx, e.y - ny) < 46) { damage(e, pd(3), { dir: Math.atan2(e.y - ny, e.x - nx), kb: 60, src: 'bolt' }); if (e.type !== 'boss') e.frozen = 1.6; }
-          for (let i = 0; i < 16; i++) { const a = rnd(TAU), v = rnd(60, 180); part(nx, ny - 5, Math.cos(a) * v, Math.sin(a) * v, 0.4, Math.random() < 0.5 ? P.volt : P.paper, { drag: 6, glow: true }); }
-        };
-        nova(p.x, p.y);
-        for (let i = 0; i < 6; i++) { const k = i / 6; G.ghosts.push({ x: p.x + (x - p.x) * k, y: p.y + (y - p.y) * k, flip: Math.cos(p.aim) < 0, t: -i * 0.01, life: 0.3, c: '#b48cff', spr: SPR.chars.WIZARD.idle }); }
-        p.x = x; p.y = y; p.vx = p.vy = 0;
-        nova(p.x, p.y);
-        p.inv = Math.max(p.inv, 0.3); p.state = 'recover'; p.recT = 0.1;
-        A.freeze(); shake(0.25); hitstop(0.04);
+        p.k.miss += G.up.evoTwin ? 12 : G.up.twin ? 8 : 5; p.k.missT = 0; p.k.castT = 0.5;
+        addRing(p.x, p.y - 1, '#b48cff', 120, 0.3, 1); addRing(p.x, p.y - 1, P.paper, 80, 0.2, 1);
+        p.k.rune = 0.5; A.magic(); A.sigil();
       },
     },
+    // E: Blizzard. A frost storm on the aimed spot for 3 seconds: ice rains inside a rune circle, cutting and
+    // freezing whatever stands in it (frozen enemies take 50% more damage, and Frostbite shatters them).
     e: {
-      name: 'METEOR', cost: 40, cd: 3.5, icon: 'star', desc: 'CALL A BURNING ROCK',
+      name: 'BLIZZARD', cost: 40, cd: 5, icon: 'snow', desc: 'A FREEZING STORM WHERE YOU AIM',
       use(p) {
-        const [x, y] = aimPoint(p, 170);
-        G.strikes.push({ x, y, t: 0, delay: 0.7, R: 40, dmg: 20, friendly: true, kind: 'meteor', c: P.ember });
-        if (G.up.twin) G.strikes.push({ x: clamp(x + rnd(-20, 20), B.x0, B.x1), y: clamp(y + rnd(-14, 14), B.y0, B.y1), t: -0.35, delay: 0.7, R: 34, dmg: 16, friendly: true, kind: 'meteor', c: P.ember });
-        A.meteorFall(); p.k.castT = 0.3;
+        const [x, y] = aimPoint(p, 170), R = G.up.evoTwin ? 66 : G.up.twin ? 52 : 40;
+        p.k.bliz.push({ x, y, R, t: 0, life: 3, tick: 0 });
+        addRing(x, y - 2, P.volt, R * 5, 0.3, 2); addRing(x, y - 2, P.paper, R * 3, 0.25, 1);
+        A.freeze(); p.k.castT = 0.4; shake(0.15);
       },
     },
     r: {
       name: 'STARFALL', icon: 'star', desc: 'METEORS RAIN ON EVERY FOE',
       use(p) { p.k.star = G.up.evoUlt ? 4.4 : 2.6; p.k.starT = 0; banner(G.up.evoUlt ? 'STARFALL II' : 'STARFALL', P.ember2); A.ultStart(); flash('#b48cff', 0.15, false); },
+    },
+    draw(p) {
+      const k = p.k;
+      const runes = (x, y, R, col, spin, a = 1) => {
+        ctx.globalAlpha = a;
+        ring(x, y, R, 1, col);
+        for (let i = 0; i < 8; i++) { const b = spin + (i * TAU) / 8; px(x + Math.cos(b) * (R - 3), y + Math.sin(b) * (R - 3) * 0.6, i % 2 ? P.paper : col); }
+        ctx.globalAlpha = 1;
+      };
+      if (k.rune > 0) runes(p.x, p.y, 12, '#b48cff', G.time * 4, Math.min(1, k.rune * 3));
+      for (const z of k.bliz) {
+        const fade = Math.min(1, (z.life - z.t) * 3, z.t * 6);
+        ctx.globalAlpha = 0.18 * fade; disc(z.x, z.y, z.R, P.volt2); ctx.globalAlpha = 1;
+        runes(z.x, z.y, z.R, P.volt, -G.time * 2, fade);
+        glow(z.x, z.y - 6, P.volt, z.R * 0.8, 0.18 * fade);
+      }
     },
     drawWeapon(p, flip) {
       const [hx, hy] = hand(p, flip), tilt = flip ? 0.25 : -0.25;
@@ -546,7 +583,7 @@ export const CHARS = {
         for (const e of G.E) if (alive(e) && !w.hit.has(e) && hyp(e.x - w.x, e.y - e.r - w.y) < e.r + 8) {
           w.hit.add(e);
           damage(e, pd(7), { dir: w.a, kb: 140, src: 'primary', ug: true, slice: true });
-          if (G.up.venom && alive(e)) { e.burn = 3; e.burnDps = 3; }
+          if (G.up.venom && alive(e)) { e.burn = 3; e.burnDps = G.up.evoVenom ? 6 : 3; }
           sparks(e.x, e.y - e.r, w.a + Math.PI / 2, 5, 0.5, '#ffb7d5', 200);
         }
         for (const s of G.shots) if (canParry(s) && hyp(s.x - w.x, s.y - w.y) < s.r + 8) parry(s, w.a, true);
@@ -710,7 +747,7 @@ export const CHARS = {
       name: 'IRON TITAN', icon: 'fist', desc: 'A MECH DROPS IN: PUNCHES AND MISSILES',
       use(p) {
         const [x, y] = aimPoint(p, 60);
-        const titan = (tx, z, face, cd) => ({ type: 'golem', x: tx, y, z, vz: -60, t: 0, life: G.up.evoUlt ? 20 : 12, cd, mcd: 1.2, landed: false, face, anim: 0, step: 0 });
+        const titan = (tx, z, face, cd) => ({ type: 'golem', x: tx, y, z, vz: -60, t: 0, life: G.up.evoUlt ? 30 : 18, cd, mcd: 1.2, pcd: 2.5, landed: false, face, anim: 0, step: 0 });
         G.allies.push(titan(x, 160, 1, 0.6));
         if (G.up.evoUlt) G.allies.push(titan(clamp(x + 34, B.x0 + 12, B.x1 - 12), 230, -1, 0.9));
         banner('IRON TITAN', '#ff9a3c'); A.ultStart();
@@ -858,7 +895,7 @@ export const CHARS = {
       if (k.over > 0) { k.over -= dt; k.heat = Math.max(0, k.heat - 60 * dt); if (Math.random() < 0.5) part(p.x, p.y - 12, rnd(-10, 10), -rnd(20, 40), 0.5, P.dust, { drag: 2 }); A.loop('beam', false); return; }
       if (held) {
         k.firing = true;
-        k.heat += 34 * (G.up.coolant ? 0.6 : 1) * dt;
+        k.heat += 34 * (G.up.evoCoolant ? 0.25 : G.up.coolant ? 0.6 : 1) * dt;
         const [hx, hy] = hand(p, Math.cos(p.aim) < 0), a = p.aim;
         const L = beamLen(hx, hy, a, 160), ex = hx + Math.cos(a) * L, ey = hy + Math.sin(a) * L;
         k.end = [ex, ey];
@@ -932,7 +969,7 @@ export const CHARS = {
     draw(p) {
       const k = p.k;
       if (k.firing) {
-        const [hx, hy] = hand(p, Math.cos(p.aim) < 0), [ex, ey] = k.end, w = 3 + (Math.random() < 0.5 ? 1 : 0);
+        const [hx, hy] = hand(p, Math.cos(p.aim) < 0), [ex, ey] = k.end, w = 3 + (Math.random() < 0.5 ? 1 : 0) + (G.evo === true ? 2 : 0);
         line(hx, hy, ex, ey, P.volt2, w + 2); line(hx, hy, ex, ey, P.volt, w); line(hx, hy, ex, ey, P.paper, 1);
         glow(ex, ey, P.volt, 10, 0.6); glow(hx, hy, P.volt, 6, 0.5);
       }
@@ -1013,7 +1050,7 @@ export const ALLY = {
         if (a.z < 90) flames(3, 6);
         if (a.z <= 0) {
           a.landed = true;
-          G.quakes.push({ x: a.x, y: a.y, r: 0, delay: 0, max: 84, friendly: true, hit: new Set(), dmg: 12, speed: 220 });
+          G.quakes.push({ x: a.x, y: a.y, r: 0, delay: 0, max: 120, friendly: true, hit: new Set(), dmg: 20, speed: 240 });
           shake(0.9); A.boom(1.8); dust(a.x, a.y, 34, 150); scorch(a.x, a.y, 16); hitstop(0.07);
           addRing(a.x, a.y - 4, '#ff9a3c', 300, 0.35, 3);
         }
@@ -1021,33 +1058,40 @@ export const ALLY = {
       }
       // the last second: it lifts off on its jets
       if (a.t > a.life - 1) { a.leaving = true; a.z += (60 + (a.t - (a.life - 1)) * 400) * dt; flames(4, 7); if (Math.random() < dt * 8) A.rocket(); return; }
-      a.cd -= dt; a.mcd -= dt; a.punch = (a.punch || 0) - dt; a.windup = (a.windup || 0) - dt;
+      a.cd -= dt; a.mcd -= dt; a.pcd -= dt; a.punch = (a.punch || 0) - dt; a.windup = (a.windup || 0) - dt;
+      // every 4 seconds a ground pound: a shockwave that stuns everything near
+      if (a.pcd <= 0 && nearest(a.x, a.y, 90)) {
+        a.pcd = 4;
+        G.quakes.push({ x: a.x, y: a.y, r: 0, delay: 0, max: 100, friendly: true, hit: new Set(), dmg: 12, speed: 260 });
+        for (const o of G.E) if (alive(o) && o.type !== 'boss' && hyp(o.x - a.x, o.y - a.y) < 100) o.stunT = Math.max(o.stunT || 0, 0.8);
+        addRing(a.x, a.y - 4, '#ff9a3c', 280, 0.3, 3); dust(a.x, a.y, 24, 140); shake(0.6); A.boom(1.4); hitstop(0.04);
+      }
       const e = nearest(a.x, a.y, 400);
       if (!e) { a.walking = false; return; }
       const d = hyp(e.x - a.x, e.y - a.y);
       a.face = e.x < a.x ? -1 : 1;
       if (d > 30 && a.windup <= 0) {
-        a.x += ((e.x - a.x) / d) * 66 * dt; a.y += ((e.y - a.y) / d) * 66 * dt; a.walking = true;
+        a.x += ((e.x - a.x) / d) * 92 * dt; a.y += ((e.y - a.y) / d) * 92 * dt; a.walking = true;
         // heavy steps
         const st = Math.floor(a.anim * 6);
         if (st !== a.step) { a.step = st; if (st % 2 === 0) { dust(a.x + rnd(-6, 6), a.y, 5, 40); shake(0.06); } }
       } else a.walking = false;
-      if (d < 36 && a.cd <= 0 && a.windup <= 0) { a.windup = 0.16; a.cd = 0.8; a.target = e; }
+      if (d < 40 && a.cd <= 0 && a.windup <= 0) { a.windup = 0.14; a.cd = 0.55; a.target = e; }
       if (a.windup > 0 && a.windup - dt <= 0 && a.target) {
         // the piston punch
         const t = a.target;
         a.punch = 0.2;
-        for (const o of G.E) if (alive(o) && hyp(o.x - t.x, o.y - t.y) < 30) damage(o, pd(14), { dir: Math.atan2(o.y - a.y, o.x - a.x), kb: 320, src: 'boom', heavy: true });
+        for (const o of G.E) if (alive(o) && hyp(o.x - t.x, o.y - t.y) < 38) damage(o, pd(22), { dir: Math.atan2(o.y - a.y, o.x - a.x), kb: 320, src: 'boom', heavy: true });
         G.quakes.push({ x: t.x, y: t.y, r: 0, delay: 0, max: 40, friendly: true, hit: new Set([t]), dmg: 3, speed: 220 });
         sparks(a.x + a.face * 28, a.y - 22, a.face > 0 ? 0 : Math.PI, 12, 0.6, '#ff9a3c', 260);
         shake(0.45); A.boom(1.1); hitstop(0.05);
       }
       // a missile salvo from both shoulder pods
       if (a.mcd <= 0) {
-        a.mcd = 2.2;
-        for (let i = 0; i < 4; i++) {
+        a.mcd = 1.4;
+        for (let i = 0; i < 6; i++) {
           const side = i % 2 ? 1 : -1;
-          shoot({ x: a.x + side * 16, y: a.y - 46, a: -Math.PI / 2 + side * rnd(0.3, 0.8), sp: 170, dmg: pd(6), kb: 120, life: 1.8, kind: 'rocket', homing: 6, ug: false, splash: { R: 16, dmg: pd(3) } });
+          shoot({ x: a.x + side * 16, y: a.y - 46, a: -Math.PI / 2 + side * rnd(0.3, 0.8), sp: 170, dmg: pd(9), kb: 120, life: 1.8, kind: 'rocket', homing: 6, ug: false, splash: { R: 18, dmg: pd(5) } });
         }
         A.rocket(); addRing(a.x, a.y - 46, '#ff9a3c', 80, 0.15, 1);
       }
@@ -1310,7 +1354,118 @@ const AURA = {
   TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
 };
 const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#a070ff', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
-for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].drawAura = AURA[id]; CHARS[id].eyeColor = EYES[id]; }
+// ---------- awakened powers ----------
+// pal: the awakened colors. col is the fighter's new color, slash the color set its sword arcs use, and map
+// swaps the colors of its own effects (particles, rings, shots, its weapon and power drawings).
+// Once a fighter awakens, its kit evolves for the rest of the run (see awakenKit in world.js). Each one adds:
+//   hit: an extra effect on basic-attack hits (at most every 0.15 s per enemy),
+//   skill: an awakened burst after every Q and E,
+//   ult: an awakened finisher after the ultimate,
+//   charge: an awakened follow-up to the charged attack (the four melee fighters).
+const awNear = (x, y, R, n = 99, skip = null) => G.E.filter((e) => alive(e) && e !== skip && hyp(e.x - x, e.y - y) < R).sort((a, b) => hyp(a.x - x, a.y - y) - hyp(b.x - x, b.y - y)).slice(0, n);
+const awBurst = (p, R, dmg, col, o = {}) => {
+  for (const e of awNear(p.x, p.y, R)) { damage(e, dmg, { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: o.kb ?? 180, src: 'bolt' }); o.each?.(e); }
+  addRing(p.x, p.y - 6, col, R * 4, 0.3, 2); addRing(p.x, p.y - 6, P.paper, R * 3, 0.2, 1);
+  for (let i = 0; i < 24; i++) { const a = rnd(TAU), v = rnd(60, R * 4); part(p.x, p.y - 6, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.7), Math.random() < 0.6 ? col : P.paper, { drag: 3, glow: true }); }
+  shake(0.25);
+};
+const awStrike = (x, y, R, dmg) => G.strikes.push({ x, y, t: 0, delay: 0.15, R, dmg, friendly: true, kind: 'lightning', c: P.volt });
+const awBurn = (e, t, dps) => { if (alive(e)) { e.burn = Math.max(e.burn || 0, t); e.burnDps = Math.max(e.burnDps || 0, dps); } };
+const awStun = (e, t) => { if (alive(e) && e.type !== 'boss') e.stunT = Math.max(e.stunT || 0, t); };
+const AWAKE = {
+  // Ashen Kael: every cut sets enemies alight; his powers throw a ring of fire; Thousand Cuts leaves the screen burning
+  BLADE: {
+    pal: { col: P.gold, slash: 'gold', charge: 'whitefire', map: { [P.ember]: P.gold, [P.ember2]: '#fff2c0', [P.ember3]: P.paper, '#ffb04a': P.gold, [P.gold]: '#fff2c0', [P.gold2]: P.gold } },
+    hit: (e) => awBurn(e, 2.5, 4),
+    swing: (p, st) => shoot({ x: p.x + Math.cos(p.atkAng) * 10, y: p.y - 6, a: p.atkAng, sp: 300, dmg: pd(st.heavy ? 6 : 3), kb: 80, life: st.heavy ? 0.45 : 0.3, kind: 'crescent', r: st.heavy ? 6 : 4, pierce: 99, c: P.ember, ug: true, slice: true, trail: false }),
+    charge: (p, f) => {
+      const a = p.aim;
+      for (const d of [-0.6, -0.3, 0.3, 0.6]) shoot({ x: p.x + Math.cos(a + d) * 8, y: p.y - 6, a: a + d, sp: 260 + 120 * f, dmg: pd(12 * f), kb: 160, life: 0.3 + 0.4 * f, kind: 'crescent', r: 5 + 5 * f, pierce: 99, c: P.ember, ug: true, slice: true, trail: false });
+      // a line of white fire erupts along the cut, one blast after another
+      const n = 3 + Math.round(4 * f);
+      for (let i = 1; i <= n; i++) G.booms.push({ x: clamp(p.x + Math.cos(a) * i * 24, B.x0 + 6, B.x1 - 6), y: clamp(p.y + Math.sin(a) * i * 24, B.y0 + 6, B.y1 - 4), t: 0.05 + i * 0.05, friendly: true, R: 22, dmg: Math.round(8 + 10 * f) });
+    },
+    skill: (p) => awBurst(p, 48, pd(6), P.ember, { each: (e) => awBurn(e, 3, 5) }),
+    ult: (p) => { for (const e of awNear(p.x, p.y, 400)) awBurn(e, 4, 7); addRing(p.x, p.y - 6, P.ember, 400, 0.5, 3); },
+  },
+  // Deadeye Vega: shots ricochet to the next enemy; her powers fire a fan of gold rounds; Last Stand opens with a volley at everything near
+  GUNNER: {
+    pal: { col: '#ff3b5c', slash: 'blood', map: { [P.gold]: '#ff3b5c', [P.ember3]: '#ffb0c0', [P.gold2]: '#7a1424' } },
+    hit: (e) => { const t = awNear(e.x, e.y, 90, 1, e)[0]; if (t && Math.random() < 0.4) shoot({ x: e.x, y: e.y - e.r, a: Math.atan2(t.y - e.y, t.x - e.x), sp: 420, dmg: pd(3), kb: 60, life: 0.5, kind: 'bullet', c: P.gold, ug: false }); },
+    skill: (p) => { for (let i = 0; i < 10; i++) shoot({ x: p.x, y: p.y - 8, a: (i * TAU) / 10, sp: 380, dmg: pd(4), kb: 90, life: 0.6, kind: 'bullet', pierce: 2, c: P.gold, ug: false }); A.shotgun(); },
+    ult: (p) => { for (const e of awNear(p.x, p.y, 200, 10)) shoot({ x: p.x, y: p.y - 8, a: Math.atan2(e.y - p.y, e.x - p.x), sp: 500, dmg: pd(9), kb: 120, life: 0.8, kind: 'bullet', homing: 6, c: P.gold, ug: false }); },
+  },
+  // Archmage Morrow: bolts arc to a second enemy; his powers call lightning on the three nearest; Starfall adds a storm
+  WIZARD: {
+    pal: { col: P.gold, slash: 'gold', map: { '#b48cff': P.gold, '#62efff': '#ff4fa8', [P.volt]: '#ff4fa8', [P.volt2]: '#a0206a', '#6a4ab8': '#b9811c' } },
+    hit: (e) => chainLightning(e, 1, pd(3)),
+    skill: (p) => { for (const e of awNear(p.x, p.y, 160, 3)) awStrike(e.x, e.y, 22, 10); },
+    ult: (p) => { for (const e of awNear(p.x, p.y, 300, 8)) awStrike(e.x, e.y, 24, 14); },
+  },
+  // Oni Rin: a petal cut opens on every enemy a beat after her blade; her powers cut a ring and parry every shot near;
+  // after Issen the blossom storm rises around her for free
+  NINJA: {
+    pal: { col: '#ff3b3b', slash: 'oni', charge: 'oni', map: { '#ffb7d5': '#ff3b3b', '#ff8fc8': '#7a0a1a', '#ff8fb8': '#c81e36', [P.blood]: '#ff3b3b', [P.ember]: '#c81e36', [P.ember2]: '#ff3b3b', [P.ember3]: '#ffc0c0' } },
+    hit: (e) => G.timers.push({ t: 0.2, fn: () => { if (alive(e)) { damage(e, pd(2), { dir: rnd(TAU), kb: 0, src: 'bolt', slice: true }); sparks(e.x, e.y - e.r, rnd(TAU), 4, 1, '#ffb7d5', 140); } } }),
+    swing: (p, st) => { for (const d of st.heavy ? [-0.4, 0, 0.4] : [0]) shoot({ x: p.x + Math.cos(p.atkAng + d) * 8, y: p.y - 6, a: p.atkAng + d, sp: 340, dmg: pd(st.heavy ? 5 : 3), kb: 60, life: 0.3, kind: 'crescent', r: 4, pierce: 99, c: '#ffb7d5', ug: true, slice: true, trail: false }); },
+    charge: (p, f) => { const x0 = p.x, y0 = p.y, a = p.aim;
+      G.timers.push({ t: 0.18 + 0.06 * f, fn: () => { const q = G.p; for (let i = 0; i < 8; i++) shoot({ x: q.x, y: q.y - 6, a: (i * TAU) / 8, sp: 300, dmg: pd(8 * f), kb: 140, life: 0.4, kind: 'crescent', r: 6, pierce: 99, c: '#ffb7d5', ug: true, slice: true, trail: false }); A.riftCut(); } });
+      G.timers.push({ t: 0.45 + 0.1 * f, fn: () => {
+      const q = G.p, x1 = q.x, y1 = q.y;
+      for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, x0, y0 - 5, x1, y1 - 5) < e.r + 14) damage(e, pd(12 * f), { dir: a + Math.PI / 2, kb: 160, src: 'bolt', slice: true, crit: f >= 1 });
+      for (let i = 0; i < 30; i++) { const k = Math.random(); part(x0 + (x1 - x0) * k, y0 - 5 + (y1 - y0) * k, rnd(-60, 60), rnd(-60, 20), rnd(0.4, 0.9), Math.random() < 0.6 ? '#ffb7d5' : '#ff8fc8', { drag: 2, glow: true }); }
+      awBurst(q, 34 + 20 * f, pd(6 * f), '#ffb7d5'); A.riftCut(); } }); },
+    skill: (p) => { awBurst(p, 50, pd(5), '#ffb7d5'); for (const s of G.shots) if (s.owner === 'enemy' && !s.dead && !s.noparry && !s.ret && !s.fist && hyp(s.x - p.x, s.y - p.y) < 60) parry(s, Math.atan2(s.y - p.y, s.x - p.x), true); },
+    ult: (p) => G.timers.push({ t: 1.6, fn: () => { const q = G.p; q.k.storm = 3; q.k.stormHit = 0; q.slowMul = 1.25; addRing(q.x, q.y - 6, '#ffb7d5', 160, 0.3, 2); } }),
+  },
+  // Rivet Mk-II: every third hit arcs current to two more enemies; her powers release a tesla chain; Iron Titan lands in a lightning storm
+  MECHANIC: {
+    pal: { col: P.volt, slash: 'volt', charge: 'storm', map: { [P.ember]: P.volt, [P.ember2]: '#c8ffff', '#ff8a3c': P.volt, [P.ember3]: P.paper, [P.volt]: P.gold, [P.volt2]: P.gold2 } },
+    hit: (e) => { if ((G.p.k.awHits = (G.p.k.awHits || 0) + 1) % 3 === 0) chainLightning(e, 2, pd(3)); },
+    swing: (p, st) => { const t = G.E.filter((e) => alive(e) && hyp(e.x - p.x, e.y - p.y) < 70 && Math.abs(Math.atan2(Math.sin(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng), Math.cos(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng))) < 1)[0]; if (t) chainLightning(t, st.heavy ? 4 : 1, pd(st.heavy ? 5 : 3)); },
+    charge: (p, f) => G.timers.push({ t: 0.18, fn: () => {
+      const q = G.p, t = awNear(q.x, q.y, 90, 1)[0], n = 4 + Math.round(4 * f), R = 30 + 40 * f;
+      if (t) chainLightning(t, 4 + Math.round(5 * f), pd(7 * f));
+      for (let i = 0; i < n; i++) { const b = (i * TAU) / n; awStrike(clamp(q.x + Math.cos(b) * R, B.x0 + 6, B.x1 - 6), clamp(q.y + Math.sin(b) * R * 0.7, B.y0 + 6, B.y1 - 4), 22, Math.round(10 + 8 * f)); }
+      for (const e of awNear(q.x, q.y, 120, 2)) awStrike(e.x, e.y, 24, Math.round(14 * f));
+    } }),
+    skill: (p) => { const e = awNear(p.x, p.y, 120, 1)[0]; if (e) chainLightning(e, 5, pd(5)); },
+    ult: (p) => { const e = awNear(p.x, p.y, 200, 1)[0]; if (e) chainLightning(e, 10, pd(8)); for (const t of awNear(p.x, p.y, 200, 4)) awStrike(t.x, t.y, 22, 10); },
+  },
+  // Titan Grom: every blow sends a shockwave through the enemies around the target; his powers quake and stun; Fortress opens with a great quake
+  TANK: {
+    pal: { col: P.gold, slash: 'titan', charge: 'titan', map: { [P.ember]: '#ff3b3b', [P.ember2]: P.gold, [P.ember3]: '#fff2c0', '#8fa2bd': P.gold, '#cfe0f5': '#fff2c0', '#3c4a63': P.gold2, [P.gold]: '#ff3b3b', [P.gold2]: '#7a0a1a', '#e8c890': '#fff2c0', '#7a5a3a': P.gold2, '#2a1f14': '#3a1408', '#7a6a5a': '#b9811c', '#a8946e': P.gold, '#5a4a3a': '#7a4a10' } },
+    swing: (p, st, shape) => {
+      shoot({ x: p.x + Math.cos(p.atkAng) * 12, y: p.y - 4, a: p.atkAng, sp: 220, dmg: pd(st.heavy ? 8 : 5), kb: 200, life: 0.45, kind: 'crescent', r: st.heavy ? 8 : 6, pierce: 99, c: '#8fa2bd', ug: true, slice: false, trail: false });
+      if (shape === 'slam' || shape === 'spin') G.timers.push({ t: shape === 'slam' ? 0.24 : 0.12, fn: () => {
+        const q = G.p, cx = q.x + Math.cos(q.atkAng) * 18, cy = q.y + Math.sin(q.atkAng) * 10;
+        G.quakes.push({ x: cx, y: cy, r: 0, delay: 0, max: 80, friendly: true, hit: new Set(), dmg: 8, speed: 240, c: P.gold, c2: P.gold2 });
+        for (let i = 0; i < 6; i++) { const b = (i * TAU) / 6; G.booms.push({ x: clamp(cx + Math.cos(b) * 34, B.x0 + 6, B.x1 - 6), y: clamp(cy + Math.sin(b) * 22, B.y0 + 6, B.y1 - 4), t: 0.08 + i * 0.03, friendly: true, R: 16, dmg: 6 }); }
+        shake(0.5); A.boom(1);
+      } });
+    },
+    charge: (p, f) => { for (let i = 0; i < 8; i++) { const b = (i * TAU) / 8, R = 40 + 50 * f; G.booms.push({ x: clamp(p.x + Math.cos(b) * R, B.x0 + 6, B.x1 - 6), y: clamp(p.y + Math.sin(b) * R * 0.7, B.y0 + 6, B.y1 - 4), t: 0.25 + i * 0.03, friendly: true, R: 20, dmg: Math.round(8 + 10 * f) }); }
+      for (let i = 1; i <= 3; i++) G.quakes.push({ x: p.x + Math.cos(p.aim) * 12, y: p.y + Math.sin(p.aim) * 7, r: 0, delay: 0.13 + i * 0.2, max: 70 + 80 * f, friendly: true, hit: new Set(), dmg: Math.round(10 * f), speed: 260, c: P.gold, c2: P.gold2 }); },
+    hit: (e) => { for (const t of awNear(e.x, e.y, 26, 99, e)) damage(t, pd(2), { dir: Math.atan2(t.y - e.y, t.x - e.x), kb: 160, src: 'bolt' }); addRing(e.x, e.y - 2, P.gold, 90, 0.18, 1); },
+    skill: (p) => { awBurst(p, 60, pd(5), P.gold, { kb: 260, each: (e) => awStun(e, 0.8) }); A.boom(0.8); },
+    ult: (p) => { awBurst(p, 120, pd(10), P.gold, { kb: 380, each: (e) => awStun(e, 1.4) }); A.boom(1.4); },
+  },
+  // Unit-7 Omega: the laser scorches what it touches; its powers launch homing mini-rockets; the Orbital Laser comes with a rocket barrage
+  ROBOT: {
+    pal: { col: '#ff4fa8', slash: 'hex', map: { [P.volt]: '#ff4fa8', [P.volt2]: '#a0206a', '#62efff': '#ff4fa8', [P.ember2]: P.gold } },
+    hit: (e) => awBurn(e, 1.5, 3),
+    skill: (p) => { for (let i = 0; i < 3; i++) shoot({ x: p.x, y: p.y - 10, a: p.aim + (i - 1) * 0.5, sp: 170, dmg: pd(3), kb: 60, life: 1.8, kind: 'rocket', homing: 5, splash: { R: 18, dmg: pd(4) }, c: P.ember2, ug: false }); A.rocket(); },
+    ult: (p) => { for (let i = 0; i < 8; i++) shoot({ x: p.x, y: p.y - 10, a: (i * TAU) / 8, sp: 170, dmg: pd(4), kb: 80, life: 2, kind: 'rocket', homing: 5, splash: { R: 22, dmg: pd(6) }, c: P.ember2, ug: false }); A.rocket(); },
+  },
+  // Root (The Dev): each hit forks a bug into a nearby enemy; his powers crash the three nearest; his ultimate glitches everything in range
+  DEV: {
+    pal: { col: '#62efff', slash: 'volt', map: { '#39ff6a': '#62efff', '#9dffc0': '#c8ffff', '#c8ffd8': '#e8ffff' } },
+    hit: (e) => { const t = awNear(e.x, e.y, 50, 1, e)[0]; if (t) { damage(t, pd(2), { dir: rnd(TAU), kb: 40, src: 'bolt' }); glitch(t.x, t.y - t.r, 10, 8, 0.15, 3); } },
+    skill: (p) => { for (const e of awNear(p.x, p.y, 140, 3)) { damage(e, pd(6), { dir: rnd(TAU), kb: 120, src: 'bolt' }); glitch(e.x, e.y - e.r, 16, 12, 0.3, 6); } },
+    ult: (p) => { for (const e of awNear(p.x, p.y, 200)) { damage(e, pd(8), { dir: rnd(TAU), kb: 160, src: 'bolt' }); glitch(e.x, e.y - e.r, 18, 14, 0.35, 6); } },
+  },
+};
+for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].awake = AWAKE[id]; CHARS[id].drawAura = AURA[id]; CHARS[id].eyeColor = EYES[id]; }
 
 // ---------- heroes: names, lore, and the mission that unlocks each one ----------
 const pct = (v, max) => Math.min(v, max) + ' / ' + max;

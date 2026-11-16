@@ -1,4 +1,4 @@
-import { canvas, W, H } from './gfx.js?v=61';
+import { canvas, W, H } from './gfx.js?v=74';
 
 // the movement stick sits in a fixed spot; any touch on the left side drives it from there
 export const STICK_X = 50, STICK_Y = 135, STICK_R = 22;
@@ -161,7 +161,7 @@ function toCanvas(e) {
 }
 addEventListener('mousemove', (e) => {
   toCanvas(e);
-  if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) { if (!input.touch) input.device = 'mouse'; input.mouse.moved = true; }
+  if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) { if (!input.touch) { input.device = 'mouse'; input.mouseUsed = true; } input.mouse.moved = true; }
 });
 addEventListener('mousedown', (e) => {
   toCanvas(e);

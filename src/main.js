@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=61';
-import { input, keyHit, endFrame } from './input.js?v=61';
-import { A } from './audio.js?v=61';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=61';
-import { buildSprites } from './sprites.js?v=61';
-import { byId } from './upgrades.js?v=61';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=61';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=74';
+import { input, keyHit, endFrame } from './input.js?v=74';
+import { A } from './audio.js?v=74';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=74';
+import { buildSprites } from './sprites.js?v=74';
+import { byId } from './upgrades.js?v=74';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=74';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=61';
+} from './ui.js?v=74';
 
 loadAll();
 applyTheme(settings.theme);
@@ -131,7 +131,7 @@ function tick(now) {
       G.taken[o.id] = (G.taken[o.id] || 0) + 1;
       A.select();
       startWave(G.wave + 1);
-      if (o.req) evolveFx(typeof o.name === 'function' ? o.name(G.kit) : o.name);
+      if (o.req) evolveFx(typeof o.name === 'function' ? o.name(G.kit) : o.name, o.id);
       checkpoint();
       go('play');
     }

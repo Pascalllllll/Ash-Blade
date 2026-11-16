@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=61';
+import { makeSprite, P } from './gfx.js?v=74';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -25,32 +25,34 @@ const ROBE_LEGS_ALT = ['.oRRRRRRRRRRRRo.', '.oRoooRoooRoooo.'];
 const BODIES = {
   BLADE: { auto: true, legs: 'baked', lids: '', eye: [10, 9], flow: 'HhzB',
     rows: [
-      '....H..H..H.....', '...HHhHHhHHH....', '..HHHHHHHHHHH...', '.HHhHHHHHHHHHH..',
-      '..HHHHHHHHHHHHH.', '..HHHHHHHHHHHH..', '..HHfHHHfHHHHH..', '..HffffffffffH..',
-      '..ffffffffffff..', '..fffKKffKKfff..', '..zzzzzzzzzzzz..', '...zzzzzzzzzz...',
-      '.....zzzzzz.....', '....UTTTTTTU....', '...fUTzTTzTUf...', '....zzzzzzzz....',
-      '...BBBBBBBBBB...', '...BBbB..BbBB...', '....GGG..GGG....'],
-    map: () => ({ f: '#d8b090', F: '#b08060', K: '#120d1c', E: P.ember3, e: '#7a2a10', w: '#ffffff', m: '#7a3a3a', p: '#e08a8a', H: '#3a2e58', h: '#5e4d8c', U: P.bone, z: P.ember, J: '#8a7a9a', j: '#c8b8d8', T: '#4a4560', t: '#7a7498', B: '#2a2238', b: '#4a4560', L: '#2a2238', G: '#191322' }),
+      '....H...H.H.....', '..H.HH.HHHH.....', '..HHHhHHhHHHH...', '.HHhHHHHHhHHHH..',
+      'HHHHHHhHHHHHHHH.', '.HHHHHHHHHHHHH..', '..HHHhfHHhHfHHH.', '..HHffFfHffffH..',
+      '..HfffffffffffH.', '..HffKKffKKfff..', '.ezzzzzzzzzzzz..', 'eezzEzzzzzzzze..',
+      '.e..ezzzzzze....', '....UTTTTTTU....', '...fUTzTTzTUf...', '....TezzzzeT....',
+      '...BBBBBBBBBB...', '...BBbB..BbBB...', '....GGG..GGG....',
+    ],
+    map: () => ({ f: '#d8b090', F: '#b08060', K: '#120d1c', E: P.ember3, e: '#b8401a', w: '#ffffff', m: '#7a3a3a', p: '#e08a8a', H: '#3a2e58', h: '#5e4d8c', U: P.bone, z: P.ember, J: '#8a7a9a', j: '#c8b8d8', T: '#4a4560', t: '#7a7498', B: '#2a2238', b: '#4a4560', L: '#2a2238', G: '#191322' }),
   },
   GUNNER: {
     lids: 'E', eye: [10, 7], flow: 'YrRD',
-    rows: ['.....oooooo.....', '....oHhhhhHo....', '.ooooHHHHHHoooo.', 'oHHHHHHHHHHHHHHo', '.oooYYYYYYYYooo.', '.oYYYYYYYYYYYYo.',
-      '.oYYfKKffKKfYYo.', '.oYYfEEffEEfYYo.', '.oYYffffffffYYo.', '.oYrrrrrrrrrrYo.', '.oorrrrRrrrrroo.', '...orrrrrrrro...',
-      '...oDDwwwwDDo...', '..ofoDDwwDDofo..', '...oDkKKKKkDo...', '...oDDDooDDDo...'],
+    rows: ['.....oooooo.....', '..o.oHHHHHHo.o..', '.oHohhhhhhhhoHo.', 'oHHHHHHHHHHHHHHo', '.oooYYYYYYYYooo.', '.oYYYYYYYYYYYYo.',
+      '.oYYfKKffKKfYYo.', '.oYYfEEffEEfYYo.', '.oYYffffffffYYo.', '.oYrrrrrrrrrrYo.', '.oYorrrRrrrroYo.', '..oYorrrRrroYo..',
+      '...oDDwwwwDDo...', '..ofoDDwwDDofo..', '...oDkKhhKkDo...', '...oDDDooDDDo...'],
     map: () => ({ H: '#3a2418', h: P.gold, Y: '#5a3420', f: '#c08a64', K: '#2a1a10', E: '#f0e0c0', r: '#a01e30', R: '#7a1424', D: '#6a3e24', w: '#d8c8a0', k: '#2a1a10' }),
     leg: '#3a2a20', boot: '#21160f',
   },
   WIZARD: { auto: true, legs: 'baked', lids: '', eye: [10, 11], flow: 'Aaz', swing: { letter: 'U', fill: 'T', rows: { 16: [0, -1, -1, 0], 15: [0, 0, -1, 0] } },
     rows: [
-      '.........AA.....', '........AAA.....', '......AAAAA.....', '....AAAAAAAA....',
-      '...AAAaaAAAAA...', '..AAAaAAAAAAAA..', '.AAaAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.',
-      '.AAAffffffffAAA.', '.AAffffffffffAA.', '.AAffffffffffAA.', '.AAffKKffKKffAA.',
-      '.AAUffffffffUAA.', '.AAAUUUmmUUUAAA.', 'AAAUUUUUUUUUUAAA', 'AA.zUUUUUUUUz.AA',
-      '...fTUUUUUUTf.z.', '....zzzzzzzz....', '...BBbBBbBBbB...', '.....LL..LL.....',
-      '.....GG..GG.....'],
-    map: () => ({ f: '#e0b898', F: '#c09878', K: '#0c0816', E: '#62efff', w: '#ffffff', m: '#7a3a3a', A: '#2a1d4a', a: '#4a3580', U: '#e6d8bd', u: '#b8aa90', z: '#b48cff', J: P.gold, T: '#3a2766', t: '#6a4ab8', B: '#3a2766', b: '#6a4ab8', L: '#2a1d4a', G: '#140c24' }),
+      '..AA............', '...AAA..........', '....AAAA........', '....AAAAAAA.....',
+      '...AAAAaaAAA....', '..AAAaaAAAAAA...', '.AAaAAAAAAAAAA..', '.AAAAAAAAAAAAAA.',
+      '.AAASSSSSSSSAAA.', '.AASSSSSSSSSSAA.', '.AASSSSSSSSSSAA.', '.AASSEESSEESSAA.',
+      '.AAUSSSSSSSSUAA.', '.AAAUUUUUUUUAAA.', 'AAAUUuUUUUuUUAAA', 'AA.zUUuUUuUUz.AA',
+      '...fTTUUuUTTf.z.', '....zzzUuzzz....', '...BBbBBbBBbB...', '.....LL..LL.....',
+      '.....GG..GG.....',
+    ],
+    map: () => ({ S: '#140c26', f: '#e0b898', F: '#c09878', K: '#0c0816', E: '#62efff', w: '#ffffff', m: '#7a3a3a', A: '#2a1d4a', a: '#4a3580', U: '#e6d8bd', u: '#b8aa90', z: '#b48cff', J: P.gold, T: '#3a2766', t: '#6a4ab8', B: '#3a2766', b: '#6a4ab8', L: '#2a1d4a', G: '#140c24' }),
   },
-  NINJA: { auto: true, legs: 'baked', lids: 'Ee',
+  NINJA: { auto: true, legs: 'baked', lids: 'Eew',
     // slim legs under a short pleated skirt: bare knees, white knee socks, little shoes.
     // The first row is empty so the skirt hem shows over the thighs; the legs stride apart and pass each other.
     feet: {
@@ -61,35 +63,51 @@ const BODIES = {
       r3: ['................', '.....offoffo....', '......oWWWo.....', '......oWWWo.....', '.......oVVo.....'],
     }, eye: [10, 7], flow: 'HhYqZSsXx',
     rows: [
-      '...HHHHHHHHH....', '..HHhhhHHHHHH...', '.YHhHHHHHHHYHH..', '.ZHHHHHHHYYZHHZ.',
-      '..HHHHYYYZZfHH..', '.HHYYYZZZfffYH..', '.YHZZZKffKKfZH..', '.ZYffEEffEEffYZ.',
-      '..ZffEeffEeffZ..', '...pffffmfffp...', '.....ffffff.....', '....UTTTTTTU....',
-      '...fUTzTTzTUf...', '..XXXXXXXXxXX...', '.XXSSsSSsSSsSX..', '.XxSsSSsSSsSSs..',
-      '.XX.............'],
-    map: () => ({ Y: '#9a8ae8', q: '#d8b8ff', Z: '#ff8fc8', f: '#f4d2b8', K: '#14101c', E: '#a070ff', e: '#4a2a9a', m: '#c0504a', p: '#f08a9a', H: '#34a9c9', h: '#8be4f0', U: '#f2efe8', z: '#e0223f', T: '#f2efe8', S: '#24305a', s: '#4a5c9a', W: '#f4f2fa', V: '#3a1a24', X: '#b8283c', x: '#e04a5a' }),
+      '...HHHHHHHH.h...', '..HHhhhHHHHHHh..', '.qHhHHHHHHHHHH..', '.ZqHHHHHHYHHHHZ.',
+      '..HHHHYYHHYZfHH.', '.HHYYZHZZffffYH.', '.YHZZfKffKKffZH.', '.ZYffwEffwEffYZ.',
+      '..ZffEeffEeffZ..', '...ppfffmffpp...', '.....ffffff.....', '....UTzzTzzU....',
+      '...fUTTTzTTUf...', '..XXXXXXXXxXX...', '.XXSSsSSsSSsSX..', '.XxSsSSsSSsSSs..',
+      '.XX.............',
+    ],
+    map: () => ({ w: '#ffffff', Y: '#9a8ae8', q: '#d8b8ff', Z: '#ff8fc8', f: '#f4d2b8', K: '#14101c', E: '#a070ff', e: '#4a2a9a', m: '#c0504a', p: '#f08a9a', H: '#34a9c9', h: '#8be4f0', U: '#f2efe8', z: '#e0223f', T: '#f2efe8', S: '#24305a', s: '#4a5c9a', W: '#f4f2fa', V: '#3a1a24', X: '#b8283c', x: '#e04a5a' }),
   },
-  MECHANIC: { auto: true, legs: 'baked', lids: '', eye: [10, 8], flow: 'H',
+  // Rivet, from her portrait, petite: a dark cap with brass goggles and cyan lenses, long messy brown hair,
+  // big sparkly eyes with blush, an orange neckerchief, a white tank top, the jumpsuit tied at her waist with
+  // its sleeves trailing behind, a tool belt, slim orange trousers and chunky little boots
+  MECHANIC: { auto: true, legs: 'baked', lids: 'wEe', eye: [10, 8], flow: 'HhY',
+    feet: {
+      idle: ['.....oLooLo.....', '....oGGooGGo....'],
+      r0: ['....oLo..oLo....', '...oGGo..oGGo...'],
+      r1: ['......oLLo......', '.....oGGGo......'],
+      r2: ['...oLo....oLo...', '..oGGo....oGGo..'],
+      r3: ['......oLLo......', '......oGGo......'],
+    },
     rows: [
-      '....AAAAAAAA....', '...AAaAAAAAAA...', '..AAAAAAAAAAAAAA', '..AAAAAAAAAAAzzz',
-      '..HHHHHHHHHHHH..', '..HfHHfHHfHHHH..', '..ffffffffffff..', '..fKKKKfKKKKff..',
-      '..fKwEKKKwEKff..', '..fKKKKfKKKKff..', '...ffffKKffff...', '.....ffffff.....',
-      '....UUTTTTUU....', '...fTTTTTTTTf...', '....KKKKKKKK....', '....BBB..BBB....',
-      '.....ff..ff.....', '.....GG..GG.....'],
-    map: () => ({ f: '#d8a07a', K: '#1a1a20', E: '#3a2418', w: '#ffffff', H: '#6a3a20', A: '#4a4f5c', a: '#7a8090', U: '#e6e0d0', z: '#ff9a3c', T: '#d8651e', B: '#b85416', L: '#d8a07a', G: '#2a1f1a' }),
+      '.....AAAAAA.....', '...JjJAJjJaA....', '..AJJJAJJJAAA...', '.HAAAAAAAAAAccc.',
+      'HHHHHhHHHHHHcc..', 'HHHhHHfHHhfHHH..', '.HHHffffffffHH..', '.HHKKKfffKKKHH..',
+      '.HHfwEfffwEffH..', 'HHHpEefffEepfHH.', 'HHH.ffffmfff.HH.', 'HH...zzzzz..H...',
+      'HY...fUUUUf.....', '.Y..fUUUuUf.....', '.YYTBBJBrjBT....', '.Yt..TTtTTT.....',
+      '.Y..............', 'Y...............',
+    ],
+    map: () => ({ j: '#62efff', J: '#d8a040', m: '#c0504a', p: '#f49a9a', f: '#e8b48c', K: '#1a1a20', E: '#3a2418', e: '#a8602c', w: '#ffffff', H: '#6a3a20', h: '#9a5a32',
+      A: '#4a4f5c', a: '#7a8090', c: '#2e323c', U: '#eeeae0', u: '#c8c0b0', z: '#ff7a2a', T: '#e0661e', t: '#a8440f', Y: '#c8561a', B: '#3a2a22', r: '#d84a3a', L: '#d8651e', G: '#5a4232' }),
   },
+
+
   TANK: { auto: true, legs: 'baked', lids: 'E', eye: [10, 6], flow: 'Ccz',
     rows: [
-      '..AAAAAAAAAAAA..', '..AaaaaaaaaaaA..', '..AaAAAAAAAAaA..', '..AaAAAAAAAAaA..',
-      '..AaAAAAAAAAaA..', '..AKKKKKKKKKKA..', '..AKKEEKKEEKKA..', '..AaAAAAAAAAaA..',
-      '..AaAJAJAJAJaA..', '..AaAAAAAAAAaA..', '..AAAAAAAAAAAA..', '................',
-      'CJJTtttTTtttTJJ.', 'CJJfTKKKKKKTfJJ.', 'CCcTTttKKttTT...', 'CCcTTKKTTKKTT...',
-      'CcCTTttKKttTT...', 'CCC.KKKzzKKK....', 'CCc..LL..LL.....', '.CC..GG..GG.....'],
+      '.....JAAAAJ.....', '...AAaaJJaaAA...', '..AaaAAJJAAaaA..', '..AaAAAJJAAAaA..',
+      '..AaAAAJJAAAaA..', '..AKKKKKKKKKKA..', '..AKEEEKKEEEKA..', '..AaAAAJJAAAaA..',
+      '..AaAJAJJAJAaA..', '..AaAAAAAAAAaA..', '..JAAAAAAAAAAJ..', '...TTtTTTTtTT...',
+      'CJJJTttJJttTJJJ.', 'CJJfTKJJJJKTfJJ.', 'CCcTTttJJttTT...', 'CCcTTKKTTKKTT...',
+      'CcCTTttKKttTT...', 'CCC.KKKzzKKK....', 'CCc..LL..LL.....', '.CC..GG..GG.....',
+    ],
     map: () => ({ K: '#2a2f3a', E: '#ff9a3c', f: '#d8a07a', z: '#ff9a3c', J: P.gold, A: '#5a6a82', a: '#8fa2bd', T: '#5a6a82', t: '#8fa2bd', L: '#4a586e', G: '#2a2f3a', C: '#8a1a2a', c: '#b8283c' }),
   },
   ROBOT: {
     lids: 'R', eye: [10, 8], legs: 'treads', flow: 'A', pad: 1,
-    rows: ['..o..........o..', '..oA........Ao..', '...oAooooooAo...', '..oMMMMMMMMMMo..', '.oMMmmmmmmmmMMo.', '.oMooooooooooMo.',
-      '.oMoKKKKKKKKoMo.', '.oMoKKKKRRKKoMo.', '.oMoKKKRRRRKoMo.', '.oMoKKKKRRKKoMo.', '.oMooooooooooMo.', '..oMMmmmmmmMMo..',
+    rows: ['..o..........o..', '..oA........Ao..', '...oAooooooAo...', '..oMMMMMMMMMMo..', '.oMMIIIIIIIIMMo.', '.oMooooooooooMo.',
+      '.oMoCKKKKKKKoMo.', '.oMoKKKRRRKKoMo.', '.oMoKKRRWRRKoMo.', '.oMoKKKRRRKKoMo.', '.oMooooooooooMo.', '..oMMmmmmmmMMo..',
       '..ooooMMMMoooo..', '..oFoMmVVmMoFo..', '...oCMVWWVMCo...', '...oMMmVVmMMo...'],
     map: () => ({ M: '#8a96a8', m: '#4a5466', A: '#ff4f4f', K: '#14161c', R: '#ff3b3b', C: '#3a4252', V: '#62efff', W: '#ffffff', F: '#5c6678',
       T: '#2a2f3a', t: '#6a7488', D: '#14161c', I: '#9aa6b8', J: '#d8e0ec', j: '#62efff' }),
@@ -98,24 +116,25 @@ const BODIES = {
 // The Dev: the side-swept programmer in a hoodie, in his motorized wheelchair (digits are chair colours).
 BODIES.DEV = { auto: true, legs: 'none', lids: '', eye: [9, 7], flow: 'Hh',
   rows: [
-      '...HHHHHHHHH....', '..HHhhhHHHHHH...', '.HHhHHHHHHHHHH..', '.HHHHHHHHHHHHHH.',
-      '..HHHHHHHHHfHH..', '..HHHHHHHfffHH..', '..HHHHKKKKKKHf..', '..fKjKKfKjKKff..',
-      '..ffffffffffff..', '...ffffffffff...', '.....ffffff.....', '.o1o.oaaaao.....',
-      '.o1ooTTTTTTo.o2o', '.o1oTTTTTfffo2o.', '.o1oTTTTTo2222o.', '.o11144444444o..',
+      '....HHHHHHH.....', '..HHhhhhHHHHH...', '.HHhHHHHHhHHHHH.', 'HHHHHHHHHHHHHHH.',
+      '..HHHHHHHHHHHH..', '..HHHHHHHHfffH..', '..HfKKKKKKKKKf..', '..fKjKKfKjKKff..',
+      '..ffffffffffff..', '...ffffffffff...', '.....ffffff.....', '.o1o.oaaaaoo333o',
+      '.o1ooTTTTTTo393o', '.o1oTTTTTffo333o', '.o1oTTTTTo22222o', '.o11144444444o..',
       'o5555o77777744o.', 'o56565o7777o44o.', 'o55o55o.o88o44o.', 'o56565o..oo.o99o',
-      '.o555o.....o77o.', '..ooo......o5o..'],
-  map: () => ({ f: '#e0b090', K: '#1a1a20', j: '#c8d0dc', H: '#4a2e1e', h: '#6a4430', a: '#5a8ae8', T: '#3a6ac8', 1: '#2a2f3a', 2: '#8a96a8', 3: '#39ff6a', 4: '#2a3550', 5: '#1a1a20', 6: '#8a96a8', 7: '#5a6a82', 8: '#3a4252', 9: '#e6e6f0' }),
+      '.o555o.....o77o.', '..ooo......o5o..',
+    ],
+  map: () => ({ f: '#e0b090', K: '#1a1a20', j: '#c8d0dc', H: '#4a2e1e', h: '#6a4430', a: '#5a8ae8', T: '#3a6ac8', 1: '#2a2f3a', 2: '#8a96a8', 3: '#62efff', 4: '#2a3550', 5: '#1a1a20', 6: '#8a96a8', 7: '#5a6a82', 8: '#3a4252', 9: '#e6e6f0' }),
 };
 
 // ---------- evolved skins ----------
-// Every fighter changes look once evolved (first EVOLUTION upgrade or wave 25; The Dev at 250% power).
+// Every fighter changes look once awakened: when its basic attack, Q and E, and ultimate have all evolved.
 // map recolors the base sprite, rows replaces whole rows. The Dev's evolved form is a full body.
 const EVO = {
-  BLADE: { name: 'ASHEN KAEL', map: { H: '#d8d0dc', h: '#ffffff', T: '#2a1418', t: '#5a2028', z: '#ffd447', E: '#fff2c0', B: '#2a1418', L: '#2a1418', U: '#ff6a2b' } },
+  BLADE: { name: 'ASHEN KAEL', map: { H: '#d8d0dc', h: '#ffffff', T: '#2a1418', t: '#5a2028', z: '#ffd447', e: '#c9a24a', E: '#fff2c0', B: '#2a1418', L: '#2a1418', U: '#ff6a2b' } },
   GUNNER: { name: 'DEADEYE VEGA', map: { H: '#e8e0d0', h: '#c9a24a', r: '#1a1a24', R: '#0a0a10', D: '#7a1424', w: '#ffd447', e: '#ffd447' } },
   WIZARD: { name: 'ARCHMAGE MORROW', map: { A: '#f0eaff', a: '#ffffff', T: '#e8e0f0', t: '#ffffff', B: '#e8e0f0', b: '#ffffff', z: '#ffd447', E: '#ff4fa8', L: '#b48cff' } },
-  NINJA: { name: 'ONI RIN', map: { X: '#1a1624', x: '#3a3450', H: '#e8ecf4', h: '#ffffff', Y: '#ff8a9a', q: '#ffc0c8', Z: '#e0223f', E: '#ff3b3b', e: '#7a0a1a', T: '#2a2838', U: '#c81e36', S: '#14101c', s: '#3a3450', W: '#1a1624', V: '#c81e36', z: '#ffd447', O: '#ff3b3b' }, rows: { 0: '..OHHHHHHHHHO...', 1: '.OHHhhhHHHHHHO..' } },
-  MECHANIC: { name: 'RIVET MK-II', map: { A: '#c9a24a', a: '#ffe08a', T: '#c8ccd8', B: '#8b98ab', z: '#62efff', U: '#62efff', E: '#62efff', K: '#0e2a34' } },
+  NINJA: { name: 'ONI RIN', map: { X: '#1a1624', x: '#3a3450', H: '#e8ecf4', h: '#ffffff', Y: '#ff8a9a', q: '#ffc0c8', Z: '#e0223f', E: '#ff3b3b', e: '#7a0a1a', T: '#2a2838', U: '#c81e36', S: '#14101c', s: '#3a3450', W: '#1a1624', V: '#c81e36', z: '#ffd447', O: '#ff3b3b' }, rows: { 0: '..OHHHHHHHH.O...', 1: '.OHHhhhHHHHHHO..' } },
+  MECHANIC: { name: 'RIVET MK-II', map: { A: '#c9a24a', a: '#ffe08a', T: '#c8ccd8', t: '#8b98ab', Y: '#9aa0ac', L: '#c8ccd8', B: '#2a3440', z: '#62efff', U: '#e8f8ff', E: '#62efff', K: '#0e2a34' } },
   TANK: { name: 'TITAN GROM', map: { A: '#c9a24a', a: '#ffe08a', T: '#c9a24a', t: '#ffe08a', E: '#ff3b3b', z: '#ff3b3b', L: '#8a6a2a', C: '#2a1418', c: '#ff3b3b' } },
   ROBOT: { name: 'UNIT-7 OMEGA', map: { M: '#2a2f3a', m: '#14161c', R: '#ffd447', A: '#ffd447', V: '#ff4fa8', C: '#5a1420', I: '#c9a24a', J: '#ffe08a', j: '#ff4fa8' } },
   DEV: { name: 'ROOT', body: {
@@ -146,8 +165,8 @@ const DEV_HOOD = {
 // IDLE_BREATH is how far the head and chest sink on each frame.
 export const IDLE_BREATH = [0, 0, 0, 1, 1, 1, 1, 0];
 const IDLE = {
-  GUNNER: { seq: 'AABBCCBB', B: { 11: '..orrrrrrrrro...' }, C: { 11: '.orrrrrrrrrro...', 15: '...oDDDooDDo....' } },
-  ROBOT: { seq: 'AABBAACC', B: { 0: '...o........o...' }, C: { 7: '.oMoKKKRRKKKoMo.', 8: '.oMoKKRRRRKKoMo.', 9: '.oMoKKKRRKKKoMo.' } },
+  GUNNER: { seq: 'AABBCCBB', B: { 11: '..oYorrRrrroYo..' }, C: { 11: '..oYorrrRrroYo..', 15: '...oDDDooDDo....' } },
+  ROBOT: { seq: 'AABBAACC', B: { 0: '...o........o...' }, C: { 7: '.oMoKKRRRRRKoMo.', 8: '.oMoKRRRWRRRoMo.', 9: '.oMoKKRRRRRKoMo.' } },
   // the laptop's status light blinks while he types
   DEV_EVO: { seq: 'AAAABBCC', B: { 7: 'aoHvVVVoVvVVoHoa', 12: '.ogoCCwCCwCCoy.o' }, C: { 7: 'aoHVVvVoVVVvoHoa', 13: '.oXoCCCCCffoy.yo' } },
 };

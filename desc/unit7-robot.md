@@ -9,6 +9,8 @@ A grey war machine with a boxy head, two red-tipped antennas, and a black visor 
 
 Awakened as **Unit-7 Omega**, its body turns black, its eye and antennas go gold, and its wheels turn gold with pink hubs.
 
+Awakened, its laser scorches what it touches, its powers launch 3 homing mini-rockets, and the Orbital Laser comes with a ring of 8 homing rockets. Awakening also makes basic hits and the ultimate 30% stronger, Q and E a quarter cheaper and a fifth faster to recharge, and the ultimate charge a quarter faster, keeping 30% of its charge after each use.
+
 ## How it plays
 A ranged fighter built around one long laser. Hold too long and it overheats.
 

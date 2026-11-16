@@ -2,7 +2,7 @@
 // are plain scripts, all requested at once as the page opens (downloaded in parallel, run in order),
 // so the opening cinematic can show them. Frames are painted as they are needed and cached; only
 // the current fighter keeps its whole animation in memory.
-const Q = '?v=61';
+const Q = '?v=74';
 const FILES = { BLADE: 'kael', GUNNER: 'vega', WIZARD: 'morrow', NINJA: 'rin', MECHANIC: 'rivet', TANK: 'grom', ROBOT: 'unit7', DEV: 'dev' };
 export const hasModel = (id) => id in FILES;
 let state = 'idle', loaded = 0, total = 1;

@@ -9,6 +9,8 @@ A schoolgirl with side-swept teal hair that fades to violet and pink at the tips
 
 Awakened as **Oni Rin**, her hair turns white, two small red oni horns appear, her eyes glow red and her uniform turns black with dark stockings.
 
+Awakened, a petal cut opens on every enemy a beat after her blade, her powers cut a ring that parries every shot near her, and after Issen the blossom storm rises around her for free. Awakening also makes basic hits and the ultimate 30% stronger, Q and E a quarter cheaper and a fifth faster to recharge, and the ultimate charge a quarter faster, keeping 30% of its charge after each use. Her charged Iai Dash opens a second, wider cut along her path a moment later, ending in a burst of crimson petals.
+
 ## How she plays
 The fastest fighter, with two dashes. Her reach is short, so she fights up close and sends enemy shots back at them.
 

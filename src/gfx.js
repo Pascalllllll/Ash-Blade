@@ -22,6 +22,10 @@ export const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 let C = ctx;
 export function target(g) { C = g || ctx; }
+// while set, the drawing helpers swap colors through this map (the awakened fighter's own effects)
+let RM = null;
+export function remap(m) { RM = m || null; }
+const rc = (c) => (RM && RM[c]) || c;
 
 export function makeCanvas(w, h) {
   const c = document.createElement('canvas');
@@ -73,12 +77,12 @@ export function fit() {
   hd.style.width = W * s + 'px'; hd.style.height = H * s + 'px';
 }
 
-export function rect(x, y, w, h, c) { C.fillStyle = c; C.fillRect(Math.round(x), Math.round(y), w, h); }
-export function px(x, y, c) { C.fillStyle = c; C.fillRect(Math.round(x), Math.round(y), 1, 1); }
+export function rect(x, y, w, h, c) { C.fillStyle = rc(c); C.fillRect(Math.round(x), Math.round(y), w, h); }
+export function px(x, y, c) { C.fillStyle = rc(c); C.fillRect(Math.round(x), Math.round(y), 1, 1); }
 
 export function line(x0, y0, x1, y1, c, w = 1) {
   x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
-  C.fillStyle = c;
+  C.fillStyle = rc(c);
   const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
   const o = (w - 1) >> 1;
   let e = dx + dy, n = 0;
@@ -93,7 +97,7 @@ export function line(x0, y0, x1, y1, c, w = 1) {
 
 export function disc(cx, cy, r, c) {
   cx = Math.round(cx); cy = Math.round(cy);
-  C.fillStyle = c;
+  C.fillStyle = rc(c);
   const ir = Math.ceil(r);
   for (let y = -ir; y <= ir; y++) {
     const q = r * r - y * y;
@@ -107,7 +111,7 @@ export function disc(cx, cy, r, c) {
 export function ring(cx, cy, r, th, c) {
   if (r <= 0) return;
   cx = Math.round(cx); cy = Math.round(cy);
-  C.fillStyle = c;
+  C.fillStyle = rc(c);
   const ri = Math.max(0, r - th), R = Math.ceil(r);
   for (let y = -R; y <= R; y++) {
     const yy = y * y;
@@ -248,7 +252,7 @@ export function glow(x, y, col, r, a = 1) {
   r = Math.max(2, Math.round(r));
   C.globalCompositeOperation = 'lighter';
   C.globalAlpha = Math.max(0, Math.min(1, a));
-  C.drawImage(glowTex(col, r), Math.round(x) - r, Math.round(y) - r);
+  C.drawImage(glowTex(rc(col), r), Math.round(x) - r, Math.round(y) - r);
   C.globalAlpha = 1;
   C.globalCompositeOperation = 'source-over';
 }

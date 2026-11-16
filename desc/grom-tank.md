@@ -9,6 +9,8 @@ A knight in full blue-grey plate with gold trim, a closed helm whose visor glows
 
 Awakened as **Titan Grom**, his armor turns gold and his visor glows red.
 
+Awakened, every blow sends a shockwave through the enemies around the target, his powers quake and stun, and Fortress opens with a great quake that stuns everything near. Awakening also makes basic hits and the ultimate 30% stronger, Q and E a quarter cheaper and a fifth faster to recharge, and the ultimate charge a quarter faster, keeping 30% of its charge after each use. His charged Earthshatter sends two red aftershock quakes rolling out after the slam.
+
 ## How he plays
 Slow and nearly unbreakable. The most health in the game and the heaviest hits.
 
