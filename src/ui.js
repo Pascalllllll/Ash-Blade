@@ -1,14 +1,14 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=86';
-import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill, modelBox } from './models.js?v=86';
-import { SPR, icon } from './sprites.js?v=86';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=86';
-import { A } from './audio.js?v=86';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=86';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=86';
-import { CHARS } from './chars.js?v=86';
-import { BOSSES, bossFor } from './bosses.js?v=86';
-import { MAPS } from './maps.js?v=86';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=86';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=115';
+import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill, modelBox } from './models.js?v=115';
+import { SPR, icon } from './sprites.js?v=115';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=115';
+import { A } from './audio.js?v=115';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=115';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=115';
+import { CHARS } from './chars.js?v=115';
+import { BOSSES, bossFor } from './bosses.js?v=115';
+import { MAPS } from './maps.js?v=115';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=115';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -350,13 +350,55 @@ function drawBars(bars, col, t, glitch) {
   });
 }
 // one parallelogram tile path
+// a fighter's honor: 1 once they have cleared wave 25 (best wave 26 or more), 2 once they have cleared wave 50
+const honor = (id) => { const r = best.chars[id]; return !r ? 0 : r.wave >= 51 ? 2 : r.wave >= 26 ? 1 : 0; };
+// a point on a tile's border, f from 0 to 1 going round it clockwise from the top-left corner
+function tileEdge(x, y, f) {
+  const P4 = [[x + SLANT, y], [x + TW + SLANT, y], [x + TW, y + TH], [x, y + TH]], L = [TW, Math.hypot(SLANT, TH), TW, Math.hypot(SLANT, TH)], tot = L[0] + L[1] + L[2] + L[3];
+  let d = (((f % 1) + 1) % 1) * tot;
+  for (let i = 0; i < 4; i++) { if (d <= L[i]) { const [ax, ay] = P4[i], [bx, by] = P4[(i + 1) % 4], k = d / L[i]; return [ax + (bx - ax) * k, ay + (by - ay) * k]; } d -= L[i]; }
+  return P4[0];
+}
+// the honor frame: silver for wave 25, gold (with a crown) for wave 50
+function honorFrame(x, y, rank, t, i) {
+  const corners = [[x + SLANT, y], [x + TW + SLANT, y], [x + TW, y + TH], [x, y + TH]];
+  if (rank === 1) {
+    const S = '#dfe6f0', s = '#8a96a8';
+    tilePath(x - 1, y - 1); ctx.strokeStyle = s; ctx.stroke();
+    tilePath(x, y); ctx.strokeStyle = S; ctx.stroke();
+    // diamond studs at the corners and ticks along the top
+    for (const [cx, cy] of corners) { px(cx, cy - 1, S); px(cx - 1, cy, S); px(cx + 1, cy, S); px(cx, cy + 1, S); px(cx, cy, P.paper); }
+    for (let k = 6; k < TW - 4; k += 6) px(x + SLANT + k, y - 2, s);
+    // a glint running round the frame
+    const [gx, gy] = tileEdge(x, y, t * 0.35 + i * 0.13);
+    px(gx, gy, P.paper); glow(gx, gy, S, 4, 0.5);
+  } else if (rank === 2) {
+    const g = P.gold, g2 = P.gold2;
+    tilePath(x - 1, y - 1); ctx.lineWidth = 2; ctx.strokeStyle = g2; ctx.stroke(); ctx.lineWidth = 1;
+    tilePath(x, y); ctx.strokeStyle = g; ctx.stroke();
+    // flourishes: an L of gold at each corner with a gem at its tip
+    for (const [cx, cy] of corners) {
+      const sx = cx < x + TW / 2 ? 1 : -1, sy = cy < y + TH / 2 ? 1 : -1;
+      for (let k = 0; k < 4; k++) { px(cx - sx * 2, cy - sy * 2 + sy * k, g); px(cx - sx * 2 + sx * k, cy - sy * 2, g); }
+      px(cx - sx * 2, cy - sy * 2, P.paper); px(cx - sx * 3, cy - sy * 3, '#ff4fa8');
+    }
+    // a crown on top
+    const kx = Math.round(x + TW / 2 + SLANT), ky = y - 5;
+    for (const [dx, dy] of [[-3, 0], [-3, 1], [-3, 2], [0, -1], [0, 0], [0, 1], [0, 2], [3, 0], [3, 1], [3, 2], [-2, 2], [-1, 2], [1, 2], [2, 2], [-2, 1], [2, 1], [-1, 1], [1, 1]]) px(kx + dx, ky + dy, g);
+    px(kx, ky - 1, P.paper); px(kx - 3, ky, '#ff4fa8'); px(kx + 3, ky, '#62efff');
+    glow(kx, ky, g, 6, 0.4);
+    // two sparkles chasing each other round the frame, and stars twinkling at the corners
+    for (const off of [0, 0.5]) { const [sx2, sy2] = tileEdge(x, y, t * 0.45 + off + i * 0.11); px(sx2, sy2, P.paper); px(sx2 - 1, sy2, g); px(sx2 + 1, sy2, g); px(sx2, sy2 - 1, g); px(sx2, sy2 + 1, g); glow(sx2, sy2, g, 5, 0.6); }
+    corners.forEach(([cx, cy], k) => { const a = Math.max(0, Math.sin(t * 4 + k * 1.7 + i)); if (a > 0.6) { ctx.globalAlpha = a; px(cx + (k % 3 ? 3 : -3), cy + (k < 2 ? -3 : 3), P.paper); ctx.globalAlpha = 1; } });
+  }
+}
 function tilePath(x, y, c = ctx) {
   c.beginPath(); c.moveTo(x + SLANT, y); c.lineTo(x + TW + SLANT, y); c.lineTo(x + TW, y + TH); c.lineTo(x, y + TH); c.closePath();
 }
 const PANEL = [[0, 0], [150, 0], [132, H], [0, H]];
 const panelPath = (c) => { c.beginPath(); PANEL.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); };
 // the portrait's box in game units: the full screen height, centered in the left panel
-const MW = 120, MH = 180, NAME = makeCanvas(150, 40);
+const MW = 120, MH = 180, NAME = makeCanvas(150, 50);
 // the big fighter on the left: slides in when picked, flashes white as it lands, then plays its loop
 function drawHero(id, t, col, lk, h) {
   const e0 = (t - sel.swap) / 0.28, e = ease(e0), x0 = 12 - (1 - e) * 46;
@@ -403,12 +445,24 @@ export function drawSelect(t) {
   text(secret ? 'A SECRET FIGHTER' : k.name, 8, ny + 13, lk ? P.stone2 : P.bone);
   const rec = best.chars[id];
   if (rec && !lk) text('BEST WAVE ' + rec.wave + (rec.won ? '  KING SLAIN' : ''), 8, ny + 20, P.gold);
+  // the honor badge: silver for clearing wave 25, gold for clearing wave 50
+  const hon = lk ? 0 : honor(id);
+  if (hon) {
+    const label = hon === 2 ? 'WAVE 50 LEGEND' : 'WAVE 25 VETERAN', c1 = hon === 2 ? P.gold : '#dfe6f0', c2 = hon === 2 ? P.gold2 : '#8a96a8';
+    const bw = label.length * 4 + 9, sh = Math.floor(t * 3) % (bw + 20);
+    rect(7, ny + 28, bw, 9, c2); rect(8, ny + 29, bw - 2, 7, P.ink0);
+    rect(10, ny + 31, 3, 3, c1); px(11, ny + 30, c1); px(11, ny + 34, c1); px(9, ny + 32, c1); px(13, ny + 32, c1);
+    textO(label, 16, ny + 30, c1);
+    if (sh < bw) rect(7 + sh, ny + 28, 1, 9, P.paper);
+  }
   target(null);
   h.drawImage(NAME, 0, 0);
   // roster
   text('CHOOSE YOUR FIGHTER', PANEL_C, 2, P.dust, 1, 'c');
   ids.forEach((cid, i) => {
     const [x, y] = tilePos(i), on = i === sel.i, ch = CHARS[cid], tlk = locked(cid);
+    // a legend's tile glows gold from behind
+    if (!tlk && honor(cid) === 2) glow(x + TW / 2 + SLANT / 2, y + TH / 2, P.gold, 30, 0.2 + Math.sin(t * 3 + i) * 0.06);
     ctx.save(); tilePath(x, y); ctx.fillStyle = on ? P.ink2 : P.ink1; ctx.fill(); ctx.clip();
     if (on) glow(x + TW / 2, y + TH / 2, ch.color(), 22, 0.25);
     // the in-game pixel fighter: the picked one runs, the others breathe and blink, locked ones are dark
@@ -418,6 +472,7 @@ export function drawSelect(t) {
     if (!on && !tlk) { ctx.globalAlpha = 0.3; rect(x, y, TW + SLANT, TH, P.ink0); ctx.globalAlpha = 1; }
     ctx.restore();
     tilePath(x, y); ctx.lineWidth = 1; ctx.strokeStyle = on ? ch.color() : P.ink3; ctx.stroke();
+    if (!tlk && honor(cid)) honorFrame(x, y, honor(cid), t, i);
     if (tlk) { const lx = x + TW / 2 - 2, ly = y + 12; ring(lx + 4, ly, 3, 1, P.dust); rect(lx, ly, 9, 7, P.stone2); rect(lx + 4, ly + 2, 1, 3, P.ink0); }
     const r = best.chars[cid];
     if (r && r.won) px(x + TW + SLANT - 5, y + 3, P.gold);
@@ -628,11 +683,13 @@ const paradeX = (i, s) => W / 2 - (roster().length * 22) / 2 + i * 22 + 11 - s.w
 const STORY = [[0.5, 'THE ASHEN KING SWALLOWED THE SUN.'], [1.1, 'EIGHT STILL STAND.']];
 // a cue is [time, sound, phone buzz]; the beats play each fighter's own heavy attack as they land
 export const INTRO_CUES = [
-  [0, () => A.rift()], [0.35, () => A.riftCut(), 'heavy'],
+  // (just after 0: a cue fires on the frame the clock passes it, and the first frame already starts past 0)
+  [0.001, () => { A.rift(); A.introStart(); }], [0.35, () => A.riftCut(), 'heavy'],
   ...STORY.map(([t]) => [t, () => A.wall(), 'tap']),
-  ...OPTIONS.char.flatMap((id, i) => [[BEAT0 + i * BEAT, () => A.dash()], [BEAT0 + i * BEAT + 0.1, () => A.charAtk(id, true), 'tap']]),
+  ...OPTIONS.char.flatMap((id, i) => [[BEAT0 + i * BEAT, () => { A.dash(); A.introBeat(i); }], [BEAT0 + i * BEAT + 0.1, () => A.charAtk(id, true), 'tap']]),
+  [LINEUP, () => A.introLineup()],
   ...OPTIONS.char.map((_, i) => [LINEUP + i * 0.05, () => A.wall()]),
-  [LOGO0, () => A.riftCut(), 'heavy'],
+  [LOGO0, () => { A.riftCut(); A.introLogo(); }, 'heavy'],
   ...Array.from({ length: 8 }, (_, i) => [LETTER(i) + 0.1, () => A.wall(), 'tap']),
   ...Array.from({ length: 8 }, (_, i) => [PARADE(i), () => A.dash()]),
   [ULT, () => A.ultRelease(), 'heavy'],
@@ -658,15 +715,54 @@ function warmPortraits() {
   if (warm < 8) modelStill(id); else modelFlat(id, hidden(id) ? '#07050b' : '#ffffff');
   warm++;
 }
+// The press-any-key screen: the swallowed sun hangs black over the pit, its corona burning and its rays
+// turning, the logo smolders below it, embers rise out of the pit, and the whole sky beats like a heart.
+const sparks = [];
 export function drawSplash(t, touch) {
   warmPortraits();
+  const beat = Math.pow(Math.max(0, Math.sin(t * Math.PI * 1.1)), 12), cx = W / 2, cy = 58, R = 30;
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  const w = Math.round(60 + Math.sin(t * 2) * 10);
-  rect(W / 2 - w / 2, H / 2 - 12, w, 1, P.ember);
-  glow(W / 2, H / 2 - 12, P.ember, 20, 0.25 + Math.sin(t * 3) * 0.1);
-  if (Math.floor(t * 1.6) % 2 === 0) text(touch ? 'TAP TO BEGIN' : 'PRESS ANY KEY', W / 2, H / 2, P.bone, 1, 'c');
-  text('SOUND ON', W / 2, H / 2 + 14, P.stone2, 1, 'c');
+  // a red sky that brightens toward the horizon, dithered in bands
+  for (let y = 0; y < H; y++) {
+    const k = Math.max(0, (y - 20) / (H - 20)) * (0.55 + beat * 0.25);
+    for (let x = (y & 1); x < W; x += 2) if (k > (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16 * 1.6) px(x, y, '#1a0610');
+  }
+  // the corona: a wide red glow, turning rays and a burning rim, pulsing with the beat
+  glow(cx, cy, P.blood, 90, 0.22 + beat * 0.18);
+  glow(cx, cy, P.ember, 56, 0.28 + beat * 0.25);
+  for (let i = 0; i < 24; i++) {
+    const a = t * 0.15 + (i * TAU_) / 24, L = (i % 3 ? 14 : 24) + Math.sin(t * 3 + i * 1.7) * 4 + beat * 8;
+    ctx.globalAlpha = 0.35 + 0.35 * Math.max(0, Math.sin(t * 2 + i));
+    line(cx + Math.cos(a) * (R + 3), cy + Math.sin(a) * (R + 3), cx + Math.cos(a) * (R + 3 + L), cy + Math.sin(a) * (R + 3 + L), i % 3 ? P.ember : P.ember3);
+  }
+  ctx.globalAlpha = 1;
+  ring(cx, cy, R + 2, 2, P.ember2); ring(cx, cy, R + 1, 1, P.ember3);
+  disc(cx, cy, R, '#030104');
+  // a thin crescent of light still slipping past the black sun
+  for (let i = -10; i <= 10; i++) { const a = -0.6 + i * 0.06; px(cx + Math.cos(a) * R, cy + Math.sin(a) * R, i % 3 ? P.paper : P.ember3); }
+  // the pit: a jagged black rim with burning cracks
+  ctx.fillStyle = '#05020a'; ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 8) ctx.lineTo(x, 150 + Math.sin(x * 0.11) * 4 + ((x * 37) % 7));
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+  for (let i = 0; i < 6; i++) { const x = 24 + i * 52 + Math.sin(i) * 10, a = 0.4 + 0.4 * Math.sin(t * 2.5 + i * 2); ctx.globalAlpha = a; line(x, 156, x + 8, 168, P.ember); line(x + 8, 168, x + 4, 179, P.ember2); ctx.globalAlpha = 1; glow(x + 6, 165, P.ember, 10, 0.25 * a); }
+  // embers rising out of the pit
+  if (sparks.length < 70 && Math.random() < 0.7) sparks.push({ x: Math.random() * W, y: H, vx: (Math.random() - 0.5) * 10, vy: -12 - Math.random() * 30, life: 3 + Math.random() * 4, t: 0, c: Math.random() < 0.6 ? P.ember : P.ember3 });
+  for (const s of sparks) { s.t += 1 / 60; s.x += (s.vx + Math.sin(s.t * 2 + s.y * 0.05) * 8) / 60; s.y += s.vy / 60; ctx.globalAlpha = Math.max(0, 1 - s.t / s.life); px(s.x, s.y, s.c); glow(s.x, s.y, s.c, 3, 0.3); ctx.globalAlpha = 1; }
+  for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].t > sparks[i].life || sparks[i].y < -4) sparks.splice(i, 1);
+  // the logo smolders: each column of letters flickers a little brighter or dimmer on its own
+  const lx = Math.round((W - LOGO.width) / 2), ly = 100;
+  glow(cx, ly + 14, P.ember, 70, 0.18 + beat * 0.15);
+  ctx.drawImage(LOGO, lx, ly);
+  for (let x = 0; x < LOGO.width; x += 3) { const a = 0.12 + 0.12 * Math.sin(t * 6 + x * 0.7); ctx.globalAlpha = a; ctx.fillStyle = '#000'; ctx.fillRect(lx + x, ly, 3, LOGO.height); }
+  ctx.globalAlpha = 1;
+  textO('THE KING SWALLOWED THE SUN', cx, ly + 36, P.dust, 1, 'c');
+  // the prompt: arrows close in on it with each beat
+  const msg = touch ? 'TAP TO BEGIN' : 'PRESS ANY KEY', pulse = 0.75 + 0.25 * Math.sin(t * 4), gap = 44 + Math.round(4 * (1 - beat));
+  ctx.globalAlpha = pulse; textO(msg, cx, 160, P.paper, 1, 'c'); ctx.globalAlpha = 1;
+  textO('>', cx - gap - 6, 160, P.ember, 1, 'c'); textO('<', cx + gap + 6, 160, P.ember, 1, 'c');
+  text('SOUND ON', cx, 171, P.stone2, 1, 'c');
 }
+const TAU_ = Math.PI * 2;
 const veil = (a, col = P.paper) => { if (a <= 0) return; ctx.globalAlpha = Math.min(1, a) * (settings.flash ? 1 : 0.2); rect(0, 0, W, H, col); ctx.globalAlpha = 1; };
 // the portrait (or, while it loads, the big sprite) for one fighter; the secret fighter is a silhouette
 const hidden = (id) => id === 'DEV' && locked(id);

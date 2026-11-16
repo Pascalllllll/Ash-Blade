@@ -1,15 +1,15 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=86';
-import { input, keyHit, endFrame } from './input.js?v=86';
-import { A } from './audio.js?v=86';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=86';
-import { buildSprites } from './sprites.js?v=86';
-import { byId } from './upgrades.js?v=86';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=86';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=115';
+import { input, keyHit, endFrame } from './input.js?v=115';
+import { A } from './audio.js?v=115';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=115';
+import { buildSprites } from './sprites.js?v=115';
+import { byId } from './upgrades.js?v=115';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=115';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=86';
+} from './ui.js?v=115';
 
 loadAll();
 applyTheme(settings.theme);
@@ -50,12 +50,15 @@ function applySettings(prev) {
 addEventListener('blur', () => { if (scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); } });
 
 function tick(now) {
-  const rdt = Math.max(0, Math.min(0.05, (now - last) / 1000));
+  // the step is capped so a long stall can't jump the game ahead, but high enough (down to about 12 fps) that a
+  // slow device still runs at full speed instead of in slow motion
+  const rdt = Math.max(0, Math.min(0.08, (now - last) / 1000));
   last = now;
   sceneT += rdt;
   if (scene === 'intro') sceneT = introClock(sceneT, rdt);
 
   let ts = 1;
+  fx.freezeCd = Math.max(0, (fx.freezeCd || 0) - rdt);
   if (fx.freeze > 0) { fx.freeze -= rdt; ts = 0; }
   else if (fx.slowT > 0) { fx.slowT -= rdt; ts = fx.slowF; if (fx.slowT <= 0) fx.slowF = 1; }
   fx.trauma = Math.max(0, fx.trauma - rdt * 1.5);
@@ -74,12 +77,13 @@ function tick(now) {
   if (portrait && scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
 
   if (scene === 'splash') {
-    if (input.any || input.mouse.pressed) { A.init(settings); A.scene('title'); go('intro'); }
+    if (input.any || input.mouse.pressed) { A.init(settings); A.scene('intro'); go('intro'); }
     drawSplash(sceneT, input.touch);
   } else if (scene === 'intro') {
     for (const [ct, cue, bz] of INTRO_CUES) if (sceneT >= ct && sceneT - rdt < ct) { cue(); if (bz) buzz(bz); }
-    if (sceneT > 0.3 && (input.any || input.mouse.pressed)) go('title');
-    else if (sceneT >= INTRO_LEN) go('title');
+    // the title music starts when the opening ends or is skipped
+    if (sceneT > 0.3 && (input.any || input.mouse.pressed)) { go('title'); A.scene('title'); }
+    else if (sceneT >= INTRO_LEN) { go('title'); A.scene('title'); }
     else drawIntro(sceneT);
     if (scene === 'title') drawTitle(0.8, titleItems(save, (r) => r));
   } else if (scene === 'title') {

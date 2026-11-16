@@ -22,7 +22,7 @@ The longest reach in the game. Hold to shoot, and reloading is automatic. She is
 |---|---|---|
 | Hold click | Revolver | Fires while held, reloads after 14 shots |
 | Q (25 energy) | Buckshot | An 11-pellet shotgun blast at point-blank range that pushes you back |
-| E (35 energy) | Deadeye | Time slows and crosshairs lock onto the 6 nearest enemies, then she fans the hammer: one sure critical shot each. No aiming needed |
+| E (35 energy) | Deadeye | Crosshairs lock onto the 6 nearest enemies, then she fans the hammer: one sure critical shot each. No aiming needed |
 | R (ultimate) | Last Stand | Four seconds of minigun |
 
 ## Kill and death

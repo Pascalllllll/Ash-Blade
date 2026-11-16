@@ -5,9 +5,9 @@
 > The last knight of the King's Guard. He came back to end what he served.
 
 ## Look
-A knight in full blue-grey plate with gold trim, a closed helm whose visor glows orange from within, and a crimson cape that snaps behind him. He swings a war hammer bigger than most enemies. He enters by falling from the sky and cracking the floor.
+A knight in full blue-grey plate with gold trim, a closed helm whose visor glows orange from within, and a crimson cape that snaps behind him. He swings a war hammer bigger than most enemies. He enters by falling from the sky and cracking the floor. He carries a steel kite shield with a gold cross on his back, and raises it in front of him while Fortress lasts. Titan Grom's shield is blackened, with a blood-red rim, bone spikes and a glowing red sigil.
 
-Awakened as **Titan Grom**, his armor turns gold and his visor glows red.
+Awakened as **Titan Grom**, he grows bigger in blackened armor with blood-red trim, bone horns, spiked shoulders and a burning red visor, and his effects turn blood red.
 
 Awakened, every blow sends a shockwave through the enemies around the target, his powers quake and stun, and Fortress opens with a great quake that stuns everything near. Awakening also makes basic hits and the ultimate 30% stronger, Q and E a quarter cheaper and a fifth faster to recharge, and the ultimate charge a quarter faster, keeping 30% of its charge after each use. His charged Earthshatter sends two red aftershock quakes rolling out after the slam.
 

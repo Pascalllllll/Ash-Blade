@@ -334,8 +334,10 @@ const LOGO = {
   E: '#####/#..../#..../####./#..../#..../#####',
 };
 export function logoCanvas(word, sc, rowCols, shade) {
-  const lw = word.length * 6 * sc + 8 * sc, lh = 7 * sc + 4;
-  const c = makeCanvas(lw + 4, lh + 4), g = c.getContext('2d');
+  // exactly as wide as the letters (each 5 wide with 1 between) plus the outline and drop shadow, so centering
+  // the image centers the word
+  const lw = word.length * 6 * sc - sc, lh = 7 * sc + 4;
+  const c = makeCanvas(lw + 6, lh + 4), g = c.getContext('2d');
   const paint = (ox, oy, colFn) => {
     for (let i = 0; i < word.length; i++) {
       const rows = LOGO[word[i]].split('/');

@@ -162,6 +162,8 @@ const SCENES = {
   // the final boss plays the title theme at full force: he wrote it
   boss_dev: { track: 'HYPERDRIVE', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
   dead: { track: null, pad: 0.6, bass: 0, drums: 0, arp: 0, lead: 0 },
+  // the opening plays its own score (A.intro*), so the soundtrack waits
+  intro: { track: null, pad: 0, bass: 0, drums: 0, arp: 0, lead: 0 },
 };
 let choice = 'AUTO', combat = 'PIT DIRGE', scene = 'title', cur = TRACKS['ASHEN HYMN'], pending = null;
 let step = 0, nextT = 0, mcr = null;
@@ -187,6 +189,101 @@ function hey(t) {
     s.start(at, Math.random()); s.stop(at + 0.2); o.start(at); o.stop(at + 0.2);
   }
 }
+// ---------- the opening's score ----------
+// A crowd, a choir and war drums, all synthesized. Everything goes to its own bus that feeds the music
+// volume and the hall reverb, so it sounds like an arena.
+let introBus = null;
+function ibus() {
+  if (!introBus) { introBus = ac.createGain(); introBus.gain.value = 0.9; introBus.connect(mus); const r = ac.createGain(); r.gain.value = 0.9; introBus.connect(r); r.connect(verbIn); }
+  return introBus;
+}
+// a crowd: many voices of filtered noise on 'ah' and 'oh' formants, each swelling and wavering on its own
+function crowd(t, dur, vol, swell = 0.5) {
+  const out = ibus();
+  for (let v = 0; v < 12; v++) {
+    const s = ac.createBufferSource(), f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), g = ac.createGain(), pan = ac.createStereoPanner();
+    const lfo = ac.createOscillator(), lg = ac.createGain();
+    s.buffer = nbuf; s.loop = true;
+    f1.type = 'bandpass'; f1.frequency.value = rnd(450, 800); f1.Q.value = rnd(3, 6);
+    f2.type = 'bandpass'; f2.frequency.value = rnd(1000, 1600); f2.Q.value = rnd(3, 6);
+    const peak = vol * rnd(0.6, 1.1), at = t + rnd(0, 0.15);
+    g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(peak, at + swell); g.gain.setValueAtTime(peak, at + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    lfo.frequency.value = rnd(1.5, 5); lg.gain.value = peak * 0.5; lfo.connect(lg); lg.connect(g.gain);
+    pan.pan.value = rnd(-0.9, 0.9);
+    s.connect(f1); s.connect(f2); f1.connect(g); f2.connect(g); g.connect(pan); pan.connect(out);
+    s.start(at, Math.random() * 2); s.stop(at + dur + 0.1); lfo.start(at); lfo.stop(at + dur + 0.1);
+  }
+}
+// whistles from the crowd
+function whistles(t, n) { for (let i = 0; i < n; i++) { const at = t + rnd(0, 0.8), f = rnd(1800, 2600); tone('sine', f, f * rnd(1.1, 1.4), rnd(0.25, 0.5), 0.05, ibus(), at, 0.03); } }
+// a choir chord: voices on a vowel, slowly swelling
+function choirChord(t, dur, notes, vol = 0.06) {
+  for (const n of notes) for (const det of [-9, 9]) {
+    const o = ac.createOscillator(), f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), e = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det;
+    lfo.frequency.value = 5.5; lg.gain.value = 5; lfo.connect(lg); lg.connect(o.detune);
+    f1.type = 'bandpass'; f1.frequency.value = 800; f1.Q.value = 4; f2.type = 'bandpass'; f2.frequency.value = 1150; f2.Q.value = 5;
+    e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(vol, t + Math.min(1.2, dur * 0.4)); e.gain.setValueAtTime(vol, t + dur * 0.75); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f1); o.connect(f2); f1.connect(e); f2.connect(e); e.connect(ibus());
+    o.start(t); o.stop(t + dur + 0.05); lfo.start(t); lfo.stop(t + dur + 0.05);
+  }
+}
+// a brass stab: detuned saws through a filter that opens and closes fast
+function brass(t, notes, dur = 0.7, vol = 0.07) {
+  for (const n of notes) for (const det of [-12, 0, 12]) {
+    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det;
+    f.type = 'lowpass'; f.Q.value = 2; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(3200, t + 0.06); f.frequency.exponentialRampToValueAtTime(700, t + dur);
+    env(e, t, 0.02, vol, dur);
+    o.connect(f); f.connect(e); e.connect(ibus());
+    o.start(t); o.stop(t + dur + 0.1);
+  }
+}
+// a war drum: a deep body and a slap of skin
+function taiko(t, vol = 1, pitch = 1) {
+  tone('sine', 120 * pitch, 42 * pitch, 0.55, 0.9 * vol, ibus(), t); tone('triangle', 240 * pitch, 80 * pitch, 0.15, 0.35 * vol, ibus(), t);
+  hiss(0.08, 0.4 * vol, 'lowpass', 1600, 300, 1, ibus(), t);
+}
+function cymbal(t, dur = 2.2, vol = 0.14) { hiss(dur, vol, 'highpass', 6000, 3800, 0.7, ibus(), t); hiss(dur * 0.8, vol * 0.6, 'bandpass', 9000, 7000, 2, ibus(), t); }
+// the gang shout, through the intro bus
+function shout(t) {
+  for (let v = 0; v < 6; v++) {
+    const at = t + v * 0.01, s = ac.createBufferSource(), f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), g = ac.createGain(), o = ac.createOscillator();
+    s.buffer = nbuf; f1.type = 'bandpass'; f1.frequency.value = 650 + v * 35; f1.Q.value = 6; f2.type = 'bandpass'; f2.frequency.value = 1150 + v * 50; f2.Q.value = 6;
+    env(g, at, 0.01, 0.55, 0.2);
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(160 + v * 21, at); o.frequency.exponentialRampToValueAtTime(120 + v * 16, at + 0.2);
+    s.connect(f1); s.connect(f2); o.connect(f1); o.connect(f2); f1.connect(g); f2.connect(g); g.connect(ibus());
+    s.start(at, Math.random()); s.stop(at + 0.25); o.start(at); o.stop(at + 0.25);
+  }
+}
+// a braam: a wall of low brass driven through distortion, swelling and dying away
+function braam(t, dur = 2.2, vol = 0.18, root = IN_ROOT - 12) {
+  for (const iv of [0, 7, 12, 15]) for (const det of [-18, 0, 18]) {
+    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.value = mtof(root + iv); o.detune.value = det;
+    f.type = 'lowpass'; f.Q.value = 3; f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(1400, t + 0.25); f.frequency.exponentialRampToValueAtTime(300, t + dur);
+    e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(vol / 4, t + 0.08); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f); f.connect(e); e.connect(crunch); e.connect(ibus());
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+}
+// a sub drop: the floor falls out
+function subDrop(t, vol = 1) { tone('sine', 90, 24, 1.4, 0.9 * vol, ibus(), t); tone('sine', 180, 40, 0.5, 0.4 * vol, crunch, t); hiss(0.6, 0.35 * vol, 'lowpass', 900, 60, 0.7, ibus(), t); }
+// steel on steel: a metallic clang with a ringing tail
+function clang(t, vol = 1) {
+  for (const f of [523, 787, 1243, 1871]) tone('square', f * rnd(0.98, 1.02), f * 0.97, 0.7, 0.025 * vol, ibus(), t);
+  hiss(0.06, 0.5 * vol, 'bandpass', 3800, 2500, 2, ibus(), t);
+}
+// a riser: noise and a tone rushing upward
+function introRiser(t, dur, vol = 0.2) {
+  hiss(dur, vol, 'bandpass', 300, 6000, 1.5, ibus(), t, dur * 0.9);
+  tone('sawtooth', 80, 640, dur, vol * 0.25, ibus(), t, dur * 0.9);
+}
+// a heartbeat: two soft thumps
+function heart(t, vol = 0.6) { tone('sine', 70, 40, 0.18, vol, ibus(), t); tone('sine', 66, 38, 0.2, vol * 0.7, ibus(), t + 0.2); }
+// D minor, the game's key
+const IN_ROOT = 38;
+
 function snare(t, v = 1) { hiss(0.15, 0.34 * v, 'bandpass', 1900, 1500, 0.8, layers.drums, t); tone('triangle', 200, 150, 0.08, 0.18 * v, layers.drums, t); hiss(0.2, 0.12 * v, 'bandpass', 1900, 1500, 0.8, verbIn, t); }
 function clap(t) { for (let i = 0; i < 3; i++) hiss(0.03 + (i === 2 ? 0.08 : 0), 0.3, 'bandpass', 1400, 1200, 1.5, layers.drums, t + i * 0.012); }
 function hat(t, open, vel) { if (cur.metal) { hiss(0.06, 0.16, 'bandpass', 7200, 6800, 12, layers.drums, t); tone('square', 3100, 3000, 0.02, 0.02, layers.drums, t); } else hiss(open ? 0.09 : 0.025, 0.09 * vel, 'highpass', 8000, 8000, 1, layers.drums, t); }
@@ -440,6 +537,51 @@ export const A = {
     }
   },
   stopLoops() { for (const k in loops) this.loop(k, false); },
+  // ---- the opening ----
+  // the dark: a choir drone, a crowd murmuring and swelling, and war drums rolling up to the first cut
+  introStart() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    // the cut: a braam and the floor dropping out, then a heartbeat under a rising crowd
+    braam(t + 0.3, 2.6, 0.2); subDrop(t + 0.3, 0.9);
+    for (let i = 0; i < 3; i++) heart(t + 0.9 + i * 0.5, 0.5 + i * 0.15);
+    choirChord(t + 0.4, 2.4, [IN_ROOT + 12, IN_ROOT + 19, IN_ROOT + 24], 0.05);
+    crowd(t, 2.4, 0.06, 1.4);
+    for (let i = 0; i < 10; i++) taiko(t + 0.7 + i * (0.11 - i * 0.006), 0.4 + i * 0.08, 0.85);
+    introRiser(t + 0.9, 0.9, 0.12);
+  },
+  // a fighter cuts in: a drum hit, a brass and choir stab climbing the scale, and the crowd cheers
+  introBeat(i) {
+    if (!ac) return;
+    const t = ac.currentTime, step = [0, 3, 5, 7, 10, 12, 15, 17][i % 8], n = IN_ROOT + 24 + step;
+    taiko(t, 1.2, 1 + i * 0.03); clang(t, 0.8); brass(t, [n, n + 7, n + 12], 0.45, 0.06); tone('sine', 70, 30, 0.4, 0.6, ibus(), t);
+    if (i % 4 === 3) braam(t, 0.9, 0.12, IN_ROOT - 12 + step);
+    choirChord(t, 0.6, [n + 12, n + 19], 0.035);
+    crowd(t + 0.05, 0.7, 0.06, 0.12);
+    if (i % 2) whistles(t, 2);
+  },
+  // the lineup: the crowd roars and chants over a drum roll that builds to the logo
+  introLineup() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    crowd(t, 1.5, 0.11, 0.3); whistles(t, 6);
+    for (let i = 0; i < 3; i++) shout(t + 0.15 + i * 0.3);
+    for (let i = 0; i < 12; i++) taiko(t + i * 0.085, 0.3 + i * 0.06, 1.1);
+    introRiser(t, 1.05, 0.22);
+    choirChord(t, 1.2, [IN_ROOT + 24, IN_ROOT + 28, IN_ROOT + 31], 0.04);
+  },
+  // the logo: a huge orchestral hit, the full choir, a stadium roar with whistles and the cymbals ringing out
+  introLogo() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    taiko(t, 1.6, 0.8); taiko(t + 0.02, 1.2, 1.2); cymbal(t, 2.6, 0.16); clang(t, 1.2);
+    braam(t, 3.2, 0.26); subDrop(t, 1.2);
+    brass(t, [IN_ROOT + 12, IN_ROOT + 19, IN_ROOT + 24, IN_ROOT + 28], 1.6, 0.06);
+    choirChord(t, 3, [IN_ROOT + 24, IN_ROOT + 28, IN_ROOT + 31, IN_ROOT + 36], 0.05);
+    tone('sawtooth', mtof(IN_ROOT - 12), mtof(IN_ROOT - 12), 2.5, 0.12, ibus(), t, 0.01);
+    crowd(t + 0.05, 3, 0.12, 0.2); whistles(t + 0.2, 10);
+    for (let i = 0; i < 2; i++) shout(t + 1.4 + i * 0.4);
+  },
 
   swing(n) {
     if (!gate('sw', 0.02)) return;

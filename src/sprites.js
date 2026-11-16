@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=86';
+import { makeSprite, P } from './gfx.js?v=115';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -135,7 +135,10 @@ const EVO = {
   BLADE: { name: 'ASHEN KAEL', map: { H: '#d8d0dc', h: '#ffffff', T: '#2a1418', t: '#5a2028', z: '#ffd447', e: '#c9a24a', E: '#fff2c0', B: '#2a1418', L: '#2a1418', U: '#ff6a2b' } },
   GUNNER: { name: 'DEADEYE VEGA', map: { H: '#e8e0d0', h: '#c9a24a', r: '#1a1a24', R: '#0a0a10', D: '#7a1424', w: '#ffd447', e: '#ffd447' } },
   WIZARD: { name: 'ARCHMAGE MORROW', map: { A: '#f0eaff', a: '#ffffff', T: '#e8e0f0', t: '#ffffff', B: '#e8e0f0', b: '#ffffff', z: '#ffd447', E: '#ff4fa8', L: '#b48cff' } },
-  NINJA: { name: 'ONI RIN', map: { X: '#1a1624', x: '#3a3450', H: '#e8ecf4', h: '#ffffff', Y: '#ff8a9a', q: '#ffc0c8', Z: '#e0223f', E: '#ff3b3b', e: '#7a0a1a', T: '#2a2838', U: '#c81e36', S: '#14101c', s: '#3a3450', W: '#1a1624', V: '#c81e36', z: '#ffd447', O: '#ff3b3b' }, rows: { 0: '..OHHHHHHHH.O...', 1: '.OHHhhhHHHHHHO..' } },
+  // Oni Rin: Rin's own sprite and hairstyle, recolored purple and pink: violet hair with pink tips and a gold
+  // pin, pink eyes, and a dark purple uniform with a pink ribbon, a magenta jacket and pink shoes
+  NINJA: { name: 'ONI RIN', map: { H: '#9a58dc', h: '#e0b8ff', Y: '#6a38b0', q: '#ffd447', Z: '#ff7ac8', E: '#ff5ac8', e: '#5a1450', p: '#ff8ac0',
+    U: '#3a2650', T: '#241634', z: '#ff5ac8', X: '#c050c0', x: '#ff8ad8', S: '#2a1a40', s: '#5a3a80', W: '#2a1a40', V: '#ff5ac8' } },
   MECHANIC: { name: 'RIVET MK-II', map: { A: '#c9a24a', a: '#ffe08a', T: '#c8ccd8', t: '#8b98ab', Y: '#9aa0ac', L: '#c8ccd8', B: '#2a3440', z: '#62efff', U: '#e8f8ff', E: '#62efff', K: '#0e2a34' } },
   // Titan Grom: a bigger body in blackened armor with blood-red trim, a burning visor, bone horns and spiked shoulders
   TANK: { name: 'TITAN GROM', body: {
@@ -342,6 +345,15 @@ export function buildSprites() {
   const SH = { o: O, V: '#4a3a8a', v: '#9a7aff', G: '#e8d8ff' };
   const SHADE = ['...ooooo...', '..oVVVVVo..', '.oVvVVVVVo.', '.oVoooooVo.', '.oVoGoGoVo.', '.oVoooooVo.', 'oVVVVVVVVVo', 'oVvVVVVVvVo', '.oVVVVVVVo.', '..oVVVVVo..'];
   SPR.shade = [makeSprite([...SHADE, '...oVVVo...', '....oVo....'], SH, 'G'), makeSprite([...SHADE, '...oVVo....', '...oVo.....'], SH, 'G')];
+
+  // the archer: a hooded goblin with a quiver on its back and a bow held out in front
+  const AR = { o: O, H: '#5a4a3a', h: '#8a7458', F: '#6a9a3a', g: '#ff4f4f', Q: '#7a4a2a', q: '#e8e0c8', B: '#a07040', S: '#e8e0c8' };
+  const ARCH = ['...ooooo....', '..oHHHHHo...', '.oHhHHHHHo..', '.oHoFFFFoo.B', '.oHoFgFgoo.B', 'qoHoFFFFoSoB', 'qQoHHHHHoS.B', 'oQoHhHHHHoB.', '.ooHHHHHHo..', '..oHHHHHo...'];
+  SPR.archer = [makeSprite([...ARCH, '..oFo.oFo...', '..oo..oo....'], AR, 'g'), makeSprite([...ARCH, '...oFoFo....', '...oooo.....'], AR, 'g')];
+  // the ash priest: a pale robed healer with a staff crowned in green flame
+  const PR = { o: O, G: '#7dff9a', g: '#e8ffe8', S: '#8a6a4a', R: '#d8d0c0', r: '#a89880', K: '#1a1420', e: '#7dff9a' };
+  const PRIE = ['.oo..ooooo.', 'oGGooRRRRRo', 'oGgooRrRRRo', '.oSoRKKKKRo', '.oSoKeKKeKo', '.oSoRKKKKRo', '.oSoRRRRRRo', 'oSSoRRrRRRo', '.oSoRRRRRRo', '.oSoRrRRrRo'];
+  SPR.priest = [makeSprite([...PRIE, '.oSoRRRRRRo', '.ooooooooo.'], PR, 'e'), makeSprite([...PRIE, '.oSoRRRRRo.', '.oooooooo..'], PR, 'e')];
 
   // the lootling: a greedy little goblin hauling a sack of gold over its head
   const LT = { o: O, G: '#5f9a3a', S: '#c9a24a', s: '#fff2a8', y: '#ffd447', e: '#ff4f4f', m: '#3a0a14', B: '#4a3a2a' };

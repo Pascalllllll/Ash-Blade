@@ -7,7 +7,7 @@ A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fig
 - 8 fighters, each with a combo, three powers, an entrance, a death scene and an awakened second look
 - A large animated portrait of every fighter, sized to their build, on the select screen, in their entrance and in the opening
 - An opening where all eight fighters cut in one after another before the logo lands (any key skips it)
-- 8 kinds of monsters, elites with affixes, and wave twists that change the rules
+- 10 kinds of monsters, including an archer whose aim you can see and a priest that heals the others, plus elites with affixes and wave twists that change the rules
 - 10 bosses, up to The Dev, the game's own developer, on wave 50
 - Upgrades after every wave and a relic after every boss
 - 5 arenas, 4 difficulties, phone controls, and a save at every wave
@@ -25,11 +25,11 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 | Fighter | Hero | Basic attack | Q | E | R |
 | --- | --- | --- | --- | --- | --- |
 | Blade | Kael | 4-hit sword combo | Rift: blinks forward and cuts everything on the line | Tempest: knocks enemies back and chains lightning between them | Thousand Cuts: stops time and cuts every enemy on screen |
-| Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: an 11-pellet blast that pushes you back | Deadeye: time slows and she fires one sure critical shot at each of the 6 nearest enemies | Last Stand: 4 seconds of minigun |
+| Gunner | Vega Hale | Revolver, reloads after 14 shots | Buckshot: an 11-pellet blast that pushes you back | Deadeye: crosshairs lock on and she fires one sure critical shot at each of the 6 nearest enemies | Last Stand: 4 seconds of minigun |
 | Wizard | Morrow | Homing magic bolt | Arcane Missiles: a rune circle flares and 5 homing missiles leave his staff | Blizzard: a 3-second frost storm where you aim that cuts and freezes everything in it | Starfall: meteors rain on enemies for about 3 seconds |
-| Samurai | Rin | 4-hit katana combo ending in a quick-draw dash. 2 dashes, 8 health | Tsubame Gaeshi: a cut that flies out and back, hitting both ways and parrying shots | Hana Arashi: for 4 seconds a ring of petal blades cuts anything close, parries shots, and speeds her up | Issen: time stops while she cuts from enemy to enemy 11 times |
+| Samurai | Rin | 4-hit katana combo ending in a quick-draw dash. 2 dashes, 8 health | Senko: a beam of light shoots from her sword across the arena in an instant, hitting everything on the line for huge damage and destroying shots. Costs 50 energy | Hana Arashi: for 4 seconds a ring of petal blades cuts anything close, parries shots, and speeds her up | Issen: time stops while she cuts from enemy to enemy 11 times |
 | Mechanic | Rivet | Wrench combo | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Iron Titan: a giant mech lands and fights beside her for 18 seconds, punching, firing missile salvos and ground-pounding to stun |
-| Tank | Grom | Slow hammer combo. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, and shots bounce back |
+| Tank | Grom | Slow hammer combo. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: he raises his shield for 6 seconds of no damage, and shots bounce back |
 | Robot | Unit-7 | Laser that overheats if held too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
 The four melee fighters charge up when you hold attack. Let go early for a weaker version.
@@ -43,14 +43,14 @@ The four melee fighters charge up when you hold attack. Let go early for a weake
 
 The eighth fighter is The Dev, a programmer in a motorized wheelchair who wrote this world and is now debugging it from the inside. He starts weaker than the others, with one shot at a time and 6 health, and grows with every wave and every 20 kills: about even by wave 15, 7.5 times as strong by wave 50. His shots plant bugs that crash an enemy.
 
-Rin runs like a ninja: thrown forward into the run with both arms swept back, afterimages trailing behind her.
+Rin runs like a ninja: thrown forward into the run with both arms swept back, afterimages trailing behind her. Her **Flash Strike**: the first sword swing or skill within 0.6 seconds after a dash does 2.5 times the damage, so a dash into Senko hits for well over 200.
 
 Every fighter awakens once per run, after any five evolutions (see Upgrades). The evolution banner counts them, AWAKENING 1/5 to 5/5. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom, Unit-7 Omega and Root. Awakening brings a new look, 1 more max health, and an evolved kit for the rest of the run:
 
-- **Look:** a new skin. Titan Grom grows bigger, in blackened armor with blood-red trim, bone horns and spiked shoulders, and Unit-7 Omega grows bigger and hovers on two jets instead of rolling on treads. The fighter's slashes, shots, beams, particles and power effects switch to an awakened color scheme, and basic-attack slashes, shots and Unit-7's laser get thicker.
+- **Look:** a new skin. Titan Grom grows bigger, in blackened armor with blood-red trim, bone horns, spiked shoulders and a spiked shield with a glowing sigil, Oni Rin turns purple and pink, and Unit-7 Omega grows bigger and hovers on two jets instead of rolling on treads. The fighter's slashes, shots, beams, particles and power effects switch to an awakened color scheme, and basic-attack slashes, shots and Unit-7's laser get thicker.
 - **Basic attack:** 30% more damage, plus an extra effect on every hit.
-- **Melee swings:** every awakened swing leaves a second, wider arc and adds the fighter's own extra: Ashen Kael throws flame crescents, Oni Rin sends crimson blade waves, Rivet Mk-II arcs lightning forward, and Titan Grom rolls blood-red shockwaves along the ground, with his slam and spin ending in a quake ringed by eruptions.
-- **Charged attack:** a double ring spins at the feet while charging, and the release bursts in the fighter's awakened colors. Ashen Kael throws five crescents and a line of white fire erupts along the cut. Oni Rin fans eight crimson waves out of her dash, then a second cut opens along it. Rivet Mk-II calls a ring of lightning strikes and a long chain. Titan Grom sends three aftershocks and a ring of eruptions.
+- **Melee swings:** every awakened swing leaves a second, wider arc and adds the fighter's own extra: Ashen Kael throws flame crescents, Oni Rin sends gold blade waves, Rivet Mk-II arcs lightning forward, and Titan Grom rolls blood-red shockwaves along the ground, with his slam and spin ending in a quake ringed by eruptions.
+- **Charged attack:** a double ring spins at the feet while charging, and the release bursts in the fighter's awakened colors. Ashen Kael throws five crescents and a line of white fire erupts along the cut. Oni Rin fans eight gold waves out of her dash, then a second cut opens along it. Rivet Mk-II calls a ring of lightning strikes and a long chain. Titan Grom sends three aftershocks and a ring of eruptions.
 - **Q and E:** cost a quarter less, recharge a fifth faster, and release an awakened burst after each cast.
 - **Ultimate:** 30% more damage, an awakened finisher, and it keeps 30% of its charge. It also charges a quarter faster.
 
@@ -82,7 +82,7 @@ Each fighter also has their own sounds and their own entrance. Grom falls from t
 
 ### Unlocking fighters
 
-You start with Blade. The select screen shows each mission and how close you are.
+You start with Blade. The select screen shows each mission and how close you are. A fighter who has cleared wave 25 gets a silver frame on the select screen and a WAVE 25 VETERAN badge; clearing wave 50 earns a gold frame with a crown, sparkles and a WAVE 50 LEGEND badge.
 
 | Fighter | Mission |
 | --- | --- |
@@ -161,8 +161,10 @@ Every boss drops three relics, and you keep one.
 | Slime | 3 | Hops on you, and splits in two when it dies |
 | Brute | 4 | Charges in a straight line and stuns itself on walls |
 | Spitter | 5 | A rooted plant that lobs acid where you're heading |
+| Archer | 4 | A hooded goblin with a bow. It keeps its distance, then draws and aims, and a dashed red line shows exactly where the arrow will fly: it follows you while the bow is drawn, then locks and flashes white just before the shot. Arrows can be parried |
+| Ash Priest | 6 | A robed healer that stays behind the others. It chants inside a green circle, tethered to every wounded monster in it, then heals them by 30%. Hit it mid-chant to break the spell |
 | Shade | 8 | Disappears and reappears behind you |
-| Lootling | 4 (rare) | A goblin that runs off with a sack of gold. Kill it before it digs out for energy, hearts and score |
+| Lootling | 4 (rare) | A goblin that runs off with a sack of gold. Kill it before it digs out for energy, a heart and score |
 
 From wave 6 some monsters are elites, with more health and one affix: Regen, Volatile, Warded, Frenzy or Split.
 
@@ -211,7 +213,7 @@ After wave 50 all ten come back with more health. Every boss enrages after 60 se
 | Powers | Q, E, R | Tap to cast at the nearest enemy, or hold and drag to aim |
 | Pause | Esc | Button at the top |
 
-Dashing makes you untouchable. Dash through an attack as it lands and time slows, and your next hit is a counter for triple damage. Hit a pink orb to send it back.
+Hearts are rare: ordinary monsters seldom drop one, a boss's summoned army never does, and after a hit you're only safe for a third of a second. Dashing makes you untouchable. Dash through an attack as it lands and time slows, and your next hit is a counter for triple damage. Hit a pink orb to send it back.
 
 ![Phone controls](docs/mobile.png)
 
