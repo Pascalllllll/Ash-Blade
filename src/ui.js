@@ -1,14 +1,14 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=74';
-import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill } from './models.js?v=74';
-import { SPR, icon } from './sprites.js?v=74';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=74';
-import { A } from './audio.js?v=74';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=74';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=74';
-import { CHARS } from './chars.js?v=74';
-import { BOSSES, bossFor } from './bosses.js?v=74';
-import { MAPS } from './maps.js?v=74';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=74';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=86';
+import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill, modelBox } from './models.js?v=86';
+import { SPR, icon } from './sprites.js?v=86';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=86';
+import { A } from './audio.js?v=86';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=86';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=86';
+import { CHARS } from './chars.js?v=86';
+import { BOSSES, bossFor } from './bosses.js?v=86';
+import { MAPS } from './maps.js?v=86';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=86';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -269,6 +269,14 @@ export function drawTitle(t, items) {
 // The chosen fighter stands big on the left: an animated portrait from model/, drawn on the HD layer
 // so every one of its pixels shows. The roster is a grid of slanted face tiles on the right, with
 // lore, stats, attacks, arena, difficulty and START under it.
+// Portraits are drawn smaller than their 512 x 768 pixels on most screens. Skipping pixels to shrink them
+// makes their colors flicker as they animate, so a shrunk portrait is scaled smoothly instead.
+function pdraw(h, img, x, y, w, ht) {
+  const smooth = w * h.getTransform().a < img.width;
+  h.imageSmoothingEnabled = smooth; if (smooth) h.imageSmoothingQuality = 'high';
+  h.drawImage(img, x, y, w, ht);
+  h.imageSmoothingEnabled = false;
+}
 export const sel = { i: 0, row: 0, t: 0, shown: -1, swap: 0 };
 // draws only the top rows of a sprite (head and shoulders), optionally scaled
 function bust(s, x, y, rows, scale = 1, tint = null) {
@@ -375,14 +383,17 @@ function drawHero(id, t, col, lk, h) {
   if (!img) return;
   h.save(); panelPath(h); h.clip();
   h.globalAlpha = Math.min(1, e0 * 2.5 + 0.2);
-  h.drawImage(img, x0, 0, MW, MH);
-  if (!lk && e0 >= 1 && e0 < 1.35) { h.globalAlpha = 1 - (e0 - 1) / 0.35; const wf = modelFlat(id, '#ffffff'); if (wf) h.drawImage(wf, x0, 0, MW, MH); }
+  const box = modelBox(id, x0, 0, MW, MH);
+  pdraw(h, img, ...box);
+  if (!lk && e0 >= 1 && e0 < 1.35) { h.globalAlpha = 1 - (e0 - 1) / 0.35; const wf = modelFlat(id, '#ffffff'); if (wf) pdraw(h, wf, ...box); }
   h.restore();
 }
 export function drawSelect(t) {
   drawBackdrop(t, 0.75);
   const ids = OPTIONS.char, id = ids[sel.i], k = CHARS[id], lk = locked(id), col = lk ? P.dust : k.color();
-  if (sel.shown !== sel.i) { sel.shown = sel.i; sel.swap = t; }
+  // a new pick slides its portrait in; so does coming back to this screen (its clock restarts at 0, so a
+  // swap time from an earlier visit would sit in the future and hold the portrait off to the left)
+  if (sel.shown !== sel.i || t < sel.swap) { sel.shown = sel.i; sel.swap = t; }
   const [h] = hdBegin();
   drawHero(id, t, col, lk, h);
   // name over the left panel: painted into its own small canvas and put on the HD layer, above the portrait
@@ -681,15 +692,18 @@ function drawBeat(i, t, h) {
   for (let j = 0; j < 12; j++) rect(-W + ((j * 60 + t * 220 * -dir + 4000) % (W * 2)), -bh / 2 + 5, 18, Math.max(0, bh - 10), P.ink0);
   ctx.restore();
   // the portrait: 160 x 240, a third off the bottom, sliding in with afterimages and drifting slowly
-  const pic = portrait(id), PW = 160 * (1 + t * 0.06), PH = PW * 1.5;
-  const tx = right ? W - PW + 6 : -6, from = right ? W + 40 : -PW - 40, x = from + (tx - from) * k - dir * t * 10, y = -14 - (PH - 240) * 0.3;
+  // the whole figure, feet on the bottom of the screen and fully in frame, drifting in slowly
+  const pic = portrait(id), PH0 = 168 * (1 + t * 0.04), PW0 = PH0 / 1.5;
+  const tx = right ? W - PW0 - 14 : 14, from = right ? W + 40 : -PW0 - 40, x0 = from + (tx - from) * k - dir * t * 8, y0 = H - 4 - PH0;
+  // each fighter at its own build (see modelBox)
+  const [x, y, PW, PH] = modelBox(id, x0, y0, PW0, PH0);
   glow(x + PW / 2, H / 2, col, 80, lk ? 0.12 : 0.32);
   if (pic) {
-    if (lk) { h.globalAlpha = 0.9; const rim = modelFlat(id, col) || pic; h.drawImage(rim, x - 1.5, y, PW, PH); h.drawImage(rim, x + 1.5, y, PW, PH); h.globalAlpha = 1; }
-    if (k < 1) for (let g = 3; g >= 1; g--) { h.globalAlpha = 0.3 / g; h.drawImage(modelFlat(id, col) || pic, x + dir * g * 22, y, PW, PH); }
+    if (lk) { h.globalAlpha = 0.9; const rim = modelFlat(id, col) || pic; pdraw(h, rim, x - 1.5, y, PW, PH); pdraw(h, rim, x + 1.5, y, PW, PH); h.globalAlpha = 1; }
+    if (k < 1) for (let g = 3; g >= 1; g--) { h.globalAlpha = 0.3 / g; pdraw(h, modelFlat(id, col) || pic, x + dir * g * 22, y, PW, PH); }
     h.globalAlpha = 1;
-    h.drawImage(pic, x, y, PW, PH);
-    if (!lk && t > 0.1 && t < 0.24) { h.globalAlpha = 1 - (t - 0.1) / 0.14; h.drawImage(modelFlat(id, '#ffffff') || pic, x, y, PW, PH); h.globalAlpha = 1; }
+    pdraw(h, pic, x, y, PW, PH);
+    if (!lk && t > 0.1 && t < 0.24) { h.globalAlpha = 1 - (t - 0.1) / 0.14; pdraw(h, modelFlat(id, '#ffffff') || pic, x, y, PW, PH); h.globalAlpha = 1; }
   } else {
     const s = SPR.chars[id].idles[Math.floor(t * 7) % 8], S = 6, sx = Math.round(x + PW / 2 - (s.w * S) / 2), sy = 176 - s.h * S;
     ctx.save(); ctx.translate(sx, sy); ctx.scale(S, S); drawSprite(s, 0, 0, right, lk ? '#07050b' : t > 0.1 && t < 0.16 ? P.paper : null); ctx.restore();
@@ -729,9 +743,9 @@ function drawLineup(t, h) {
     if (pic) {
       const PW = 150, PH = 225, px0 = x0 + SW / 2 - PW * fx0, py0 = 60 - PH * fy0 + dy;
       h.save(); path(h); h.clip();
-      if (lk) { const rim = modelFlat(id, col) || pic; h.drawImage(rim, px0 - 1, py0, PW, PH); h.drawImage(rim, px0 + 1, py0, PW, PH); }
-      h.drawImage(pic, px0, py0, PW, PH);
-      if (k < 1) { h.globalAlpha = 1 - k; h.drawImage(modelFlat(id, col) || pic, px0, py0, PW, PH); }
+      if (lk) { const rim = modelFlat(id, col) || pic; pdraw(h, rim, px0 - 1, py0, PW, PH); pdraw(h, rim, px0 + 1, py0, PW, PH); }
+      pdraw(h, pic, px0, py0, PW, PH);
+      if (k < 1) { h.globalAlpha = 1 - k; pdraw(h, modelFlat(id, col) || pic, px0, py0, PW, PH); }
       h.restore();
     } else {
       const s = SPR.chars[id].idles[Math.floor(t * 7 + i) % 8], S = 4;
@@ -909,14 +923,14 @@ export function drawLockin(t, id) {
   if (pic) {
     // bigger than the screen: the poster runs off the bottom edge, and pushes in slowly once it lands
     const [h] = hdBegin(), k = ease((t - 0.06) / 0.28), push = 1 + Math.max(0, t - 0.34) * 0.05;
-    const MW2 = 156 * push, MH2 = 234 * push, x = -170 + (2 + 170) * k - (MW2 - 156) / 2, y = -16 - (MH2 - 234) * 0.3;
+    const [x, y, MW2, MH2] = modelBox(id, -170 + (2 + 170) * k - (156 * push - 156) / 2, -16 - (234 * push - 234) * 0.3, 156 * push, 234 * push);
     h.save();
     if (slam) h.translate(Math.round((Math.random() - 0.5) * 8 * slam), Math.round((Math.random() - 0.5) * 5 * slam));
     glow(x + MW2 / 2, H / 2, col, 70, 0.3);
-    if (k < 1) for (let g = 4; g >= 1; g--) { h.globalAlpha = 0.3 / g; h.drawImage(modelFlat(id, col) || pic, x - g * 18, y, MW2, MH2); }
+    if (k < 1) for (let g = 4; g >= 1; g--) { h.globalAlpha = 0.3 / g; pdraw(h, modelFlat(id, col) || pic, x - g * 18, y, MW2, MH2); }
     h.globalAlpha = 1;
-    h.drawImage(pic, x, y, MW2, MH2);
-    if (t > 0.36 && t < 0.5) { h.globalAlpha = 1 - (t - 0.36) / 0.14; h.drawImage(modelFlat(id, '#ffffff') || pic, x, y, MW2, MH2); h.globalAlpha = 1; }
+    pdraw(h, pic, x, y, MW2, MH2);
+    if (t > 0.36 && t < 0.5) { h.globalAlpha = 1 - (t - 0.36) / 0.14; pdraw(h, modelFlat(id, '#ffffff') || pic, x, y, MW2, MH2); h.globalAlpha = 1; }
     h.restore();
   }
   // the fighter dashes in at 5x with afterimages, then settles and breathes

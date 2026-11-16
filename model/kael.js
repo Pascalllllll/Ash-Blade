@@ -29,7 +29,7 @@
       { kind: 'rise', n: 14, color: [255, 110, 30], core: [255, 214, 110], glow: true, seed: 9 },
       { kind: 'rise', n: 8, color: [255, 110, 30], core: [255, 214, 110], glow: true, front: true, seed: 19 },
     ],
-    // a warm haze along the blade when it flares
-    extra(f, img, t, ph) { if (Math.sin(ph * 2) > 0.4) for (let k = 0; k <= 1; k += 0.125) f.glow(130 - k * 120, 196 + k * 132, 9, [255, 120, 40], 0.18); },
+    // a warm haze along the blade that swells and fades as it flares
+    extra(f, img, t, ph) { const a = 0.24 * Math.max(0, Math.sin(ph * 2)); if (a > 0.02) for (let k = 0; k <= 1; k += 0.125) f.glow(130 - k * 120, 196 + k * 132, 9, [255, 120, 40], a); },
   });
 })();

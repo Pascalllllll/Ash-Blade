@@ -1,6 +1,6 @@
 # Models
 
-Large animated pixel-art portraits of Ashblade's fighters, shown on the fighter select screen. Each portrait is a 512 x 768 pixel image with a 24-frame animation that loops at 12 frames per second.
+Large animated pixel-art portraits of Ashblade's fighters, shown on the fighter select screen. Each portrait is a 512 x 768 pixel image with a 48-frame animation that loops at 24 frames per second.
 
 | Fighter | Animation |
 |---|---|
@@ -22,6 +22,6 @@ Open `index.html` in a browser. It needs no server. Pause and zoom are in the he
 ## Files
 
 - `data/<name>.js` holds the pixels: a palette of up to 219 colors and a run-length string, one character per color followed by how many times it repeats. The pixels were taken from each fighter's poster art, reduced to 512 x 768 (half the poster's size) and 219 colors, so the portraits look exactly like the posters. Animations place things on a 256 x 384 grid and `pixel.js` scales that to the data's real size.
-- `<name>.js` is the animation: a short description handed to `Pixel.animated` in `pixel.js`. Each one marks regions of its image (the jacket, the fire, the blade, the eyes, the upper body) by color and position, then moves them every frame: cloth pixels are pulled from upwind with a wave that grows toward the free edge, fire is also pulled upward and stepped through the fire colors so it flickers, the upper body lifts one pixel on each breath, eyelids are painted over the eyes for a blink, and petals or embers are drawn as particles.
+- `<name>.js` is the animation: a short description handed to `Pixel.animated` in `pixel.js`. Each one marks regions of its image (the jacket, the fire, the blade, the eyes, the upper body) by color and position, then moves them every frame: cloth pixels are pulled from upwind with a wave that grows toward the free edge, fire is also pulled upward, glowing parts brighten and dim in a smooth wave that keeps each pixel's own color, the upper body eases up a pixel or two on each breath (drawn over its resting place, so no gap opens), eyelids are painted over the eyes for a blink, and petals or embers are drawn as particles.
 - `pixel.js` decodes the data and holds the shared helpers: region masks, rippling cloth, shimmering colors, breathing, floating, blinking, particles, and drawing to a canvas.
 - `out/` holds the exports: `<name>.png` (the first frame at 2x, 1024 x 1536, transparent), `<name>-sheet.png` (all 24 frames at half size in an 8 x 3 grid, transparent), `<name>.webp` (animated, 512 x 768, transparent) and `<name>.gif` (animated, 512 x 768, on the game's dark background).

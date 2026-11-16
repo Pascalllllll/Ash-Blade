@@ -102,23 +102,18 @@
   // Every position here is on the 256 x 384 grid.
   //   cloth:   [{ test(c, x, y), amp(x, y) grid px, freq, rise, lift(x, y) }]  regions that ripple
   //            in the wind; lift adds an upward flicker (flames)
-  //   shimmer: [{ test(c, x, y), size, speed, kx, ky }]   glowing colors stepped up and down the
-  //            region's own brightness ramp
+  //   shimmer: [{ test(c, x, y), size, speed, kx, ky }]   glowing parts brighten and dim in a smooth
+  //            wave that runs across them (size sets how strong, speed how many pulses per loop)
   //   breathe: test(c, x, y)   lifts by one grid px on the in-breath;   float: grid px the figure bobs
   //   blink:   { at: [t0, t1], eyes: [[x0, y0, x1, y1]], skinBox: [x0, y0, x1, y1], test(c), line }
   //   particles: [{ kind: rise | twinkle | smoke | spark | petal, n, area, color, front, from }]
   //   extra(f, img, t, ph, bob)   anything else, drawn before the front particles
   P.animated = (cfg) => ({
-    name: cfg.name, data: cfg.data, frames: cfg.frames || 24, fps: cfg.fps || 12,
+    name: cfg.name, data: cfg.data, frames: cfg.frames || 48, fps: cfg.fps || 24,
     prepare(img) {
       const n = img.w * img.h;
       const cloth = (cfg.cloth || []).map((c) => ({ ...c, m: P.mask(img, c.test) }));
-      const shimmer = (cfg.shimmer || []).map((c) => {
-        const m = P.mask(img, c.test), ramp = [], rank = new Int16Array(img.pal.length).fill(-1), used = new Set();
-        for (let i = 0; i < n; i++) if (m[i]) used.add(img.idx[i]);
-        for (let v = 1; v < img.pal.length; v++) if (used.has(v)) { rank[v] = ramp.length; ramp.push(v); }
-        return { ...c, m, ramp, rank };
-      });
+      const shimmer = (cfg.shimmer || []).map((c) => ({ ...c, m: P.mask(img, c.test) }));
       const anyCloth = new Uint8Array(n); cloth.forEach((c) => { for (let i = 0; i < n; i++) if (c.m[i]) anyCloth[i] = 1; });
       const breathe = cfg.breathe ? P.mask(img, cfg.breathe) : new Uint8Array(n);
       const skin = cfg.blink ? P.pick(img, ...cfg.blink.skinBox, P.isSkin) : null;
@@ -132,16 +127,21 @@
     frame(img, st, t, f) {
       const { w, h, idx, s } = img, ph = t * Math.PI * 2;
       const bob = cfg.float ? Math.round(Math.sin(ph) * cfg.float * s) : 0;
-      const lift = cfg.breathe && Math.sin(ph) > 0 ? Math.round(s) : 0;
-      // the color a source pixel shows this frame (shimmering regions step through their ramp)
+      // the breath eases in and out over a few pixels instead of jumping a whole step
+      const lift = cfg.breathe ? Math.round(s * 0.5 * (1 - Math.cos(ph))) : 0;
+      // the color a source pixel shows this frame: shimmering parts brighten toward white and dim
+      // smoothly, so the pixel keeps its own hue instead of jumping to another palette color
       const color = (i, gx, gy) => {
-        let v = idx[i];
+        const v = idx[i];
+        if (!v) return null;
+        let c = img.pal[v];
         for (const r of st.shimmer) if (r.m[i]) {
-          const d = Math.round((r.size ?? 1) * Math.sin(ph * (r.speed ?? 2) + gx * (r.kx ?? 0.08) + gy * (r.ky ?? 0.06)));
-          v = r.ramp[Math.max(0, Math.min(r.ramp.length - 1, r.rank[v] + d))];
+          const k = 0.22 * (r.size ?? 1) * Math.sin(ph * (r.speed ?? 2) + gx * (r.kx ?? 0.08) + gy * (r.ky ?? 0.06));
+          c = k > 0 ? [c[0] + (255 - c[0]) * k * 0.8, c[1] + (255 - c[1]) * k * 0.8, c[2] + (255 - c[2]) * k * 0.8] : [c[0] * (1 + k), c[1] * (1 + k), c[2] * (1 + k)];
         }
-        return v;
+        return c;
       };
+      const put = (x, y, c) => { if (c) f.rgb(x, y, c); };
       for (const p of cfg.particles || []) if (!p.front) particles(f, p, t, ph, bob / s);
       // rippling cloth behind everything else; a pixel with nothing upwind keeps its own color
       for (const c of st.cloth) {
@@ -154,27 +154,29 @@
           if (c.lift) dy += c.lift(gx, gy) * Math.sin(ph * 2 + gx * 0.11 + gy * 0.05);
           let sx = Math.round(x - dx * s), sy = Math.round(y - dy * s);
           if (sx < 0 || sy < 0 || sx >= w || sy >= h || !c.m[sy * w + sx]) { if (!c.m[i]) continue; sx = x; sy = y; }
-          f.idx(x, y + bob, color(sy * w + sx, sx / s, sy / s));
+          put(x, y + bob, color(sy * w + sx, sx / s, sy / s));
         }
       }
+      // everything still, including the breathing part in its resting place (so lifting it never
+      // opens a gap underneath), then the breathing part again on top, lifted
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const i = y * w + x; if (!idx[i] || st.anyCloth[i] || st.breathe[i]) continue;
-        f.idx(x, y + bob, color(i, x / s, y / s));
+        const i = y * w + x; if (!idx[i] || st.anyCloth[i]) continue;
+        put(x, y + bob, color(i, x / s, y / s));
       }
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (lift) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         const i = y * w + x; if (!st.breathe[i] || st.anyCloth[i]) continue;
-        f.idx(x, y + bob + lift, color(i, x / s, y / s));
+        put(x, y + bob - lift, color(i, x / s, y / s));
       }
       const b = cfg.blink;
       if (b && t >= b.at[0] && t < b.at[1]) for (const [x0, y0, x1, y1] of b.eyes) {
         for (let y = Math.round(y0 * s); y <= y1 * s; y++) for (let x = Math.round(x0 * s); x <= x1 * s; x++) {
-          const v = idx[y * w + x]; if (v && b.test(img.pal[v])) f.rgb(x, y + bob + lift, st.skin);
+          const v = idx[y * w + x]; if (v && b.test(img.pal[v])) f.rgb(x, y + bob - lift, st.skin);
         }
         // the closed lid: a lash line that dips in the middle
         const ly = (y0 + y1) / 2 + (b.line ?? 2);
         for (let gx = x0 + 0.5; gx < x1; gx += 0.5) {
           const gy = ly + Math.sin(((gx - x0) / (x1 - x0)) * Math.PI) - 1;
-          for (let k = 0; k < Math.max(1, s * 0.75); k++) f.rgb(gx * s, gy * s + k + bob + lift, b.lash || [24, 10, 30]);
+          for (let k = 0; k < Math.max(1, s * 0.75); k++) f.rgb(gx * s, gy * s + k + bob - lift, b.lash || [24, 10, 30]);
         }
       }
       if (cfg.extra) cfg.extra(f, img, t, ph, bob);

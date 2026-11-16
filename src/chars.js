@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=74';
-import { SPR } from './sprites.js?v=74';
-import { A } from './audio.js?v=74';
-import { input } from './input.js?v=74';
-import { best } from './store.js?v=74';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=86';
+import { SPR } from './sprites.js?v=86';
+import { A } from './audio.js?v=86';
+import { input } from './input.js?v=86';
+import { best } from './store.js?v=86';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
   chainLightning, parry, hitstop, slowmo, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick,
-} from './world.js?v=74';
+} from './world.js?v=86';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -1329,7 +1329,8 @@ const FLAIR = {
     if (moving && p.k.stompT <= 0) { p.k.stompT = 0.32; dust(p.x, p.y, 5, 45); shake(0.03); }
   },
   ROBOT(p, dt) {
-    if (Math.random() < dt * 30) part(p.x + rnd(-3, 3), p.y + 1, rnd(-10, 10), rnd(20, 50), rnd(0.12, 0.25), Math.random() < 0.5 ? P.volt : P.paper, { drag: 4, glow: true });
+    // sparks off the treads (Omega hovers on jets instead)
+    if (G.evo !== true && Math.random() < dt * 30) part(p.x + rnd(-3, 3), p.y + 1, rnd(-10, 10), rnd(20, 50), rnd(0.12, 0.25), Math.random() < 0.5 ? P.volt : P.paper, { drag: 4, glow: true });
   },
 };
 const AURA = {
@@ -1349,7 +1350,8 @@ const AURA = {
       glow(x + 4, y + 3, '#39ff6a', 6, 0.35);
     }
   },
-  ROBOT(p) { glow(p.x, p.y, P.volt, 8 + Math.sin(G.time * 30), 0.35); glow(p.x, p.y - 8, P.volt, 5 + Math.sin(G.time * 6) * 2, 0.35); },
+  // the tread glow and the core glow sit where the treaded body is; Omega hovers higher and glows at its jets
+  ROBOT(p) { if (G.evo === true) return; glow(p.x, p.y, P.volt, 8 + Math.sin(G.time * 30), 0.35); glow(p.x, p.y - 8, P.volt, 5 + Math.sin(G.time * 6) * 2, 0.35); },
   BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
   TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
 };
@@ -1434,7 +1436,7 @@ const AWAKE = {
   },
   // Titan Grom: every blow sends a shockwave through the enemies around the target; his powers quake and stun; Fortress opens with a great quake
   TANK: {
-    pal: { col: P.gold, slash: 'titan', charge: 'titan', map: { [P.ember]: '#ff3b3b', [P.ember2]: P.gold, [P.ember3]: '#fff2c0', '#8fa2bd': P.gold, '#cfe0f5': '#fff2c0', '#3c4a63': P.gold2, [P.gold]: '#ff3b3b', [P.gold2]: '#7a0a1a', '#e8c890': '#fff2c0', '#7a5a3a': P.gold2, '#2a1f14': '#3a1408', '#7a6a5a': '#b9811c', '#a8946e': P.gold, '#5a4a3a': '#7a4a10' } },
+    pal: { col: '#e0223f', slash: 'titan', charge: 'titan', map: { [P.ember]: '#c81e36', [P.ember2]: '#ff3b3b', [P.ember3]: '#ffc0c0', '#8fa2bd': '#c81e36', '#cfe0f5': '#ff8a8a', '#3c4a63': '#2a0a10', [P.gold]: '#ff1a2a', [P.gold2]: '#6a0a14', '#e8c890': '#ff8a8a', '#7a5a3a': '#6a0a14', '#2a1f14': '#1a0608', '#7a6a5a': '#4a1018', '#a8946e': '#a0101e', '#5a4a3a': '#2a0a10', '#ff9a3c': '#ff3b3b' } },
     swing: (p, st, shape) => {
       shoot({ x: p.x + Math.cos(p.atkAng) * 12, y: p.y - 4, a: p.atkAng, sp: 220, dmg: pd(st.heavy ? 8 : 5), kb: 200, life: 0.45, kind: 'crescent', r: st.heavy ? 8 : 6, pierce: 99, c: '#8fa2bd', ug: true, slice: false, trail: false });
       if (shape === 'slam' || shape === 'spin') G.timers.push({ t: shape === 'slam' ? 0.24 : 0.12, fn: () => {

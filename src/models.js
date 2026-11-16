@@ -2,9 +2,22 @@
 // are plain scripts, all requested at once as the page opens (downloaded in parallel, run in order),
 // so the opening cinematic can show them. Frames are painted as they are needed and cached; only
 // the current fighter keeps its whole animation in memory.
-const Q = '?v=74';
+const Q = '?v=86';
 const FILES = { BLADE: 'kael', GUNNER: 'vega', WIZARD: 'morrow', NINJA: 'rin', MECHANIC: 'rivet', TANK: 'grom', ROBOT: 'unit7', DEV: 'dev' };
 export const hasModel = (id) => id in FILES;
+// Every portrait fills its own picture, so each is drawn at a share of the portrait box that matches the
+// fighter's build: the armored knight full size, the petite fighters smaller.
+const SCALE = { TANK: 1, ROBOT: 0.88, WIZARD: 0.93, GUNNER: 0.92, BLADE: 0.9, DEV: 0.88, NINJA: 0.82, MECHANIC: 0.78 };
+// where each figure stands inside its own 512 x 768 picture, measured from the pixels: its feet line (the
+// lowest row it fills, as a share of the height) and the middle of its body (the mean column of its legs
+// and torso, as a share of the width; flames, coats and weapons swinging out to one side don't count)
+const STAND = { BLADE: [0.975, 0.545], GUNNER: [0.983, 0.527], WIZARD: [0.967, 0.492], NINJA: [0.999, 0.514], MECHANIC: [0.986, 0.527], TANK: [0.983, 0.516], ROBOT: [0.961, 0.52], DEV: [0.957, 0.48] };
+// a portrait box (x, y, w, h) shrunk to the fighter's scale and moved so the figure's feet sit on the box's
+// bottom edge and its body on the box's middle: every fighter stands on the same ground, centered
+export function modelBox(id, x, y, w, h) {
+  const k = SCALE[id] ?? 1, [fy, cx] = STAND[id] ?? [1, 0.5], W = w * k, H = h * k;
+  return [x + w / 2 - cx * W, y + h - fy * H, W, H];
+}
 let state = 'idle', loaded = 0, total = 1;
 export const modelsReady = () => state === 'ready';
 export const modelsFailed = () => state === 'failed';

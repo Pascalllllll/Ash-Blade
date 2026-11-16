@@ -5,7 +5,7 @@ A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fig
 **Play it at [ash-blade.vercel.app](https://ash-blade.vercel.app/).**
 
 - 8 fighters, each with a combo, three powers, an entrance, a death scene and an awakened second look
-- A large animated portrait of every fighter, on the select screen and in their entrance
+- A large animated portrait of every fighter, sized to their build, on the select screen, in their entrance and in the opening
 - An opening where all eight fighters cut in one after another before the logo lands (any key skips it)
 - 8 kinds of monsters, elites with affixes, and wave twists that change the rules
 - 10 bosses, up to The Dev, the game's own developer, on wave 50
@@ -43,11 +43,13 @@ The four melee fighters charge up when you hold attack. Let go early for a weake
 
 The eighth fighter is The Dev, a programmer in a motorized wheelchair who wrote this world and is now debugging it from the inside. He starts weaker than the others, with one shot at a time and 6 health, and grows with every wave and every 20 kills: about even by wave 15, 7.5 times as strong by wave 50. His shots plant bugs that crash an enemy.
 
+Rin runs like a ninja: thrown forward into the run with both arms swept back, afterimages trailing behind her.
+
 Every fighter awakens once per run, after any five evolutions (see Upgrades). The evolution banner counts them, AWAKENING 1/5 to 5/5. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom, Unit-7 Omega and Root. Awakening brings a new look, 1 more max health, and an evolved kit for the rest of the run:
 
-- **Look:** the fighter's slashes, shots, beams, particles and power effects switch to an awakened color scheme, and basic-attack slashes, shots and Unit-7's laser get thicker.
+- **Look:** a new skin. Titan Grom grows bigger, in blackened armor with blood-red trim, bone horns and spiked shoulders, and Unit-7 Omega grows bigger and hovers on two jets instead of rolling on treads. The fighter's slashes, shots, beams, particles and power effects switch to an awakened color scheme, and basic-attack slashes, shots and Unit-7's laser get thicker.
 - **Basic attack:** 30% more damage, plus an extra effect on every hit.
-- **Melee swings:** every awakened swing leaves a second, wider arc and adds the fighter's own extra: Ashen Kael throws flame crescents, Oni Rin sends crimson blade waves, Rivet Mk-II arcs lightning forward, and Titan Grom rolls gold shockwaves along the ground, with his slam and spin ending in a quake ringed by eruptions.
+- **Melee swings:** every awakened swing leaves a second, wider arc and adds the fighter's own extra: Ashen Kael throws flame crescents, Oni Rin sends crimson blade waves, Rivet Mk-II arcs lightning forward, and Titan Grom rolls blood-red shockwaves along the ground, with his slam and spin ending in a quake ringed by eruptions.
 - **Charged attack:** a double ring spins at the feet while charging, and the release bursts in the fighter's awakened colors. Ashen Kael throws five crescents and a line of white fire erupts along the cut. Oni Rin fans eight crimson waves out of her dash, then a second cut opens along it. Rivet Mk-II calls a ring of lightning strikes and a long chain. Titan Grom sends three aftershocks and a ring of eruptions.
 - **Q and E:** cost a quarter less, recharge a fifth faster, and release an awakened burst after each cast.
 - **Ultimate:** 30% more damage, an awakened finisher, and it keeps 30% of its charge. It also charges a quarter faster.
@@ -217,7 +219,7 @@ Dashing makes you untouchable. Dash through an attack as it lands and time slows
 
 The game fills the window on any screen by default. Sharp mode instead zooms by whole numbers so every pixel is the same size, and there are fixed sizes from 720p to 1440p.
 
-The other settings cover volume and music choice, color theme and screen filters, arena, difficulty, and vibration on Android phones. Screen shake, flashes, damage numbers and particles can all be turned down.
+The other settings cover volume and music choice, color theme and screen filters, arena, difficulty, and vibration on Android phones. Screen shake starts at 25%. Shake, flashes, damage numbers and particles can all be turned up or down.
 
 ## How it's built
 

@@ -1,4 +1,4 @@
-import { makeSprite, P } from './gfx.js?v=74';
+import { makeSprite, P } from './gfx.js?v=86';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -53,6 +53,8 @@ const BODIES = {
     map: () => ({ S: '#140c26', f: '#e0b898', F: '#c09878', K: '#0c0816', E: '#62efff', w: '#ffffff', m: '#7a3a3a', A: '#2a1d4a', a: '#4a3580', U: '#e6d8bd', u: '#b8aa90', z: '#b48cff', J: P.gold, T: '#3a2766', t: '#6a4ab8', B: '#3a2766', b: '#6a4ab8', L: '#2a1d4a', G: '#140c24' }),
   },
   NINJA: { auto: true, legs: 'baked', lids: 'Eew',
+    // running like a ninja: both arms swept straight back, the sleeve trailing off the back shoulder
+    run: { 11: '...UUTzzTzzU....', 12: '.fUUUTTTzTTU....', 13: 'f.XXXXXXXXxXX...' },
     // slim legs under a short pleated skirt: bare knees, white knee socks, little shoes.
     // The first row is empty so the skirt hem shows over the thighs; the legs stride apart and pass each other.
     feet: {
@@ -135,8 +137,42 @@ const EVO = {
   WIZARD: { name: 'ARCHMAGE MORROW', map: { A: '#f0eaff', a: '#ffffff', T: '#e8e0f0', t: '#ffffff', B: '#e8e0f0', b: '#ffffff', z: '#ffd447', E: '#ff4fa8', L: '#b48cff' } },
   NINJA: { name: 'ONI RIN', map: { X: '#1a1624', x: '#3a3450', H: '#e8ecf4', h: '#ffffff', Y: '#ff8a9a', q: '#ffc0c8', Z: '#e0223f', E: '#ff3b3b', e: '#7a0a1a', T: '#2a2838', U: '#c81e36', S: '#14101c', s: '#3a3450', W: '#1a1624', V: '#c81e36', z: '#ffd447', O: '#ff3b3b' }, rows: { 0: '..OHHHHHHHH.O...', 1: '.OHHhhhHHHHHHO..' } },
   MECHANIC: { name: 'RIVET MK-II', map: { A: '#c9a24a', a: '#ffe08a', T: '#c8ccd8', t: '#8b98ab', Y: '#9aa0ac', L: '#c8ccd8', B: '#2a3440', z: '#62efff', U: '#e8f8ff', E: '#62efff', K: '#0e2a34' } },
-  TANK: { name: 'TITAN GROM', map: { A: '#c9a24a', a: '#ffe08a', T: '#c9a24a', t: '#ffe08a', E: '#ff3b3b', z: '#ff3b3b', L: '#8a6a2a', C: '#2a1418', c: '#ff3b3b' } },
-  ROBOT: { name: 'UNIT-7 OMEGA', map: { M: '#2a2f3a', m: '#14161c', R: '#ffd447', A: '#ffd447', V: '#ff4fa8', C: '#5a1420', I: '#c9a24a', J: '#ffe08a', j: '#ff4fa8' } },
+  // Titan Grom: a bigger body in blackened armor with blood-red trim, a burning visor, bone horns and spiked shoulders
+  TANK: { name: 'TITAN GROM', body: {
+    auto: true, legs: 'baked', lids: 'E', eye: [11, 7], flow: 'Ccz',
+    // armored greaves with blood-red knee plates over heavy boots (a row taller than the old feet)
+    feet: {
+        idle: ['....oLLLooLLLo....', '....oLlLooLlLo....', '...oGGGGooGGGGo...'],
+        r0: ['...oLLLo..oLLLo...', '...oLlLo..oLlLo...', '..oGGGGo..oGGGGo..'],
+        r1: ['.....oLLLLLLo.....', '.....oLlLLlLo.....', '.....oGGGGGGGo....'],
+        r2: ['..oLLLo....oLLLo..', '..oLlLo....oLlLo..', '.oGGGGo....oGGGGo.'],
+        r3: ['.....oLLLLLLo.....', '.....oLlLLlLo.....', '......oGGGGGo.....'],
+    },
+    rows: [
+      'H.....JAAAAJ.....H', 'HH.AAAaaJJaaAAA.HH', '.HAaaaAAJJAAaaaAH.', '..AaAAAAJJAAAAaA..',
+      '..AaAAAAJJAAAAaA..', '..AaAAAAJJAAAAaA..', '..AKKKKKKKKKKKKA..', '..AKEEEEKKEEEEKA..',
+      '..AaAAAAJJAAAAaA..', '..AaAAJAJJAJAAaA..', '..AaAAAAAAAAAAaA..', '..JAAAAAAAAAAAAJ..',
+      '..STTTtTTTTtTTTS..', 'CJJJTTttJJttTTJJJ.', 'CJJfTTKJJJJKTTfJJ.', 'CCcTTTttJJttTTT...',
+      'CCcTTTKKTTKKTTT...', 'CCcTTTKKTTKKTTT...', 'CcCTTTttKKttTTT...', 'CCC.KKKKzzKKKK....',
+      'CCc...LL..LL......', '.CC...GG..GG......',
+    ],
+    map: () => ({ H: '#d8c8b4', A: '#2a2228', a: '#4e3e48', K: '#0a0608', E: '#ff1a2a', J: '#8a0a18', S: '#6a5a64', T: '#221a1e', t: '#3e2c34', f: '#3a2a30', z: '#ff1a2a', L: '#5a4650', l: '#a0101e', G: '#2e2428', C: '#4a0610', c: '#a0101e' }),
+  } },
+  // Unit-7 Omega: a bigger body that hovers on two jet thrusters instead of rolling on treads
+  ROBOT: { name: 'UNIT-7 OMEGA', body: {
+    lids: 'R', eye: [10, 8], legs: 'none', flow: 'A',
+    rows: [
+      '...o..........o...', '...oA........Ao...', '....oAooooooAo....', '..ooMMMMMMMMMMoo..',
+      '.oMMMIIIIIIIIMMMo.', '.oMMooooooooooMMo.', '.oMMoCKKKKKKKoMMo.', '.oMMoKKKKRRRKoMMo.',
+      '.oMMoKKKRRWRRoMMo.', '.oMMoKKKKRRRKoMMo.', '.oMMooooooooooMMo.', '..oMMMmmmmmmMMMo..',
+      '..ooooMMMMMMoooo..', '.oFFoMMMVVMMMoFFo.', '.oFFoMMVWWVMMoFFo.', '..oooMMMVVMMMooo..',
+      '....oMMMMMMMMo....', '...oPPoMMMMoPPo...', '...oPPo.oo.oPPo...', '....QQ......QQ....',
+      '....qQ......Qq....', '.....Q......Q.....',
+    ],
+    // the jet flames flicker as it moves
+    alt: { 19: '....qQ......Qq....', 20: '....QQ......QQ....', 21: '....Q........Q....' },
+    map: () => ({ M: '#2a2f3a', m: '#14161c', I: '#c9a24a', A: '#ffd447', K: '#0a0b10', R: '#ffd447', W: '#ffffff', C: '#5a1420', V: '#ff4fa8', F: '#3a4252', P: '#4a5466', Q: '#ff4fa8', q: '#ffffff' }),
+  } },
   DEV: { name: 'ROOT', body: {
     // the hooded form keeps his chair, rebuilt: carbon frame, neon rims, a glowing hub and a holo screen
     lids: 'Vv', eye: [10, 6], legs: 'none',
@@ -168,6 +204,7 @@ const IDLE = {
   GUNNER: { seq: 'AABBCCBB', B: { 11: '..oYorrRrrroYo..' }, C: { 11: '..oYorrrRrroYo..', 15: '...oDDDooDDo....' } },
   ROBOT: { seq: 'AABBAACC', B: { 0: '...o........o...' }, C: { 7: '.oMoKKRRRRRKoMo.', 8: '.oMoKRRRWRRRoMo.', 9: '.oMoKKRRRRRKoMo.' } },
   // the laptop's status light blinks while he types
+  ROBOT_EVO: { seq: 'AABBAACC', B: { 19: '....qQ......Qq....', 20: '....QQ......QQ....', 21: '....Q........Q....' }, C: { 7: '.oMMoKKKRRRRRoMMo.', 8: '.oMMoKKRRRWRRRMMo.', 9: '.oMMoKKKRRRRRoMMo.' } },
   DEV_EVO: { seq: 'AAAABBCC', B: { 7: 'aoHvVVVoVvVVoHoa', 12: '.ogoCCwCCwCCoy.o' }, C: { 7: 'aoHVVvVoVVVvoHoa', 13: '.oXoCCCCCffoy.yo' } },
 };
 
@@ -219,7 +256,8 @@ function buildChar(d, il = { seq: 'AAAAAAAA' }, recolor = {}, rowOver = {}) {
   // pad: extra columns on both sides. 16-wide rows get padded, already-wide rows stay as written.
   const pad = d.pad || 0, W = 16 + pad * 2, fit = (r) => (r && r.length < W ? '.'.repeat(pad) + r + '.'.repeat(pad) : r);
   const base = d.rows.map((r, i) => fit(rowOver[i]) || r);
-  const body = (alt) => base.map((r, i) => (alt && d.alt && fit(d.alt[i])) || r);
+  // alt rows swap in on every other run frame; run rows on every run frame (a running pose)
+  const body = (alt, run) => base.map((r, i) => (alt && d.alt && fit(d.alt[i])) || (run && d.run && fit(d.run[i])) || r);
   const legs = (k) => (d.legs === 'none' || d.legs === 'baked' ? [] : d.legs === 'treads' ? TREADS[k] : d.legs === 'robe' ? (k === 'r1' || k === 'r3' ? ROBE_LEGS_ALT : ROBE_LEGS) : LEGS[k]).map(fit);
   // the baked models get the hand-outlined walking feet (a one-pixel gap keeps the legs apart; 'b' there is the boot)
   const feet = (rows, k) => {
@@ -232,8 +270,8 @@ function buildChar(d, il = { seq: 'AAAAAAAA' }, recolor = {}, rowOver = {}) {
     return [...rows.slice(0, -2), ...legsK.map((leg, i) => [...old[i]].map((c, x) => (leg[x] !== '.' ? leg[x] : /[LGfBb]/.test(c) ? '.' : c)).join(''))];
   };
   const make = (rows, phase) => makeSprite(windRows(rows, phase, d), map, d.lids || undefined);
-  const sp = (alt, k, phase) => make(feet([...body(alt), ...legs(k)], k), phase);
-  const set = { idle: sp(false, 'idle', 0), run: [sp(false, 'r0', 1), sp(true, 'r1', 2), sp(false, 'r2', 3), sp(true, 'r3', 0)] };
+  const sp = (alt, k, phase, run) => make(feet([...body(alt, run), ...legs(k)], k), phase);
+  const set = { idle: sp(false, 'idle', 0), run: [sp(false, 'r0', 1, true), sp(true, 'r1', 2, true), sp(false, 'r2', 3, true), sp(true, 'r3', 0, true)] };
   // the idle loop: the fighter's own pose changes, with the wind cycling through its four phases
   const poses = {};
   const pose = (k, phase) => {

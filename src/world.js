@@ -1,13 +1,13 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=74';
-import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=74';
-import { A } from './audio.js?v=74';
-import { input, keyDown, keyHit } from './input.js?v=74';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=74';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=74';
-import { CHARS, ALLY } from './chars.js?v=74';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=74';
-import { byId } from './upgrades.js?v=74';
-import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=74';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=86';
+import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=86';
+import { A } from './audio.js?v=86';
+import { input, keyDown, keyHit } from './input.js?v=86';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=86';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=86';
+import { CHARS, ALLY } from './chars.js?v=86';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=86';
+import { byId } from './upgrades.js?v=86';
+import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=86';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -1902,7 +1902,7 @@ const SLASH_COLS = () => ({
   oni: [P.paper, '#ff3b3b', '#c81e36', '#2a0a14'],
   paper: [P.paper, P.paper, '#fff2c0', '#c8b8a0'],
   whitefire: [P.paper, '#ffffff', '#fff2c0', P.gold],
-  titan: [P.paper, P.gold, '#ff3b3b', '#7a0a1a'],
+  titan: [P.paper, '#ff3b3b', '#a0101e', '#2a0a10'],
   storm: [P.paper, '#c8ffff', P.volt, P.gold],
   fire: [P.paper, '#ffe08a', '#ff9a3c', '#c6380f'],
 });
@@ -1950,15 +1950,18 @@ function drawPlayer() {
   // Rin runs like a ninja: quicker steps, leaning hard into the run, no bounce, afterimages behind her
   const ninja = G.char === 'NINJA' && moving && p.state === 'move';
   // she leans the way she runs (whichever way she's facing)
-  const leanR = ninja ? Math.round(Math.cos(p.moveAng) * 2) : 0;
+  // Rin runs like a ninja: thrown forward into the run (her arms sweep back in the run frames)
+  const leanR = ninja ? Math.round(Math.cos(p.moveAng) * 4) : 0;
   const fi = Math.floor(p.runT * (ninja ? 15 : 11)) % 4;
   const blink = !moving && (G.time % 3.1) < 0.13;
   // standing still plays the 8-frame idle loop: breathing plus each fighter's own secondary motion
   const ii = Math.floor(G.time * 7) % set.idles.length, still = set.idles[ii];
   // Morrow doesn't walk: he floats, robe and beard streaming, while he moves
-  const floats = G.char === 'WIZARD' && moving;
+  // Unit-7 Omega hovers on its jets all the time
+  const jets = G.char === 'ROBOT' && G.evo === true;
+  const floats = (G.char === 'WIZARD' && moving) || jets;
   const fr = floats ? still : moving ? set.run[fi] : blink && still.blink ? still.blink : still;
-  const hover = floats ? 4 + Math.round(Math.sin(G.time * 6) * 1.5) : 0;
+  const hover = floats ? (jets ? 5 : 4) + Math.round(Math.sin(G.time * (jets ? 4 : 6)) * 1.5) : 0;
   // Unit-7 and The Dev ride (treads, a wheelchair): they glide instead of bobbing
   const rides = G.char === 'ROBOT' || G.char === 'DEV';
   const bob = (moving && !floats && !rides && !ninja && fi % 2 ? 1 : 0) + hover;
@@ -1968,7 +1971,12 @@ function drawPlayer() {
   const wa = p.state === 'attack' ? p.atkAng : p.aim;
   const behind = Math.sin(wa) < -0.3;
   shadow(p.x, p.y, hover ? 4 : 6);
-  if (hover && Math.random() < 0.5) part(p.x + rnd(-4, 4), p.y - rnd(0, 2), rnd(-10, 10), rnd(-10, -2), 0.4, '#b48cff', { glow: true, drag: 3 });
+  if (hover && !jets && Math.random() < 0.5) part(p.x + rnd(-4, 4), p.y - rnd(0, 2), rnd(-10, 10), rnd(-10, -2), 0.4, '#b48cff', { glow: true, drag: 3 });
+  // jet exhaust under both thrusters
+  if (jets) for (const side of [-4, 4]) {
+    glow(p.x + side, p.y - hover + 2, '#ff4fa8', 2 + Math.round(Math.random()), 0.3);
+    if (Math.random() < 0.35) part(p.x + side + rnd(-1, 1), p.y - hover + 2, rnd(-4, 4), rnd(40, 70), rnd(0.06, 0.12), Math.random() < 0.6 ? '#ff4fa8' : P.paper, { drag: 1 });
+  }
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
   kit.drawAura?.(p, flip);
   // the weapon rises and sinks with the breath
@@ -2009,7 +2017,8 @@ function drawPlayer() {
   if (!behind) { remap(G.awPal); kit.drawWeapon(p, flip); remap(null); }
   if (breathe || hover) ctx.restore();
   ctx.globalAlpha = 1;
-  glow(p.x + (flip ? -1 : 1), p.y - 9, kit.color(), 10, 0.2);
+  // a faint glow at the chest (it rises with a hovering fighter)
+  glow(p.x + (flip ? -1 : 1), p.y - 9 - hover, kit.color(), 10, 0.2);
   drawOrbit(p);
   if (p.ascend > 0) {
     ring(p.x, p.y - 9, 14 + Math.sin(G.time * 14), 1, P.gold); glow(p.x, p.y - 9, P.gold, 22, 0.4);
