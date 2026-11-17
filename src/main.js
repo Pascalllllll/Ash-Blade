@@ -1,23 +1,21 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=171';
-import { input, keyHit, endFrame } from './input.js?v=171';
-import { A } from './audio.js?v=171';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=171';
-import { releaseModels } from './models.js?v=171';
-import { buildSprites } from './sprites.js?v=171';
-import { byId } from './upgrades.js?v=171';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=171';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=177';
+import { input, keyHit, endFrame } from './input.js?v=177';
+import { A } from './audio.js?v=177';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=177';
+import { buildSprites } from './sprites.js?v=177';
+import { byId } from './upgrades.js?v=177';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=177';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
-  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, loadArt, INTRO_CUES,
-} from './ui.js?v=171';
+  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
+} from './ui.js?v=177';
 
 loadAll();
 applyTheme(settings.theme);
 applyDisplay(settings);
 buildSprites();
 refreshArt();
-loadArt();
 showMap(settings.map);
 fit();
 addEventListener('resize', fit);
@@ -30,7 +28,7 @@ let save = loadRun((id) => !!byId(id));
 function go(s) { scene = s; sceneT = 0; }
 function toTitle() { settingsFrom = 'title'; save = loadRun((id) => !!byId(id)); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
 function startRun(char, s) {
-  releaseModels(); A.init(settings); newRun(char, s); go('play'); }
+  A.init(settings); newRun(char, s); go('play'); }
 function checkpoint() { if (G && !G.dead) { saveRun(snapshot()); bankStats(); } }
 function recordBest(won) {
   bankStats();

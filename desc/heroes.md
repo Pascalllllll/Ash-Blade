@@ -19,7 +19,9 @@ Ashblade has eight fighters. Kael is free from the start, and each of the others
 
 **Controls.** Click (or hold) attacks, Q and E use the two skills, and R fires the ultimate once its meter is full. Q and E cost energy, which basic hits refill. The ultimate meter fills only from basic-attack damage.
 
-**Charged attacks.** Kael, Rin, Rivet and Grom fight in melee. For them, holding the attack winds up a charged move instead of swinging: half a charge gives half the effect.
+**Charged attacks.** Kael, Rin, Rivet and Grom fight in melee. For them, holding the attack winds up a charged move instead of swinging: half a charge gives half the effect. Every charged attack also knocks enemy shots back.
+
+**Getting hit.** A hit costs health and pushes you back a little, not far.
 
 **Flash Strike.** The first sword swing or skill within 0.6 seconds after a dash does 2.5 times the damage.
 
@@ -50,7 +52,7 @@ Each fighter's own awakened powers are listed in their section below.
 ### Look
 Spiky violet hair over dark, determined eyes, an ember-orange scarf wrapped high, and a dark violet tunic with a gold belt buckle. His Ember Blade glows in every swing, leaving a burning arc.
 
-Awakened as **Ashen Kael**, his hair and clothes turn silver-grey and his scarf turns gold.
+Awakened as **Ashen Kael**, his hair turns silver-white, his scarf burning gold and his clothes black, and he carries a black greatsword with a molten gold core.
 
 ### How he plays
 The all-rounder and the first fighter you get. Quick on his feet, solid in a fight, short on reach.
@@ -62,7 +64,7 @@ The all-rounder and the first fighter you get. Quick on his feet, solid in a fig
 | Input | Move | What it does |
 |---|---|---|
 | Click | Sword Combo | Four hits: slash, X-cut, thrust, whirlwind |
-| Hold click | Ashen Crescent | A wide burning cut that also throws a wave of fire ahead |
+| Hold click | Ashen Crescent | A wide burning cut that throws a wave of fire ahead and knocks enemy shots back |
 | Q (30 energy) | Rift | Blinks forward and cuts every enemy on the line |
 | E (45 energy) | Tempest | Knocks enemies back and chains lightning between them |
 | R (ultimate) | Thousand Cuts | Stops time and cuts every enemy on screen |
@@ -85,7 +87,7 @@ The all-rounder and the first fighter you get. Quick on his feet, solid in a fig
 ### Look
 A wide brown cowboy hat with a gold band, long brown hair, and a red bandana over the lower half of the face. A long brown duster coat and a revolver that fires with a flash and a puff of smoke.
 
-Awakened as **Deadeye Vega**, the hat and coat turn charcoal and the bandana deep crimson.
+Awakened as **Deadeye Vega**, her hat and coat turn black with gold, her hair silver and her bandana crimson, and the revolver becomes a double-barreled gold hand cannon with a red scope.
 
 ### How she plays
 The longest reach in the game. Hold to shoot, and reloading is automatic. She is fragile, so keep your distance.
@@ -119,7 +121,7 @@ The longest reach in the game. Hold to shoot, and reloading is automatic. She is
 ### Look
 A deep purple hood trimmed in gold, with nothing inside but shadow and two glowing blue eyes, and a long white beard spilling over purple robes. He casts with an arcane staff topped by a blue orb, and swirls of violet magic ring him when he casts.
 
-Awakened as **Archmage Morrow**, his hood and robes turn white-lavender with gold trim and his eyes burn pink.
+Awakened as **Archmage Morrow**, his hood and robe turn black with gold trim and his eyes blaze gold. He carries a black scepter with gold bands and a gold-and-pink orb, and five orbs circle him instead of three.
 
 ### How he plays
 The hardest hitter and the frailest fighter. Every spell is strong, but he can't take many hits.
@@ -153,7 +155,7 @@ The hardest hitter and the frailest fighter. Every spell is strong, but he can't
 ### Look
 Sky-blue hair tied up in a bun with a pink bead, fading to pink at the tips, pink ribbons on both sides, a white sailor top with a navy collar and a red neckerchief, a red sash streaming behind her, a navy pleated skirt and dark socks. Her katana cuts in pink arcs and cherry petals, and pink afterimages trail behind her when she runs.
 
-Awakened as **Oni Rin**, her hair turns violet with hot-pink tips and ribbons, her top lavender, her collar and skirt black and her sash magenta. Her sword arcs, cuts and petals turn gold and draw much thicker.
+Awakened as **Oni Rin**, her hair turns white with crimson ribbons, two small red horns show through it, her uniform turns black with a gold neckerchief and sash, and her katana becomes a long black nodachi with a crimson edge and a red tassel. Her sword arcs, cuts and petals turn gold and draw much thicker.
 
 ### How she plays
 The fastest fighter, with two dashes. Her reach is short, so she fights up close and sends enemy shots back at them.
@@ -189,7 +191,7 @@ The fastest fighter, with two dashes. Her reach is short, so she fights up close
 ### Look
 Brown hair in a big spiky ponytail, goggles with cyan lenses pushed up on her head, an orange scarf, a white shirt under brown suspenders, orange work trousers with a gold pouch, dark gloves and boots. She swings a big mechanic's wrench that sparks gold. She arrives in a drop pod.
 
-Awakened as **Rivet Mk-II**, her hair turns silver, her goggles gold-rimmed, her scarf cyan, her trousers steel with black straps and her shirt ice-white.
+Awakened as **Rivet Mk-II**, her hair turns platinum, her goggles gold with red lenses, her scarf crimson and her overalls black with gold straps and gloves, and the wrench becomes a gold power wrench with a glowing core.
 
 ### How she plays
 Balanced in every stat, and she never fights alone: turrets and coils do half the work.
@@ -201,7 +203,7 @@ Balanced in every stat, and she never fights alone: turrets and coils do half th
 | Input | Move | What it does |
 |---|---|---|
 | Click | Wrench | Three hits: swing, twirl, ground slam |
-| Hold click | Overclock Slam | The wrench smashes the floor ahead and stuns. From half a charge up, lightning arcs to nearby enemies |
+| Hold click | Overclock Slam | The wrench knocks shots back on its way down, smashes the floor ahead and stuns. From half a charge up, lightning arcs to nearby enemies |
 | Q (30 energy) | Turret | Builds an auto-gun that lasts 14 seconds, up to 2 at once |
 | E (40 energy) | Tesla Coil | Zaps 3 enemies at a time for 7 seconds |
 | R (ultimate) | Iron Titan | A giant mech rockets down onto the arena, stomps after enemies, throws heavy piston punches, fires salvos of 6 homing missiles, and ground-pounds every 4 seconds to stun everything near, for 18 seconds (30 with its evolution), then jets away |
@@ -224,7 +226,7 @@ Balanced in every stat, and she never fights alone: turrets and coils do half th
 ### Look
 A knight in steel-grey plate with gold trim, a closed helm whose visor burns orange from within, and a red cape. He swings a war hammer that leaves golden arcs, and enters by falling from the sky and cracking the floor.
 
-Awakened as **Titan Grom**, his armor turns near black with blood-red trim, his visor still burning, and his effects turn blood red.
+Awakened as **Titan Grom**, his armor turns black with gold trim, his visor burns red, his cape deep crimson and his effects blood red, and he swings a spiked black-and-gold maul with red runes.
 
 ### How he plays
 Slow and nearly unbreakable. The most health in the game and the heaviest hits.
@@ -236,9 +238,9 @@ Slow and nearly unbreakable. The most health in the game and the heaviest hits.
 | Input | Move | What it does |
 |---|---|---|
 | Click | War Hammer | Three slow hits: sweep, ground slam, full spin |
-| Hold click | Earthshatter | The hammer cracks the ground in a wide ring that stuns everything in it. The fuller the charge, the wider the ring |
+| Hold click | Earthshatter | The swing knocks shots back, then the hammer cracks the ground in a wide ring that stuns everything in it and wipes out every enemy shot inside it, and a shockwave rolls on past it doing the same. The fuller the charge, the wider the ring |
 | Q (25 energy) | Bulldoze | Charges forward and pins enemies against walls |
-| E (40 energy) | Ground Slam | Shockwaves that stun |
+| E (40 energy) | Ground Slam | Shockwaves that stun and wipe out the enemy shots they roll over |
 | R (ultimate) | Fortress | Six seconds of no damage, and shots bounce back, with a pulsing glow round him |
 
 **Awakened powers:** every blow sends a shockwave through the enemies around the target, his skills quake and stun, and Fortress opens with a great quake that stuns everything near. His charged Earthshatter sends red aftershock quakes rolling out after the slam.
@@ -246,7 +248,7 @@ Slow and nearly unbreakable. The most health in the game and the heaviest hits.
 ### Entrance, kill and death
 - **His entrance:** the ground shakes under a growing shadow, he falls from the sky hammer first, and the floor splits into glowing cracks and rock spikes. He rises and rests the hammer on his shoulder.
 - **His kills:** enemies are flattened into a wide splat and a ring of dust.
-- **His death:** he reels as his plates fly off, heaves his hammer overhead one last time, can't hold it, topples onto his back, and it comes down on his chest. *The wall has fallen.*
+- **His death:** spear after spear slams into him from every side, each one jerking him and blowing blood out of the far side. He stays standing, pinned, drops his hammer, and then the wall comes down: his body breaks apart along the spears into a heap of armor and meat, and the spears clatter down around it. *The wall has fallen.*
 
 ---
 
@@ -259,7 +261,7 @@ Slow and nearly unbreakable. The most health in the game and the heaviest hits.
 ### Look
 A dark navy war drone on heavy treads, with two red-tipped antennas and a screen for a face that shows a red cross. Cyan lights glow along its body, and a pulse cannon fires bright blue shots. It glides instead of walking, and arrives in an orbital beam.
 
-Awakened as **Unit-7 Omega**, its lights and screen glow pink, and it hovers on twin jets instead of rolling.
+Awakened as **Unit-7 Omega**, its shell turns gold on a black frame with red lights, it flies on two jet engines with swept gold wings (its shots fly from the cannon up there), its laser turns red with a gold core, and the cannon becomes a twin-muzzle plasma cannon.
 
 ### How it plays
 A ranged fighter built around one long laser. Hold too long and it overheats.
@@ -293,7 +295,7 @@ A ranged fighter built around one long laser. Hold too long and it overheats.
 ### Look
 A programmer with messy brown hair and black shades in a blue hoodie, typing on a laptop in a motorized wheelchair, with holo screens glowing cyan at his sides. Since he rides, he glides instead of walking. He is also the final boss on wave 50, where he fights you in his hooded form.
 
-Awakened as **Root**, his hoodie turns black, and his screens and wheels glow neon green.
+Awakened as **Root**, his hoodie turns black, his laptop and wheels glow neon green, four screens circle him instead of two, and windows keep popping up around him (ROOT, SUDO, EXEC, KILL).
 
 ### How he plays
 He starts weaker than everyone else and becomes the strongest fighter in the game. He has 6 health and one shot at a time at first, and grows stronger with every wave and every 20 kills. He's about even by wave 15, then ramps hard after wave 20: about 1.7x power by wave 20, 3.2x by wave 30 and 7.5x by wave 50.

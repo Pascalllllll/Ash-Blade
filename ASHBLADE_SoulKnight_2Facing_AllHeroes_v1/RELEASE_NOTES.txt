@@ -1,8 +1,0 @@
-Release: 2-Facing Soft-Angle v1
-Eight heroes / both base and evolved palettes
-Art: reuses original owner sprite data; normalized heights and mirrored facing, NOT a newly hand-painted eight-hero art remake
-Runtime: single source for sprite placement, stable foot pivot, consistent margins, 360° aim preserved
-Timers: separate visual Q/E/R, no duplicate Kael legacy async override
-Original art still contains limited animation sets for some heroes; metadata marks placeholder sequences
-Tested: JS syntax, installer baseline and Option D, PNG RGBA dimensions/edges
-Not tested: full in-game browser interaction (browser access restricted)

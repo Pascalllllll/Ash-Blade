@@ -1,12 +1,12 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, line, glow, text, textO, makeCanvas } from './gfx.js?v=171';
-import { A } from './audio.js?v=171';
-import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=171';
+import { ctx, P, rect, px, line, glow, text, textO, makeCanvas } from './gfx.js?v=177';
+import { A } from './audio.js?v=177';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=177';
 import {
   BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
   stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
-} from './scene-fx.js?v=171';
+} from './scene-fx.js?v=177';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
@@ -419,49 +419,75 @@ const DEATHS = {
     under(d) { if (d.s.cr) drawCracks(d.s.cr, (d.t - 0.95) / 0.15, P.ember, 1 - (d.t - 0.95) / 1.5); },
   },
 
-  // Grom: crushed by his own hammer. He reels as his plates fly off, heaves the hammer over his head one last time,
-  // can't hold it, topples onto his back, and it comes down on his chest.
+  // Grom: run through. Spear after spear slams into him from every side, each one jerking him and blowing blood
+  // out of the far side; he stays standing, pinned, drops his hammer, and then the wall comes down: his body breaks
+  // apart along the spears into a heap of armor and meat, and the spears clatter down around it.
   TANK: {
     line: 'THE WALL HAS FALLEN', col: '#8b98ab',
-    start(d) { d.s.squash = 0; },
-    update(d, dt) {
-      const t = d.t;
-      for (const s of [0.08, 0.3]) if (at(d, s)) { A.shieldHit(); for (let i = 0; i < 6; i++) part(d.x + rnd(-6, 6), d.y, rnd(-70, 70), rnd(-10, 10), rnd(0.7, 1.1), '#8b98ab', { z: rnd(6, 16), vz: rnd(30, 80), g: 320, drag: 1, s: 2 }); spurt(d.x, d.y, rnd(8, 14), rnd(TAU), 0.8, 5); }
-      if (at(d, 0.55)) A.powerUp(0.55);
-      if (at(d, 1.4)) { A.wall(); A.boom(0.8); shake(0.5); dust(d.x - d.f * 8, d.y, 16, 70); splat(d.x - d.f * 10, d.y, 6, P.blood, P.bloodD); }
-      if (at(d, 1.64)) {
-        const [cx, cy] = this.chest(d);
-        A.gore(2); A.boom(1.8); A.wall(); shake(1); kick(Math.PI / 2, 8); flash(P.blood, 0.25, true);
-        for (let i = 0; i < 4; i++) spurt(cx, d.y, 3, rnd(TAU), 1.7, 8, BLOOD, 0.9);
-        chunks(cx, d.y, 4, 14, ['#c4243a', '#8a0f22', '#ecdcc8', '#8b98ab'], 1.3);
-        splat(cx, d.y, 15, P.blood, P.bloodD); scorch(cx, d.y, 6);
-        d.s.cr = makeCracks(cx, d.y, 9, 26); stampCracks(d.s.cr);
-        addRing(cx, d.y, P.paper, 300, 0.3, 3); addRing(cx, d.y, P.blood, 200, 0.4, 2);
-        addPool(d.pools, cx, d.y + 1, 15, { k: 1.1 });
-      }
-      d.s.squash = t < 1.64 ? 0 : Math.min(1, (t - 1.64) / 0.06);
-      if (t > 1.7 && t < 3.2 && Math.floor(t / 0.3) !== Math.floor(d.prev / 0.3)) { const [cx] = this.chest(d); spurt(cx + rnd(-6, 6), d.y, 2, rnd(TAU), 0.5, 3); }
+    start(d) {
+      const T = bodyTop(), H = FOOT - T;
+      d.s.spears = Array.from({ length: 6 }, (_, i) => {
+        const side = i % 2 ? 1 : -1, ang = (side < 0 ? 0 : Math.PI) + rnd(-0.75, 0.75) + (i > 3 ? Math.PI / 2 * side : 0);
+        return { t: i * 0.12 + (i > 3 ? 0.06 : 0), ang, c: [mx(d, 60 + rnd(-8, 8)), T + H * rnd(0.42, 0.72)], stuck: false, fall: null };
+      });
+      d.s.jx = 0; d.s.white = 0;
     },
-    // his chest once he's on his back
-    chest: (d) => [d.x - d.f * 11, d.y - 3],
-    hammer(d) {
-      // in his hands overhead, then out of them on an arc down onto his chest
-      const t = d.t, rest = restAngle(d.flip), over = -Math.PI / 2 - d.f * 0.35;
-      if (t < 0.55) return { a: rest, held: true };
-      if (t < 1.1) return { a: rest + (over - rest) * ease((t - 0.55) / 0.45) + Math.sin(t * 48) * 0.05, held: true };
-      const [hx, hy] = handPos(d.x, d.y, { flip: d.flip }), [cx, cy] = this.chest(d), k = clamp((t - 1.1) / 0.54, 0, 1);
-      // it ends lying across him, its head on his chest and the handle toward his feet
-      const end = d.flip ? 0.15 : Math.PI - 0.15, aF = over + Math.atan2(Math.sin(end - over), Math.cos(end - over)), L = weaponLen();
-      const gx = cx + d.f * L * 0.85, gy = cy - 2;
-      const x = hx + (gx - hx) * k, y = hy + (gy - hy) * easeIn(k) - Math.sin(k * Math.PI) * 18;
-      return { a: over + (aF - over) * easeIn(k), held: false, x, y };
+    update(d, dt) {
+      const t = d.t, s = d.s;
+      s.jx *= Math.exp(-12 * dt); s.white -= dt;
+      for (const sp of s.spears) if (at(d, sp.t)) {
+        sp.stuck = true;
+        const [wx, wy] = cw(d, ...sp.c), cx = Math.cos(sp.ang), cy = Math.sin(sp.ang);
+        s.jx += cx * 2.4; s.white = 0.05;
+        spurt(wx, d.y, d.y - wy, sp.ang, 1.4, 9, BLOOD, 0.8); spurt(wx, d.y, d.y - wy, sp.ang + Math.PI, 0.5, 3);
+        for (let i = 0; i < 4; i++) part(wx, d.y, cx * rnd(40, 110) + rnd(-20, 20), rnd(-10, 10), rnd(0.7, 1.1), Math.random() < 0.5 ? '#8b98ab' : '#5d6878', { z: d.y - wy, vz: rnd(30, 90), g: 360, drag: 1, s: 2 });
+        A.gore(0.8); A.wall(); shake(0.3); kick(sp.ang, 2.5);
+      }
+      if (at(d, 0.82)) dropWeapon(d, { vz: 30, vx: d.f * 25, spin: d.f * 4, onLand: () => { A.wall(); A.boom(0.6); shake(0.35); } });
+      // pinned: blood runs out of every wound
+      if (t > 0.1 && t < 1.45 && Math.floor(t / 0.11) !== Math.floor(d.prev / 0.11)) for (const sp of s.spears) if (sp.stuck && Math.random() < 0.6) { const [wx, wy] = cw(d, ...sp.c); spurt(wx + s.jx, d.y, d.y - wy, sp.ang + rnd(-0.5, 0.5), 0.45, 2); }
+      if (at(d, 1.05)) { A.powerUp(0.4); for (let i = 0; i < 3; i++) addRing(d.x, d.y - 12, i % 2 ? P.blood : '#5a0612', 120 + i * 60, 0.3, 2); }
+      if (at(d, 1.45)) {
+        // the wall comes down: the body breaks along every spear
+        const lines = s.spears.map((sp) => { const cx = Math.cos(sp.ang), cy = Math.sin(sp.ang); return [sp.c[0] - cx * 70, sp.c[1] - cy * 70, sp.c[0] + cx * 70, sp.c[1] + cy * 70]; });
+        d.pieces = placePieces(cutFrame(frame('idle', 10), d.flip, lines, { min: 12 }), d.x + s.jx, d.y);
+        for (const b of d.pieces) { const dx = b.x - d.x; b.held = false; b.vx = dx * 6 + rnd(-20, 20); b.vy = rnd(-14, 14); b.vz = rnd(10, 80) + b.z * 2; b.vr = rnd(-6, 6); b.bleed = rnd(1, 1.8); }
+        for (const sp of s.spears) { const [wx, wy] = cw(d, ...sp.c); sp.fall = { x: wx, y: d.y, z: d.y - wy, vz: rnd(20, 60), vx: rnd(-30, 30), rot: sp.ang, vr: rnd(-4, 4) }; }
+        for (let i = 0; i < 5; i++) spurt(d.x, d.y, 10, rnd(TAU), 1.8, 10, BLOOD, 1.1);
+        chunks(d.x, d.y, 10, 18, ['#c4243a', '#8a0f22', '#ecdcc8', '#8b98ab', '#5d6878'], 1.4);
+        A.gore(2); A.boom(1.6); A.wall(); shake(1); kick(Math.PI / 2, 7); flash(P.blood, 0.2, true);
+        splat(d.x, d.y, 16, P.blood, P.bloodD); addPool(d.pools, d.x, d.y + 1, 17, { k: 1 });
+        addRing(d.x, d.y - 4, P.paper, 320, 0.3, 3); addRing(d.x, d.y - 4, P.blood, 220, 0.45, 3);
+        d.s.cr = makeCracks(d.x, d.y, 9, 24); stampCracks(d.s.cr);
+      }
+      for (const sp of s.spears) {
+        const f = sp.fall;
+        if (!f || f.rest) continue;
+        f.vz -= 420 * dt; f.z += f.vz * dt; f.x += f.vx * dt; f.rot += f.vr * dt;
+        if (f.z <= 1) { f.z = 1; if (f.vz < -70) { f.vz *= -0.3; f.vx *= 0.5; f.vr *= 0.4; A.click(); } else { f.rest = true; f.rot = Math.round(f.rot / Math.PI) * Math.PI + rnd(-0.12, 0.12); } }
+      }
+      stepPieces(d.pieces, dt, { onBounce: (b) => { A.splat(); splat(b.x, b.y, 4, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b) });
+    },
+    // a spear: a dark wooden shaft and an iron head, drawn through the body from the side it came in
+    spear(x, y, ang, tipOut = 7, back = 22) {
+      const cx = Math.cos(ang), cy = Math.sin(ang), x0 = x - cx * back, y0 = y - cy * back, x1 = x + cx * tipOut, y1 = y + cy * tipOut;
+      line(x0, y0 + 1, x1, y1 + 1, '#1c1418', 2); line(x0, y0, x1, y1, '#6a4a32');
+      line(x1, y1, x1 + cx * 4, y1 + cy * 4, '#c8d0dc', 2); px(x1 + cx * 5, y1 + cy * 5, P.paper);
     },
     draw(d) {
-      const t = d.t, h = this.hammer(d), fall = t < 1.1 ? 0 : easeIn((t - 1.1) / 0.3), rot = -d.f * (Math.PI / 2) * fall;
-      const wob = t < 0.55 ? Math.sin(t * 22) * 0.07 : 0, s = d.s.squash;
-      const o = { flip: d.flip, rot: rot + wob, pivot: [0, 0], sx: 1 - 0.45 * s, sy: 1 + 0.08 * s };
-      if (h.held) drawHero(frame('idle', 0), d.x, d.y, o, h.a);
-      else { drawBody(frame('death', 0), d.x, d.y, o); drawWeapon(h.x, h.y, h.a, d.flip); }
+      const t = d.t, s = d.s;
+      if (t < 1.45) {
+        const o = { flip: d.flip, tint: s.white > 0 ? P.paper : null };
+        drawHero(frame('idle', t < 0.6 ? 0 : 10), d.x + s.jx, d.y, o, t < 0.82 ? restAngle(d.flip) + Math.sin(t * 30) * 0.08 : null);
+        for (const sp of s.spears) {
+          if (t < sp.t - 0.07) continue;
+          const [wx, wy] = cw(d, ...sp.c);
+          if (!sp.stuck) { const k = (sp.t - t) / 0.07; this.spear(wx + s.jx - Math.cos(sp.ang) * k * 140, wy - Math.sin(sp.ang) * k * 140, sp.ang); continue; }
+          this.spear(wx + s.jx, wy, sp.ang);
+        }
+      }
+      drawPieces(d.pieces);
+      for (const sp of s.spears) if (sp.fall) this.spear(sp.fall.x, sp.fall.y - sp.fall.z, sp.fall.rot, 7, 22);
     },
     under(d) { if (d.s.cr) drawCracks(d.s.cr, 1); },
   },

@@ -1,15 +1,16 @@
 // The heroes' sprites. Each hero's body (no weapon) comes from art/sprites/heroes/<hero>-<skin>.png: 120 x 96 cells,
-// rows idle (16), walk (8), run (8), death (8), feet on row 92, facing right (left is the mirror). Each weapon is its
+// rows idle (16), walk (12), run (12), death (8), dash (4), hurt (2), feet on row 92, facing right (left is the
+// mirror). One art pixel is a 2 x 2 block. Each weapon is its
 // own sprite, pre-turned to 64 angles in art/sprites/heroes/weapon-<name>.png (8 x 8 per skin, base on top), so the
 // game can point it wherever the player aims. Both are made by tools/build_hero_sprites.py from the master pictures.
 //
 // The sets exist from the start with empty frames (the title screen draws them on its first frame); the pictures fill
 // those same frames when they arrive, so nothing holds on to an empty one.
-import { SS } from './gfx.js?v=171';
-import { RIG, WEAPON_ART } from './hero-rig.js?v=171';
+import { SS } from './gfx.js?v=177';
+import { RIG, WEAPON_ART } from './hero-rig.js?v=177';
 
 const CW = 120, CH = 96;
-const ROWS = { idle: [0, 16], walk: [1, 8], run: [2, 8], death: [3, 8] };
+const ROWS = { idle: [0, 16], walk: [1, 12], run: [2, 12], death: [3, 8], dash: [4, 4], hurt: [5, 2] };
 const N = 64; // weapon angles
 // where a weapon rests in the menus and on the hero's own still pictures (afterimages, the mirror boss): melee
 // weapons lowered forward, guns level, the staff held up
@@ -76,9 +77,10 @@ export function drawWeaponAt(g, name, skin, x, y, a, left, alpha = 1) {
 // ---------- the hero sets ----------
 function makeSet(id, evolved) {
   const rig = RIG[id], f = () => frame();
-  const body = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 8 }, f), run: Array.from({ length: 8 }, f), death: Array.from({ length: 8 }, f) };
+  const body = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 12 }, f), run: Array.from({ length: 12 }, f), death: Array.from({ length: 8 }, f),
+    dash: Array.from({ length: 4 }, f), hurt: Array.from({ length: 2 }, f) };
   // what the menus, afterimages and the mirror boss show: the same frames with the weapon in hand at rest
-  const shown = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 8 }, f), run: Array.from({ length: 8 }, f) };
+  const shown = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 12 }, f), run: Array.from({ length: 12 }, f) };
   const set = {
     idle: shown.idles[0], idles: shown.idles, walk: shown.walk, run: shown.run,
     // the body without a weapon (drawPlayer draws the weapon itself, turned to the aim)
@@ -91,19 +93,20 @@ function makeSet(id, evolved) {
 }
 function fillSet(set, img) {
   const { rig } = set, wname = rig.weapon, w = wname && WEAPON_ART[wname];
-  const withWeapon = (bob) => (g) => {
+  const withWeapon = ([dx, dy]) => (g) => {
     if (!w) return;
     const fr = weaponFrame(wname, set.evolved, REST[wname] ?? 0.3);
     if (!fr) return;
     // the grip on the hand (the cell's own pixels here, not game pixels)
-    g.drawImage(fr.img, fr.sx, fr.sy, fr.C, fr.C, rig.hand[0] + 0.5 - fr.C / 2, rig.hand[1] + 0.5 - fr.C / 2 + bob, fr.C, fr.C);
+    g.drawImage(fr.img, fr.sx, fr.sy, fr.C, fr.C, rig.hand[0] + 0.5 - fr.C / 2 + dx, rig.hand[1] + 0.5 - fr.C / 2 + dy, fr.C, fr.C);
   };
   for (const [name, [row, n]] of Object.entries(ROWS)) {
     const key = name === 'idle' ? 'idles' : name;
     for (let i = 0; i < n; i++) {
       fill(set.body[key][i], img, i, row);
-      // the still pictures (not the death) get the weapon in hand; the run lifts it with the body on its high steps
-      if (name !== 'death') fill(set[key][i], img, i, row, withWeapon(name === 'run' && i % 4 === 2 ? -1 : 0));
+      // the still pictures (idle, walk, run) get the weapon in hand, moving with the hand on each walk and run frame
+      const off = rig.gait?.[name]?.off?.[i] || [0, 0];
+      if (set[key] && name !== 'death') fill(set[key][i], img, i, row, withWeapon(off));
     }
   }
 }
@@ -115,7 +118,7 @@ function load(url) {
     im.src = url;
   });
 }
-const art = (file) => new URL(`../art/sprites/heroes/${file}?v=171`, import.meta.url).href;
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=177`, import.meta.url).href;
 
 // fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
 export function installHeroSprites(SPR) {
@@ -124,7 +127,8 @@ export function installHeroSprites(SPR) {
     SPR.chars[id] = makeSet(id, false);
     SPR.evo[id] = makeSet(id, true);
     const wn = RIG[id].weapon, w = wn && WEAPON_ART[wn];
-    if (w) SPR.weapons[id] = { name: wn, along: w.tip[0] / SS, across: w.tip[1] / SS };
+    // the tip from the grip in game pixels; the awakened model has its own (evo)
+    if (w) SPR.weapons[id] = { name: wn, along: w.tip[0] / SS, across: w.tip[1] / SS, evo: w.tipEvo ? { along: w.tipEvo[0] / SS, across: w.tipEvo[1] / SS } : null };
   }
   const weapons = Object.keys(WEAPON_ART).map((n) => load(art(`weapon-${n}.png`)).then((im) => { WEAPON_IMG[n] = im; }));
   SPR.heroesReady = Promise.all(weapons).then(() => Promise.all(Object.keys(RIG).flatMap((id) => [false, true].map((evo) =>

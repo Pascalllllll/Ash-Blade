@@ -1,10 +1,10 @@
 // Shared tools for the heroes' entrances (entrances.js) and deaths (deaths.js): the hero drawn in any pose with the
 // weapon in hand, a body cut into pieces that fly, bounce and bleed, spurts and pools of blood, cracks in the floor,
 // and the entrance's letterbox and name card.
-import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, makeCanvas } from './gfx.js?v=171';
-import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=171';
-import { drawWeaponAt, REST } from './hero-sprites.js?v=171';
-import { WEAPON_ART } from './hero-rig.js?v=171';
+import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, makeCanvas } from './gfx.js?v=177';
+import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=177';
+import { drawWeaponAt, REST } from './hero-sprites.js?v=177';
+import { WEAPON_ART } from './hero-rig.js?v=177';
 
 const CW = 120, FX = 60, FY = 92;             // a hero cell's width, and where the feet are on it
 export const BLOOD = ['#c4243a', '#8a0f22', '#5a0612'];
@@ -47,7 +47,7 @@ export function cellToWorld(cx, cy, x, y, o = {}) {
 export const handPos = (x, y, o = {}) => { const h = heroSet().rig?.hand || [60, 60]; return cellToWorld(h[0] + 0.5, h[1] + 0.5, x, y, o); };
 export const eyePos = (x, y, o = {}) => { const e = heroSet().rig?.eye || [60, 50]; return cellToWorld(e[0], e[1], x, y, o); };
 export const weaponName = () => heroSet().rig?.weapon || null;
-export const weaponLen = (name = weaponName()) => (name && WEAPON_ART[name] ? WEAPON_ART[name].tip[0] / SS : 6);
+export const weaponLen = (name = weaponName()) => { const w = name && WEAPON_ART[name]; if (!w) return 6; return ((heroSet().evolved && w.tipEvo) || w.tip)[0] / SS; };
 // the angle a weapon hangs at when the hero stands at ease (facing left mirrors it)
 export const restAngle = (flip, name = weaponName()) => { const r = REST[name] ?? 0.4; return flip ? Math.PI - r : r; };
 export function drawWeapon(x, y, a, flip, alpha = 1, name = weaponName()) {

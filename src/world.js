@@ -1,14 +1,14 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=171';
-import { SPR, EVO_NAMES } from './sprites.js?v=171';
-import { A } from './audio.js?v=171';
-import { input, keyDown, keyHit } from './input.js?v=171';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=171';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=171';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=171';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=171';
-import { byId } from './upgrades.js?v=171';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=171';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=171';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=177';
+import { SPR, EVO_NAMES } from './sprites.js?v=177';
+import { A } from './audio.js?v=177';
+import { input, keyDown, keyHit } from './input.js?v=177';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=177';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=177';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=177';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=177';
+import { byId } from './upgrades.js?v=177';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=177';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=177';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -34,6 +34,9 @@ export const RANKS = [
   { n: 85, l: 'SSS', w: 'SWORD SAINT', c: 'gold', m: 6 },
 ];
 const rankOf = (c) => { let r = 0; for (let i = 0; i < RANKS.length; i++) if (c >= RANKS[i].n) r = i; return r; };
+// a hot combo powers the fighter up: from A every hit lands harder (the HUD shows how much), from S the fighter
+// leaves afterimages and burns in the rank's color, at SSS a golden aura. Getting hit loses the combo and all of it.
+export const RANK_POWER = [1, 1, 1, 1.05, 1.1, 1.18, 1.3];
 
 // the ash priest heals every monster within this many pixels
 const PRIEST_R = 70;
@@ -330,6 +333,10 @@ export function part(x, y, vx, vy, life, c, o) {
   const low = settings.particles === 'LOW' || fx.lowFx;
   if (G.parts.length > (low ? 500 : 1500) || (low && !o?.keep && Math.random() < 0.5)) return;
   G.parts.push({ x, y, vx, vy, life, t: 0, c, z: o?.z ?? 0, vz: o?.vz ?? 0, g: o?.g ?? 0, drag: o?.drag ?? 5, s: o?.s ?? 1, blood: o?.blood, glow: o?.glow });
+  // an awakened fighter's effects come with a second, glowing spark each, so every power looks fuller
+  if (G.pfx && G.awPal && !low && !o?.blood && G.parts.length < 1200 && Math.random() < 0.5) {
+    G.parts.push({ x: x + rnd(-1.5, 1.5), y: y + rnd(-1.5, 1.5), vx: vx * 0.6 + rnd(-15, 15), vy: vy * 0.6 + rnd(-15, 15), life: life * 0.8, t: 0, c: Math.random() < 0.5 ? P.paper : G.kit.awake?.pal.col || c, z: o?.z ?? 0, vz: (o?.vz ?? 0) * 0.7, g: o?.g ?? 0, drag: o?.drag ?? 5, s: 1, glow: true });
+  }
 }
 export function bleed(x, y, dir, n, c, c2, force = 1) {
   for (let i = 0; i < n; i++) {
@@ -435,6 +442,13 @@ export function addCombo(n) {
   const r = rankOf(G.combo);
   if (r > G.rank) {
     G.rank = r; G.rankPop = 1; A.rank(r);
+    // ranking up from A bursts off the fighter in the rank's color
+    if (r >= 3 && G.p.state !== 'dead') {
+      const c = P[RANKS[r].c] || P.paper, p = G.p;
+      addRing(p.x, p.y - 7, c, 220 + r * 30, 0.3, 2); addRing(p.x, p.y - 7, P.paper, 150, 0.2, 1);
+      for (let i = 0; i < 10 + r * 4; i++) { const a = rnd(TAU), v = rnd(60, 180); part(p.x, p.y - 7, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.6), Math.random() < 0.6 ? c : P.paper, { drag: 3, glow: true }); }
+      if (r >= 5) { flash(c, 0.07, false); shake(0.2); }
+    }
     if (r > G.bestRank) G.bestRank = r;
     if (r >= 4 && !G.boss) A.scene('hot');
   }
@@ -472,6 +486,7 @@ export function damage(e, dmg, o) {
   if (up.rage && p.hp <= p.maxHp / 2) dmg *= 1.6;
   if (G.skillMult > 1) { dmg *= G.skillMult; o.crit = true; }
   if (p.chgFlashT > 0 && o.src === 'primary' && !o.basic) { dmg *= G.kit.dashStrike || 1; o.crit = true; }
+  if (o.src !== 'lava' && o.src !== 'wall') dmg *= RANK_POWER[G.rank] || 1;
   const basic = o.basic || (G.tagBasic && o.src === 'primary'), aw = awake();
   if (aw && (basic || o.src === 'ult')) dmg *= 1.3;
   dmg = Math.max(1, Math.round(dmg));
@@ -695,10 +710,11 @@ export function tryHurt(dmg, sx, sy) {
   p.hp -= dmg;
   // a short grace after a hit: enough to not lose two hearts to one blow, not enough to stand in a crowd
   p.inv = 0.35; p.hurtT = 0.3; p.sq = 0.26; p.sqv = 0;
+  // a hit only nudges you back a little
   const a = Math.atan2(p.y - sy, p.x - sx);
-  p.vx = Math.cos(a) * 220; p.vy = Math.sin(a) * 220;
+  p.vx = Math.cos(a) * 70; p.vy = Math.sin(a) * 70;
   if (p.state === 'attack' || p.state === 'recover' || p.state === 'charge') p.state = 'move';
-  hitstop(0.12); shake(0.65); kick(a, 4); flash(P.blood, 0.22, false); A.hurt();
+  hitstop(0.12); shake(0.65); kick(a, 2); flash(P.blood, 0.22, false); A.hurt();
   buzz('hurt');
   fx.hurtVig = 1;
   bleed(p.x, p.y, a, 14, P.blood, P.bloodD, 1);
@@ -759,7 +775,7 @@ export function shoot(o) {
     homing: o.homing ?? 0, splash: o.splash, hit: new Set(), ug: o.ug ?? true, slice: o.slice ?? false, poison: o.poison, freeze: o.freeze,
     spin: 0, trail: o.trail ?? true, onHit: o.onHit, basic: !!G.tagBasic,
   };
-  if (G.awPal) { s.c = G.awPal[s.c] || s.c; if (s.basic) { s.r += 1; s.thick = true; } }
+  if (G.awPal) { s.c = G.awPal[s.c] || s.c; s.thick = true; if (s.basic) s.r += 1; }
   G.shots.push(s);
   return s;
 }
@@ -850,6 +866,8 @@ function updatePlayer(dt) {
   // shot's kick fades out
   { const d = Math.min(dt, 1 / 30); p.sqv = (p.sqv || 0) + (-320 * (p.sq || 0) - 19 * (p.sqv || 0)) * d; p.sq = Math.max(-0.32, Math.min(0.32, (p.sq || 0) + p.sqv * d)); }
   p.recoil = Math.max(0, (p.recoil || 0) - dt * 7);
+  p.skidCd = (p.skidCd || 0) - dt;
+  flourishUpdate(p, dt);
   if (p.counter > 0) { p.counter -= dt; if (p.counter <= 0) p.counterHit = false; }
   p.bufAtk -= dt; p.bufDash -= dt; p.bufQ -= dt; p.bufE -= dt; p.bufR -= dt;
   if (p.castAim && (p.castAim.t -= dt) <= 0) p.castAim = null;
@@ -889,6 +907,12 @@ function updatePlayer(dt) {
     if (G.crownT <= 0) { G.crownT = 2; const live = G.E.filter(alive); if (live.length) { const e = live[Math.floor(rnd(live.length))]; skyStrike(e.x, e.y, 24, 16); } }
   }
   updateOrbit(p, dt);
+  if (G.rank >= 4 && p.state !== 'dead') {
+    const c = P[RANKS[G.rank].c] || P.paper, moving = hyp(p.vx, p.vy) > 30;
+    p.rankGhT = (p.rankGhT || 0) - dt;
+    if (moving && p.rankGhT <= 0 && p.state !== 'dash') { p.rankGhT = 0.07; const hs = heroSet(); ghost(p, c, hs.run?.[Math.floor(p.runT * (hs.rig?.gait?.run?.fps || 13)) % hs.run.length]); }
+    if (Math.random() < dt * (G.rank >= 6 ? 26 : 10)) part(p.x + rnd(-6, 6), p.y - rnd(0, 6), rnd(-8, 8), -rnd(20, 50), rnd(0.3, 0.6), Math.random() < 0.6 ? c : P.paper, { glow: true, drag: 2 });
+  }
 
   let mx = (keyDown('KeyD', 'ArrowRight') ? 1 : 0) - (keyDown('KeyA', 'ArrowLeft') ? 1 : 0);
   let my = (keyDown('KeyS', 'ArrowDown') ? 1 : 0) - (keyDown('KeyW', 'ArrowUp') ? 1 : 0);
@@ -904,11 +928,21 @@ function updatePlayer(dt) {
 
   switch (p.state) {
     case 'move': {
-      const k = 1 - Math.exp(-fr * dt);
+      const k = 1 - Math.exp(-fr * dt), sp = hyp(p.vx, p.vy), grounded = heroHover(p) === 0;
+      // pushing off from a standstill kicks dust back and stretches the body; a hard turn at speed skids (the body
+      // squashes, dust sprays the way it was going); letting go at a run skids to a stop
+      if (grounded && ml && !p.wasMoving && sp < speed * 0.35) { kickDust(p, -mx, -my, 5); p.sq = Math.min(p.sq || 0, -0.08); p.sqv = 0; }
+      if (grounded && ml && sp > speed * 0.6 && (p.vx * mx + p.vy * my) / sp < -0.35 && p.skidCd <= 0) { p.skidCd = 0.3; skid(p, 8); }
+      if (grounded && !ml && p.wasMoving && sp > speed * 0.6 && p.skidCd <= 0) { p.skidCd = 0.3; skid(p, 5); }
+      p.wasMoving = !!ml;
       p.vx += (mx * speed - p.vx) * k; p.vy += (my * speed - p.vy) * k;
       if (ml) {
         p.runT += dt; p.stepT -= dt;
-        if (p.stepT <= 0) { p.stepT = 0.26; A.step(); dust(p.x, p.y, 2, 20); }
+        if (p.stepT <= 0) {
+          const gt = heroSet()?.rig?.gait?.[sp < speed * 0.7 ? 'walk' : 'run'];
+          p.stepT = gt ? 6 / gt.fps : 0.26;
+          if (grounded) { A.step(); dust(p.x, p.y, 2, 20); if (G.char === 'NINJA' && sp > speed * 0.7) kickDust(p, -mx, -my, 2); }
+        }
       } else p.runT = 0;
       break;
     }
@@ -937,7 +971,12 @@ function updatePlayer(dt) {
     case 'dash': {
       p.vx = p.dx * kit.dash.speed; p.vy = p.dy * kit.dash.speed;
       p.dashT -= dt; p.ghostT -= dt;
-      if (p.ghostT <= 0) { p.ghostT = 0.022; ghost(p, kit.color()); }
+      if (p.ghostT <= 0) { p.ghostT = 0.022; ghost(p, kit.color(), heroSet().body?.dash?.[Math.floor(G.time * 18) % 4]); }
+      // speed lines streaming off behind
+      for (let i = 0; i < 2; i++) {
+        const o = rnd(-7, 7);
+        part(p.x - p.dx * 6 - p.dy * o, p.y - 7 + p.dx * o * 0.6 + rnd(-4, 4), -p.dx * rnd(90, 200), -p.dy * rnd(90, 200), rnd(0.08, 0.15), Math.random() < 0.6 ? P.paper : kit.color(), { drag: 1, glow: true });
+      }
       if (up.phantom) {
         for (const e of G.E) {
           if (!alive(e) || p.phantomHit.has(e) || hyp(e.x - p.x, e.y - p.y) > e.r + 10) continue;
@@ -949,6 +988,7 @@ function updatePlayer(dt) {
       }
       if (p.dashT <= 0) {
         p.state = 'move'; p.vx *= 0.3; p.vy *= 0.3; p.sq = 0.15; p.sqv = 0;
+        if (heroHover(p) === 0) { kickDust(p, p.dx, p.dy, 7); A.step(); }
         if (up.evoSwift && p.dashFrom) {
           const [x0, y0] = p.dashFrom;
           G.cuts.push({ x0, y0: y0 - 5, x1: p.x, y1: p.y - 5, a: Math.atan2(p.y - y0, p.x - x0), t: 0, pend: 0.28, marked: [], echo: 0, done: false,
@@ -1209,6 +1249,78 @@ function startDash(mx, my, ml) {
   p.state = 'dash'; p.dashT = kit.dash.time; p.ghostT = 0; p.sq = -0.24; p.sqv = 0;
   p.inv = Math.max(p.inv, kit.dash.time + 0.05); p.perfectUsed = false; p.phantomHit = new Set();
   A.dash(); dust(p.x, p.y, 6, 60); shake(0.05);
+  // a burst where the dash leaves: a ring on the floor and a plume thrown back the other way
+  addRing(p.x, p.y, P.stone2, 150, 0.2, 2); addRing(p.x, p.y - 7, kit.color(), 110, 0.16, 1);
+  kickDust(p, -p.dx, -p.dy, 10);
+  p.flo = null; p.idleT = 0;
+}
+// dust kicked from the feet the way (dx, dy) points
+function kickDust(p, dx, dy, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.atan2(dy, dx) + rnd(-0.7, 0.7), v = rnd(30, 120);
+    part(p.x + rnd(-2, 2), p.y - rnd(0, 2), Math.cos(a) * v, Math.sin(a) * v * 0.6 - rnd(0, 20), rnd(0.25, 0.5), Math.random() < 0.5 ? P.stone2 : P.stone, { drag: 5 });
+  }
+}
+// a skid: the body squashes and dust sprays the way it was sliding
+function skid(p, n) {
+  p.sq = 0.17; p.sqv = 0;
+  const sp = hyp(p.vx, p.vy) || 1;
+  kickDust(p, p.vx / sp, p.vy / sp, n);
+  A.step();
+}
+
+// ---------- idle weapon tricks ----------
+// Standing still for a few seconds, each fighter shows off: Kael spins his sword, Vega twirls her revolver, Morrow
+// raises his staff and its orb flares, Rin spins her katana and flicks it clean, Rivet tosses her wrench and catches
+// it, Grom heaves his hammer onto his shoulder and drops it with a thud, Unit-7 pumps its cannon, the Dev types.
+// Any move cancels it. A wave cleared plays one too.
+const FLOURISH = { sword: ['spin', 0.75], katana: ['flick', 0.8], revolver: ['twirl', 0.85], minigun: ['twirl', 0.85], staff: ['raise', 1.0], wrench: ['toss', 0.85], hammer: ['heft', 1.15], cannon: ['pump', 0.8] };
+export function startFlourish(p) {
+  const wn = heroSet()?.rig?.weapon, [kind, dur] = FLOURISH[wn] || ['type', 0.8];
+  p.flo = { t: 0, kind, dur, done: {} };
+  if (kind !== 'type' && kind !== 'pump') A.zip();
+}
+const ease = (k) => (k <= 0 ? 0 : k >= 1 ? 1 : k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
+function flourishUpdate(p, dt) {
+  const still = p.state === 'move' && hyp(p.vx, p.vy) < 14 && !p.atkHeld && !G.cine;
+  p.idleT = still ? (p.idleT || 0) + dt : 0;
+  if (!still) { p.flo = null; return; }
+  if (!p.flo && p.idleT > 3.6) { startFlourish(p); p.idleT = -2.6; }
+  const f = p.flo;
+  if (!f) return;
+  f.t += dt;
+  const k = f.t / f.dur, once = (key, at) => (k >= at && !f.done[key] ? (f.done[key] = true) : false);
+  const [hx, hy] = handPoint(p), a = p.wpnS ?? p.aim, wp = SPR.weapons[G.char], len = wp ? (G.evo === true && wp.evo ? wp.evo.along : wp.along) : 6;
+  const tx = hx + Math.cos(a) * len, ty = hy + Math.sin(a) * len - (f.lift || 0), col = G.kit.color();
+  if (f.kind === 'spin' && once('glint', 0.62)) { sparks(tx, ty, a, 6, Math.PI, col, 90); A.slice(); }
+  if (f.kind === 'flick' && once('flick', 0.62)) { for (let i = 0; i < 10; i++) part(tx, ty, rnd(-50, 50), rnd(-30, 50), rnd(0.4, 0.8), Math.random() < 0.6 ? '#ffb7d5' : '#ff8fb8', { drag: 2 }); A.slice(); }
+  if (f.kind === 'twirl' && once('click', 0.8)) { A.reload(); part(tx, ty, 0, -10, 0.3, P.gold, { glow: true, drag: 2 }); }
+  if (f.kind === 'raise') {
+    if (k > 0.25 && k < 0.8 && Math.random() < dt * 40) part(tx + rnd(-3, 3), ty + rnd(-3, 3), rnd(-20, 20), -rnd(20, 60), rnd(0.3, 0.6), Math.random() < 0.5 ? col : P.paper, { glow: true, drag: 2 });
+    if (once('flare', 0.45)) { addRing(tx, ty, col, 90, 0.3, 2); A.magic(); }
+  }
+  if (f.kind === 'toss') { const q = Math.min(1, k / 0.82); f.lift = 22 * Math.sin(Math.PI * q); if (once('catch', 0.82)) { f.lift = 0; A.click(); sparks(hx, hy, -Math.PI / 2, 4, 1.2, P.gold, 60); p.sq = 0.1; p.sqv = 0; } }
+  if (f.kind === 'heft' && once('thud', 0.82)) { kickDust(p, Math.cos(a), 0, 8); dust(tx, hy + 4, 6, 50); shake(0.12); A.wall(); p.sq = 0.14; p.sqv = 0; }
+  if (f.kind === 'pump') {
+    if (once('pump', 0.05)) A.reload();
+    if (k > 0.3 && k < 0.8 && Math.random() < dt * 30) part(hx + rnd(-3, 3), hy - 3, rnd(-10, 10), -rnd(20, 40), rnd(0.4, 0.8), '#b9b4c8', { drag: 2 });
+  }
+  if (f.kind === 'type' && Math.random() < dt * 30) part(p.x + rnd(-6, 6), p.y - rnd(6, 14), rnd(-20, 20), -rnd(20, 50), rnd(0.3, 0.6), Math.random() < 0.7 ? '#39ff6a' : P.paper, { drag: 2, glow: true });
+  if (f.t >= f.dur) p.flo = null;
+}
+// the weapon's angle during a trick, from where it would rest (a) and the way up for this facing (up)
+function flourishAngle(p, a, up) {
+  const f = p.flo, k = f.t / f.dur, fwd = -up;
+  switch (f.kind) {
+    case 'spin': return a + fwd * TAU * ease(Math.min(1, k / 0.62));
+    case 'flick': return k < 0.55 ? a + fwd * 2 * TAU * ease(k / 0.55) : k < 0.7 ? a + fwd * 0.9 * ((k - 0.55) / 0.15) : a + fwd * 0.9 * (1 - (k - 0.7) / 0.3);
+    case 'twirl': return k < 0.75 ? a + fwd * 3 * TAU * (1 - (1 - k / 0.75) ** 2) : a;
+    case 'raise': { const w = k < 0.3 ? ease(k / 0.3) : k < 0.75 ? 1 : 1 - ease((k - 0.75) / 0.25); return lerpAngle(a, -Math.PI / 2, w); }
+    case 'toss': return a + fwd * 2 * TAU * Math.min(1, k / 0.82);
+    case 'heft': { const w = k < 0.35 ? ease(k / 0.35) : k < 0.7 ? 1 : 1 - ease((k - 0.7) / 0.12); return lerpAngle(a, -Math.PI / 2 + up * 0.7, w); }
+    case 'pump': return a + up * 0.5 * Math.max(0, Math.sin(Math.PI * Math.min(1, k / 0.35)));
+  }
+  return a;
 }
 
 // evolved powers cast a second time a moment later, for free
@@ -1258,12 +1370,14 @@ function updateOrbit(p, dt) {
     }
   }
 }
-export function drawOrbit(p) {
+// front: only the blades passing in front of the fighter (lower on the screen), otherwise only those behind
+export function drawOrbit(p, front = true) {
   if (p.bladeGone > 0) return;
   const n = G.up.orbit * (G.up.evoOrbit ? 2 : 1);
   const R = G.up.evoOrbit ? 28 + Math.sin(G.time * 3) * 10 : 22;
   for (let i = 0; i < n; i++) {
     const a = p.orbitA + (i * TAU) / n, bx = p.x + Math.cos(a) * R, by = p.y - 6 + Math.sin(a) * R * 0.8;
+    if ((Math.sin(a) >= 0) !== front) continue;
     const tx = Math.cos(a + Math.PI / 2) * 4, ty = Math.sin(a + Math.PI / 2) * 4;
     line(bx - tx, by - ty, bx + tx, by + ty, G.up.evoOrbit ? P.gold : P.bone);
     glow(bx, by, G.up.evoOrbit ? P.gold : P.volt, 5, 0.5);
@@ -1636,6 +1750,8 @@ export function update(dt, rdt) {
     if (!G.queue.length && !G.sigils.length && !G.E.some((e) => !e.dead) && !G.dead) {
       G.phase = 'clear'; G.phaseT = 1.6;
       A.waveClear(); A.scene('calm'); A.stopLoops();
+      // the fighter shows off with a weapon trick (if standing still)
+      if (G.p.state === 'move') startFlourish(G.p);
       G.banner = { text: 'WAVE CLEAR', sub: '', t: 0, life: 1.6, c: P.ember3 };
       if (G.twist) {
         const tw = TWISTS[G.twist], bonus = Math.round(1000 * (1 + G.wave / 10) * G.D.score);
@@ -1782,6 +1898,8 @@ function updateShots(dt) {
     if (s.dead) continue;
     G.pfx = s.owner === 'player';
     s.t += dt; s.life -= dt; s.spin = (s.spin || 0) + dt * 20;
+    // awakened shots leave a sparkling trail in the fighter's colors
+    if (G.pfx && G.evo === true && Math.random() < 0.6) part(s.x, s.y, -s.vx * 0.08 + rnd(-10, 10), -s.vy * 0.08 + rnd(-10, 10), rnd(0.15, 0.3), Math.random() < 0.5 ? s.c : P.paper, { drag: 4, glow: true });
     if (s.accel) { s.vx *= 1 + s.accel * dt; s.vy *= 1 + s.accel * dt; }
     if (s.ret && s.t > s.retT) {
       const o = s.ret, a = Math.atan2(o.y - 20 - s.y, o.x - s.x);
@@ -1881,6 +1999,7 @@ function updateHazards(dt) {
   for (const q of G.quakes) {
     if (q.delay > 0) { q.delay -= dt; continue; }
     q.r += (q.speed ?? 135) * dt;
+    if (q.erase) eraseShots(q.x, q.y, q.r - 8, q.r + 6);
     if (Math.random() < 0.8) { const a = rnd(TAU); dust(q.x + Math.cos(a) * q.r, q.y + Math.sin(a) * q.r, 1, 20); }
     if (q.friendly) {
       for (const e of G.E) {
@@ -1917,6 +2036,19 @@ function updateHazards(dt) {
   sweep(G.hbeams, (b) => b.t < b.life);
 }
 
+// enemy shots between two distances from a point are wiped out (Grom's shockwaves): a puff and a spark each
+export function eraseShots(x, y, r0, r1) {
+  let n = 0;
+  for (const s of G.shots) {
+    if (s.owner !== 'enemy' || s.dead || s.fist) continue;
+    const d = hyp(s.x - x, s.y - y);
+    if (d < r0 || d > r1) continue;
+    s.dead = true; n++;
+    sparks(s.x, s.y, Math.atan2(s.y - y, s.x - x), 5, 0.8, P.paper, 160); dust(s.x, s.y, 3, 30);
+  }
+  if (n) A.shieldHit();
+  return n;
+}
 export function beamLen(x, y, a, max) {
   const cx = Math.cos(a), cy = Math.sin(a);
   let L = max;
@@ -2078,11 +2210,18 @@ function setSpriteAction(p, name) {
 // ---------- the hero and the weapon in hand ----------
 // The hand that holds the weapon: the hero's own grip point (hero-rig.js), on the side the hero faces. Shots, spells
 // and the weapon's grip all start here (the second argument is ignored: the facing decides the side).
+// how high the fighter floats off the ground: Morrow while he moves, Unit-7 Omega all the time (it flies)
+export function heroHover(p) {
+  if (G.char === 'ROBOT' && G.evo === true) return 11 + Math.round(Math.sin(G.time * 3.2) * 2);
+  const moving = (p.state === 'move' || p.state === 'skill' || p.state === 'charge') && hyp(p.vx, p.vy) > 20;
+  if (G.char === 'WIZARD' && moving) return 4 + Math.round(Math.sin(G.time * 6) * 1.5);
+  return 0;
+}
 export function handPoint(p) {
   const rig = heroSet()?.rig, left = softFacingLeft(p);
   if (!rig) return [p.x + (left ? -4 : 4), p.y - (G.kit?.handY ?? 6)];
   const dx = (rig.hand[0] + 0.5) / SS - 20, dy = (rig.hand[1] + 0.5) / SS - 31;
-  return [p.x + (left ? -dx : dx), p.y + dy];
+  return [p.x + (left ? -dx : dx), p.y + dy - heroHover(p)];
 }
 const lerpAngle = (a, b, w) => a + angDiff(b, a) * w;
 const CW_HERO = 120;
@@ -2095,6 +2234,10 @@ function weaponAngle(p, kit, flip) {
   if (!kit.melee && r > 0) a += up * 0.38 * r * r;
   // Unit-7's beam shakes the cannon while it fires
   if (p.k?.firing) a += Math.sin(G.time * 70) * 0.03;
+  if (p.flo) return flourishAngle(p, a, up);
+  // running flat out, Rin trails her katana low behind her, the way she came (a ninja run)
+  const fast = p.state === 'move' && hyp(p.vx, p.vy) > (kit.stats?.speed || 100) * 0.7 && !p.atkHeld && (p.recoil || 0) <= 0;
+  if (fast && G.char === 'NINJA') { const b = Math.atan2(-p.vy, -p.vx); return b + (Math.cos(b) < 0 ? -0.4 : 0.4); }
   const q = p.spriteAction, t = q ? G.time - q.start : 9;
   if (q && t < 0.5) {
     const k = Math.min(1, t / 0.3), e = 1 - (1 - k) ** 3;
@@ -2110,7 +2253,7 @@ function drawHeldWeapon(p, set, flip, x, y, a) {
   let name = set.rig.weapon;
   if (G.char === 'GUNNER' && p.k?.stand > 0) name = 'minigun';
   if (!name) return;
-  const kit = G.kit, skin = !!set.evolved, wp = SPR.weapons[G.char];
+  const kit = G.kit, skin = !!set.evolved, wp0 = SPR.weapons[G.char], wp = skin && wp0?.evo ? wp0.evo : wp0;
   // a gun kicks back along itself; a blade reaches out as it cuts
   const push = -0.9 * (p.recoil || 0) + (p.state === 'attack' && p.atkT < 0.14 ? 1 : 0) + (p.state === 'chg' ? 1 : 0);
   const hx = x + Math.cos(a) * push, hy = y + Math.sin(a) * push;
@@ -2120,6 +2263,26 @@ function drawHeldWeapon(p, set, flip, x, y, a) {
   if (kit.melee && Math.abs(d) > 0.22) for (let j = 3; j >= 1; j--) drawWeaponAt(ctx, name, skin, hx, hy, a - (d * j) / 4, flip, 0.5 - j * 0.12);
   drawWeaponAt(ctx, name, skin, hx, hy, a, flip);
   const len = wp ? wp.along : 6, tx = hx + Math.cos(a) * len * 0.95, ty = hy + Math.sin(a) * len * 0.95;
+  // a blade's tip leaves a ribbon through every swing: white, or thick and in the fighter's colors once awakened
+  if (kit.melee) {
+    const tr = (p.tipTrail ||= []), now = G.time;
+    tr.push([tx, ty, now]);
+    while (tr.length && now - tr[0][2] > 0.1) tr.shift();
+    if (p.state === 'attack' || p.state === 'chg') {
+      for (let j = 1; j < tr.length; j++) {
+        const [x0, y0, t0] = tr[j - 1], [x1, y1] = tr[j], k = Math.max(0, 1 - (now - t0) / 0.1);
+        ctx.globalAlpha = k * (skin ? 0.9 : 0.55);
+        if (skin) line(x0, y0, x1, y1, kit.color(), 3);
+        line(x0, y0, x1, y1, P.paper, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  // awakened: the weapon smoulders with the fighter's color, shedding sparks all the time
+  if (skin) {
+    glow((hx + tx) / 2, (hy + ty) / 2, kit.color(), 6 + len / 4, 0.22 + Math.sin(G.time * 8) * 0.07);
+    if (Math.random() < 0.55) { const k = Math.random(); part(hx + (tx - hx) * k, hy + (ty - hy) * k, rnd(-8, 8), -rnd(10, 30), rnd(0.25, 0.5), Math.random() < 0.6 ? kit.color() : P.paper, { glow: true, drag: 2 }); }
+  }
   if (p.state === 'charge') {
     const f = chargeLevel(p), c = f >= 1 && Math.floor(G.time * 20) % 2 ? P.paper : kit.color();
     glow(tx, ty, c, 4 + Math.round(f * 7), 0.35 + f * 0.45);
@@ -2130,7 +2293,8 @@ function drawHeldWeapon(p, set, flip, x, y, a) {
 function drawPlayer() {
   const p = G.p, kit = G.kit;
   if (p.state === 'dead' || p.state === 'cine') return;
-  if (p.inv > 0 && p.hurtT > -0.8 && p.state !== 'dash' && Math.floor(G.time * 22) % 2) return;
+  // the i-frames blink, except for the first moment of a hit (the flinch should show)
+  if (p.inv > 0 && p.hurtT < 0.12 && p.hurtT > -0.8 && p.state !== 'dash' && Math.floor(G.time * 22) % 2) return;
   // the body faces left or right only (mostly toward the player); the aim, the weapon, shots and cuts go all 360
   // degrees
   const set = heroSet(), body = set.body;
@@ -2138,38 +2302,61 @@ function drawPlayer() {
   const flip = softFacingLeft(p);
   // Rin runs with pink afterimages behind her
   const ninja = G.char === 'NINJA' && moving && p.state === 'move';
-  // walking (slow) and running cycles: 8 frames each, the run steps 13 times a second
+  // walking (slow) and running cycles, 12 frames each at the gait's own speed (Rin's quick little run is the fastest)
   const walking = moving && hyp(p.vx, p.vy) < (kit.stats?.speed || 100) * 0.7;
-  const moveFrames = walking ? body.walk : body.run;
-  const fi = Math.floor(p.runT * (walking ? 9 : 13)) % moveFrames.length;
+  const moveFrames = walking ? body.walk : body.run, gait = set.rig.gait?.[walking ? 'walk' : 'run'];
+  const fi = Math.floor(p.runT * (gait?.fps || (walking ? 9 : 13))) % moveFrames.length;
   // standing still plays the 16-frame idle loop: breathing, a blink, cloth in the wind
   const ii = Math.floor(G.time * 7) % body.idles.length;
   // Morrow floats while he moves; Unit-7 Omega hovers on its jets all the time
   const jets = G.char === 'ROBOT' && G.evo === true;
-  const floats = (G.char === 'WIZARD' && moving) || jets;
-  const fr = moving ? moveFrames[fi] : body.idles[ii];
-  const hover = floats ? (jets ? 5 : 4) + Math.round(Math.sin(G.time * (jets ? 4 : 6)) * 1.5) : 0;
+  const hover = heroHover(p), floats = hover > 0;
+  // a dash throws the body forward with everything streaming behind it; a hit makes it flinch with its eyes screwed
+  // shut; the first instant of a swing lunges into it (the dash pose, when the cut goes the way the hero faces)
+  const lunging = p.state === 'attack' && p.atkT < 0.1 && Math.cos(p.atkAng ?? 0) * (flip ? -1 : 1) > 0.3;
+  const pose = p.state === 'dash' && body.dash ? body.dash[Math.floor(G.time * 18) % body.dash.length]
+    : p.hurtT > 0 && body.hurt ? body.hurt[p.hurtT > 0.17 ? 0 : 1]
+    : lunging && body.dash && !jets ? body.dash[0] : null;
+  // flying, Omega's treads stay still
+  const fr = pose || (moving && !jets ? moveFrames[fi] : body.idles[ii]);
   // a lunge into each swing, a lean into a dash
   const lean = p.state === 'attack' && p.atkT < 0.12 ? 2 : p.state === 'dash' ? 1 : 0, la = p.state === 'attack' ? p.atkAng : p.aim;
   shadow(p.x, p.y, hover ? 4 : 6);
   if (hover && !jets && Math.random() < 0.5) part(p.x + rnd(-4, 4), p.y - rnd(0, 2), rnd(-10, 10), rnd(-10, -2), 0.4, '#b48cff', { glow: true, drag: 3 });
-  // jet exhaust under both thrusters
-  if (jets) for (const side of [-4, 4]) {
-    glow(p.x + side, p.y - hover + 2, '#ff4fa8', 2 + Math.round(Math.random()), 0.3);
-    if (Math.random() < 0.35) part(p.x + side + rnd(-1, 1), p.y - hover + 2, rnd(-4, 4), rnd(40, 70), rnd(0.06, 0.12), Math.random() < 0.6 ? '#ff4fa8' : P.paper, { drag: 1 });
+  // Omega flies: swept gold wings behind it, two jet engines under it with flames roaring down
+  if (jets) {
+    const by = p.y - hover, flap = Math.sin(G.time * 5);
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 6; i++) {
+        const wx = p.x + side * (6 + i), wy = by - 13 + Math.round(i * 0.7 + flap * (i / 6) * 1.5);
+        rect(wx, wy, 1, Math.max(1, 5 - i * 0.7), i % 2 ? '#c9a24a' : '#ffd447'); px(wx, wy - 1, '#1c1422');
+      }
+      px(p.x + side * 12, by - 9 + Math.round(flap * 1.5), Math.floor(G.time * 4) % 2 ? '#ff3b3b' : P.paper);
+    }
+    for (const side of [-4, 4]) {
+      const ex = p.x + side;
+      rect(ex - 1, by - 2, 3, 3, '#1c1a22'); px(ex, by - 1, '#ff3b3b');
+      const fl = 3 + Math.floor(Math.random() * 3) + (hyp(p.vx, p.vy) > 20 ? 2 : 0);
+      rect(ex - 1, by + 1, 3, fl, '#ff6a2a'); rect(ex, by + 1, 1, fl + 2, '#ffd447');
+      glow(ex, by + 3, '#ff6a2a', 6, 0.5);
+      if (Math.random() < 0.6) part(ex + rnd(-1, 1), by + 3, rnd(-6, 6), rnd(50, 90), rnd(0.08, 0.16), Math.random() < 0.5 ? '#ff6a2a' : P.paper, { drag: 2 });
+    }
   }
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
-  kit.drawAura?.(p, flip);
+  // things circling the fighter: the half behind them first, the half in front after the body
+  kit.drawAura?.(p, flip, false);
+  drawOrbit(p, false);
   // the feet point, and the body's squash and stretch about it (a charge crouches deeper as it fills)
   const fx0 = snap(p.x + Math.cos(la) * lean), fy0 = snap(p.y - hover + Math.sin(la) * lean * 0.5);
   const sq = clamp((p.sq || 0) + (p.state === 'charge' ? 0.07 * chargeLevel(p) : 0), -0.32, 0.32), scx = 1 + 0.55 * sq, scy = 1 - sq;
   // the hand on this frame: on the drawn sprite (a running bob lifts it a pixel), then squashed with the body
   const rig = set.rig, cx = flip ? CW_HERO - 0.5 - rig.hand[0] : rig.hand[0] + 0.5;
-  const bobH = moving && !floats && !walking && fi % 4 === 2 ? 1 / SS : 0;
-  const hx = fx0 + (cx / SS - 20) * scx, hy = fy0 + ((rig.hand[1] + 0.5) / SS - 31 - bobH) * scy;
+  // the hand moves with the gait's frame (the arms swing, the body bounces)
+  const off = !pose && moving && !jets ? gait?.off?.[fi] : null, odx = off ? (flip ? -off[0] : off[0]) / SS : 0, ody = off ? off[1] / SS : 0;
+  const hx = fx0 + (cx / SS - 20 + odx) * scx, hy = fy0 + ((rig.hand[1] + 0.5) / SS - 31 + ody) * scy;
   // the weapon eases toward where it should point (a swing snaps, everything else glides, so it never jumps when a
   // swing ends or the hero turns)
-  const target = weaponAngle(p, kit, flip), swinging = p.state === 'attack' || p.state === 'chg' || (p.spriteAction && G.time - p.spriteAction.start < 0.5);
+  const target = weaponAngle(p, kit, flip), swinging = p.state === 'attack' || p.state === 'chg' || !!p.flo || (p.spriteAction && G.time - p.spriteAction.start < 0.5);
   const now = G.time, step = Math.min(0.05, Math.max(0, now - (p.wpnT ?? now))); p.wpnT = now;
   p.wpnS = swinging || p.wpnS === undefined || p.wpnFlip !== flip ? target : lerpAngle(p.wpnS, target, 1 - Math.exp(-step * (kit.melee ? 24 : 40)));
   p.wpnFlip = flip;
@@ -2177,13 +2364,14 @@ function drawPlayer() {
   // ultimate (those poses should show)
   const raised = p.spriteAction?.kind === 'ultimate' && G.time - p.spriteAction.start < 0.5;
   const wa = p.wpnS, behind = Math.sin(wa) < -0.35 && p.state !== 'charge' && !raised;
-  if (behind) drawHeldWeapon(p, set, flip, hx, hy, wa);
-  // a hit flashes the body red for an instant
-  const tintP = p.hurtT > 0.22 ? (p.hurtT > 0.27 ? P.paper : P.blood) : null;
+  const lift = p.flo?.lift || 0;
+  if (behind) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
+  // a hit flashes the body white then red for an instant, then the flinch (eyes screwed shut) shows
+  const tintP = p.hurtT > 0.255 ? (p.hurtT > 0.28 ? P.paper : P.blood) : null;
   if (ninja) {
     if (Math.floor(G.time * 16) !== Math.floor((G.time - 1 / 60) * 16)) G.ghosts.push({ x: p.x - Math.cos(p.moveAng) * 3, y: p.y, flip, t: 0, life: 0.16, c: '#ffb7d5', spr: fr });
   }
-  ctx.save(); ctx.translate(fx0, fy0); if (sq) ctx.scale(scx, scy);
+  ctx.save(); ctx.translate(fx0, fy0); if (jets) ctx.rotate(clamp(p.vx / 90, -1, 1) * 0.14); if (sq) ctx.scale(scx, scy);
   ctx.drawImage(tintP ? fr.tint(tintP, flip) : flip ? fr.f : fr.n, -fr.w / 2, -fr.h + 1, fr.w, fr.h);
   ctx.restore();
   // winding up a charged attack: a ring at the feet fills, and flashes once full
@@ -2206,11 +2394,12 @@ function drawPlayer() {
   }
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
-  if (!behind) drawHeldWeapon(p, set, flip, hx, hy, wa);
+  if (!behind) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
+  kit.drawAura?.(p, flip, true);
   ctx.globalAlpha = 1;
   // a faint glow at the chest (it rises with a hovering fighter)
   glow(p.x + (flip ? -1 : 1), p.y - 9 - hover, kit.color(), 10, 0.2);
-  drawOrbit(p);
+  drawOrbit(p, true);
   if (p.ascend > 0) {
     ring(p.x, p.y - 9, 14 + Math.sin(G.time * 14), 1, P.gold); glow(p.x, p.y - 9, P.gold, 22, 0.4);
     // golden wings

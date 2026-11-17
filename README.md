@@ -5,14 +5,16 @@ A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fig
 **Play it at [ash-blade.vercel.app](https://ash-blade.vercel.app/).**
 
 - 8 chibi pixel-art fighters, each with a combo, three powers, a cinematic entrance that ends on their name card, a gory death scene of their own and an awakened second look. Every fighter's weapon is held in hand and turns to wherever you aim: blades swing through each cut and guns kick back when they fire
-- A large animated portrait of every fighter, sized to their build, on the select screen, in their entrance and in the opening
-- An opening where all eight fighters cut in one after another before the logo lands (any key skips it)
+- Fighters that move with weight: 12-frame walks and runs where the body sinks into every step and springs up on the next, the arms swing against the feet and the run leans in. Rin, the fastest, has a quick little ninja run of her own, leaning hard with her arms swept back and her katana trailing behind her. They push off in a puff of dust, skid when they turn hard or stop, throw themselves forward into a dash with speed lines and afterimages, and flinch with their eyes screwed shut when hit. Stand still for a few seconds and they show off: Kael spins his sword, Vega twirls her revolver, Morrow raises his staff, Rin flicks her katana clean, Rivet tosses her wrench, Grom heaves his hammer onto his shoulder
+- A big animated pixel portrait of every fighter on the select screen, each in a pose of their own and ending in a signature move: Kael's fire slash, Vega's gun twirl, Morrow's orb flare over a turning magic circle, Rin's flash cut through falling petals, Rivet's wrench taps, Grom's ground slam, Unit-7's charged shot, the Dev's glitch among floating code windows
+- A title screen drawn in the game's own pixels: the swallowed sun over the ruins of the pit, and the eight fighters on a battlement, taking turns to show off their weapons
+- An opening where all eight fighters cut in one after another, then drop onto that battlement as the logo slams down (any key skips it)
 - 10 kinds of monsters, including an archer whose aim you can see and a priest that heals the others, plus elites with affixes and wave twists that change the rules
 - 10 bosses, up to The Dev, the game's own developer, on wave 50
 - Upgrades after every wave and a relic after every boss
 - 5 arenas, 4 difficulties, phone controls, and a save at every wave
 
-![All eight fighters in the opening](docs/opening.png)
+![The title screen: the eight fighters on the battlement under the swallowed sun](docs/opening.png)
 
 ## Story
 
@@ -29,17 +31,17 @@ Every fighter has a basic attack, two powers on Q and E that cost energy, and an
 | Wizard | Morrow | Homing magic bolt | Arcane Missiles: a rune circle flares and 5 homing missiles leave his staff | Blizzard: a 3-second frost storm where you aim that cuts and freezes everything in it | Starfall: meteors rain on enemies for about 3 seconds |
 | Samurai | Rin | 4-hit katana combo ending in a quick-draw dash. 2 dashes, 8 health | Senko: a beam of light shoots from her sword across the arena in an instant, hitting everything on the line for huge damage and destroying shots. Costs 50 energy | Hana Arashi: for 4 seconds a ring of petal blades cuts anything close, parries shots, and speeds her up | Issen: time stops while she cuts from enemy to enemy 11 times |
 | Mechanic | Rivet | Wrench combo | Turret, up to 2 at once | Tesla Coil: zaps 3 enemies at a time for 7 seconds | Iron Titan: a giant mech lands and fights beside her for 18 seconds, punching, firing missile salvos and ground-pounding to stun |
-| Tank | Grom | Slow hammer combo. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun | Fortress: 6 seconds of no damage, and shots bounce back |
+| Tank | Grom | Slow hammer combo. 12 health | Bulldoze: charges and pins enemies against walls | Ground Slam: shockwaves that stun and wipe out enemy shots | Fortress: 6 seconds of no damage, and shots bounce back |
 | Robot | Unit-7 | Laser that overheats if held too long | Rocket Salvo: 6 homing rockets | Barrier: blocks 3 hits, then bursts | Orbital Laser: a beam from above follows your aim for 4.5 seconds |
 
 The four melee fighters charge up when you hold attack. Let go early for a weaker version.
 
 | Fighter | Charged attack |
 | --- | --- |
-| Kael | Ashen Crescent: a wide burning cut that throws a wave of fire ahead |
+| Kael | Ashen Crescent: a wide burning cut that throws a wave of fire ahead and knocks shots back |
 | Rin | Iai Dash: she flash-steps through everything ahead, parrying every shot on the way, and the cuts open a beat later |
-| Rivet | Overclock Slam: the wrench smashes the floor, stuns, and arcs lightning to nearby enemies |
-| Grom | Earthshatter: the ground cracks in a ring that stuns everything in it |
+| Rivet | Overclock Slam: the wrench smashes the floor, stuns, arcs lightning to nearby enemies, and knocks shots back on the way down |
+| Grom | Earthshatter: the hammer knocks shots back, the ground cracks in a ring that stuns everything in it, and the shockwave wipes out every enemy shot it rolls over |
 
 The eighth fighter is The Dev, a programmer in a motorized wheelchair who wrote this world and is now debugging it from the inside. He starts weaker than the others, with one shot at a time and 6 health, and grows with every wave and every 20 kills: about even by wave 15, 7.5 times as strong by wave 50. His shots plant bugs that crash an enemy.
 
@@ -47,7 +49,9 @@ Pink afterimages trail behind Rin when she runs. Her **Flash Strike**: the first
 
 Every fighter awakens once per run, after any five evolutions (see Upgrades). The evolution banner counts them, AWAKENING 1/5 to 5/5. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom, Unit-7 Omega and Root. Awakening brings a new look, 1 more max health, and an evolved kit for the rest of the run:
 
-- **Look:** the fighter's sprite takes on new colors: Ashen Kael turns silver and gold, Deadeye Vega charcoal and crimson, Archmage Morrow white with pink eyes, Oni Rin violet and hot pink, Rivet Mk-II silver and steel with a cyan scarf, Titan Grom black and blood red, Unit-7 Omega glows pink and hovers on two jets, and Root wears black with neon green. The fighter's slashes, shots, beams, particles and power effects switch to an awakened color scheme, and basic-attack slashes, shots and Unit-7's laser get thicker.
+- **Look:** mostly black and gold. Ashen Kael gets silver-white hair, a gold scarf and black clothes; Deadeye Vega a black hat and coat with gold, silver hair and a crimson bandana; Archmage Morrow a black robe with gold trim and blazing gold eyes; Oni Rin white hair with crimson ribbons, little horns, a black uniform and a gold sash; Rivet Mk-II platinum hair, red-lensed gold goggles and black overalls with gold; Titan Grom black plate with gold trim and a burning red visor; Unit-7 Omega a gold shell on a black frame, and it flies on two jet engines with swept wings; Root a black hoodie, four orbiting screens and windows popping up around him.
+- **Weapon:** each awakened fighter carries a weapon of their own: a black-and-gold greatsword with a burning edge, a long-barreled gold hand cannon with a sight, a black staff with a gold crescent and a sun-gold orb, a crimson nodachi, a gold power wrench with a glowing core, a spiked black-and-gold maul with red runes, a gold plasma cannon.
+- **Effects:** slashes, shots, beams, particles and powers switch to an awakened color scheme, drawn thicker, with an extra glowing spark on every effect, a sparkling trail behind every shot, a colored ribbon behind every swing, and a weapon that smoulders all the time.
 - **Basic attack:** 30% more damage, plus an extra effect on every hit.
 - **Melee swings:** every awakened swing leaves a second, wider arc and adds the fighter's own extra: Ashen Kael throws flame crescents, Oni Rin sends gold blade waves, Rivet Mk-II arcs lightning forward, and Titan Grom rolls blood-red shockwaves along the ground, with his slam and spin ending in a quake ringed by eruptions.
 - **Charged attack:** a double ring spins at the feet while charging, and the release bursts in the fighter's awakened colors. Ashen Kael throws five crescents and a line of white fire erupts along the cut. Oni Rin fans eight gold waves out of her dash, then a second cut opens along it. Rivet Mk-II calls a ring of lightning strikes and a long chain. Titan Grom sends three aftershocks and a ring of eruptions.
@@ -226,6 +230,8 @@ After wave 50 all ten come back with more health. Every boss enrages after 60 se
 
 Hearts are rare: ordinary monsters seldom drop one, a boss's summoned army never does, and after a hit you're only safe for a third of a second. Dashing makes you untouchable. Dash through an attack as it lands and time slows, and your next hit is a counter for triple damage. Hit a pink orb to send it back.
 
+Hits in a row build a combo, ranked D, C, B, A, S, SS and SSS. From A up the rank powers you: every hit does 5% more damage at A, 10% at S, 18% at SS and 30% at SSS (the HUD shows it under the rank). From S you leave afterimages in the rank's color, and every rank up from A bursts off you. Getting hit loses the combo and the power with it.
+
 ![Phone controls](docs/mobile.png)
 
 ## Settings
@@ -236,13 +242,12 @@ The other settings cover volume and music choice, color theme and screen filters
 
 ## How it's built
 
-Plain JavaScript with no libraries and no build step. The game runs on a 320×180 grid and draws on a 960×540 canvas, three canvas pixels to a game pixel, so the fighters can carry three times the detail of the world around them. Each fighter comes from one picture of them (`art/sprites/soulknight-masters/`), cleaned of the edge pixels its old white background left behind and of color noise, with the weapon lifted off. Their idle, walk, run and death frames and their awakened colors are drawn from it into small sprite sheets (`art/sprites/heroes/`), and each weapon is its own sprite, turned in advance to 64 angles so it can point anywhere. The entrances and deaths are drawn in code from the same sprites: a death can cut the body along straight lines into pieces that each fall, spin, bounce and bleed on their own. Monsters and bosses are grids of characters in the code, the portraits are pixel data in script files, and the music and sound are generated in the browser with the Web Audio API. The page makes no network requests, and runs and settings save only in your browser. It is built to run smoothly on phones: the game is capped at 60 fps, sprites and the camera move in canvas pixels so motion stays smooth, the large pictures sit on their own layers and are only redrawn when they change, the fighters' sprite sheets are small (about 600 KB for all of them), and if a device starts falling behind in a big fight the game thins out its particle effects on its own until it keeps up again.
+Plain JavaScript with no libraries and no build step. The game runs on a 320×180 grid and draws on a 960×540 canvas, three canvas pixels to a game pixel, so the fighters can carry three times the detail of the world around them. Each fighter comes from one picture of them, read on that picture's own pixel grid so every drawn pixel becomes exactly one sprite pixel (`art/sprites/soulknight-masters/`, about 27 by 32 pixels each). Their idle, walk, run, dash, hurt and death frames and their awakened colors are drawn from it at that size, then doubled, so every pixel is a crisp 2×2 block (`art/sprites/heroes/`). Each weapon is its own sprite at the same pixel size, turned in advance to 64 angles so it can point anywhere. The entrances, the deaths, the opening and the title screen are drawn in code from the same sprites: a death can cut the body along straight lines into pieces that each fall, spin, bounce and bleed on their own. The select screen's portraits are posed and animated from the same pictures (`art/sprites/portraits/`), then drawn eleven times bigger with their effects in code. Monsters and bosses are grids of characters in the code, and the music and sound are generated in the browser with the Web Audio API. The page makes no network requests, and runs and settings save only in your browser. It is built to run smoothly on phones: the game is capped at 60 fps, sprites and the camera move in canvas pixels so motion stays smooth, the large pictures sit on their own layers and are only redrawn when they change, the fighters' sprite sheets and portraits are small (about 530 KB for all of them), and if a device starts falling behind in a big fight the game thins out its particle effects on its own until it keeps up again.
 
 | Folder | Contents |
 | --- | --- |
 | `src/` | The game. `src/hero-sprites.js` loads the fighters and turns their weapons |
 | `art/` | The fighters' sprite sheets and weapons, and the pictures they're made from |
-| `model/` | The animated portraits: pixel data, animation code, a viewer and exports |
 | `icons/` | Browser tab and home screen icons |
 | `skin/` | Each fighter's current and awakened sprite as an image |
 | `desc/` | A description of each fighter |

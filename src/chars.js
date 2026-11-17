@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=171';
-import { heroEntrance } from './entrances.js?v=171';
-import { SPR } from './sprites.js?v=171';
-import { A } from './audio.js?v=171';
-import { input } from './input.js?v=171';
-import { best } from './store.js?v=171';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=177';
+import { heroEntrance } from './entrances.js?v=177';
+import { SPR } from './sprites.js?v=177';
+import { A } from './audio.js?v=177';
+import { input } from './input.js?v=177';
+import { best } from './store.js?v=177';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint } from './world.js?v=171';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=177';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -25,12 +25,23 @@ function aimPoint(p, max) {
 const hand = (p) => handPoint(p);
 // the tip of the held weapon along angle a (the end of Morrow's staff, the muzzle of Vega's revolver)
 const weaponTip = (p, a) => {
-  const left = (p.softFacingDirection || 1) < 0, [hx, hy] = hand(p), w = SPR.weapons?.[G.char];
+  const left = (p.softFacingDirection || 1) < 0, [hx, hy] = hand(p), w0 = SPR.weapons?.[G.char], w = G.evo === true && w0?.evo ? w0.evo : w0;
   if (!w) return [hx + Math.cos(a) * 8, hy + Math.sin(a) * 8];
   // along the aim, and across it (flipped when the weapon is mirrored for aiming left)
   const c = w.across * (left ? -1 : 1);
   return [hx + Math.cos(a) * w.along - Math.sin(a) * c, hy + Math.sin(a) * w.along + Math.cos(a) * c];
 };
+// a charged swing sends the enemy shots in its arc back where they came from (Kael, Rivet and Grom): within R of
+// the fighter and inside arc (radians) around the angle a. The first one of a swing makes the loud parry.
+function parryArc(p, a, R, arc, act) {
+  for (const s of G.shots) {
+    if (!canParry(s)) continue;
+    const dx = s.x - p.x, dy = s.y - (p.y - 6), d = hyp(dx, dy), sa = Math.atan2(dy, dx);
+    if (d > R + s.r + 4 || Math.abs(Math.atan2(Math.sin(sa - a), Math.cos(sa - a))) > arc / 2) continue;
+    parry(s, sa, !!act.parried);
+    act.parried = true;
+  }
+}
 const nearest = (x, y, range, skip) => {
   let best = null, bd = range;
   for (const e of G.E) { if (!alive(e) || (skip && skip.has(e))) continue; const d = hyp(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } }
@@ -106,7 +117,9 @@ export const CHARS = {
         shoot({ x: hx + Math.cos(a) * 8, y: hy + Math.sin(a) * 8, a, sp: 260 + 120 * f, dmg: pd(12 * f), kb: 120 + 120 * f, life: 0.25 + 0.4 * f, kind: 'crescent', r: 4 + 6 * f, pierce: 99, c: f >= 1 ? P.gold : P.ember, ug: true, slice: true, trail: false });
         A.charAtk('BLADE', true, 3); A.rift(); shake(0.25 + 0.45 * f); kick(a, 2 + 3 * f); hitstop(0.03 + 0.05 * f);
         sparks(hx, hy, a, 10 + 14 * f, 0.6, P.ember2, 260);
-        return { t: 0, ang: swingThrough(a, 0.08), update(p, dt) { this.t += dt; return this.t >= 0.2; } };
+        const act = { t: 0, ang: swingThrough(a, 0.08), update(p, dt) { this.t += dt; parryArc(p, a, R + 6, 3.6, this); return this.t >= 0.2; } };
+        parryArc(p, a, R + 6, 3.6, act);
+        return act;
       },
     },
     q: {
@@ -678,6 +691,7 @@ export const CHARS = {
         A.heavySwing();
         return { t: 0, hit: false, ang: swingThrough(a, 0.1), update(p, dt) {
           this.t += dt; p.vx *= 0.85; p.vy *= 0.85;
+          if (this.t < 0.22) parryArc(p, a, 34 + 20 * f, 3.4, this);
           if (!this.hit && this.t >= 0.1) {
             this.hit = true;
             const cx = p.x + Math.cos(a) * 16, cy = p.y + Math.sin(a) * 10, R = 20 + 34 * f;
@@ -762,9 +776,12 @@ export const CHARS = {
         p.vx = Math.cos(a) * 50 * f; p.vy = Math.sin(a) * 50 * f;
         return { t: 0, hit: false, ang: swingThrough(a, 0.13, 2.6), update(p, dt) {
           this.t += dt; p.vx *= 0.8; p.vy *= 0.8;
+          if (this.t < 0.2) parryArc(p, a, 36, 3.8, this);
           if (!this.hit && this.t >= 0.13) {
             this.hit = true;
             const cx = p.x + Math.cos(a) * 12, cy = p.y + Math.sin(a) * 7, R = 26 + 74 * f;
+            eraseShots(cx, cy, 0, R);
+            G.quakes.push({ x: cx, y: cy, r: R * 0.6, delay: 0, max: R * 1.35, friendly: true, hit: new Set(), dmg: 0, speed: 260, erase: true });
             for (const e of G.E) {
               if (!alive(e) || e.z > 8) continue;
               const d = hyp(e.x - cx, e.y - cy);
@@ -791,7 +808,7 @@ export const CHARS = {
     onHit(e, sw) {
       if (sw.heavy && G.p.k.slamSwing !== G.p.atkAng) {
         G.p.k.slamSwing = G.p.atkAng;
-        G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 46, friendly: true, hit: new Set([e]), dmg: 3, speed: 200 });
+        G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 46, friendly: true, hit: new Set([e]), dmg: 3, speed: 200, erase: true });
         shake(0.35); A.boom(0.8);
       }
     },
@@ -821,6 +838,7 @@ export const CHARS = {
         if (k.pulseT <= 0) {
           k.pulseT = 0.5;
           addRing(p.x, p.y - 6, P.gold, 220, 0.3, 2);
+          eraseShots(p.x, p.y - 6, 0, 56);
           for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 56) damage(e, pd(6), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 200, src: 'boom' });
           A.boom(0.5); shake(0.15);
         }
@@ -833,7 +851,7 @@ export const CHARS = {
     e: {
       name: 'GROUND SLAM', cost: 40, cd: 4, icon: 'fist', desc: 'SHOCKWAVES THAT STUN',
       use(p) {
-        for (let i = 0; i < 2 + G.up.after; i++) G.quakes.push({ x: p.x, y: p.y, r: 0, delay: i * 0.22, max: 110, friendly: true, hit: new Set(), dmg: 6, speed: 170 });
+        for (let i = 0; i < 2 + G.up.after; i++) G.quakes.push({ x: p.x, y: p.y, r: 0, delay: i * 0.22, max: 110, friendly: true, hit: new Set(), dmg: 6, speed: 170, erase: true });
         hitstop(0.07); shake(0.7); A.boom(1.5); dust(p.x, p.y, 30, 120); scorch(p.x, p.y, 12);
         p.state = 'recover'; p.recT = 0.25;
       },
@@ -1291,27 +1309,57 @@ const FLAIR = {
     if (G.evo !== true && Math.random() < dt * 30) part(p.x + rnd(-3, 3), p.y + 1, rnd(-10, 10), rnd(20, 50), rnd(0.12, 0.25), Math.random() < 0.5 ? P.volt : P.paper, { drag: 4, glow: true });
   },
 };
+// Drawn twice a frame: before the body (front false) and after it (front true), so whatever circles a fighter
+// passes behind them and then in front of them.
 const AURA = {
-  WIZARD(p) {
-    for (let i = 0; i < 3; i++) {
-      const a = G.time * 2.5 + (i * TAU) / 3, x = p.x + Math.cos(a) * 11, y = p.y - 8 + Math.sin(a) * 4;
-      px(x, y, i === 0 ? '#62efff' : '#b48cff'); glow(x, y, '#b48cff', 4, 0.5);
+  // Morrow's orbs (five, gold and pink, once awakened)
+  WIZARD(p, flip, front) {
+    const aw = G.evo === true, n = aw ? 5 : 3;
+    for (let i = 0; i < n; i++) {
+      const a = G.time * 2.5 + (i * TAU) / n, s = Math.sin(a);
+      if ((s >= 0) !== !!front) continue;
+      const x = Math.round(p.x + Math.cos(a) * (aw ? 13 : 11)), y = Math.round(p.y - 8 + s * 4), c = aw ? (i % 2 ? P.gold : '#ff4fa8') : i === 0 ? '#62efff' : '#b48cff';
+      glow(x, y, c, aw ? 6 : 4, 0.55);
+      rect(x - 1, y - 1, 2, 2, c); px(x - 1, y - 1, P.paper);
+      if (aw && Math.random() < 0.15) part(x, y, 0, -rnd(4, 12), 0.4, c, { glow: true, drag: 2 });
     }
   },
-  DEV(p) {
-    // two holo-screens orbit The Dev, scrolling code
-    for (let i = 0; i < 2; i++) {
-      const a = G.time * 1.3 + i * Math.PI, x = Math.round(p.x + Math.cos(a) * 15 - 4), y = Math.round(p.y - 16 + Math.sin(a) * 5);
-      ctx.globalAlpha = 0.55; rect(x, y, 9, 7, '#0b2a16'); ctx.globalAlpha = 1;
-      rect(x, y, 9, 1, '#39ff6a'); rect(x, y + 6, 9, 1, '#1a7a3a');
-      for (let r = 0; r < 3; r++) rect(x + 1, y + 2 + r * 1.5, 2 + ((Math.floor(G.time * 8) + r * 3 + i) % 6), 1, r === 1 ? P.paper : '#39ff6a');
-      glow(x + 4, y + 3, '#39ff6a', 6, 0.35);
+  // holo screens orbit The Dev; awakened as Root he runs four, bigger, and windows keep popping up around him
+  DEV(p, flip, front) {
+    const aw = G.evo === true, n = aw ? 4 : 2, col = aw ? '#62efff' : '#39ff6a';
+    for (let i = 0; i < n; i++) {
+      const a = G.time * (aw ? 1.6 : 1.3) + (i * TAU) / n, s = Math.sin(a);
+      if ((s >= 0) !== !!front) continue;
+      const w = aw ? 10 : 9, h = aw ? 8 : 7, x = Math.round(p.x + Math.cos(a) * (aw ? 21 : 15) - w / 2), y = Math.round(p.y - 16 + s * 5 - (aw ? 2 : 0));
+      ctx.globalAlpha = 0.6; rect(x, y, w, h, aw ? '#04121a' : '#0b2a16'); ctx.globalAlpha = 1;
+      rect(x, y, w, 1, col); rect(x, y + h - 1, w, 1, aw ? '#1a6a7a' : '#1a7a3a');
+      if (aw && i % 2) {
+        // a scrolling graph
+        for (let c = 0; c < w - 2; c++) px(x + 1 + c, y + 2 + Math.round((h - 4) / 2 + Math.sin(G.time * 6 + c * 0.9 + i) * ((h - 4) / 2)), c % 3 ? col : P.paper);
+      } else for (let r = 0; r < (aw ? 4 : 3); r++) rect(x + 1, y + 2 + r * 1.5, 2 + ((Math.floor(G.time * 8) + r * 3 + i) % (w - 3)), 1, r === 1 ? P.paper : col);
+      glow(x + w / 2, y + h / 2, col, aw ? 8 : 6, 0.35);
+    }
+    if (!aw || !front) return;
+    // pop-up windows: one opens every so often near him, shows a word, and closes
+    const k = p.k, now = G.time;
+    k.pops = (k.pops || []).filter((q) => now - q.t < 1.1);
+    if (now - (k.popT ?? -9) > 0.95) {
+      k.popT = now;
+      const side = Math.random() < 0.5 ? -1 : 1;
+      k.pops.push({ t: now, dx: side < 0 ? rnd(-46, -30) : rnd(14, 26), dy: rnd(-44, -30), w: ['ROOT', 'SUDO', '0XFF', 'KILL', 'EXEC', '404'][Math.floor(rnd(6))] });
+    }
+    for (const q of k.pops) {
+      const age = now - q.t, open = Math.min(1, age / 0.08, (1.1 - age) / 0.12), w = Math.round(22 * open), x = Math.round(p.x + q.dx), y = Math.round(p.y + q.dy);
+      if (w < 2) continue;
+      rect(x - 1, y - 1, w + 2, 11, P.ink0); rect(x, y, w, 9, '#04121a'); rect(x, y, w, 2, Math.floor(age * 12) % 2 ? '#ff4fa8' : col);
+      if (open >= 1) text(q.w, x + 2, y + 3, P.paper);
+      glow(x + w / 2, y + 4, col, 8, 0.25);
     }
   },
-  // the tread glow and the core glow sit where the treaded body is; Omega hovers higher and glows at its jets
-  ROBOT(p) { if (G.evo === true) return; glow(p.x, p.y, P.volt, 8 + Math.sin(G.time * 30), 0.35); glow(p.x, p.y - 8, P.volt, 5 + Math.sin(G.time * 6) * 2, 0.35); },
-  BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
-  TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
+  // the tread glow and the core glow sit where the treaded body is; Omega flies and glows at its jets (world.js)
+  ROBOT(p, flip, front) { if (front || G.evo === true) return; glow(p.x, p.y, P.volt, 8 + Math.sin(G.time * 30), 0.35); glow(p.x, p.y - 8, P.volt, 5 + Math.sin(G.time * 6) * 2, 0.35); },
+  BLADE(p, flip, front) { if (!front) glow(p.x, p.y - 8, G.evo === true ? P.gold : P.ember, 12, G.evo === true ? 0.22 : 0.12); },
+  TANK(p, flip, front) { if (!front) glow(p.x, p.y - 12, G.evo === true ? '#ff1a2a' : '#ff9a3c', 6, 0.25); },
 };
 const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#a070ff', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
 // ---------- awakened powers ----------
@@ -1399,20 +1447,20 @@ const AWAKE = {
       shoot({ x: p.x + Math.cos(p.atkAng) * 12, y: p.y - 4, a: p.atkAng, sp: 220, dmg: pd(st.heavy ? 8 : 5), kb: 200, life: 0.45, kind: 'crescent', r: st.heavy ? 8 : 6, pierce: 99, c: '#8fa2bd', ug: true, slice: false, trail: false });
       if (shape === 'slam' || shape === 'spin') G.timers.push({ t: shape === 'slam' ? 0.24 : 0.12, fn: () => {
         const q = G.p, cx = q.x + Math.cos(q.atkAng) * 18, cy = q.y + Math.sin(q.atkAng) * 10;
-        G.quakes.push({ x: cx, y: cy, r: 0, delay: 0, max: 80, friendly: true, hit: new Set(), dmg: 8, speed: 240, c: P.gold, c2: P.gold2 });
+        G.quakes.push({ x: cx, y: cy, r: 0, delay: 0, max: 80, friendly: true, hit: new Set(), dmg: 8, speed: 240, c: P.gold, c2: P.gold2, erase: true });
         for (let i = 0; i < 6; i++) { const b = (i * TAU) / 6; G.booms.push({ x: clamp(cx + Math.cos(b) * 34, B.x0 + 6, B.x1 - 6), y: clamp(cy + Math.sin(b) * 22, B.y0 + 6, B.y1 - 4), t: 0.08 + i * 0.03, friendly: true, R: 16, dmg: 6 }); }
         shake(0.5); A.boom(1);
       } });
     },
     charge: (p, f) => { for (let i = 0; i < 8; i++) { const b = (i * TAU) / 8, R = 40 + 50 * f; G.booms.push({ x: clamp(p.x + Math.cos(b) * R, B.x0 + 6, B.x1 - 6), y: clamp(p.y + Math.sin(b) * R * 0.7, B.y0 + 6, B.y1 - 4), t: 0.25 + i * 0.03, friendly: true, R: 20, dmg: Math.round(8 + 10 * f) }); }
-      for (let i = 1; i <= 3; i++) G.quakes.push({ x: p.x + Math.cos(p.aim) * 12, y: p.y + Math.sin(p.aim) * 7, r: 0, delay: 0.13 + i * 0.2, max: 70 + 80 * f, friendly: true, hit: new Set(), dmg: Math.round(10 * f), speed: 260, c: P.gold, c2: P.gold2 }); },
+      for (let i = 1; i <= 3; i++) G.quakes.push({ x: p.x + Math.cos(p.aim) * 12, y: p.y + Math.sin(p.aim) * 7, r: 0, delay: 0.13 + i * 0.2, max: 70 + 80 * f, friendly: true, hit: new Set(), dmg: Math.round(10 * f), speed: 260, c: P.gold, c2: P.gold2, erase: true }); },
     hit: (e) => { for (const t of awNear(e.x, e.y, 26, 99, e)) damage(t, pd(2), { dir: Math.atan2(t.y - e.y, t.x - e.x), kb: 160, src: 'bolt' }); addRing(e.x, e.y - 2, P.gold, 90, 0.18, 1); },
     skill: (p) => { awBurst(p, 60, pd(5), P.gold, { kb: 260, each: (e) => awStun(e, 0.8) }); A.boom(0.8); },
     ult: (p) => { awBurst(p, 120, pd(10), P.gold, { kb: 380, each: (e) => awStun(e, 1.4) }); A.boom(1.4); },
   },
   // Unit-7 Omega: the laser scorches what it touches; its powers launch homing mini-rockets; the Orbital Laser comes with a rocket barrage
   ROBOT: {
-    pal: { col: '#ff4fa8', slash: 'hex', map: { [P.volt]: '#ff4fa8', [P.volt2]: '#a0206a', '#62efff': '#ff4fa8', [P.ember2]: P.gold } },
+    pal: { col: '#ff2a3a', slash: 'blood', map: { [P.volt]: '#ff2a3a', [P.volt2]: '#7a0a14', '#62efff': P.gold, [P.ember2]: P.gold, '#c8ffff': '#fff2c0' } },
     hit: (e) => awBurn(e, 1.5, 3),
     skill: (p) => { for (let i = 0; i < 3; i++) shoot({ x: p.x, y: p.y - 10, a: p.aim + (i - 1) * 0.5, sp: 170, dmg: pd(3), kb: 60, life: 1.8, kind: 'rocket', homing: 5, splash: { R: 18, dmg: pd(4) }, c: P.ember2, ug: false }); A.rocket(); },
     ult: (p) => { for (let i = 0; i < 8; i++) shoot({ x: p.x, y: p.y - 10, a: (i * TAU) / 8, sp: 170, dmg: pd(4), kb: 80, life: 2, kind: 'rocket', homing: 5, splash: { R: 22, dmg: pd(6) }, c: P.ember2, ug: false }); A.rocket(); },
