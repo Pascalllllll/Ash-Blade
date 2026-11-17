@@ -668,6 +668,17 @@ export const A = {
   fuse() { if (gate('fuse', 0.08)) tone('square', 1200, 1200, 0.04, 0.05); },
   step() { if (gate('step', 0.1)) hiss(0.03, 0.05, 'lowpass', 900, 400, 1); },
   splat() { if (gate('splat', 0.05)) { hiss(0.15, 0.3, 'lowpass', 900, 200, 2); tone('sine', 180, 60, 0.1, 0.2); } },
+  // ----- the heroes' entrances and deaths -----
+  // a wet crunch: a blade or a hammer through flesh and bone
+  gore(sz = 1) { if (gate('gore', 0.05)) { tone('sine', 150, 36, 0.2 * sz + 0.08, 0.9, crunch); hiss(0.25 * sz, 0.55, 'lowpass', 1600, 140, 3); tone('square', 520, 90, 0.05, 0.14, crunch); hiss(0.05, 0.35, 'bandpass', 2600, 1300, 5); } },
+  // blood pumping out of a wound
+  squirt() { if (gate('squirt', 0.07)) hiss(0.14, 0.22, 'bandpass', 2000, 500, 5); },
+  // a deep church bell
+  bell() { if (!ac) return; tone('sine', 196, 195, 2.4, 0.22); tone('sine', 494, 492, 1.6, 0.09); tone('triangle', 784, 782, 0.9, 0.04); hiss(0.05, 0.15, 'highpass', 5000, 5000, 1); },
+  beep(f = 1200) { if (gate('beep', 0.05)) tone('square', f, f, 0.07, 0.06); },
+  // power gathering: a rising whine over d seconds
+  powerUp(d = 1) { if (!ac) return; tone('sawtooth', 70, 520, d, 0.07); tone('sine', 140, 1040, d, 0.05); hiss(d, 0.12, 'bandpass', 300, 3000, 2); },
+  crack() { if (gate('crack', 0.04)) { tone('square', 1800, 200, 0.03, 0.12, crunch); hiss(0.06, 0.4, 'highpass', 3500, 1500, 2); } },
   warn() { if (gate('warn', 0.2)) { tone('square', 880, 880, 0.08, 0.06); tone('square', 660, 660, 0.08, 0.06, sfx, ac.currentTime + 0.1); } },
   waveStart(boss) {
     if (!ac) return;

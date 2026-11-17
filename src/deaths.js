@@ -1,9 +1,12 @@
-// Signature deaths and kills. Every fighter dies their own way (a short scene played in real time,
-// so the death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, line, glow, textO } from './gfx.js?v=170';
-import { A } from './audio.js?v=170';
-import { G, TAU, rnd, clamp, part, bleed, splat, dust, sparks, scorch, addRing, addText, glitch, flash, shake, heroSet, sprFor, handPoint } from './world.js?v=170';
-import { drawWeaponAt } from './hero-sprites.js?v=170';
+// Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
+// death slow-motion doesn't drag it out), and every fighter kills their own way.
+import { ctx, P, rect, line, glow, text, textO, makeCanvas } from './gfx.js?v=171';
+import { A } from './audio.js?v=171';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=171';
+import {
+  BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
+  stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
+} from './scene-fx.js?v=171';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
@@ -81,222 +84,502 @@ export const KILLS = {
 };
 
 // ---------- signature deaths ----------
-const at = (d, s) => d.prev < s && d.t >= s;
-// the fighter's body: rot pivots at the feet, top/bottom keep only some sprite rows, z lifts it
-function body(d, o = {}) {
-  const s = d.spr, img = o.tint ? s.tint(o.tint, d.flip) : d.flip ? s.f : s.n;
-  const top = clamp(Math.round(o.top || 0), 0, s.h), bot = clamp(Math.round(o.bottom ?? s.h), top, s.h);
-  if (bot <= top) return;
-  ctx.save();
-  ctx.globalAlpha = o.alpha ?? 1;
-  ctx.translate(Math.round(d.x + (o.dx || 0)), Math.round(d.y + 1 - (o.z || 0)));
-  if (o.rot) ctx.rotate(o.rot);
-  if (o.sx !== undefined || o.sy !== undefined) ctx.scale(o.sx ?? 1, o.sy ?? 1);
-  ctx.drawImage(img, 0, top * s.k, s.w * s.k, (bot - top) * s.k, -Math.round(s.w / 2), -s.h + top, s.w, bot - top);
-  ctx.restore();
-}
-const back = (d) => (d.flip ? 1 : -1); // the direction behind the fighter
-const fwd = (d) => -back(d);
+// Each death is a short, gory scene in real time: the death screen comes up 3.4 seconds in and the scene keeps
+// playing under it. The scene draws the body itself (the player sprite is hidden once dead): whole and posed, or cut
+// into pieces (scene-fx.js cutFrame) that fly, bounce, bleed and leave pools.
+const OIL = ['#1a1820', '#2e2a36', '#0e0c12'];
+const VIOLET = '#b48cff', GREEN = '#39ff6a', PINK = '#ff4fa8';
+const CELL = 120, FOOT = 92;
+const mx = (d, x) => (d.flip ? CELL - x : x);                 // a cell column on the side the hero faces
+const cw = (d, cx, cy) => cellToWorld(cx, cy, d.x, d.y);      // a point on the (already mirrored) cell, in the world
+const bodyTop = () => heroSet().rig?.top ?? 40;
 
-// Every fighter's death is the six drawn death frames from their sprite sheet (a hit, a stagger, the fall, lying
-// still, and the last frame where the body is gone), with the fighter's own effects timed to those frames.
-const STEP = 0.16;                                            // seconds per drawn frame
-const LAND = 4 * STEP;                                       // the frame where the body hits the ground
-const GONE = 7 * STEP;                                       // the last frame: the body turns to dust, ash, scrap
-function frameAt(d) { const f = d.frames; return f[Math.min(f.length - 1, Math.floor(d.t / STEP))]; }
-// the drawn body: the current frame, a white flash on the killing blow, and the last frame fading away
-function sheetBody(d, o = {}) {
-  const fade = d.t > GONE + 0.6 ? clamp(1 - (d.t - GONE - 0.6) / 0.8, 0, 1) : 1;
-  if (fade > 0) body(d, { tint: d.t < 0.08 ? P.paper : o.tint || null, alpha: fade * (o.alpha ?? 1), dx: o.dx || 0 });
+// the dropped weapon: flies and spins, then lands flat, or (stick) comes down point first and stays standing
+function dropWeapon(d, o = {}) {
+  const name = o.name || weaponName();
+  if (!name) return null;
+  const [hx, hy] = o.from || handPos(d.x, d.y, { flip: d.flip });
+  d.wpn = { name, x: hx, y: d.y + 1, z: Math.max(2, d.y - hy), vx: o.vx ?? -d.f * rnd(20, 40), vy: o.vy ?? rnd(-8, 8), vz: o.vz ?? rnd(80, 120), a: o.a ?? restAngle(d.flip, name), spin: o.spin ?? d.f * rnd(10, 16), stick: !!o.stick, rest: false, alpha: 1, onLand: o.onLand };
+  return d.wpn;
 }
-const center = (d) => [d.x, d.y - d.spr.h * 0.45];
+function stepWeapon(d, dt) {
+  const w = d.wpn;
+  if (!w || w.rest) return;
+  w.vz -= 430 * dt; w.z += w.vz * dt; w.x += w.vx * dt; w.y += w.vy * dt;
+  if (w.stick) {
+    const L = weaponLen(w.name), down = Math.PI / 2;
+    // on the way down it turns point first
+    if (w.vz < 0) { const diff = Math.atan2(Math.sin(down - w.a), Math.cos(down - w.a)); w.a += diff * Math.min(1, 9 * dt); w.spin *= Math.exp(-6 * dt); }
+    w.a += w.spin * dt;
+    if (w.vz < 0 && w.z <= L * 0.78) {
+      w.rest = true; w.z = L * 0.78; w.a = down + rnd(-0.22, 0.22);
+      A.wall(); A.crack(); dust(w.x, w.y, 6, 40); sparks(w.x, w.y, -Math.PI / 2, 8, 1, P.paper, 100); stain(w.x, w.y + 1, '#050308', 2);
+      w.onLand?.(w);
+    }
+    return;
+  }
+  w.a += w.spin * dt;
+  if (w.z <= 0 && w.vz < 0) {
+    w.z = 0;
+    if (w.vz < -60) { w.vz *= -0.35; w.vx *= 0.5; w.vy *= 0.5; w.spin *= 0.4; A.click(); dust(w.x, w.y, 3, 30); w.onLand?.(w); }
+    else { w.rest = true; w.vx = w.vy = 0; w.a = Math.round(w.a / Math.PI) * Math.PI + (d.flip ? -0.08 : 0.08); }
+  }
+}
+function drawDropped(d) {
+  const w = d.wpn;
+  if (!w || w.alpha <= 0) return;
+  if (w.z > 3 && !w.rest) shadow(w.x, w.y, 3);
+  drawWeapon(w.x, w.y - w.z, w.a, d.flip, w.alpha, w.name);
+}
+// one piece turned back into a frame, so it can be cut again (Unit-7's body after its head is off)
+function pieceAsFrame(pc) { const c = makeCanvas(CELL, 96); c.getContext('2d').drawImage(pc.cv, pc.ox, pc.oy); return { n: c, f: c, w: 40, h: 32, k: 3 }; }
+const poolUnder = (d, b, r, c) => addPool(d.pools, b.x, b.y + 1, r ?? clamp(Math.sqrt(b.pc.n) / 3.4, 2.5, 9), c ? { c } : {});
+// pieces burst out from a point: away from it, up, spinning
+function burstPieces(list, cx, cy, sp, up, spin) {
+  for (const b of list) {
+    const dx = b.x - cx, dz = b.z - cy, n = Math.hypot(dx, dz) || 1;
+    b.held = false; b.vx = (dx / n) * sp * rnd(0.6, 1.2); b.vy = rnd(-1, 1) * sp * 0.35; b.vz = up * rnd(0.6, 1.2) + (dz / n) * sp * 0.4; b.vr = rnd(-spin, spin); b.bleed = rnd(0.8, 1.4);
+  }
+}
+const OIL_POOL = ['#0a0a10', '#1e1c26', '#3a3646'];
+const PINK_POOL = ['#3d0610', '#6e0a18', '#ff8fb8'];
 
 const DEATHS = {
-  // Kael falls; embers burst where he lands and rise off him, and as his last frame turns to dust they blow away as ash.
+  // Kael: one cut through the chest. A beat of stillness, then his top half slides off along it and his legs fold;
+  // blood pumps from the stump, both halves catch his own fire and burn to ash on the wind, and his sword comes down
+  // point first and stays standing in the floor.
   BLADE: {
     line: 'THE LAST EMBER GOES OUT', col: P.ember,
-    update(d, dt) {
-      d.spr = frameAt(d);
-      if (at(d, LAND)) { A.wall(); dust(d.x, d.y, 10, 40); sparks(d.x, d.y - 3, -Math.PI / 2, 14, 0.7, P.ember2, 140); }
-      if (d.t > LAND && d.t < GONE + 1.2 && Math.random() < dt * 45) {
-        const k = d.t > GONE ? 1 : 0.4;
-        part(d.x + rnd(-8, 8), d.y - rnd(0, 8), 14 * k + rnd(-8, 8), -rnd(10, 40), rnd(0.8, 1.6), Math.random() < 0.45 ? P.ember : Math.random() < 0.5 ? '#6a5a5a' : '#3a3030', { drag: 0.8, glow: Math.random() < 0.3 });
-      }
-      if (at(d, GONE)) A.smoke();
+    start(d) {
+      const T = bodyTop(), H = FOOT - T, a = [mx(d, 20), T + H * 0.48], b = [mx(d, 100), T + H * 0.8];
+      d.pieces = placePieces(cutFrame(frame('idle', 0), d.flip, [[...a, ...b]]).sort((p, q) => p.cy - q.cy), d.x, d.y);
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      d.s.u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; d.s.mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const [x0, y0] = cw(d, ...a), [x1, y1] = cw(d, ...b), ex = (x1 - x0) * 1.4, ey = (y1 - y0) * 1.4;
+      d.s.slash = [x0 - ex, y0 - ey, x1 + ex, y1 + ey];
+      A.riftCut(); A.gore(1.3);
     },
-    draw(d) { glow(d.x, d.y - 4, P.ember, 10, d.t > LAND ? 0.25 : 0); sheetBody(d); },
+    update(d, dt) {
+      const [up, low] = d.pieces, t = d.t;
+      if (at(d, 0.34) && up) {
+        up.held = false; up.vx = d.s.u[0] * 46; up.vz = 34; up.vr = Math.sign(d.s.u[0]) * 2.6; up.bleed = 1.1;
+        A.gore(0.8); A.squirt();
+        dropWeapon(d, { stick: true, vz: 200, vx: -d.f * 16, spin: d.f * 16 });
+      }
+      if (at(d, 0.82) && low) { low.held = false; low.vx = -d.s.u[0] * 12; low.vz = 16; low.vr = -Math.sign(d.s.u[0]) * 3.2; low.bleed = 1.4; A.wall(); }
+      // the stump pumps blood, weaker with every beat
+      if (low && t > 0.34 && t < 1.7 && Math.floor(t / 0.13) !== Math.floor(d.prev / 0.13)) {
+        const [sx, sy] = pieceToWorld(low, ...d.s.mid), f = 1.35 * (1 - (t - 0.34) / 1.4);
+        spurt(sx, low.y, Math.max(1, low.y - sy), rnd(TAU), f, 5, BLOOD, 1.6); A.squirt();
+      }
+      // his own fire takes both halves, then they fall to ash on the wind
+      if (t > 1.35 && t < 2.1) for (const b of d.pieces) {
+        b.tint = P.ember; b.tintK = clamp((t - 1.35) / 0.6, 0, 1) * 0.8;
+        if (Math.random() < dt * 30) part(b.x + rnd(-5, 5), b.y, rnd(-6, 6), 0, rnd(0.4, 0.8), Math.random() < 0.5 ? P.ember : P.ember2, { z: b.z + rnd(0, 3), vz: rnd(20, 60), glow: true, drag: 1 });
+      }
+      if (at(d, 1.35)) { A.smoke(); A.crack(); }
+      if (at(d, 2.1)) {
+        A.smoke();
+        for (const b of d.pieces) {
+          eachPiecePixel(b, (x, y, c) => part(x, b.y, rnd(15, 70) * -d.f + rnd(-10, 10), rnd(-8, 8), rnd(0.8, 1.8), Math.random() < 0.3 ? P.ember : Math.random() < 0.5 ? '#6a5a5a' : '#3a3030', { z: Math.max(0, b.y - y), vz: rnd(5, 40), drag: 0.8, glow: Math.random() < 0.15 }));
+          b.alpha = 0; scorch(b.x, b.y, 5);
+        }
+      }
+      stepPieces(d.pieces, dt, { onBounce: (b) => { A.splat(); splat(b.x, b.y, 4, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b) });
+    },
+    draw(d) {
+      if (d.t < 0.3) { const k = 1 - d.t / 0.3, [x0, y0, x1, y1] = d.s.slash; line(x0, y0, x1, y1, P.blood, Math.max(1, Math.round(5 * k))); line(x0, y0, x1, y1, P.paper, Math.max(1, Math.round(3 * k))); glow((x0 + x1) / 2, (y0 + y1) / 2, P.paper, 16, 0.6 * k); }
+      drawPieces(d.pieces);
+      if (d.t > 1.35 && d.t < 2.1) for (const b of d.pieces) glow(b.x, b.y - b.z, P.ember, 8, 0.4);
+    },
   },
 
-  // Vega falls in her drawn frames; her revolver drops beside her and fires one last shot into the sky.
+  // Vega: riddled. Six shots from out of nowhere jerk her about and open exit wounds, the seventh takes her hat off
+  // and half her head with it; she staggers, drops to her knees, fires one last shot at the sky and pitches forward
+  // into her own blood, the revolver sliding out of her hand.
   GUNNER: {
     line: 'ONE BULLET SHORT', col: P.gold,
+    start(d) {
+      const fr = frame('idle', 0), hat = 56.5;
+      d.s.hat = placePieces(cutFrame(fr, d.flip, [[0, hat, CELL, hat]], { clean: true }).filter((pc) => pc.cy < hat), d.x, d.y);
+      d.s.hatRow = hat; d.s.holes = []; d.s.jx = 0; d.s.jr = 0; d.s.white = 0;
+      d.s.hits = [0, 0.13, 0.24, 0.34, 0.46, 0.6];
+    },
+    pose(d) {
+      // standing, staggering back, on her knees, then face down
+      const t = d.t, s = d.s, o = { flip: d.flip, dx: 0 };
+      let fr = frame('idle', 0), rot = s.jr, x = d.x + s.jx;
+      if (t > 0.82) x -= d.f * 4 * ease((t - 0.82) / 0.35) + Math.sin(t * 18) * (t < 1.2 ? 0.8 : 0);
+      if (t > 1.2) fr = frame('death', 2);
+      if (t > 2.05) rot = d.f * (Math.PI / 2) * easeIn((t - 2.05) / 0.25);
+      return { fr, x, o: { ...o, rot, pivot: [0, 0], top: t > 0.8 ? (s.hatRow + (t > 1.2 ? 3 : 0)) / 3 : 0, tint: s.white > 0 ? P.paper : null } };
+    },
     update(d, dt) {
-      d.spr = frameAt(d);
-      if (at(d, LAND)) {
-        A.wall(); dust(d.x, d.y, 12, 50); shake(0.3);
-        d.gun = { x: d.x + fwd(d) * 11, y: d.y + 2, z: 10, vz: 60 };
+      const t = d.t, s = d.s;
+      s.jx *= Math.exp(-14 * dt); s.jr *= Math.exp(-12 * dt); s.white -= dt;
+      for (const ht of s.hits) if (at(d, ht)) {
+        const a = (d.flip ? 0 : Math.PI) + rnd(-0.7, 0.7), cx = mx(d, 60 + rnd(-7, 7)), cy = rnd(68, 84);
+        s.holes.push([cx, cy]);
+        const [wx, wy] = cw(d, cx, cy);
+        s.jx = Math.cos(a + Math.PI) * -3; s.jr = rnd(-0.1, 0.1); s.white = 0.05;
+        spurt(wx, d.y, d.y - wy, a + Math.PI, 1.1, 7); spurt(wx, d.y, d.y - wy, a, 0.4, 3);
+        A.gun(); A.gore(0.45); shake(0.14); kick(a + Math.PI, 2);
       }
-      const g = d.gun;
-      if (g) { g.vz -= 300 * dt; g.z = Math.max(0, g.z + g.vz * dt); if (g.z === 0) g.vz = Math.abs(g.vz) > 30 ? -g.vz * 0.3 : 0; }
-      if (at(d, LAND + 1.0) && g) {
-        A.gun(); A.click(); shake(0.2);
-        for (let i = 0; i < 8; i++) part(g.x + 3, g.y - 2, rnd(-30, 30), -rnd(40, 120), rnd(0.1, 0.25), Math.random() < 0.5 ? P.paper : P.gold, { drag: 6, glow: true });
-        d.shot = 0.12;
+      if (at(d, 0.8)) {
+        // the head shot
+        const [hx, hy] = cw(d, mx(d, 60), 58);
+        for (const b of s.hat) { b.held = false; b.x += s.jx; b.vx = -d.f * 55; b.vz = 160; b.vr = -d.f * 10; }
+        spurt(hx, d.y, d.y - hy, d.flip ? 0 : Math.PI, 1.5, 14, BLOOD, 1.3); chunks(hx, d.y, d.y - hy, 6, ['#c4243a', '#e8d8c8', '#8a0f22'], 0.8);
+        A.gun(); A.gore(1.2); shake(0.45); kick(d.flip ? 0 : Math.PI, 3); s.white = 0.06;
       }
-      if (d.shot > 0) d.shot -= dt;
+      if (at(d, 1.2)) { A.wall(); dust(d.x, d.y, 8, 40); }
+      if (at(d, 1.88)) {
+        const [hx, hy] = handPos(d.x - d.f * 4, d.y, { flip: d.flip }), a = -Math.PI / 2 - d.f * 0.12, L = weaponLen(), tx = hx + Math.cos(a) * L, ty = hy + 3 + Math.sin(a) * L;
+        A.gun(); A.click(); shake(0.15); s.shot = 0.09; s.muz = [tx, ty];
+        for (let i = 0; i < 8; i++) part(tx, ty, rnd(-30, 30), -rnd(40, 120), rnd(0.1, 0.25), Math.random() < 0.5 ? P.paper : P.gold, { drag: 6, glow: true });
+        part(hx, d.y, -d.f * rnd(20, 40), 0, 1.4, P.gold2, { z: d.y - hy, vz: rnd(60, 90), g: 300, drag: 1.5 });
+      }
+      if (s.shot > 0) s.shot -= dt;
+      if (at(d, 2.3)) {
+        A.wall(); A.splat(); shake(0.3); dust(d.x, d.y, 10, 50); splat(d.x + d.f * 8, d.y, 7, P.blood, P.bloodD);
+        addPool(d.pools, d.x + d.f * 9, d.y + 1, 13, { k: 0.9 });
+        dropWeapon(d, { from: [d.x + d.f * 14, d.y - 3], vz: 40, vx: d.f * 30, spin: d.f * 6 });
+      }
+      stepPieces(s.hat, dt, { onBounce: () => A.click() });
     },
     draw(d) {
-      sheetBody(d);
-      const g = d.gun;
-      if (g) {
-        const y = g.y - g.z, tip = g.x + fwd(d) * 5;
-        drawWeaponAt(ctx, 'revolver', !!heroSet().evolved, g.x, y, d.flip ? Math.PI : 0, d.flip);
-        if (d.shot > 0) { line(tip, y - 2, tip + 1, y - 60, P.paper); glow(tip, y - 1, P.gold, 10, 0.8); }
-      }
+      const t = d.t, s = d.s, { fr, x, o } = this.pose(d);
+      // the revolver stays in her hand until she falls; it points at the sky for the last shot
+      let wa = restAngle(d.flip);
+      if (t > 1.4 && t < 2.05) wa = wa + (-Math.PI / 2 - d.f * 0.12 - wa) * ease((t - 1.4) / 0.35) + Math.sin(t * 40) * 0.03;
+      drawHero(fr, x, d.y, { ...o, front: t > 1.4 }, t < 2.05 ? wa : null);
+      // the bullet holes, wherever the body is now
+      const dy = t > 1.2 ? 3 : 0;
+      for (const [hx, hy] of s.holes) { const [wx, wy] = cellToWorld(hx, hy + dy, x, d.y, { ...o, flip: false }); rect(wx, wy, 1, 1, '#3d0610'); if (t < 2.05) rect(wx, wy + 1, 1, 1, P.blood); }
+      if (s.shot > 0 && s.muz) { const [tx, ty] = s.muz; line(tx, ty, tx - d.f * 2, ty - 120, P.paper); glow(tx, ty, P.gold, 10, 0.9); }
+      if (t >= 0.8) drawPieces(s.hat);
     },
   },
 
-  // Morrow's last spell turns on him: violet light pulls in as he staggers, bursts out as his robe collapses, and
-  // motes rise from the empty robe.
+  // Morrow: his own spell eats him. He's lifted off the floor, shaking, violet light splitting through him; then it
+  // tears him apart into burning chunks that rain down with his blood, and the rags of his robe drift down after.
   WIZARD: {
-    line: 'THE SPELL WAS NEVER FINISHED', col: '#b48cff',
+    line: 'THE SPELL WAS NEVER FINISHED', col: VIOLET,
+    start(d) { d.s.cr = makeCracks(0, 0, 7, 9, 1); A.powerUp(0.9); dropWeapon(d, { vz: 70, vx: -d.f * 30, spin: d.f * 6, onLand: (w) => { if (!w.cracked) { w.cracked = true; addRing(w.x, w.y - 2, VIOLET, 120, 0.3, 1); A.freeze(); sparks(w.x, w.y - 2, -Math.PI / 2, 10, 1.4, VIOLET, 120); } } }); },
+    z: (d) => 14 * ease(d.t / 0.6),
     update(d, dt) {
-      d.spr = frameAt(d);
-      const [cx, cy] = center(d);
-      if (d.t < LAND && Math.random() < dt * 70) { const a = rnd(TAU), r = rnd(18, 36); part(cx + Math.cos(a) * r, cy + Math.sin(a) * r, -Math.cos(a) * r * 2.6, -Math.sin(a) * r * 2.6, 0.35, Math.random() < 0.5 ? '#b48cff' : '#62efff', { drag: 1, glow: true }); }
-      if (at(d, STEP) || at(d, 2 * STEP)) { addRing(cx, cy, '#b48cff', -60, 0.3, 1, 40); A.magic(); }
-      if (at(d, LAND)) {
-        flash('#b48cff', 0.2, true); shake(0.7); A.boom(1.1);
-        addRing(cx, cy, '#b48cff', 320, 0.5, 3); addRing(cx, cy, P.paper, 220, 0.4, 1);
-        for (let i = 0; i < 50; i++) { const a = rnd(TAU), v = rnd(60, 240); part(cx, cy, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.9), Math.random() < 0.5 ? '#b48cff' : P.paper, { drag: 3, glow: true }); }
-        scorch(d.x, d.y, 10);
+      const t = d.t, z = this.z(d), cy = d.y - z - 9;
+      if (t < 0.92) {
+        if (Math.random() < dt * 80) { const a = rnd(TAU), r = rnd(16, 34); part(d.x + Math.cos(a) * r, d.y, -Math.cos(a) * r * 2.4, 0, 0.35, Math.random() < 0.5 ? VIOLET : '#62efff', { z: d.y - cy + Math.sin(a) * r, vz: -Math.sin(a) * r * 2.4, drag: 1, glow: true }); }
+        if (Math.random() < dt * 10) G.bolts.push({ x0: d.x + rnd(-14, 14), y0: d.y, x1: d.x + rnd(-3, 3), y1: cy + rnd(-4, 4), t: 0, life: 0.1, c1: P.paper, c2: VIOLET, c3: '#5a2a9a' });
+        if (at(d, 0.45)) A.zap();
+        if (Math.random() < dt * 12) spurt(d.x + rnd(-3, 3), d.y, z + rnd(4, 12), rnd(TAU), 0.5, 2);
       }
-      if (d.t > LAND && Math.random() < dt * 8) part(d.x + rnd(-6, 6), d.y - rnd(2, 8), 0, -rnd(10, 24), rnd(0.8, 1.4), Math.random() < 0.5 ? '#b48cff' : '#62efff', { drag: 0.6, glow: true });
+      if (at(d, 0.92)) {
+        const T = bodyTop(), H = FOOT - T, c = [60, T + H * 0.55];
+        const lines = Array.from({ length: 4 }, (_, i) => { const a = (i / 4) * Math.PI + rnd(-0.3, 0.3), ox = c[0] + rnd(-4, 4), oy = c[1] + rnd(-6, 6); return [ox - Math.cos(a) * 60, oy - Math.sin(a) * 60, ox + Math.cos(a) * 60, oy + Math.sin(a) * 60]; });
+        d.pieces = placePieces(cutFrame(frame('idle', 0), d.flip, lines, { wound: { edge: '#b48cff', flesh: [178, 18, 42], hi: [255, 230, 255], bone: [236, 222, 204] } }), d.x, d.y, (b) => { b.z += z; });
+        burstPieces(d.pieces, d.x, z + 9, 115, 150, 14);
+        flash(VIOLET, 0.25, true); shake(1); kick(-Math.PI / 2, 5); A.boom(1.8); A.gore(1.6);
+        addRing(d.x, cy, P.paper, 380, 0.35, 3); addRing(d.x, cy, VIOLET, 300, 0.5, 4);
+        for (let i = 0; i < 60; i++) { const a = rnd(TAU), v = rnd(60, 260); part(d.x, d.y, Math.cos(a) * v, Math.sin(a) * v * 0.5, rnd(0.3, 0.9), Math.random() < 0.5 ? VIOLET : P.paper, { z: z + 9, vz: rnd(-60, 160), drag: 3, glow: true }); }
+        for (let i = 0; i < 4; i++) spurt(d.x, d.y, z + 9, rnd(TAU), 1.4, 8, BLOOD, 1.4);
+        chunks(d.x, d.y, z + 9, 14, ['#c4243a', '#8a0f22', '#e8d8c8', '#5a2a9a'], 1.2);
+        scorch(d.x, d.y, 12);
+        for (let i = 0; i < 70; i++) { const a = (i / 70) * TAU; stain(d.x + Math.cos(a) * 22, d.y + Math.sin(a) * 11, '#2a1040', 1); }
+      }
+      if (d.pieces.length && t < 2.6) {
+        for (const b of d.pieces) if (Math.random() < dt * 14) part(b.x + rnd(-2, 2), b.y, rnd(-4, 4), 0, rnd(0.4, 0.8), Math.random() < 0.6 ? VIOLET : '#62efff', { z: b.z + 1, vz: rnd(15, 40), glow: true, drag: 1 });
+        // rags of the robe drifting down
+        if (t < 1.8 && Math.random() < dt * 22) part(d.x + rnd(-30, 30), d.y + rnd(-10, 10), rnd(-15, 15), 0, rnd(1.4, 2.2), Math.random() < 0.5 ? '#3a2a5a' : '#5a3a8a', { z: rnd(30, 60), vz: rnd(-6, 10), g: 30, drag: 1.5, s: 2 });
+      }
+      stepPieces(d.pieces, dt, { onBounce: (b) => { A.splat(); splat(b.x, b.y, 3, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b) });
     },
-    draw(d) { glow(...center(d), '#b48cff', d.t < LAND ? 10 + d.t * 18 : 8, d.t < LAND ? 0.3 + d.t * 0.4 : 0.2); sheetBody(d); },
+    draw(d) {
+      const t = d.t;
+      if (t < 0.92) {
+        const z = this.z(d), k = t / 0.92, o = { flip: d.flip, z, rot: Math.sin(t * 61) * 0.06 * Math.min(1, t * 2), pivot: [0, -9], tint: Math.floor(t * (10 + k * 30)) % 2 ? VIOLET : null };
+        glow(d.x, d.y - z - 9, VIOLET, 10 + k * 20, 0.3 + k * 0.5);
+        drawBody(frame('idle', 0), d.x + (Math.random() - 0.5) * k * 2, d.y, o);
+        // light splitting through him
+        ctx.save(); ctx.translate(Math.round(d.x), Math.round(d.y - z - 10)); drawCracks(d.s.cr, k * 1.3, P.paper, 1); ctx.restore();
+      }
+      drawPieces(d.pieces);
+    },
   },
 
-  // Petals swirl round Rin as she falls, thicker and thicker, and her last frame scatters into petals on the wind.
+  // Rin: a thousand cuts. She goes still, eyes shut; six cuts flash across her one after another; a heartbeat of
+  // nothing; then she falls apart along every one of them at once, spraying, her katana stands in the floor beside
+  // what's left, and the pieces scatter into petals on the wind.
   NINJA: {
     line: 'SHE SCATTERS WITH THE BLOSSOMS', col: '#ffb7d5',
-    update(d, dt) {
-      d.spr = frameAt(d);
-      const [cx, cy] = center(d);
-      if (at(d, STEP)) { A.perfect(); addRing(cx, cy, '#ffb7d5', 120, 0.4, 1); }
-      const k = clamp(d.t / GONE, 0, 1);
-      if (d.t < GONE + 0.2 && Math.random() < dt * (20 + k * 160)) {
-        const a = rnd(TAU), r = 8 + rnd(0, 16), v = 50 + k * 90;
-        part(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.7, -Math.sin(a) * v - 20 * k, Math.cos(a) * v * 0.5 - rnd(10, 35), rnd(0.5, 1.1), PETAL[Math.floor(rnd(3))], { drag: 1.2 });
-      }
-      if (at(d, GONE)) {
-        // the last frame: every pixel of her becomes a petal on the wind
-        eachPixel(d.spr, d.flip, d.x - d.spr.w / 2, d.y - d.spr.h + 1, (x, y, c) => part(x, y, -rnd(30, 110), -rnd(10, 60), rnd(0.8, 1.8), Math.random() < 0.7 ? PETAL[Math.floor(rnd(3))] : c, { drag: 0.8 }), 2);
-        addRing(cx, cy, '#ffb7d5', 260, 0.5, 2); addRing(cx, cy, P.paper, 180, 0.35, 1);
-        flash('#ffb7d5', 0.15, false); A.smoke(); A.magic();
-        d.gone = true;
-      }
-      if (d.gone && Math.random() < dt * 25) part(cx + rnd(-30, 30), cy + rnd(-20, 10), -rnd(20, 60), -rnd(5, 25), rnd(1, 2), PETAL[Math.floor(rnd(3))], { drag: 0.5 });
+    start(d) {
+      const T = bodyTop(), H = FOOT - T, c = [60, T + H * 0.58];
+      d.s.cuts = Array.from({ length: 6 }, (_, i) => {
+        const a = (i / 6) * Math.PI + rnd(-0.22, 0.22) + 0.3, ox = mx(d, c[0] + rnd(-7, 7)), oy = c[1] + rnd(-12, 10);
+        return { l: [ox - Math.cos(a) * 70, oy - Math.sin(a) * 70, ox + Math.cos(a) * 70, oy + Math.sin(a) * 70], t: 0.2 + i * 0.085 };
+      });
     },
-    draw(d) { if (!d.gone) { glow(...center(d), '#ffb7d5', 8 + d.t * 14, 0.15 + d.t * 0.25); sheetBody(d); } },
+    update(d, dt) {
+      const t = d.t;
+      for (const c of d.s.cuts) if (at(d, c.t)) {
+        A.slice(); A.gore(0.3);
+        const [x0, y0] = cw(d, c.l[0], c.l[1]), [x1, y1] = cw(d, c.l[2], c.l[3]), mxw = (x0 + x1) / 2, myw = (y0 + y1) / 2;
+        c.w = [x0, y0, x1, y1];
+        for (let i = 0; i < 4; i++) part(mxw + rnd(-4, 4), d.y, rnd(-30, 30), 0, 1.5, BLOOD[i % 3], { z: d.y - myw, vz: rnd(10, 50), g: 380, drag: 2, blood: true });
+      }
+      if (at(d, 1.0)) {
+        d.pieces = placePieces(cutFrame(frame('idle', 10), d.flip, d.s.cuts.map((c) => c.l), { min: 10 }), d.x, d.y);
+        const [cx, cy] = [d.x, (bodyTop() + FOOT) / 2];
+        for (const b of d.pieces) {
+          const dx = b.x - d.x, dz = b.z - (FOOT - cy) / 3;
+          b.held = false; b.vx = dx * 7 + rnd(-14, 14); b.vy = rnd(-12, 12); b.vz = dz * 5 + rnd(30, 80); b.vr = rnd(-6, 6); b.bleed = rnd(1, 1.6);
+          spurt(b.x, b.y, b.z, Math.atan2(rnd(-1, 1), dx || 1), 0.9, 4);
+        }
+        A.gore(1.6); A.squirt(); shake(0.5); flash(P.blood, 0.12, false);
+        dropWeapon(d, { stick: true, vz: 170, vx: d.f * 22, spin: -d.f * 14 });
+      }
+      if (t > 1.0 && t < 1.8 && Math.floor(t / 0.16) !== Math.floor(d.prev / 0.16)) { for (const b of d.pieces) if (Math.random() < 0.5) spurt(b.x, b.y, b.z + 1, rnd(TAU), 0.7, 3); A.squirt(); }
+      if (at(d, 2.05)) {
+        A.magic(); A.smoke();
+        for (const b of d.pieces) { eachPiecePixel(b, (x, y, c) => part(x, b.y, -d.f * rnd(20, 90) + rnd(-15, 15), rnd(-10, 10), rnd(1, 2.2), Math.random() < 0.55 ? PETAL[Math.floor(rnd(3))] : Math.random() < 0.5 ? '#c4243a' : c, { z: Math.max(0, b.y - y), vz: rnd(10, 60), drag: 0.9 })); b.alpha = 0; }
+        addRing(d.x, d.y - 4, '#ffb7d5', 260, 0.5, 2);
+      }
+      if (t > 2.05 && t < 4 && Math.random() < dt * 20) part(d.x + rnd(-40, 40), d.y + rnd(-8, 8), -d.f * rnd(20, 50), 0, rnd(1.2, 2), PETAL[Math.floor(rnd(3))], { z: rnd(10, 40), vz: rnd(-10, 10), g: 20, drag: 0.6 });
+      stepPieces(d.pieces, dt, { onBounce: (b) => { A.splat(); splat(b.x, b.y, 3, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b) });
+    },
+    draw(d) {
+      const t = d.t;
+      if (t < 1.0) {
+        drawBody(frame('idle', t < 0.15 ? 0 : 10), d.x, d.y, { flip: d.flip });
+        for (const c of d.s.cuts) {
+          if (!c.w || t < c.t) continue;
+          const v = t - c.t, [x0, y0, x1, y1] = c.w;
+          if (v < 0.07) { line(x0, y0, x1, y1, P.paper, 3); glow((x0 + x1) / 2, (y0 + y1) / 2, '#ffb7d5', 14, 0.7); }
+          else if (v < 0.2 && Math.floor(G.time * 30) % 2) line(x0, y0, x1, y1, '#ff8fb8', 1);
+        }
+      }
+      drawPieces(d.pieces);
+    },
   },
 
-  // Rivet's suit overloads as she staggers (sparks, steam, faster and faster beeps), blows as she hits the ground,
-  // scattering bolts and springs, and smokes after.
+  // Rivet: her rig overloads. Sparks, steam and faster and faster beeps while she shakes; then it blows and takes
+  // her apart: her head and chest go high, her legs fold, scrap and blood everywhere, her machines go up with her.
   MECHANIC: {
     line: 'WARRANTY VOID', col: '#ff9a3c',
+    start(d) { dropWeapon(d, { vz: 60, vx: d.f * 20, spin: d.f * 5 }); },
     update(d, dt) {
-      d.spr = frameAt(d);
-      const [cx, cy] = center(d);
-      if (d.t < LAND) {
-        const k = d.t / LAND;
-        if (Math.random() < dt * (12 + k * 45)) sparks(cx + rnd(-6, 6), cy + rnd(-6, 6), rnd(TAU), 3, 0.6, P.ember2, 120);
-        if (Math.random() < dt * 20) part(cx + rnd(-4, 4), cy - rnd(0, 6), rnd(-10, 10), -rnd(20, 40), rnd(0.4, 0.8), '#c8c8d0', { drag: 1 });
-        d.beep = (d.beep ?? 0) - dt;
-        if (d.beep <= 0) { d.beep = 0.2 - k * 0.15; A.fuse(); }
+      const t = d.t, T = bodyTop(), cyW = d.y - 10;
+      if (t < 0.95) {
+        const k = t / 0.95;
+        if (Math.random() < dt * (14 + k * 50)) sparks(d.x + rnd(-6, 6), cyW + rnd(-7, 7), rnd(TAU), 3, 0.6, P.ember2, 130);
+        if (Math.random() < dt * 22) part(d.x + rnd(-5, 5), d.y, rnd(-12, 12), 0, rnd(0.4, 0.8), '#c8c8d0', { z: rnd(6, 16), vz: rnd(20, 40), drag: 1 });
+        d.s.beep = (d.s.beep ?? 0) - dt;
+        if (d.s.beep <= 0) { d.s.beep = 0.22 - k * 0.17; A.fuse(); }
+        for (const a of G.allies) if (Math.random() < dt * 10) sparks(a.x, a.y - 6, rnd(TAU), 3, 1, P.ember2, 110);
       }
-      if (at(d, LAND)) {
-        for (let i = 0; i < 16; i++) { const a = rnd(TAU), v = rnd(60, 200); part(cx, cy, Math.cos(a) * v, Math.sin(a) * v, rnd(0.8, 1.5), Math.random() < 0.5 ? P.gold : '#8b98ab', { z: 6, vz: rnd(60, 160), g: 320, drag: 1.5 }); }
-        for (let i = 0; i < 40; i++) { const a = rnd(TAU), v = rnd(60, 220); part(cx, cy, Math.cos(a) * v, Math.sin(a) * v, rnd(0.2, 0.5), Math.random() < 0.5 ? P.ember : P.ember2, { drag: 4, glow: true }); }
-        addRing(cx, cy, P.ember, 300, 0.4, 3); flash(P.ember, 0.22, true); shake(1); A.boom(1.5); scorch(d.x, d.y, 14);
+      if (at(d, 0.95)) {
+        const neck = T + 32.5, waist = T + 44.5, split = mx(d, 61);
+        d.pieces = placePieces(cutFrame(frame('idle', 0), d.flip, [[0, neck, CELL, neck - 1], [0, waist, CELL, waist + 1], [split - 3, neck, split + 3, waist, true]], { min: 10 }), d.x, d.y);
+        for (const b of d.pieces) {
+          b.held = false; b.tint = '#2a1a14'; b.tintK = 0.3; b.bleed = rnd(1, 1.6);
+          const hi = b.pc.cy < neck, legs = b.pc.cy > waist;
+          b.vx = hi ? rnd(-40, 40) : legs ? rnd(-10, 10) : (b.x - d.x) * 14 + rnd(-30, 30);
+          b.vz = hi ? rnd(260, 300) : legs ? rnd(20, 50) : rnd(150, 210);
+          b.vy = rnd(-14, 14); b.vr = hi ? rnd(-12, 12) : legs ? rnd(-3, 3) : rnd(-9, 9);
+        }
+        flash(P.ember, 0.25, true); shake(1); kick(-Math.PI / 2, 6); A.boom(2.2); A.gore(1.4);
+        addRing(d.x, cyW, P.paper, 400, 0.3, 3); addRing(d.x, cyW, P.ember, 300, 0.5, 4); addRing(d.x, d.y, '#4a4450', 200, 0.8, 3);
+        for (let i = 0; i < 50; i++) { const a = rnd(TAU), v = rnd(60, 240); part(d.x, d.y, Math.cos(a) * v, Math.sin(a) * v * 0.6, rnd(0.2, 0.6), Math.random() < 0.5 ? P.ember : P.ember2, { z: 10, vz: rnd(-40, 140), drag: 4, glow: true }); }
+        for (let i = 0; i < 18; i++) { const a = rnd(TAU), v = rnd(50, 200); part(d.x, d.y, Math.cos(a) * v, Math.sin(a) * v * 0.6, rnd(0.9, 1.6), Math.random() < 0.5 ? P.gold : '#8b98ab', { z: 10, vz: rnd(80, 200), g: 380, drag: 1.4, s: 2 }); }
+        chunks(d.x, d.y, 10, 12, ['#c4243a', '#8a0f22', '#5a0612'], 1.3); spurt(d.x, d.y, 12, rnd(TAU), 1.5, 10);
+        scorch(d.x, d.y, 18); d.s.cr = makeCracks(d.x, d.y, 8, 30);
+        G.allies.forEach((a, i) => { a.boomT = 0.15 + i * 0.12; });
       }
-      if (d.t > LAND && Math.random() < dt * 8) part(d.x + rnd(-6, 6), d.y - 2, 0, -rnd(10, 20), rnd(1, 1.6), '#4a4450', { drag: 0.5 });
+      for (const a of G.allies) if (a.boomT !== undefined && (a.boomT -= dt) <= 0) {
+        a.dead = true; a.boomT = undefined;
+        A.boom(0.9); addRing(a.x, a.y - 4, P.ember, 220, 0.3, 2); scorch(a.x, a.y, 8);
+        for (let i = 0; i < 20; i++) { const b = rnd(TAU), v = rnd(40, 160); part(a.x, a.y, Math.cos(b) * v, Math.sin(b) * v * 0.6, rnd(0.6, 1.2), Math.random() < 0.5 ? '#8b98ab' : P.ember2, { z: 6, vz: rnd(60, 160), g: 360, drag: 1.4, s: 2 }); }
+      }
+      if (t > 1.0 && t < 3.6) for (const b of d.pieces) {
+        if (Math.random() < dt * 6) part(b.x + rnd(-2, 2), b.y, rnd(-4, 4), 0, rnd(1, 1.6), '#4a4450', { z: b.z + 2, vz: rnd(10, 22), drag: 0.5 });
+        if (b.rest && Math.random() < dt * 8) part(b.x + rnd(-3, 3), b.y, 0, 0, rnd(0.2, 0.4), Math.random() < 0.5 ? P.ember : P.ember2, { z: b.z, vz: rnd(10, 30), glow: true, drag: 1 });
+      }
+      stepPieces(d.pieces, dt, { onBounce: (b) => { A.splat(); A.wall(); splat(b.x, b.y, 4, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b) });
     },
     draw(d) {
-      const k = clamp(d.t / LAND, 0, 1);
-      if (d.t < LAND) glow(...center(d), P.ember, 8 + k * 14, 0.2 + k * 0.4);
-      sheetBody(d, { tint: d.t < LAND && Math.floor(d.t * (8 + k * 30)) % 2 ? P.ember : null, dx: d.t < LAND ? Math.sin(d.t * 70) * k * 1.5 : 0 });
+      const t = d.t;
+      if (t < 0.95) {
+        const k = t / 0.95;
+        glow(d.x, d.y - 10, P.ember, 8 + k * 16, 0.2 + k * 0.45);
+        drawBody(frame('idle', 0), d.x + Math.sin(t * 70) * k * 1.6, d.y, { flip: d.flip, tint: Math.floor(t * (8 + k * 30)) % 2 ? P.ember : null });
+      }
+      drawPieces(d.pieces);
     },
+    under(d) { if (d.s.cr) drawCracks(d.s.cr, (d.t - 0.95) / 0.15, P.ember, 1 - (d.t - 0.95) / 1.5); },
   },
 
-  // Grom crashes down in his drawn frames: the ground shakes, dust rings out and armor plates fly.
+  // Grom: crushed by his own hammer. He reels as his plates fly off, heaves the hammer over his head one last time,
+  // can't hold it, topples onto his back, and it comes down on his chest.
   TANK: {
     line: 'THE WALL HAS FALLEN', col: '#8b98ab',
+    start(d) { d.s.squash = 0; },
     update(d, dt) {
-      d.spr = frameAt(d);
-      for (const s of [STEP, 2 * STEP]) if (at(d, s)) { A.shieldHit(); for (let i = 0; i < 5; i++) part(d.x + rnd(-6, 6), d.y - rnd(6, 16), rnd(-60, 60), -rnd(10, 40), rnd(0.6, 1), '#8b98ab', { z: 6, vz: rnd(20, 60), g: 300, drag: 1 }); }
-      if (at(d, LAND)) {
-        shake(1); A.boom(1.4); A.wall(); flash(P.dust, 0.12, false);
-        dust(d.x, d.y, 30, 110); addRing(d.x, d.y, P.stone2, 260, 0.4, 3);
-        for (let i = 0; i < 10; i++) part(d.x + rnd(-8, 8), d.y - rnd(2, 10), rnd(-90, 90), -rnd(20, 60), rnd(0.8, 1.4), Math.random() < 0.5 ? '#8b98ab' : P.gold, { z: 4, vz: rnd(40, 110), g: 320, drag: 1.2 });
+      const t = d.t;
+      for (const s of [0.08, 0.3]) if (at(d, s)) { A.shieldHit(); for (let i = 0; i < 6; i++) part(d.x + rnd(-6, 6), d.y, rnd(-70, 70), rnd(-10, 10), rnd(0.7, 1.1), '#8b98ab', { z: rnd(6, 16), vz: rnd(30, 80), g: 320, drag: 1, s: 2 }); spurt(d.x, d.y, rnd(8, 14), rnd(TAU), 0.8, 5); }
+      if (at(d, 0.55)) A.powerUp(0.55);
+      if (at(d, 1.4)) { A.wall(); A.boom(0.8); shake(0.5); dust(d.x - d.f * 8, d.y, 16, 70); splat(d.x - d.f * 10, d.y, 6, P.blood, P.bloodD); }
+      if (at(d, 1.64)) {
+        const [cx, cy] = this.chest(d);
+        A.gore(2); A.boom(1.8); A.wall(); shake(1); kick(Math.PI / 2, 8); flash(P.blood, 0.25, true);
+        for (let i = 0; i < 4; i++) spurt(cx, d.y, 3, rnd(TAU), 1.7, 8, BLOOD, 0.9);
+        chunks(cx, d.y, 4, 14, ['#c4243a', '#8a0f22', '#ecdcc8', '#8b98ab'], 1.3);
+        splat(cx, d.y, 15, P.blood, P.bloodD); scorch(cx, d.y, 6);
+        d.s.cr = makeCracks(cx, d.y, 9, 26); stampCracks(d.s.cr);
+        addRing(cx, d.y, P.paper, 300, 0.3, 3); addRing(cx, d.y, P.blood, 200, 0.4, 2);
+        addPool(d.pools, cx, d.y + 1, 15, { k: 1.1 });
       }
+      d.s.squash = t < 1.64 ? 0 : Math.min(1, (t - 1.64) / 0.06);
+      if (t > 1.7 && t < 3.2 && Math.floor(t / 0.3) !== Math.floor(d.prev / 0.3)) { const [cx] = this.chest(d); spurt(cx + rnd(-6, 6), d.y, 2, rnd(TAU), 0.5, 3); }
     },
-    draw(d) { sheetBody(d); },
-  },
-
-  // Unit-7 shorts out (sparks, ERR) as it staggers, collapses into scrap, and the scrap smokes.
-  ROBOT: {
-    line: 'SHUTDOWN COMPLETE', col: '#ff3b3b',
-    update(d, dt) {
-      d.spr = frameAt(d);
-      const [cx, cy] = center(d);
-      if (d.t < LAND && Math.floor(d.t * 8) !== Math.floor(d.prev * 8)) { sparks(cx + rnd(-6, 6), cy + rnd(-6, 6), rnd(TAU), 8, 1, '#62efff', 160); A.zip(); }
-      if (at(d, 0.15) || at(d, 0.45)) addText(d.x + rnd(-8, 8), d.y - d.spr.h - 4, 'ERR', '#ff3b3b');
-      if (at(d, LAND)) { A.boom(0.6); A.overheat(); sparks(d.x, d.y - 4, -Math.PI / 2, 16, 0.8, P.ember2, 180); dust(d.x, d.y, 12, 50); }
-      if (d.t > LAND && Math.random() < dt * 10) part(d.x + rnd(-6, 6), d.y - rnd(2, 6), rnd(-4, 4), -rnd(10, 25), rnd(1, 1.8), '#4a4450', { drag: 0.4 });
-    },
-    draw(d) { sheetBody(d, { tint: d.t < LAND && Math.floor(d.t * 14) % 3 === 0 ? '#62efff' : null, dx: d.t < LAND ? Math.sin(d.t * 80) * 0.8 : 0 }); },
-  },
-
-  // The Dev: the screen glitches as he's hit, a FATAL ERROR box pops up while he slumps, and his last frame is deleted
-  // pixel by pixel.
-  DEV: {
-    line: 'PROCESS TERMINATED', col: '#39ff6a',
-    update(d, dt) {
-      d.spr = frameAt(d);
-      if (d.t < LAND && Math.random() < dt * 20) glitch(d.x + rnd(-20, 20), d.y - 10 + rnd(-14, 14), 14, 4, 0.2, 5);
-      if (at(d, 0.1)) A.zap();
-      if (at(d, LAND)) { d.bsod = true; A.click(); A.deny(); }
-      if (at(d, GONE + 0.6)) d.bsod = false;
-      if (at(d, GONE)) { eachPixel(d.spr, d.flip, d.x - d.spr.w / 2, d.y - d.spr.h + 1, (x, y) => part(x, y, rnd(-8, 8), rnd(20, 60), rnd(0.4, 0.9), Math.random() < 0.7 ? '#39ff6a' : '#ff4fa8', { drag: 0.5 }), 2); A.click(); d.gone = true; }
+    // his chest once he's on his back
+    chest: (d) => [d.x - d.f * 11, d.y - 3],
+    hammer(d) {
+      // in his hands overhead, then out of them on an arc down onto his chest
+      const t = d.t, rest = restAngle(d.flip), over = -Math.PI / 2 - d.f * 0.35;
+      if (t < 0.55) return { a: rest, held: true };
+      if (t < 1.1) return { a: rest + (over - rest) * ease((t - 0.55) / 0.45) + Math.sin(t * 48) * 0.05, held: true };
+      const [hx, hy] = handPos(d.x, d.y, { flip: d.flip }), [cx, cy] = this.chest(d), k = clamp((t - 1.1) / 0.54, 0, 1);
+      // it ends lying across him, its head on his chest and the handle toward his feet
+      const end = d.flip ? 0.15 : Math.PI - 0.15, aF = over + Math.atan2(Math.sin(end - over), Math.cos(end - over)), L = weaponLen();
+      const gx = cx + d.f * L * 0.85, gy = cy - 2;
+      const x = hx + (gx - hx) * k, y = hy + (gy - hy) * easeIn(k) - Math.sin(k * Math.PI) * 18;
+      return { a: over + (aF - over) * easeIn(k), held: false, x, y };
     },
     draw(d) {
-      if (d.t < LAND) for (const [ox, c] of [[-2, '#ff4fa8'], [2, '#39ff6a']]) body(d, { dx: ox, tint: c, alpha: 0.4 });
-      if (!d.gone) sheetBody(d);
-      if (d.bsod) {
-        const x = d.x - 34, y = d.y - d.spr.h - 30;
-        rect(x - 1, y - 1, 70, 24, P.ink0); rect(x, y, 68, 22, '#1a3ad8');
+      const t = d.t, h = this.hammer(d), fall = t < 1.1 ? 0 : easeIn((t - 1.1) / 0.3), rot = -d.f * (Math.PI / 2) * fall;
+      const wob = t < 0.55 ? Math.sin(t * 22) * 0.07 : 0, s = d.s.squash;
+      const o = { flip: d.flip, rot: rot + wob, pivot: [0, 0], sx: 1 - 0.45 * s, sy: 1 + 0.08 * s };
+      if (h.held) drawHero(frame('idle', 0), d.x, d.y, o, h.a);
+      else { drawBody(frame('death', 0), d.x, d.y, o); drawWeapon(h.x, h.y, h.a, d.flip); }
+    },
+    under(d) { if (d.s.cr) drawCracks(d.s.cr, 1); },
+  },
+
+  // Unit-7: torn apart. Sparks and oil burst out of it, its head pops off on a fountain of oil, the headless body
+  // counts down from three and blows itself to scrap, and the head's red light blinks out on the floor.
+  ROBOT: {
+    line: 'SHUTDOWN COMPLETE', col: '#ff3b3b',
+    start(d) { A.overheat(); },
+    update(d, dt) {
+      const t = d.t, s = d.s, neck = 71.5;
+      if (t < 0.5 && Math.floor(t * 12) !== Math.floor(d.prev * 12)) { sparks(d.x + rnd(-8, 8), d.y - rnd(6, 18), rnd(TAU), 8, 1, '#62efff', 170); A.zip(); if (Math.random() < 0.5) spurt(d.x + rnd(-6, 6), d.y, rnd(6, 14), rnd(TAU), 0.8, 4, OIL); }
+      if (at(d, 0.1) || at(d, 0.35)) addText(d.x + rnd(-8, 8), d.y - 30, 'ERR', '#ff3b3b');
+      if (at(d, 0.5)) {
+        const pcs = cutFrame(frame('idle', 0), d.flip, [[0, neck, CELL, neck]], { wound: { edge: '#0e0c12', flesh: '#3a3646', hi: '#ff9a3c', bone: '#ffd447' } });
+        const all = placePieces(pcs, d.x, d.y);
+        s.head = all.find((b) => b.pc.cy < neck); s.body = all.find((b) => b.pc.cy >= neck);
+        if (s.body) s.bx0 = s.body.x;
+        if (s.head) { s.head.held = false; s.head.vz = 240; s.head.vx = rnd(-30, 30); s.head.vr = rnd(9, 14) * (Math.random() < 0.5 ? -1 : 1); s.head.bleed = 0.8; }
+        d.pieces = all.filter((b) => b !== s.body);
+        A.gore(0.8); A.zap(); shake(0.45); sparks(d.x, d.y - 21, -Math.PI / 2, 20, 0.9, P.ember2, 220);
+      }
+      // the neck pumps oil and sparks, the body staggers about, counting down
+      if (s.body && !s.boom) {
+        if (Math.floor(t / 0.07) !== Math.floor(d.prev / 0.07)) { spurt(d.x, d.y, 21, rnd(TAU), 1.1, 3, Math.random() < 0.2 ? ['#62efff', '#2a9ab0'] : OIL, 1.8); if (Math.random() < 0.4) sparks(d.x, d.y - 21, -Math.PI / 2 + rnd(-0.6, 0.6), 4, 0.4, P.ember2, 180); }
+        s.body.x = s.bx0 + Math.sin(t * 9) * 2;
+        for (const [ct, f, n] of [[0.75, 1000, '3'], [1.0, 1200, '2'], [1.25, 1600, '1']]) if (at(d, ct)) { A.beep(f); addText(d.x, d.y - 26, n, '#ff3b3b', 2); }
+      }
+      if (at(d, 1.45) && s.body) {
+        s.boom = true;
+        const f = pieceAsFrame(s.body.pc), c = [mx(d, 60), 82];
+        const lines = Array.from({ length: 3 }, (_, i) => { const a = (i / 3) * Math.PI + rnd(-0.3, 0.3); return [c[0] - Math.cos(a) * 60, c[1] - Math.sin(a) * 60, c[0] + Math.cos(a) * 60, c[1] + Math.sin(a) * 60]; });
+        const parts = placePieces(cutFrame(f, false, lines, { wound: { edge: '#0e0c12', flesh: '#3a3646', hi: '#ff9a3c', bone: '#ffd447' }, min: 10 }), d.x + s.body.x - s.bx0, d.y);
+        burstPieces(parts, d.x, 6, 170, 200, 15);
+        d.pieces.push(...parts);
+        flash(P.ember, 0.25, true); shake(1); kick(-Math.PI / 2, 6); A.boom(2.2); A.zap();
+        addRing(d.x, d.y - 8, P.paper, 400, 0.3, 3); addRing(d.x, d.y - 8, P.ember, 300, 0.5, 4);
+        for (let i = 0; i < 50; i++) { const a = rnd(TAU), v = rnd(60, 240); part(d.x, d.y, Math.cos(a) * v, Math.sin(a) * v * 0.6, rnd(0.2, 0.6), Math.random() < 0.5 ? P.ember : P.ember2, { z: 8, vz: rnd(-40, 140), drag: 4, glow: true }); }
+        for (let i = 0; i < 24; i++) { const a = rnd(TAU), v = rnd(50, 220); part(d.x, d.y, Math.cos(a) * v, Math.sin(a) * v * 0.6, rnd(1, 1.8), ['#8b98ab', '#5d6878', '#3a3446', P.gold][i % 4], { z: 8, vz: rnd(80, 220), g: 380, drag: 1.3, s: 2 }); }
+        spurt(d.x, d.y, 8, rnd(TAU), 1.5, 12, OIL); scorch(d.x, d.y, 16);
+        addPool(d.pools, d.x, d.y + 1, 11, { c: OIL_POOL, k: 1.2 });
+        dropWeapon(d, { vz: 200, vx: d.f * 60, spin: d.f * 18 });
+      }
+      if (at(d, 2.75)) A.beep(300);
+      if (t > 1.6 && t < 3.6) for (const b of d.pieces) if (b !== s.head && Math.random() < dt * 5) part(b.x, b.y, rnd(-4, 4), 0, rnd(1, 1.6), '#4a4450', { z: b.z + 2, vz: rnd(10, 22), drag: 0.5 });
+      stepPieces(d.pieces, dt, { blood: OIL, onBounce: (b) => { A.wall(); sparks(b.x, b.y - 1, -Math.PI / 2, 4, 1, P.ember2, 100); }, onRest: (b) => poolUnder(d, b, null, OIL_POOL) });
+    },
+    draw(d) {
+      const t = d.t, s = d.s;
+      if (t < 0.5) drawHero(frame('idle', 0), d.x + (Math.random() - 0.5) * 2, d.y, { flip: d.flip, rot: Math.sin(t * 50) * 0.04, pivot: [0, 0], tint: Math.floor(t * 14) % 3 === 0 ? '#62efff' : null }, restAngle(d.flip) + Math.sin(t * 40) * 0.3);
+      else if (s.body && !s.boom) { drawPieces([s.body]); glow(d.x, d.y - 10, '#ff3b3b', 6, Math.floor(t * 8) % 2 ? 0.8 : 0.2); drawWeapon(...handPos(d.x + s.body.x - s.bx0, d.y, { flip: d.flip }), restAngle(d.flip) + Math.sin(t * 30) * 0.2, d.flip); }
+      drawPieces(d.pieces);
+      // the head's red light, blinking out
+      const h = s.head;
+      if (h && t < 2.75) {
+        const e = heroSet().rig?.eye || [60, 60], [ex, ey] = pieceToWorld(h, mx(d, e[0]), e[1] - 2);
+        if (Math.floor(t * (t > 2.2 ? 12 : 4)) % 2 === 0) { rect(ex, ey, 1, 1, '#ff3b3b'); glow(ex, ey, '#ff3b3b', 5, 0.7); }
+      }
+    },
+  },
+
+  // The Dev: segmentation fault. He tears into strips that glitch sideways, bleeding pixels, while a fatal error box
+  // pops up; then the strips are deleted one by one from the top and spill to the floor as a puddle of pixels.
+  DEV: {
+    line: 'PROCESS TERMINATED', col: GREEN,
+    start(d) {
+      const T = bodyTop(), lines = [];
+      for (let y = T + 7; y < FOOT - 3; y += 7) lines.push([0, y, CELL, y]);
+      d.pieces = placePieces(cutFrame(frame('idle', 0), d.flip, lines, { wound: { edge: '#39ff6a', flesh: [196, 36, 58], hi: '#ff4fa8', bone: [255, 255, 255] }, deep: 1.6, bone: false, min: 6 }).sort((a, b) => a.cy - b.cy), d.x, d.y);
+      d.pieces.forEach((b, i) => { b.base = b.x; b.side = i % 2 ? 1 : -1; });
+      A.zap();
+    },
+    update(d, dt) {
+      const t = d.t;
+      if (t < 1.2 && Math.random() < dt * 24) glitch(d.x + rnd(-24, 24), d.y - 10 + rnd(-16, 12), 16, 4, 0.15, 6);
+      d.pieces.forEach((b, i) => {
+        if (b.held) {
+          const jit = Math.floor(G.time * 20 + i * 3) % 3 === 0 ? rnd(-3, 3) : 0;
+          b.x = b.base + b.side * Math.min(10, Math.max(0, t - 0.4) * 14) + jit;
+          if (Math.random() < dt * 6) part(b.x + rnd(-4, 4), b.y, 0, 0, 2, Math.random() < 0.7 ? '#c4243a' : GREEN, { z: b.z - 1, vz: -rnd(0, 10), g: 300, blood: true });
+        }
+        if (at(d, 1.2 + i * 0.11)) {
+          A.click(); glitch(b.x, b.y - b.z, 14, 4, 0.2, 6);
+          eachPiecePixel(b, (x, y, c) => part(x, b.y, rnd(-20, 20), rnd(-6, 6), rnd(1.5, 2.4), Math.random() < 0.45 ? c : Math.random() < 0.5 ? GREEN : Math.random() < 0.5 ? PINK : '#c4243a', { z: Math.max(0, b.y - y), vz: rnd(-10, 40), g: 300, drag: 1.2, blood: true }), 2);
+          b.alpha = 0;
+        }
+      });
+      if (at(d, 0.45)) { A.deny(); d.s.bsod = true; }
+      if (at(d, 1.2 + d.pieces.length * 0.11)) addPool(d.pools, d.x, d.y + 1, 10, { c: ['#0a3a14', '#5a0612', GREEN], k: 1.6 });
+      if (t > 2.0 && t < 2.6 && Math.floor(t * 20) !== Math.floor(d.prev * 20)) A.click();
+    },
+    draw(d) {
+      const t = d.t;
+      if (t < 1.2) for (const b of d.pieces) if (b.held && b.alpha > 0) {
+        // the colors split a little on every strip
+        const save = b.x;
+        b.x = save - 1; b.tint = PINK; b.tintK = 1; b.alpha = 0.35; drawPieces([b]);
+        b.x = save + 1; b.tint = GREEN; drawPieces([b]);
+        b.x = save; b.tint = null; b.alpha = 1;
+      }
+      drawPieces(d.pieces);
+      if (d.s.bsod) {
+        const x = d.x - 36, y = d.y - 58;
+        rect(x - 1, y - 1, 74, 40, P.ink0); rect(x, y, 72, 38, '#1a3ad8');
         textO(':(  FATAL ERROR', x + 4, y + 4, P.paper, 1, 'l', '#1a3ad8');
-        textO('0XDEADDEV', x + 4, y + 13, '#9fd3ff', 1, 'l', '#1a3ad8');
+        textO('0XDEADDEV', x + 4, y + 12, '#9fd3ff', 1, 'l', '#1a3ad8');
+        const l = '> RM -RF ./DEV', n = t < 2.0 ? 0 : Math.min(l.length, Math.floor((t - 2.0) * 22));
+        if (n) text(l.slice(0, n), x + 4, y + 21, GREEN);
+        if (t > 2.75) text('SEGMENTATION FAULT', x + 4, y + 30, Math.floor(G.time * 6) % 2 ? GREEN : P.paper);
       }
     },
   },
 };
 
 export function startDeath(p) {
-  const def = DEATHS[G.char] || DEATHS.BLADE;
-  // the hero's drawn death frames (from their sprite sheet), or the idle frame if there are none
-  const rootSet = heroSet();
-  const a=p.aim,dx=Math.cos(a),dy=Math.sin(a);
-  const direction=Math.abs(dy)>Math.abs(dx)?(dy<0?'up':'down'):'right';
-  const set=rootSet.directions?.[direction]||rootSet,frames=set.act?.death;
-  const flip=rootSet.directions ? (direction==='right'&&dx<0) : rootSet.softFacing ? (p.softFacingDirection || 1) < 0 : (set.frontFacing ? false : dx<0);
-  G.deathFx = { def, t: 0, prev: 0, x: p.x, y: p.y, z: 0, flip, spr: set.idle, frames: Array.isArray(frames) && frames.length ? frames : [set.idle] };
-  // the weapon flies out of the hand, spinning, and clatters down beside the body (Vega's revolver has its own scene)
-  const wn = rootSet.rig?.weapon;
-  if (wn && G.char !== 'GUNNER') {
-    const [hx, hy] = handPoint(p), back = flip ? 1 : -1;
-    G.deathFx.wpn = { name: wn, skin: !!rootSet.evolved, x: hx, y: p.y + 2, z: p.y - hy, vx: -back * rnd(18, 34), vz: rnd(70, 110), a: p.wpnA ?? p.aim, spin: back * rnd(9, 15), flip };
-  }
+  const def = DEATHS[G.char] || DEATHS.BLADE, flip = (p.softFacingDirection || 1) < 0;
+  G.deathFx = { def, t: 0, prev: 0, x: p.x, y: p.y, flip, f: flip ? -1 : 1, pieces: [], pools: [], wpn: null, s: {} };
+  def.start?.(G.deathFx);
   G.deathLine = def.line;
 }
 export function updateDeath(dt) {
@@ -304,45 +587,22 @@ export function updateDeath(dt) {
   if (!d) return;
   d.prev = d.t; d.t += dt;
   d.def.update(d, dt);
-  const w = d.wpn;
-  if (w && !w.rest) {
-    w.vz -= 320 * dt; w.z += w.vz * dt; w.x += w.vx * dt; w.a += w.spin * dt;
-    if (w.z <= 0) {
-      w.z = 0;
-      if (w.vz < -40) { w.vz = -w.vz * 0.35; w.vx *= 0.5; w.spin *= 0.4; A.click(); dust(w.x, w.y, 3, 30); }
-      else { w.rest = true; w.a = Math.round(w.a / Math.PI) * Math.PI + (w.flip ? -0.08 : 0.08); }
-    }
-  }
-  // An additional, identity-specific pixel shatter on impact. The existing authored
-  // death cinematics remain responsible for the character's unique dramatic sequence.
-  if (at(d, LAND)) {
-    const cols = {
-      BLADE:['#ff6a2b','#ec2412','#38313a'],
-      GUNNER:['#9f122a','#ffd447','#e8ba72'],
-      WIZARD:['#b48cff','#62efff','#ffffff'],
-      NINJA:['#ff7ab8','#b41937','#fff0fa'],
-      MECHANIC:['#ff8a26','#77818f','#e9b84b'],
-      TANK:['#8b98ab','#f7cd56','#b41624'],
-      ROBOT:['#ff3b3b','#62efff','#d5e2ef'],
-      DEV:['#39ff6a','#ff4fa8','#c3fadd']
-    }[G.char] || ['#ffffff','#ff6a2b'];
-    for(let i=0;i<20;i++) {
-      const a=rnd(TAU),v=rnd(35,140),c=cols[i%cols.length];
-      part(d.x+rnd(-5,5),d.y-rnd(5,18),Math.cos(a)*v,Math.sin(a)*v-rnd(10,40),
-        rnd(.24,.7),c,{drag:2.5,z:rnd(1,5),vz:rnd(20,95),g:260});
-    }
-  }
+  stepWeapon(d, dt);
+  stepPools(d.pools, dt);
+}
+// pools and cracks: on the floor, under everyone
+export function drawDeathUnder() {
+  const d = G.deathFx;
+  if (!d) return;
+  drawPools(d.pools);
+  d.def.under?.(d);
 }
 export function drawDeath() {
   const d = G.deathFx;
   if (!d) return;
   d.def.draw(d);
-  const w = d.wpn;
-  if (w) {
-    const fade = d.t > GONE + 0.6 ? clamp(1 - (d.t - GONE - 0.6) / 0.8, 0, 1) : 1;
-    if (fade > 0) drawWeaponAt(ctx, w.name, w.skin, w.x, w.y - w.z, w.a, w.flip, fade);
-  }
+  drawDropped(d);
   // the epitaph fades in under the body
   const k = clamp((d.t - 1.6) / 0.6, 0, 1);
-  if (k > 0) { ctx.globalAlpha = k; textO(d.def.line, d.x, d.y + 8, d.def.col, 1, 'c'); ctx.globalAlpha = 1; }
+  if (k > 0) { ctx.globalAlpha = k; textO(d.def.line, d.x, d.y + 10, d.def.col, 1, 'c'); ctx.globalAlpha = 1; }
 }

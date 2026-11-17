@@ -1,14 +1,14 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=170';
-import { SPR, EVO_NAMES } from './sprites.js?v=170';
-import { A } from './audio.js?v=170';
-import { input, keyDown, keyHit } from './input.js?v=170';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=170';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=170';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=170';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=170';
-import { byId } from './upgrades.js?v=170';
-import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=170';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=170';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=171';
+import { SPR, EVO_NAMES } from './sprites.js?v=171';
+import { A } from './audio.js?v=171';
+import { input, keyDown, keyHit } from './input.js?v=171';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=171';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=171';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=171';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=171';
+import { byId } from './upgrades.js?v=171';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=171';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=171';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -737,10 +737,16 @@ function perfectDodge() {
 function die() {
   const p = G.p;
   p.hp = 0; p.state = 'dead'; G.dead = true; G.deadT = 0;
-  shake(1); flash(P.blood, 0.4, true);
+  shake(1); flash(P.blood, 0.25, true);
   A.death(); A.scene('dead'); A.stopLoops();
-  bleed(p.x, p.y, rnd(TAU), 30, P.blood, P.bloodD, 1.2);
-  splat(p.x, p.y, 9, P.blood, P.bloodD);
+  // whatever the fighter had going ends with them: Unit-7's beam and sky laser, Rin's flash cut, Grom's fortress,
+  // shields and buffs (their kit stops updating and drawing from here on, so nothing is left hanging in the air)
+  if (p.k) { p.k.firing = false; p.k.orb = 0; p.k.beam = null; p.k.stand = 0; }
+  p.fortress = 0; p.shield = 0; p.ascend = 0; p.invis = 0; p.chg = null;
+  // Unit-7 leaks oil, everyone else bleeds
+  const oil = G.char === 'ROBOT', c1 = oil ? '#2e2a36' : P.blood, c2 = oil ? '#0e0c12' : P.bloodD;
+  bleed(p.x, p.y, rnd(TAU), 30, c1, c2, 1.2);
+  splat(p.x, p.y, 9, c1, c2);
   // each fighter has a death scene of their own (deaths.js)
   startDeath(p);
 }
@@ -1016,8 +1022,7 @@ function updatePlayer(dt) {
       G.tagBasic = false;
     }
   }
-  kit.update?.(p, dt);
-  if (p.state !== 'dead') { kit.flair?.(p, dt, hyp(p.vx, p.vy) > 20); kit.tick?.(p, dt); }
+  if (p.state !== 'dead') { kit.update?.(p, dt); kit.flair?.(p, dt, hyp(p.vx, p.vy) > 20); kit.tick?.(p, dt); }
 
   p.x = clamp(p.x + p.vx * dt, B.x0 + p.r, B.x1 - p.r);
   p.y = clamp(p.y + p.vy * dt, B.y0 + p.r, B.y1 - 2);
@@ -1607,7 +1612,8 @@ export function update(dt, rdt) {
 
   if (G.cine) {
     G.pfx = !G.cine.boss; G.cine.update(rdt); G.pfx = false;
-    updateFx(rdt * 0.5);
+    // a boss entrance runs its effects in slow motion; a hero's entrance at full speed
+    updateFx(rdt * (G.cine?.fxSpeed ?? 0.5));
     updateCam(rdt);
     return;
   }
@@ -2468,6 +2474,8 @@ export function drawWorld() {
   if (G.map.deco === 'grid') { const sy = B.y0 + ((G.time * 40) % (B.y1 - B.y0)); rect(B.x0, sy, B.x1 - B.x0, 1, '#2f2a80'); }
 
   drawZones();
+  G.cine?.under?.();
+  drawDeathUnder();
 
   for (const s of G.sigils) {
     const k = s.t / s.life, boss = s.type === 'boss', col = boss ? BOSSES[bossFor(G.wave)].col : DEF[s.type].col, big = boss ? 2.2 : 1;
@@ -2532,7 +2540,7 @@ export function drawWorld() {
 
   drawDeath();
   for (const s of G.slashes) drawSlash(s);
-  remap(G.awPal); G.kit.draw?.(G.p); remap(null);
+  if (!G.dead) { remap(G.awPal); G.kit.draw?.(G.p); remap(null); }
 
   for (const s of G.shots) {
     remap(s.owner === 'player' ? G.awPal : null);

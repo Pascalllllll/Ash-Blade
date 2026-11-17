@@ -1,5 +1,5 @@
-import { installHeroSprites } from './hero-sprites.js?v=170';
-import { makeSprite, P } from './gfx.js?v=170';
+import { installHeroSprites } from './hero-sprites.js?v=171';
+import { makeSprite, P } from './gfx.js?v=171';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};

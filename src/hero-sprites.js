@@ -5,15 +5,15 @@
 //
 // The sets exist from the start with empty frames (the title screen draws them on its first frame); the pictures fill
 // those same frames when they arrive, so nothing holds on to an empty one.
-import { SS } from './gfx.js?v=170';
-import { RIG, WEAPON_ART } from './hero-rig.js?v=170';
+import { SS } from './gfx.js?v=171';
+import { RIG, WEAPON_ART } from './hero-rig.js?v=171';
 
 const CW = 120, CH = 96;
 const ROWS = { idle: [0, 16], walk: [1, 8], run: [2, 8], death: [3, 8] };
 const N = 64; // weapon angles
 // where a weapon rests in the menus and on the hero's own still pictures (afterimages, the mirror boss): melee
 // weapons lowered forward, guns level, the staff held up
-const REST = { sword: 0.62, revolver: 0.12, minigun: 0.1, staff: -1.15, katana: 0.72, wrench: 0.6, hammer: 0.95, cannon: 0.12 };
+export const REST = { sword: 0.62, revolver: 0.12, minigun: 0.1, staff: -1.15, katana: 0.72, wrench: 0.6, hammer: 0.95, cannon: 0.12 };
 
 function canvas(w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -115,7 +115,7 @@ function load(url) {
     im.src = url;
   });
 }
-const art = (file) => new URL(`../art/sprites/heroes/${file}?v=170`, import.meta.url).href;
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=171`, import.meta.url).href;
 
 // fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
 export function installHeroSprites(SPR) {

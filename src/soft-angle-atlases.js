@@ -3,7 +3,7 @@
 // All remaining Q/E/R, dash, hit and death actions retain original gameplay assets.
 // Uses the original V6 base/Evolved atlas for the fallback actions.
 // Renderer stays 360-degree aim, Left = mirror of mostly-front Right.
-import { SS } from './gfx.js?v=170';
+import { SS } from './gfx.js?v=171';
 
 export const FRAME = Object.freeze({ w:120, h:96, cols:10, rows:13, footX:60, footY:92 });
 export const COUNTS = Object.freeze({

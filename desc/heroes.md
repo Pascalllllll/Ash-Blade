@@ -33,7 +33,9 @@ Ashblade has eight fighters. Kael is free from the start, and each of the others
 
 Each fighter's own awakened powers are listed in their section below.
 
-**Their look.** All eight are chibi pixel art about 54 pixels tall (Grom 58), with a dark outline all round. They breathe, blink and let their scarves, capes and hair move in the wind when they stand, step with each foot when they walk and run, and fall over when they die. Each weapon is its own sprite held in the hand and turned to wherever the player aims: Kael's longsword, Vega's revolver (a minigun during Last Stand), Morrow's orb staff, Rin's katana, Rivet's wrench, Grom's war hammer and Unit-7's arm cannon. The Dev types on his laptop instead. A swing sweeps the blade through the cut with afterimages, a shot kicks the gun back, Q and E twirl a blade once, and R lifts the weapon high. The awakened look has its own colors, and the weapon changes with it.
+**Their look.** All eight are chibi pixel art about 54 pixels tall (Rin 59 with her bun, Grom 58), with a dark outline all round. They breathe, blink and let their scarves, capes and hair move in the wind when they stand, and step with each foot when they walk and run (Rin and Rivet lean into the run).
+
+**Entrance and death.** Every run starts with the fighter's own entrance of about three seconds, in a letterbox, ending on their name card; any attack key, Space, Enter or a tap skips it. Every fighter also dies their own way, in a gory scene that keeps playing under the death screen. Both are listed in each fighter's section. Each weapon is its own sprite held in the hand and turned to wherever the player aims: Kael's longsword, Vega's revolver (a minigun during Last Stand), Morrow's orb staff, Rin's katana, Rivet's wrench, Grom's war hammer and Unit-7's arm cannon. The Dev types on his laptop instead. A swing sweeps the blade through the cut with afterimages, a shot kicks the gun back, Q and E twirl a blade once, and R lifts the weapon high. The awakened look has its own colors, and the weapon changes with it.
 
 **Silver and gold frames.** On the select screen, a fighter you've cleared wave 25 with gets a silver frame, and one you've cleared wave 50 with gets a gold frame with a crown.
 
@@ -67,9 +69,10 @@ The all-rounder and the first fighter you get. Quick on his feet, solid in a fig
 
 **Awakened powers:** his cuts set enemies on fire, his skills throw a ring of fire, and Thousand Cuts leaves the whole screen burning. His Ashen Crescent fans out four more burning crescents, and a line of white fire erupts along the cut.
 
-### Kill and death
+### Entrance, kill and death
+- **His entrance:** the sky darkens and embers fall, then he crashes down as a burning meteor into a crater ringed with pillars of fire, rises and sweeps his sword all the way round.
 - **His kills:** enemies catch fire, and embers and ash rise off the body.
-- **His death:** he drops to one knee, plants his sword and crumbles to ash from the head down. The sword stays, its flame going out. *The last ember goes out.*
+- **His death:** one cut through the chest. A beat later his top half slides off along it and his legs fold, blood pumping from the stump. Both halves catch his own fire and burn to ash on the wind, and his sword comes down point first and stays standing in the floor. *The last ember goes out.*
 
 ---
 
@@ -100,9 +103,10 @@ The longest reach in the game. Hold to shoot, and reloading is automatic. She is
 
 **Awakened powers:** her shots ricochet to the next enemy, her skills fire a ring of 10 gold rounds, and Last Stand opens with a homing volley at up to 10 enemies.
 
-### Kill and death
+### Entrance, kill and death
+- **Her entrance:** high noon. A bell tolls, dust blows across the arena and a tumbleweed rolls past; she drops in spinning and firing all round, lands in a rain of brass, twirls her revolver twice and fires once at the sky.
 - **Her kills:** head shots. Blood jets up, gun smoke drifts, a spent casing drops.
-- **Her death:** she spins, falls flat on her back, and her dropped revolver fires one last shot into the sky. *One bullet short.*
+- **Her death:** shots from nowhere jerk her about and open exit wounds, and the last one takes her hat off with a spray of blood. She staggers, drops to her knees, fires one last shot into the sky and pitches forward into her own blood, the revolver sliding out of her hand. *One bullet short.*
 
 ---
 
@@ -133,9 +137,10 @@ The hardest hitter and the frailest fighter. Every spell is strong, but he can't
 
 **Awakened powers:** his bolts arc to a second enemy, his skills call lightning on the 3 nearest enemies, and Starfall adds lightning on 8 more.
 
-### Kill and death
+### Entrance, kill and death
+- **His entrance:** a summoning circle draws itself on the floor rune by rune, a pillar of violet light comes down into it, and he floats down inside it as the circle bursts.
 - **His kills:** enemies unravel into motes of arcane light.
-- **His death:** he rises as his last spell turns on him and implodes. His hat falls where he stood. *The spell was never finished.*
+- **His death:** his own spell lifts him off the floor, shaking, with violet light splitting through him, then tears him into burning pieces that rain down with his blood. The rags of his robe drift down after, and his staff's orb cracks on the floor. *The spell was never finished.*
 
 ---
 
@@ -146,9 +151,9 @@ The hardest hitter and the frailest fighter. Every spell is strong, but he can't
 > The last samurai of the Red Oni clan. Still has homework due Friday.
 
 ### Look
-Bright cyan hair fading to pink at the tips, tied with pink ribbons, big violet eyes, a white sailor top with a red ribbon, a red sash and a navy skirt. Her katana cuts in pink arcs and cherry petals, and pink afterimages trail behind her when she runs.
+Sky-blue hair tied up in a bun with a pink bead, fading to pink at the tips, pink ribbons on both sides, a white sailor top with a navy collar and a red neckerchief, a red sash streaming behind her, a navy pleated skirt and dark socks. Her katana cuts in pink arcs and cherry petals, and pink afterimages trail behind her when she runs.
 
-Awakened as **Oni Rin**, her hair turns violet, her reds and pinks turn hot pink and her skirt deep purple. Her sword arcs, cuts and petals turn gold and draw much thicker.
+Awakened as **Oni Rin**, her hair turns violet with hot-pink tips and ribbons, her top lavender, her collar and skirt black and her sash magenta. Her sword arcs, cuts and petals turn gold and draw much thicker.
 
 ### How she plays
 The fastest fighter, with two dashes. Her reach is short, so she fights up close and sends enemy shots back at them.
@@ -168,9 +173,10 @@ The fastest fighter, with two dashes. Her reach is short, so she fights up close
 
 **Awakened powers:** a petal cut opens on every enemy a beat after her blade, her skills cut a ring that parries every shot near her, and after Issen the blossom storm rises around her for free. Her charged Iai Dash opens a second, wider cut along her path a moment later, ending in a burst of petals.
 
-### Kill and death
+### Entrance, kill and death
+- **Her entrance:** petals storm across the arena while her afterimages dash through it, cutting the air. She appears in a burst of sakura smoke in her draw stance, flicks her blade clean, and on the click every cut left in the air bursts at once.
 - **Her kills:** a burst of petals, and the cut line hangs in the air.
-- **Her death:** a storm of cherry blossoms rises around her and thickens until she fades behind it, then she scatters into petals and the wind carries them away. *She scatters with the blossoms.*
+- **Her death:** she goes still, eyes shut. Six cuts flash across her, a heartbeat of nothing, then she falls apart along all of them at once, spraying blood. Her katana stands in the floor beside what's left, and the pieces scatter into petals on the wind. *She scatters with the blossoms.*
 
 ---
 
@@ -181,9 +187,9 @@ The fastest fighter, with two dashes. Her reach is short, so she fights up close
 > A salvager who builds her weapons from what the Colossus left behind.
 
 ### Look
-A dark cap with brass goggles and cyan lenses, messy brown hair, an orange scarf and a work jumpsuit. She swings a big mechanic's wrench that sparks gold. She arrives by breaking out of a supply crate.
+Brown hair in a big spiky ponytail, goggles with cyan lenses pushed up on her head, an orange scarf, a white shirt under brown suspenders, orange work trousers with a gold pouch, dark gloves and boots. She swings a big mechanic's wrench that sparks gold. She arrives in a drop pod.
 
-Awakened as **Rivet Mk-II**, her orange gear turns steel blue and her goggles keep their cyan glow.
+Awakened as **Rivet Mk-II**, her hair turns silver, her goggles gold-rimmed, her scarf cyan, her trousers steel with black straps and her shirt ice-white.
 
 ### How she plays
 Balanced in every stat, and she never fights alone: turrets and coils do half the work.
@@ -202,9 +208,10 @@ Balanced in every stat, and she never fights alone: turrets and coils do half th
 
 **Awakened powers:** every third hit arcs to two more enemies, her skills release a tesla chain through 5 enemies, and Iron Titan lands with a 10-enemy chain and lightning strikes. Her charged Overclock Slam arcs lightning through more enemies and calls strikes down on the nearest.
 
-### Kill and death
+### Entrance, kill and death
+- **Her entrance:** a drop pod falls out of the sky onto a target marker, vents steam and blows open in golden smoke, throwing off its panels; she steps out and slams her wrench into the floor.
 - **Her kills:** enemies come apart into bolts, nuts and springs.
-- **Her death:** her suit overloads, beeping faster and faster, then blows apart. Her goggles bounce away. *Warranty void.*
+- **Her death:** her rig overloads with sparks, steam and faster and faster beeps, then blows her apart: her head and chest go flying, her legs fold, and her turrets, coils and golem blow up with her. *Warranty void.*
 
 ---
 
@@ -236,9 +243,10 @@ Slow and nearly unbreakable. The most health in the game and the heaviest hits.
 
 **Awakened powers:** every blow sends a shockwave through the enemies around the target, his skills quake and stun, and Fortress opens with a great quake that stuns everything near. His charged Earthshatter sends red aftershock quakes rolling out after the slam.
 
-### Kill and death
+### Entrance, kill and death
+- **His entrance:** the ground shakes under a growing shadow, he falls from the sky hammer first, and the floor splits into glowing cracks and rock spikes. He rises and rests the hammer on his shoulder.
 - **His kills:** enemies are flattened into a wide splat and a ring of dust.
-- **His death:** his armor cracks plate by plate and he falls forward like a wall. The ground shakes and his helmet rolls away. *The wall has fallen.*
+- **His death:** he reels as his plates fly off, heaves his hammer overhead one last time, can't hold it, topples onto his back, and it comes down on his chest. *The wall has fallen.*
 
 ---
 
@@ -249,7 +257,7 @@ Slow and nearly unbreakable. The most health in the game and the heaviest hits.
 > A war machine that woke up with one order left: stop the King.
 
 ### Look
-A dark navy war drone on heavy treads, with two red-tipped antennas and a screen for a face that shows a red cross. Cyan lights glow along its body, and a pulse cannon fires bright blue shots. It glides instead of walking, and arrives by teleporting down in a beam.
+A dark navy war drone on heavy treads, with two red-tipped antennas and a screen for a face that shows a red cross. Cyan lights glow along its body, and a pulse cannon fires bright blue shots. It glides instead of walking, and arrives in an orbital beam.
 
 Awakened as **Unit-7 Omega**, its lights and screen glow pink, and it hovers on twin jets instead of rolling.
 
@@ -269,9 +277,10 @@ A ranged fighter built around one long laser. Hold too long and it overheats.
 
 **Awakened powers:** its laser scorches what it touches, its skills launch 3 homing mini-rockets, and the Orbital Laser comes with a ring of 8 homing rockets.
 
-### Kill and death
+### Entrance, kill and death
+- **Its entrance:** red scan lines sweep the arena, DEPLOYING UNIT-7 types out over a countdown, an orbital beam strikes, and it builds itself up row by row inside the light, powers on its eye and unfolds its cannon. SYSTEMS ONLINE.
 - **Its kills:** the laser disintegrates enemies into white-hot pixels and ash.
-- **Its death:** it shorts out with sparks and ERR, its head pops off on a spring, and the red eye fades to dark. *Shutdown complete.*
+- **Its death:** sparks and oil burst out of it, its head pops off on a fountain of oil, the headless body counts down from three and blows itself to scrap, and the head's red light blinks out on the floor. *Shutdown complete.*
 
 ---
 
@@ -304,6 +313,7 @@ On the select screen his stat bars glitch.
 
 **Awakened powers:** each hit forks a bug into a nearby enemy, his skills crash the 3 nearest enemies, and his ultimate glitches everything in range.
 
-### Kill and death
+### Entrance, kill and death
+- **His entrance:** code rains down and a terminal types SUDO ./ROOT and compiles. ACCESS GRANTED, the window shuts off like an old screen, and he renders in from coarse blocks to full detail.
 - **His kills:** enemies are deleted into glitch pixels, now and then with a 404.
-- **His death:** the screen tears, a FATAL ERROR box pops up, and he is deleted line by line. His empty wheelchair rolls away. *Process terminated.*
+- **His death:** he tears into strips that glitch sideways and leak pixels while a FATAL ERROR box pops up; the strips are deleted one by one from the top and spill to the floor as a puddle of pixels, and the box types RM -RF ./DEV. *Process terminated.*

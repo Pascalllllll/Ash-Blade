@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=170';
-import { kaelEntranceV2Frame, kaelEntranceV2Ready, KAEL_ENTRANCE_V2_DURATION } from './kael-entrance-v2.js?v=170'; // ASHBLADE_KAEL_ENTRANCE_V2_24F
-import { SPR } from './sprites.js?v=170';
-import { A } from './audio.js?v=170';
-import { input } from './input.js?v=170';
-import { best } from './store.js?v=170';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=171';
+import { heroEntrance } from './entrances.js?v=171';
+import { SPR } from './sprites.js?v=171';
+import { A } from './audio.js?v=171';
+import { input } from './input.js?v=171';
+import { best } from './store.js?v=171';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint } from './world.js?v=170';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint } from './world.js?v=171';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -38,110 +38,6 @@ const nearest = (x, y, range, skip) => {
 };
 function banner(text, c) { G.banner = { text, sub: '', t: 0, life: 1.3, c }; }
 function muzzle(x, y, a, c, n = 5) { for (let i = 0; i < n; i++) { const s = a + rnd(-0.4, 0.4), v = rnd(60, 180); part(x, y, Math.cos(s) * v, Math.sin(s) * v, rnd(0.05, 0.12), Math.random() < 0.5 ? P.paper : c, { drag: 10, glow: true, keep: true }); } }
-
-// ---------- entrances: a short cinematic when a run starts ----------
-function entrance(kind) {
-  const p = G.p, kaelV2 = kind === 'drop' && G.char === 'BLADE';
-  const k = { t: 0, life: kaelV2 ? KAEL_ENTRANCE_V2_DURATION : kind === 'robot' ? 1.6 : 1.4, done: false, hit: false };
-  p.state = 'cine';
-  const spr = () => {
-    // Dedicated 24-frame Kael entrance; never affects the 13-row combat atlas.
-    if (kaelV2) { const frame = kaelEntranceV2Frame(k.t); if (frame) return frame; }
-    const original=(G.evo===true?SPR.evo:SPR.chars)[G.char];
-    // Kael's initial entrance faces the camera; other heroes retain their existing entrance art.
-    const set=original.directions?.down||original;
-    const frames=set.act?.entrance;
-    // the hero's idle loop with the weapon in hand (the fall, the slide and the rest move it about)
-    return frames?.length ? frames[Math.min(frames.length-1,Math.floor((k.t/k.life)*frames.length))] : set.idles[Math.floor(k.t * 7) % set.idles.length];
-  };
-  const land = (big) => {
-    k.hit = true;
-    shake(big ? 1 : 0.55); hitstop(0.08); A.boom(big ? 1.8 : 1);
-    dust(p.x, p.y, big ? 40 : 20, big ? 150 : 90);
-    addRing(p.x, p.y - 2, P.paper, big ? 340 : 240, 0.35, 2);
-    addRing(p.x, p.y - 2, G.kit.color(), big ? 260 : 180, 0.45, 2);
-    scorch(p.x, p.y, big ? 18 : 10);
-  };
-  k.update = (dt) => {
-    k.t += dt;
-    const t = k.t;
-    if (kind === 'drop' || kind === 'meteor') {
-      const fall = kind === 'meteor' ? 0.75 : 0.5;
-      if (!kaelV2 && t < fall && Math.random() < 0.8) part(p.x + rnd(-3, 3), p.y - 160 * (1 - t / fall) - 8, rnd(-20, 20), -rnd(20, 60), 0.4, kind === 'meteor' ? P.ember : G.kit.color(), { glow: true, keep: true });
-      if (t >= (kaelV2 ? 0.56 : fall) && !k.hit) {
-        land(kind === 'meteor');
-        if (kind === 'drop' && !kaelV2) G.slashes.push({ follow: false, x: p.x, y: p.y, a: 0, r: 34, arc: 6.2, dir: 1, t: 0, life: 0.3, th: 10, col: 'ember' });
-        if (kind === 'meteor') G.quakes.push({ x: p.x, y: p.y, r: 0, delay: 0, max: 110, friendly: true, hit: new Set(), dmg: 0, speed: 220 });
-      }
-    } else if (kind === 'slide') {
-      if (t > 0.6 && !k.hit) { k.hit = true; }
-      if (t > 0.6 && Math.floor((t - 0.6) / 0.15) !== Math.floor((t - 0.6 - dt) / 0.15) && t < 1.1) { A.gun(); muzzle(p.x + 3, p.y - 16, -Math.PI / 2, P.gold, 8); shake(0.08); }
-      if (t < 0.6 && Math.random() < 0.7) dust(p.x - 160 * (1 - t / 0.6), p.y, 1, 40);
-    } else if (kind === 'portal') {
-      if (t < 0.8 && Math.random() < 0.6) G.bolts.push({ x0: p.x + rnd(-24, 24), y0: p.y - 6 + rnd(-14, 14), x1: p.x, y1: p.y - 6, t: 0, life: 0.15 });
-      if (t >= 0.8 && !k.hit) { k.hit = true; flash('#b48cff', 0.15, false); addRing(p.x, p.y - 6, '#b48cff', 260, 0.4, 2); A.magic(); A.freeze(); shake(0.3); }
-    } else if (kind === 'smoke') {
-      if (!k.s && t > 0.1) { k.s = 1; A.shuriken(); }
-      if (t >= 0.7 && !k.hit) { k.hit = true; G.zones.push({ type: 'smoke', x: p.x, y: p.y, r: 22, t: 0, life: 0.9 }); A.smoke(); dust(p.x, p.y, 20, 80); }
-    } else if (kind === 'crate') {
-      if (t >= 0.45 && !k.c) { k.c = 1; shake(0.5); A.wall(); dust(p.x, p.y, 16, 80); }
-      if (t >= 0.9 && !k.hit) {
-        k.hit = true; A.build(); A.boom(0.8); shake(0.4);
-        for (let i = 0; i < 20; i++) { const a = rnd(TAU), v = rnd(60, 200); part(p.x, p.y - 8, Math.cos(a) * v, Math.sin(a) * v, rnd(0.4, 0.8), Math.random() < 0.5 ? '#7a5030' : '#a8743a', { z: 6, vz: rnd(40, 120), g: 300, drag: 2, s: 2, keep: true }); }
-      }
-    } else if (kind === 'robot') {
-      if (Math.random() < 0.9) part(p.x + rnd(-6, 6), p.y - rnd(0, 40), 0, -rnd(30, 80), 0.3, P.volt, { glow: true, keep: true });
-      if (t >= 1.1 && !k.hit) { k.hit = true; flash(P.volt, 0.15, false); addRing(p.x, p.y - 6, P.volt, 220, 0.4, 2); A.shieldUp(); shake(0.3); }
-      if (Math.floor(t / 0.3) !== Math.floor((t - dt) / 0.3) && t < 1.1) A.zip();
-    }
-    // the entrance ends with the hero settling: a squash that springs back
-    if (k.t >= k.life) { G.cine = null; p.state = 'move'; p.inv = 0.5; p.sq = 0.26; p.sqv = 0; }
-  };
-  k.draw = () => {
-    const t = k.t, s = spr(), x = p.x - s.w / 2, y = p.y - s.h + 1;
-    if (kaelV2 && kaelEntranceV2Ready()) {
-      // The first 6 frames already contain smoke/ember streaks and the later frames contain landing.
-      // Do not move the entire sprite vertically or re-draw its sword.
-      drawSprite(s, x, y, false, null);
-    } else if (kind === 'drop' || kind === 'meteor') {
-      const fall = kind === 'meteor' ? 0.75 : 0.5, z = t < fall ? 160 * Math.pow(1 - t / fall, 1.5) : 0;
-      ring(p.x, p.y, Math.max(2, 10 - z / 20), 1, P.blood);
-      drawSprite(s, x, y - z, false, t < fall ? (kind === 'meteor' ? P.ember : P.paper) : null);
-      if (kind === 'meteor' && t < fall) glow(p.x, p.y - z - 6, P.ember, 14, 0.7);
-    } else if (kind === 'slide') {
-      const k2 = Math.min(1, t / 0.6), off = 160 * Math.pow(1 - k2, 2);
-      drawSprite(s, x - off, y, false, null);
-    } else if (kind === 'portal') {
-      const r = Math.min(1, t / 0.5) * 16;
-      ring(p.x, p.y - 2, r, 1, '#b48cff'); ring(p.x, p.y - 2, r * 0.6, 1, '#7a52c8');
-      for (let i = 0; i < 6; i++) { const a = t * 4 + (i * TAU) / 6; px(p.x + Math.cos(a) * r, p.y - 2 + Math.sin(a) * r * 0.5, P.paper); }
-      glow(p.x, p.y - 6, '#b48cff', 18, 0.4);
-      if (t > 0.5) {
-        const q = Math.min(1, (t - 0.5) / 0.3);
-        ctx.save(); ctx.beginPath(); ctx.rect(x - 2, y + s.h * (1 - q), s.w + 4, s.h * q + 1); ctx.clip();
-        drawSprite(s, x, y, false, q < 1 ? '#b48cff' : null); ctx.restore();
-      }
-    } else if (kind === 'smoke') {
-      for (let i = 0; i < 3; i++) { const a = (i * TAU) / 3 + 0.5, d = 14; if (t > 0.1 + i * 0.12) { line(p.x + Math.cos(a) * d - 2, p.y + Math.sin(a) * d * 0.6, p.x + Math.cos(a) * d + 2, p.y + Math.sin(a) * d * 0.6, P.bone); px(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.6 - 1, P.paper); } }
-      if (t >= 0.7) { ctx.globalAlpha = Math.min(1, (t - 0.7) / 0.3); drawSprite(s, x, y, false, null); ctx.globalAlpha = 1; }
-    } else if (kind === 'crate') {
-      if (t < 0.9) {
-        const z = t < 0.45 ? 140 * Math.pow(1 - t / 0.45, 2) : 0, sh = t > 0.6 ? (Math.floor(t * 40) % 2 ? 1 : -1) : 0;
-        rect(p.x - 8 + sh, p.y - 15 - z, 16, 15, '#7a5030'); rect(p.x - 8 + sh, p.y - 15 - z, 16, 1, '#a8743a');
-        line(p.x - 8 + sh, p.y - 15 - z, p.x + 7 + sh, p.y - 1 - z, '#4a2e18'); line(p.x + 7 + sh, p.y - 15 - z, p.x - 8 + sh, p.y - 1 - z, '#4a2e18');
-        rect(p.x - 8 + sh, p.y - 1 - z, 16, 1, '#2a1a0c');
-      } else { drawSprite(s, x, y - Math.max(0, 8 * Math.sin(Math.min(1, (t - 0.9) / 0.3) * Math.PI)), false, null); }
-    } else if (kind === 'robot') {
-      const w = t < 1.1 ? 6 + Math.sin(t * 40) : Math.max(0, 6 * (1 - (t - 1.1) / 0.3));
-      if (w > 0) { rect(p.x - w / 2, fx.cam.y - 10, w, p.y - fx.cam.y + 10, P.volt); rect(p.x - w / 4, fx.cam.y - 10, Math.max(1, w / 2), p.y - fx.cam.y + 10, P.paper); glow(p.x, p.y - 4, P.volt, 16, 0.6); }
-      if (t > 0.6) {
-        const q = Math.min(1, (t - 0.6) / 0.5);
-        for (let row = 0; row < s.h; row++) if (row / s.h > 1 - q || Math.random() < q * 0.3) { ctx.save(); ctx.beginPath(); ctx.rect(x - 1, y + row, s.w + 2, 1); ctx.clip(); drawSprite(s, x + (q < 1 ? rnd(-2, 2) : 0), y, false, q < 1 ? P.volt : null); ctx.restore(); }
-      }
-    }
-  };
-  return k;
-}
 
 // ---------- charged attacks ----------
 // f is the charge, 0.15..1: damage, reach and spread scale with it, so a half charge is half the attack.
@@ -309,7 +205,7 @@ export const CHARS = {
       },
     },
     drawWeapon: (p, flip) => drawBlade(p, flip, 12, P.bone, P.ember),
-    entrance: () => entrance('drop'),
+    entrance: () => heroEntrance('BLADE'),
   },
 
   GUNNER: {
@@ -419,7 +315,7 @@ export const CHARS = {
       if (k.reload > 0) { textO('RELOADING', x, y, Math.floor(G.time * 8) % 2 ? P.gold : P.dust); return; }
       for (let i = 0; i < mag; i++) rect(x + (i % 21) * 3, y + Math.floor(i / 21) * 4, 2, 3, i < k.ammo ? P.gold : P.ink3);
     },
-    entrance: () => entrance('slide'),
+    entrance: () => heroEntrance('GUNNER'),
   },
 
   WIZARD: {
@@ -519,7 +415,7 @@ export const CHARS = {
       disc(tx, ty, p.k.castT > 0 ? 2 : 1, '#b48cff'); px(tx, ty, P.paper);
       glow(tx, ty, '#b48cff', p.k.castT > 0 ? 10 : 6, p.k.castT > 0 ? 0.7 : 0.35);
     },
-    entrance: () => entrance('portal'),
+    entrance: () => heroEntrance('WIZARD'),
   },
 
   // Rin, samurai. (The id stays NINJA so saves and unlocks keep working.)
@@ -757,7 +653,7 @@ export const CHARS = {
         ctx.globalAlpha = 1;
       }
     },
-    entrance: () => entrance('smoke'),
+    entrance: () => heroEntrance('NINJA'),
   },
 
   MECHANIC: {
@@ -840,7 +736,7 @@ export const CHARS = {
       const n = G.allies.filter((a) => a.type === 'turret').length;
       textO('TURRETS ' + n + '/' + (2 + G.up.hands), x, y, '#ff8a3c');
     },
-    entrance: () => entrance('crate'),
+    entrance: () => heroEntrance('MECHANIC'),
   },
 
   TANK: {
@@ -958,7 +854,7 @@ export const CHARS = {
       line(tx - cy * 3, ty + cx * 3, tx + cy * 3, ty - cx * 3, '#8fa2bd', 3);
       line(tx - cy * 3, ty + cx * 3, tx + cy * 3, ty - cx * 3, '#cfe0f5');
     },
-    entrance: () => entrance('meteor'),
+    entrance: () => heroEntrance('TANK'),
   },
 
   ROBOT: {
@@ -1067,7 +963,7 @@ export const CHARS = {
       rect(x, y, Math.round((64 * k.heat) / 100), 2, k.over > 0 ? (Math.floor(G.time * 10) % 2 ? P.blood : P.paper) : k.heat > 70 ? P.ember : P.volt);
       textO(k.over > 0 ? 'OVERHEATED' : 'HEAT', x, y + 4, k.over > 0 ? P.blood : P.dust);
     },
-    entrance: () => entrance('robot'),
+    entrance: () => heroEntrance('ROBOT'),
   },
 };
 
@@ -1225,30 +1121,6 @@ function bugHit(e, n = 1) {
     if (G.up.fork) G.timers.push({ t: 0.1, fn: () => { for (const o of G.E) if (alive(o) && o !== e && hyp(o.x - ex, o.y - ey) < 50) { G.bolts.push({ x0: ex, y0: ey - 6, x1: o.x, y1: o.y - o.r, t: 0, life: 0.2, c1: P.paper, c2: GREEN, c3: '#1a6a2a' }); bugHit(o, 2); } } });
   }
 }
-function devEntrance() {
-  const p = G.p, k = { t: 0, life: 1.6 };
-  p.state = 'cine';
-  const line1 = '> ./dev.exe';
-  k.update = (dt) => {
-    k.t += dt;
-    if (k.t < 1 && Math.random() < 0.7) glitch(p.x + rnd(-30, 30), p.y - 8 + rnd(-20, 20), 10, 4, 0.15, 4);
-    if (Math.floor(k.t * 14) !== Math.floor((k.t - dt) * 14) && k.t < 0.8) A.click();
-    if (k.t >= 1 && !k.hit) { k.hit = true; flash(GREEN, 0.15, false); addRing(p.x, p.y - 6, GREEN, 260, 0.4, 2); glitch(p.x, p.y - 8, 30, 24, 0.4, 20); A.zap(); shake(0.4); }
-    if (k.t >= k.life) { G.cine = null; p.state = 'move'; p.inv = 0.5; }
-  };
-  k.draw = () => {
-    const set=SPR.chars.DEV, f=set.act?.entrance;
-    const s=f?.length?f[Math.min(f.length-1,Math.floor(k.t/k.life*f.length))]:set.idle;
-    const x=p.x-s.w/2,y=p.y-s.h+1;
-    textO(line1.slice(0, Math.floor(k.t * 16)), p.x - 20, p.y - 30, GREEN);
-    if (k.t > 0.6) {
-      const q = Math.min(1, (k.t - 0.6) / 0.4), off = Math.round((1 - q) * 4);
-      drawSprite(s, x - off, y, false, '#ff4fa8'); drawSprite(s, x + off, y, false, GREEN);
-      if (q >= 1) drawSprite(s, x, y, false);
-    }
-  };
-  return k;
-}
 CHARS.DEV = {
   id: 'DEV', name: 'THE DEV', alias: 'ROOT', color: () => GREEN,
   desc: ['STARTS AS A NORMAL GUY WITH A LAPTOP.', 'PAST WAVE 20 HE REWRITES THE GAME'], tip: '5 HITS CRASH A FOE',
@@ -1378,7 +1250,7 @@ CHARS.DEV = {
     }
   },
   hud(p, x, y) { textO('V' + devVer() + '  POWER ' + Math.round(devScale() * 100) + '%', x, y, GREEN); },
-  entrance: devEntrance,
+  entrance: () => heroEntrance('DEV'),
 };
 
 // ---------- signature flair: small effects each fighter gives off ----------

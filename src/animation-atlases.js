@@ -1,7 +1,7 @@
 // ASHBLADE OPTION A: all playable heroes remain FRONT-FACING.
 // Pixel-accurate transparent images, not runtime segmentation or OCR.
 // 128 x 96 SOURCE pixels, hero ~54px tall (Grom 60), all share bottom-centre pivot.
-import { makeCanvas, SS } from './gfx.js?v=170';
+import { makeCanvas, SS } from './gfx.js?v=171';
 export const CELL_W = 128, CELL_H = 96;
 const ACTIONS = { entrance:8, idle:8, walk:8, run:8, attack1:8, attack2:8,
   attack3:8, skill1:8, skill2:8, ultimate:10, dash:6, hit:4, death:8 };

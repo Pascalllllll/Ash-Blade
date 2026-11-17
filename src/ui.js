@@ -1,14 +1,14 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, posterShow, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=170';
-import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill, modelBox } from './models.js?v=170';
-import { SPR, icon } from './sprites.js?v=170';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=170';
-import { A } from './audio.js?v=170';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=170';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=170';
-import { CHARS } from './chars.js?v=170';
-import { BOSSES, bossFor } from './bosses.js?v=170';
-import { MAPS } from './maps.js?v=170';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=170';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, posterShow, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=171';
+import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill, modelBox } from './models.js?v=171';
+import { SPR, icon } from './sprites.js?v=171';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=171';
+import { A } from './audio.js?v=171';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=171';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=171';
+import { CHARS } from './chars.js?v=171';
+import { BOSSES, bossFor } from './bosses.js?v=171';
+import { MAPS } from './maps.js?v=171';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=171';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -97,6 +97,8 @@ function abilityBox(x, y, key, ready, frac, deny, ic, col) {
 
 export function drawHUD(menu) {
   const p = G.p, kit = G.kit;
+  // a hero's entrance: no HUD yet, just its letterbox and name card
+  if (G.cine?.overlay) { G.cine.overlay(); return; }
   const lb = G.boss && BOSSES[G.boss.boss].bars(G.boss);
   for (let i = 0; i < p.maxHp; i++) drawSprite(i < p.hp ? SPR.heart : SPR.heartE, 5 + (i % 12) * 8, 5 + Math.floor(i / 12) * 8 + (i < p.hp && p.hp <= 2 && Math.floor(G.time * 6) % 2 ? -1 : 0), false);
   const oy = p.maxHp > 12 ? 8 : 0;
@@ -287,7 +289,7 @@ export function loadArt() {
   if (artState !== 'idle') return;
   artState = 'loading';
   const el = document.createElement('script');
-  el.src = 'art/title.js?v=170';
+  el.src = 'art/title.js?v=171';
   el.onload = () => {
     const d = window.ASH_ART && window.ASH_ART.title;
     if (!d) { artState = 'failed'; return; }

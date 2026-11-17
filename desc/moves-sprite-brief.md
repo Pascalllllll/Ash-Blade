@@ -83,6 +83,8 @@ Note: Kael's combo in the game has four hits (slash, X-cut, thrust, spin). With 
 
 ## Rin (SAMURAI): katana, sakura pink
 
+Look: the current design is `Rin dan Rivet dalam Gaya Pixel Art.png` (left); her movement guide is `Lembar Sprite Samurai Rin Berbunga Sakura.png`.
+
 | Move | In the game | Direction | Sprite should show |
 |---|---|---|---|
 | **Attack 1**: quick cut | Very fast short cut | Forward | A small, sharp horizontal cut with the katana, pink trail, almost no wind-up |
@@ -95,6 +97,8 @@ Note: Kael's combo in the game has four hits (slash, X-cut, thrust, spin). With 
 Note: Rin's combo in the game has four hits (quick cut, X-cut, stab, iai draw). With three attack animations, the fourth hit reuses attack1 for now.
 
 ## Rivet (MECHANIC): giant wrench, orange
+
+Look: the current design is `Rin dan Rivet dalam Gaya Pixel Art.png` (right); her movement guide is `Lembar Sprite Animasi Rivet.png`.
 
 | Move | In the game | Direction | Sprite should show |
 |---|---|---|---|
@@ -147,9 +151,9 @@ Send the sheets the same way as Kael's pack (a zip with the frames as coded data
 
 ## Implementation update: Option A / front-facing hero atlases
 
-- Entry animations: Kael ember drop, Vega sliding gunslinger entry, Morrow portal materialization, Rin smoky blink/petals, Rivet breaking out of a crate, Grom meteor landing, Unit-7 scanline beam assembly, The Dev terminal-glitch materialization. The game owns large cinematic VFX.
+- Entrances are drawn by the game (`src/entrances.js`), no atlas frames needed: Kael's meteor crash, Vega's high-noon drop firing all round, Morrow's summoning circle and light pillar, Rin's sakura-smoke appearance with the cuts in the air bursting, Rivet's drop pod, Grom's hammer-first landing with rock spikes, Unit-7's build-up inside an orbital beam, The Dev's terminal compile and block-by-block render.
 - Ultimate (R) poses are **distinct per character** and visually separate from Q and E. Kael Thousand Cuts, Vega minigun stance, Morrow Starfall, Rin Issen, Rivet Iron Titan command, Grom Fortress, Unit-7 Orbital Laser, The Dev rm -rf.
-- Death poses: 8 frames, intentionally different effects for each. High-impact stylized pixel violence uses the original game effects (ember/ash, final gunshot, magic implosion, sakura fragmentation, explosive mechanical scrap, Grom armor shattering, electrical malfunction, The Dev's deletion). Do not duplicate the major effects inside the atlas.
+- Deaths are drawn by the game too (`src/deaths.js`), from the idle frame, cutting it into pieces where a death needs it: Kael cut in two and burned to ash, Vega riddled and shot through the hat, Morrow torn apart by his own spell, Rin cut apart six ways, Rivet blown apart by her rig, Grom crushed by his own hammer, Unit-7 beheaded and self-destructed, The Dev deleted strip by strip.
 - No jump action in normal gameplay. There is a separate **dash** action, not dodge roll.
 - Every atlas has 128x96 transparent cells arranged as 10 columns with 13 action rows, and `art/sprites/manifest.json` lists frame counts and pivot.
 - Source-to-atlas conversion is deterministic, nearest-neighbor, and retains original author art. Automatically derived poses are provisional until manually art-directed.

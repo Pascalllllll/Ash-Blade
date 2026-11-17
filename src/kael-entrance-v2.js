@@ -46,7 +46,7 @@ export function preloadKaelEntranceV2() {
     state = 'failed';
     console.warn('[ASHBLADE] Kael Entrance V2 image unavailable; using existing entrance animation.');
   };
-  image.src = new URL('../art/sprites/motion-v7/kael-entrance-v7-scaled-54px.png?v=170', import.meta.url).href;
+  image.src = new URL('../art/sprites/motion-v7/kael-entrance-v7-scaled-54px.png?v=171', import.meta.url).href;
 }
 export function kaelEntranceV2Ready() { return state === 'ready'; }
 // The drawn frames play up to the landing (the smoke, the red cuts, Kael rising); from the landing on the game draws
