@@ -1,14 +1,14 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=115';
-import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill, modelBox } from './models.js?v=115';
-import { SPR, icon } from './sprites.js?v=115';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=115';
-import { A } from './audio.js?v=115';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=115';
-import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=115';
-import { CHARS } from './chars.js?v=115';
-import { BOSSES, bossFor } from './bosses.js?v=115';
-import { MAPS } from './maps.js?v=115';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=115';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, posterShow, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=170';
+import { loadModels, modelsReady, modelsFailed, modelsProgress, hasModel, modelFrame, modelFlat, modelStill, modelBox } from './models.js?v=170';
+import { SPR, icon } from './sprites.js?v=170';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=170';
+import { A } from './audio.js?v=170';
+import { settings, best, OPTIONS, isUnlocked } from './store.js?v=170';
+import { TWISTS, multiName, G, fx, RANKS, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=170';
+import { CHARS } from './chars.js?v=170';
+import { BOSSES, bossFor } from './bosses.js?v=170';
+import { MAPS } from './maps.js?v=170';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=170';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -219,12 +219,24 @@ export function drawHUD(menu) {
 
 // ---------- title ----------
 const embers = [];
+// the floor, its decals and the darkening baked into one picture, so menus draw one full-screen layer instead
+// of four. It's rebuilt when a menu opens (play may have added decals) and when the darkness or theme changes.
+let bakedBg = null, bakedKey = '', bakedT = -1;
+function backdropImage(t, darken) {
+  if (!bakedBg) bakedBg = makeCanvas(AW, AH);
+  const key = darken + P.void;
+  if (key !== bakedKey || t < bakedT || t - bakedT > 0.25) {
+    const g = bakedBg.getContext('2d');
+    g.globalAlpha = 1; g.drawImage(floor, 0, 0); g.drawImage(decal, 0, 0);
+    g.globalAlpha = darken; g.fillStyle = P.void; g.fillRect(0, 0, AW, AH); g.globalAlpha = 1;
+    bakedKey = key;
+  }
+  bakedT = t;
+  return bakedBg;
+}
 export function drawBackdrop(t, darken = 0.6) {
   const cx = Math.round(AW / 2 - W / 2 + Math.sin(t * 0.12) * 70), cy = Math.round(AH / 2 - H / 2 + Math.cos(t * 0.09) * 40);
-  ctx.fillStyle = P.void; ctx.fillRect(0, 0, W, H);
-  ctx.drawImage(floor, -cx, -cy);
-  ctx.drawImage(decal, -cx, -cy);
-  dim(darken);
+  ctx.drawImage(backdropImage(t, darken), -cx, -cy);
   if (embers.length < 60 && Math.random() < 0.5) embers.push({ x: Math.random() * W, y: H + 2, vx: (Math.random() - 0.5) * 8, vy: -10 - Math.random() * 22, c: Math.random() < 0.5 ? P.ember : P.ember2, life: 4 + Math.random() * 4, t: 0 });
   for (const e of embers) { e.t += 1 / 60; e.x += (e.vx + Math.sin(e.t * 2 + e.y * 0.05) * 6) / 60; e.y += e.vy / 60; px(e.x, e.y, e.c); glow(e.x, e.y, e.c, 3, 0.4); }
   for (let i = embers.length - 1; i >= 0; i--) if (embers[i].t > embers[i].life || embers[i].y < -4) embers.splice(i, 1);
@@ -235,34 +247,182 @@ export const titleMenu = { sel: 0 };
 export function titleItems(save, go) {
   const items = [];
   if (save) items.push({ label: 'CONTINUE', value: () => CHARS[save.char].name + '  WAVE ' + save.wave, act: () => go('continue') });
-  items.push({ label: 'NEW RUN', act: () => go('select') });
+  items.push({ label: 'PLAY', act: () => go('select') });
   items.push({ label: 'SETTINGS', act: () => go('settings') });
   return items;
 }
+// the title menu sits in the middle of the screen
+// the title menu floats over the castle, between the logo and the fighters' faces
+export const TITLE_MENU = { w: 64, row: 12 };
+export const titleMenuX = () => (W - TITLE_MENU.w) / 2;
+export const titleMenuY = (n) => Math.round(H * 0.33 - (n * TITLE_MENU.row) / 2 + 4);
+
+// ---------- the title screen's key art ----------
+// The picture behind the title screen: the eight fighters under the ASHBLADE logo, stored as pixel data in
+// art/title.js (a palette and a run-length string, 640 x 360) and unpacked once into a canvas. It loads as
+// the page opens; until it has, the title screen falls back to the arena backdrop.
+let ART = null, artState = 'idle';
+// The logo's white letters, picked out of the picture once: the shine runs only across them.
+const LOGO_BOX = [0.145, 0.03, 0.85, 0.24];
+let LOGO_MASK = null, LOGO_FX = null, LOGO_GLINTS = [], LOGO_SPAN = [0, 1];
+function buildLogoMask(art) {
+  const [nx0, ny0, nx1, ny1] = LOGO_BOX, x0 = Math.round(nx0 * art.width), y0 = Math.round(ny0 * art.height), w = Math.round((nx1 - nx0) * art.width), h = Math.round((ny1 - ny0) * art.height);
+  const src = art.getContext('2d').getImageData(x0, y0, w, h), m = makeCanvas(w, h), mg = m.getContext('2d'), md = mg.createImageData(w, h);
+  const pts = [];
+  let minX = w, maxX = 0;
+  for (let i = 0; i < w * h; i++) {
+    const r = src.data[i * 4], g = src.data[i * 4 + 1], b = src.data[i * 4 + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx > 205 && mx - mn < 60) { md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = 255; minX = Math.min(minX, i % w); maxX = Math.max(maxX, i % w); if (i % 97 === 0) pts.push([(i % w) / w, Math.floor(i / w) / h]); }
+  }
+  mg.putImageData(md, 0, 0);
+  // kept at half resolution: the moving shine doesn't need more, and it's composited every frame
+  const half = makeCanvas(Math.ceil(w / 2), Math.ceil(h / 2)), hg = half.getContext('2d'); hg.imageSmoothingEnabled = true; hg.drawImage(m, 0, 0, half.width, half.height);
+  LOGO_MASK = half; LOGO_FX = makeCanvas(half.width, half.height);
+  // where the letters start and end: the sweep runs only across them
+  LOGO_SPAN = [minX / w, maxX / w];
+  // a dozen glint spots on the letters
+  LOGO_GLINTS = Array.from({ length: 12 }, (_, i) => pts[Math.floor((i * 7919) % Math.max(1, pts.length))] || [0.5, 0.5]);
+}
+export function loadArt() {
+  if (artState !== 'idle') return;
+  artState = 'loading';
+  const el = document.createElement('script');
+  el.src = 'art/title.js?v=170';
+  el.onload = () => {
+    const d = window.ASH_ART && window.ASH_ART.title;
+    if (!d) { artState = 'failed'; return; }
+    const code = new Map([...d.alphabet].map((c, i) => [c, i])), pal = d.palette.map((h) => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; });
+    const c = makeCanvas(d.w, d.h), g = c.getContext('2d'), img = g.createImageData(d.w, d.h), px = img.data, s = d.pixels;
+    let o = 0;
+    for (let i = 0; i < s.length;) {
+      const v = pal[code.get(s[i++])];
+      let n = 0;
+      while (i < s.length && s[i] >= '0' && s[i] <= '9') n = n * 10 + (s.charCodeAt(i++) - 48);
+      for (let k = 0; k < (n || 1); k++, o += 4) { px[o] = v[0]; px[o + 1] = v[1]; px[o + 2] = v[2]; px[o + 3] = 255; }
+    }
+    g.putImageData(img, 0, 0);
+    buildLogoMask(c);
+    ART = c; artState = 'ready';
+  };
+  el.onerror = () => { artState = 'failed'; };
+  document.head.append(el);
+}
+// The poster, animated. It breathes in a slow zoom (z on top of that pushes it further in), and on top of the
+// picture: glows that pulse on the orbs, the robot's cannon and cross, the knight's visor, the holo screens, the
+// castle's rune circle and the fire; a light sweeping across the logo; stars twinkling in the sky; and embers
+// and petals drifting up. Positions are shares of the picture's width and height.
+const POSTER_GLOWS = [
+  [0.3125, 0.27, 14, '#8a7aff', 2.1, 0], [0.443, 0.393, 8, '#b48cff', 2.7, 1], [0.366, 0.322, 4, '#62efff', 3.3, 2],
+  [0.712, 0.305, 12, '#62efff', 2.4, 0.5], [0.816, 0.317, 7, '#ff3b3b', 3.1, 1.3], [0.783, 0.229, 3, '#ff3b3b', 4.4, 0.2], [0.836, 0.254, 3, '#ff3b3b', 4.4, 1.9],
+  [0.67, 0.393, 6, '#ff9a3c', 2.8, 2.2], [0.945, 0.535, 10, '#62efff', 1.7, 0.2], [0.797, 0.611, 8, '#62efff', 1.9, 1.1], [0.926, 0.7, 6, '#62efff', 2.3, 2.6],
+  [0.5, 0.34, 14, '#9ad8ff', 1.3, 0], [0.07, 0.6, 18, '#ff6a2b', 3.5, 0.4], [0.12, 0.5, 12, '#ffa646', 4.1, 1.6], [0.04, 0.72, 10, '#ffa646', 3.7, 2.4],
+];
+const seeded = (n, f) => Array.from({ length: n }, (_, i) => f((Math.sin(i * 127.1 + 31.7) * 43758.5453) % 1, (Math.sin(i * 269.5 + 7.3) * 23421.631) % 1, i));
+const POSTER_STARS = seeded(26, (a, b) => [Math.abs(a), Math.abs(b) * 0.42]);
+const POSTER_EMBERS = seeded(40, (a, b, i) => [Math.abs(a), Math.abs(b), i % 3 === 0 ? '#ff7ac8' : i % 3 === 1 ? '#ffa646' : '#ff6a2b']);
+// a soft round glow sprite per color: far cheaper each frame than building gradients
+const glowSprites = new Map();
+function glowSprite(col) {
+  let c = glowSprites.get(col);
+  if (c) return c;
+  c = makeCanvas(64, 64); const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  glowSprites.set(col, c);
+  return c;
+}
+function drawPoster(h, _t, push = 0) {
+  // one clock for the poster everywhere, so its motion carries on unbroken from the opening into the title
+  const t = performance.now() / 1000;
+  const z = 1 + push + 0.012 * (1 - Math.cos(t * 0.5)), w = W * z, hh = H * z, x0 = (W - w) / 2, y0 = (H - hh) / 2;
+  const at = (nx, ny) => [x0 + nx * w, y0 + ny * hh];
+  // the picture itself is on the poster layer (drawn once); only what moves is drawn here
+  posterShow(ART, z);
+  h.save(); h.globalCompositeOperation = 'lighter';
+  for (const [nx, ny, r, c, sp, ph] of POSTER_GLOWS) {
+    const [gx, gy] = at(nx, ny), a = 0.32 * (0.55 + 0.45 * Math.sin(t * sp + ph));
+    h.globalAlpha = a; h.drawImage(glowSprite(c), gx - r * z, gy - r * z, r * 2 * z, r * 2 * z);
+  }
+  // the logo: a slanted band of light runs across the white letters only, a warm afterglow trailing it, and
+  // star glints twinkle on the letters
+  if (LOGO_MASK) {
+    const [nx0, ny0, nx1, ny1] = LOGO_BOX, [lx0, ly0] = at(nx0, ny0), [lx1, ly1] = at(nx1, ny1), lw = lx1 - lx0, lh = ly1 - ly0;
+    // the sweep crosses from the first letter to the last, then rests for a moment
+    const sweep = (t * 0.32) % 1.5;
+    if (sweep < 1) {
+      const f = LOGO_FX, fg = f.getContext('2d'), W2 = f.width, H2 = f.height, bx = (LOGO_SPAN[0] + (LOGO_SPAN[1] - LOGO_SPAN[0]) * sweep) * W2;
+      fg.globalCompositeOperation = 'source-over'; fg.clearRect(0, 0, W2, H2);
+      fg.drawImage(LOGO_MASK, 0, 0);
+      fg.globalCompositeOperation = 'source-in';
+      // painted over the letters (not added, which would vanish on white): a wash of molten gold with a hot
+      // white edge, a cool blue trail behind it, and a soft gold bloom around it
+      const g = fg.createLinearGradient(bx - H2 * 0.9, 0, bx + H2 * 0.9, H2);
+      g.addColorStop(0, 'rgba(90,140,255,0)'); g.addColorStop(0.25, 'rgba(110,170,255,0.55)'); g.addColorStop(0.42, 'rgba(255,190,60,0.95)');
+      g.addColorStop(0.5, 'rgba(255,255,235,1)'); g.addColorStop(0.58, 'rgba(255,170,40,0.9)'); g.addColorStop(0.78, 'rgba(255,120,30,0.35)'); g.addColorStop(1, 'rgba(255,120,30,0)');
+      fg.fillStyle = g; fg.fillRect(0, 0, W2, H2);
+      h.globalCompositeOperation = 'source-over'; h.globalAlpha = 0.85; h.drawImage(f, lx0, ly0, lw, lh);
+      h.globalCompositeOperation = 'lighter';
+      const bloomX = lx0 + (bx / W2) * lw;
+      // the bloom fades in at the first letter and out at the last, so it never drifts past them
+      h.globalAlpha = 0.3 * Math.sin(sweep * Math.PI); h.drawImage(glowSprite('#ffc85a'), bloomX - lh * 0.9, ly0 + lh / 2 - lh * 0.9, lh * 1.8, lh * 1.8);
+    }
+    for (const [i, [gx, gy]] of LOGO_GLINTS.entries()) {
+      const a = Math.max(0, Math.sin(t * 2.2 + i * 1.9)); if (a < 0.55) continue;
+      const sx = lx0 + gx * lw, sy = ly0 + gy * lh, L = 1 + (a - 0.55) * 7;
+      h.globalAlpha = (a - 0.55) * 2; h.fillStyle = '#ffffff';
+      h.fillRect(sx - L, sy - 0.15, L * 2, 0.3); h.fillRect(sx - 0.15, sy - L, 0.3, L * 2); h.fillRect(sx - 0.4, sy - 0.4, 0.8, 0.8);
+    }
+  }
+  // stars twinkling, embers and petals drifting up
+  for (const [i, [nx, ny]] of POSTER_STARS.entries()) { const a = Math.max(0, Math.sin(t * (1.3 + (i % 5) * 0.4) + i)); if (a < 0.3) continue; const [sx, sy] = at(nx, ny); h.globalAlpha = a * 0.9; h.fillStyle = '#ffffff'; h.fillRect(sx - 0.25, sy - 0.25, 0.5, 0.5); h.globalAlpha = a * 0.35; h.fillRect(sx - 1, sy - 0.12, 2, 0.25); h.fillRect(sx - 0.12, sy - 1, 0.25, 2); }
+  for (const [i, [nx, sp, c]] of POSTER_EMBERS.entries()) {
+    const k = (t * (0.06 + sp * 0.08) + nx * 3.7) % 1, [ex, ey] = at(nx + Math.sin(t * 0.8 + i) * 0.01, 1.02 - k * 0.9);
+    h.globalAlpha = Math.sin(k * Math.PI) * 0.8; h.fillStyle = c; h.fillRect(ex, ey, 0.75, 0.75);
+  }
+  h.restore();
+  h.imageSmoothingEnabled = false;
+}
 export function drawTitle(t, items) {
-  drawBackdrop(t);
-  const lx = Math.round((W - LOGO.width) / 2), ly = 22, mid = 16;
-  const cyc = t % 3.2, cutK = cyc < 0.7 ? cyc / 0.7 : 0;
-  glow(W / 2, ly + 16, P.ember, 60, 0.12);
-  if (cutK > 0) {
-    const off = Math.round(Math.sin(cutK * Math.PI) * 4);
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, ly + mid); ctx.clip(); ctx.drawImage(LOGO, lx + off, ly - Math.round(off / 2)); ctx.restore();
-    ctx.save(); ctx.beginPath(); ctx.rect(0, ly + mid, W, H); ctx.clip(); ctx.drawImage(LOGO, lx - off, ly); ctx.restore();
-    if (cutK < 0.5) { const lw = Math.round(W * Math.min(1, cutK * 4)); rect(0, ly + mid, lw, 1, P.paper); glow(lw, ly + mid, P.paper, 14, 0.6); }
-  } else ctx.drawImage(LOGO, lx, ly);
-  textO('THE KING SWALLOWED THE SUN. HOLD THE PIT.', W / 2, ly + 40, P.bone, 1, 'c');
-  // the seven fighters parade under the logo
-  const ids = roster();
-  ids.forEach((id, i) => {
-    const s = SPR.chars[id].run[Math.floor(t * 8 + i) % 4], x = W / 2 - (ids.length * 22) / 2 + i * 22 + 11 - s.w / 2;
-    drawSprite(s, x, 97 - s.h - (Math.floor(t * 8 + i) % 2), false);
-  });
-  const mw = 150, mx = (W - mw) / 2, my = 104;
-  rect(mx - 2, my - 6, mw + 4, items.length * 12 + 6, P.ink1);
-  drawMenu(titleMenu, items, mx, my, mw, 12);
+  loadArt();
+  const mx = titleMenuX(), my = titleMenuY(items.length), mw = TITLE_MENU.w;
   const bline = best.score > 0 ? 'BEST ' + best.score + '   WAVE ' + best.wave + (best.won ? '   KING SLAIN' : '') : input.touch ? 'LEFT THUMB MOVES, RIGHT THUMB FIGHTS' : 'WASD MOVE   MOUSE AIM   CLICK ATTACK   SPACE DASH';
-  textO(bline, W / 2, 158, best.score > 0 ? P.gold : P.dust, 1, 'c');
-  text(input.touch ? 'TAP TO PICK' : 'ARROWS OR MOUSE, ENTER TO PICK', W / 2, 170, P.stone2, 1, 'c');
+  // the menu: a dark translucent panel in the middle with an ember edge, then the hints along the bottom
+  // the menu: no panel, just outlined words over the art. The picked one is gold, with ember arrows that
+  // close in on it and a soft glow behind it
+  const menu = () => {
+    items.forEach((it, i) => {
+      const y = my + i * TITLE_MENU.row, on = titleMenu.sel === i, label = it.label + (it.value ? '  ' + it.value() : '');
+      if (on) {
+        glow(W / 2, y + 2, P.ember, 18, 0.35 + Math.sin(t * 5) * 0.1);
+        const half = label.length * 2 + 6 + Math.round(Math.sin(t * 6)), c = Math.floor(t * 8) % 2 ? P.ember2 : P.ember;
+        textO('>', W / 2 - half - 2, y, c, 1, 'c'); textO('<', W / 2 + half + 2, y, c, 1, 'c');
+      }
+      textO(label, W / 2, y, on ? P.gold : P.bone, 1, 'c');
+    });
+    // the eight fighters stand in a row above the best-score line, each playing its idle loop, with a little
+    // hop running along the row every few seconds (fighters still locked are dark silhouettes)
+    OPTIONS.char.forEach((id, i) => {
+      const set = SPR.chars[id], s = set.idles[Math.floor(t * 7 + i * 3) % set.idles.length], lk = locked(id);
+      const wave = (t * 0.45) % 1, hop = Math.max(0, Math.sin((wave * 12 - i * 0.6) * Math.PI)) * (wave * 12 - i * 0.6 > 0 && wave * 12 - i * 0.6 < 1 ? 3 : 0);
+      const cx = W / 2 + (i - 3.5) * 22, foot = 156;
+      ctx.globalAlpha = 0.55; ctx.fillStyle = P.ink0; ctx.beginPath(); ctx.ellipse(cx, foot, 6, 1.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+      drawSprite(s, Math.round(cx - s.w / 2), Math.round(foot - s.h - hop), false, lk ? '#0a0810' : null);
+    });
+    textO(bline, W / 2, 160, best.score > 0 ? P.gold : P.bone, 1, 'c');
+    textO(input.touch ? 'TAP TO PICK' : 'ARROWS OR MOUSE, ENTER TO PICK', W / 2, 170, P.dust, 1, 'c');
+  };
+  if (ART) {
+    // the key art fills the screen on the full-resolution layer, and the menu is drawn over it there too
+    // (the opening ends on this same picture, so the title carries on from it without a cut)
+    const [h] = hdBegin();
+    drawPoster(h, t);
+    target(h); menu(); target(null);
+    return;
+  }
+  drawBackdrop(t);
+  const lx = Math.round((W - LOGO.width) / 2), ly = 22;
+  glow(W / 2, ly + 16, P.ember, 60, 0.12);
+  ctx.drawImage(LOGO, lx, ly);
+  menu();
 }
 
 // ---------- character select ----------
@@ -280,7 +440,7 @@ function pdraw(h, img, x, y, w, ht) {
 export const sel = { i: 0, row: 0, t: 0, shown: -1, swap: 0 };
 // draws only the top rows of a sprite (head and shoulders), optionally scaled
 function bust(s, x, y, rows, scale = 1, tint = null) {
-  ctx.drawImage(tint ? s.tint(tint, false) : s.n, 0, 0, s.w, rows, Math.round(x), Math.round(y), s.w * scale, rows * scale);
+  ctx.drawImage(tint ? s.tint(tint, false) : s.n, 0, 0, s.w * s.k, rows * s.k, Math.round(x), Math.round(y), s.w * scale, rows * scale);
 }
 export const roster = () => OPTIONS.char.filter(isUnlocked);
 const locked = (id) => !isUnlocked(id);
@@ -413,7 +573,7 @@ function drawHero(id, t, col, lk, h) {
   ctx.globalAlpha = 0.45; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(x0 + MW / 2, 174, 34, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
   // no portrait for this fighter yet (or still loading): the in-game sprite, big
   if (!hasModel(id) || !modelsReady()) {
-    const s = SPR.chars[id].idles[Math.floor(t * 7) % 8], k = 6;
+    const s = SPR.chars[id].idles[Math.floor(t * 7) % SPR.chars[id].idles.length], k = 6;
     ctx.globalAlpha = Math.min(1, e0 * 2.5 + 0.2);
     ctx.drawImage(lk ? s.tint('#07050b', false) : s.n, Math.round(x0 + MW / 2 - (s.w * k) / 2), 172 - s.h * k, s.w * k, s.h * k);
     ctx.globalAlpha = 1;
@@ -466,7 +626,7 @@ export function drawSelect(t) {
     ctx.save(); tilePath(x, y); ctx.fillStyle = on ? P.ink2 : P.ink1; ctx.fill(); ctx.clip();
     if (on) glow(x + TW / 2, y + TH / 2, ch.color(), 22, 0.25);
     // the in-game pixel fighter: the picked one runs, the others breathe and blink, locked ones are dark
-    const set = SPR.chars[cid], s = on && !tlk ? set.run[Math.floor(t * 9) % 4] : tlk ? set.idle : set.idles[Math.floor(t * 7 + i * 3) % 8];
+    const set = SPR.chars[cid], s = on && !tlk ? set.run[Math.floor(t * 9) % set.run.length] : tlk ? set.idle : set.idles[Math.floor(t * 7 + i * 3) % set.idles.length];
     // at 1x the whole fighter fits inside the tile
     bust(s, x + Math.round((TW + SLANT - s.w) / 2), y + TH - s.h - 4 - (on && !tlk ? Math.floor(t * 9) % 2 : 0), s.h, 1, tlk ? '#0a0810' : null);
     if (!on && !tlk) { ctx.globalAlpha = 0.3; rect(x, y, TW + SLANT, TH, P.ink0); ctx.globalAlpha = 1; }
@@ -560,7 +720,7 @@ export function drawSettings(t, items, inRun) {
     text(n, x + 38, 17, on ? P.ink0 : P.dust, 1, 'c');
   });
   drawMenu(setm, items, 40, 36, 240, setm.tab === 1 ? 10 : 11);
-  if (setm.tab === 1) roster().forEach((id, i) => bust(SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % 8], 290, 34 + i * 17, 16));
+  if (setm.tab === 1) roster().forEach((id, i) => bust(SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % SPR.chars[id].idles.length], 290, 34 + i * 17, 16));
   if (setm.tab === 2 && inRun) text('ARENA AND DIFFICULTY APPLY TO YOUR NEXT RUN', W / 2, 106, P.stone2, 1, 'c');
   text(input.touch ? 'TAP A TAB, TAP LEFT OR RIGHT SIDE OF A ROW TO CHANGE IT' : 'Q / E SWITCH TABS   ARROWS CHANGE   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
 }
@@ -703,11 +863,11 @@ const portraitsWarm = () => warm >= OPTIONS.char.length;
 // back to the small sprites. A very slow connection gives up after 12 seconds and uses the sprites.
 const HOLD = BEAT0 - 0.25;
 export function introClock(t, dt) {
-  if (t <= HOLD || t - dt > HOLD || portraitsWarm() || modelsFailed() || held > 12) return t;
+  if (t <= HOLD || t - dt > HOLD || (portraitsWarm() && (ART || artState === 'failed')) || modelsFailed() || held > 12) return t;
   held += dt;
   return HOLD;
 }
-const holding = (t) => t >= HOLD - 0.001 && t <= HOLD + 0.001 && !portraitsWarm();
+const holding = (t) => t >= HOLD - 0.001 && t <= HOLD + 0.001 && !(portraitsWarm() && ART);
 function warmPortraits() {
   loadModels();
   if (!modelsReady() || warm >= OPTIONS.char.length * 2) return;
@@ -801,7 +961,7 @@ function drawBeat(i, t, h) {
     pdraw(h, pic, x, y, PW, PH);
     if (!lk && t > 0.1 && t < 0.24) { h.globalAlpha = 1 - (t - 0.1) / 0.14; pdraw(h, modelFlat(id, '#ffffff') || pic, x, y, PW, PH); h.globalAlpha = 1; }
   } else {
-    const s = SPR.chars[id].idles[Math.floor(t * 7) % 8], S = 6, sx = Math.round(x + PW / 2 - (s.w * S) / 2), sy = 176 - s.h * S;
+    const s = SPR.chars[id].idles[Math.floor(t * 7) % SPR.chars[id].idles.length], S = 6, sx = Math.round(x + PW / 2 - (s.w * S) / 2), sy = 176 - s.h * S;
     ctx.save(); ctx.translate(sx, sy); ctx.scale(S, S); drawSprite(s, 0, 0, right, lk ? '#07050b' : t > 0.1 && t < 0.16 ? P.paper : null); ctx.restore();
   }
   // the name, on the other half
@@ -844,7 +1004,7 @@ function drawLineup(t, h) {
       if (k < 1) { h.globalAlpha = 1 - k; pdraw(h, modelFlat(id, col) || pic, px0, py0, PW, PH); }
       h.restore();
     } else {
-      const s = SPR.chars[id].idles[Math.floor(t * 7 + i) % 8], S = 4;
+      const s = SPR.chars[id].idles[Math.floor(t * 7 + i) % SPR.chars[id].idles.length], S = 4;
       ctx.save(); path(ctx); ctx.clip(); ctx.translate(Math.round(x0 + SW / 2 - (s.w * S) / 2), Math.round(150 - s.h * S + dy)); ctx.scale(S, S); drawSprite(s, 0, 0, false, lk ? '#07050b' : null); ctx.restore();
     }
     // the slice edges glow in the fighter's color
@@ -855,7 +1015,19 @@ function drawLineup(t, h) {
   else if (t > 0.45) textO('HOLD THE PIT', W / 2, H - 20, P.paper, 2, 'c');
 }
 // the logo: letters slam down one at a time over the arena, the fighters run in under it
-function drawLogoPhase(t) {
+function drawLogoPhase(t, h) {
+  if (ART && h) {
+    // the poster bursts in from the white flash, pushed in close, and settles into place; rings pulse off the logo
+    const k = ease((t - LOGO0) / 1.8);
+    drawPoster(h, t, 0.14 * (1 - k));
+    const [cx, cy] = [W / 2, H * 0.13];
+    for (const [t0, col] of [[LOGO0 + 0.05, P.paper], [ULT, P.ember]]) {
+      if (t < t0 || t > t0 + 0.8) continue;
+      const q = (t - t0) / 0.8;
+      h.globalAlpha = 1 - q; h.strokeStyle = col; h.lineWidth = 2 * (1 - q) + 0.5; h.beginPath(); h.arc(cx, cy, 10 + q * 180, 0, Math.PI * 2); h.stroke(); h.globalAlpha = 1;
+    }
+    return;
+  }
   const lx = Math.round((W - LOGO.width) / 2), ly = 22;
   drawBackdrop(t, 0.6);
   glow(W / 2, ly + 16, P.ember, 70, 0.14);
@@ -871,7 +1043,7 @@ function drawLogoPhase(t) {
   roster().forEach((id, i) => {
     const k = Math.min(1, (t - PARADE(i)) / 0.28);
     if (k <= 0) return;
-    const s = k < 1 ? SPR.chars[id].run[Math.floor(t * 16) % 4] : SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % 8], from = i % 2 ? W + 20 : -30;
+    const s = k < 1 ? SPR.chars[id].run[Math.floor(t * 16) % SPR.chars[id].run.length] : SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % SPR.chars[id].idles.length], from = i % 2 ? W + 20 : -30;
     const tx = paradeX(i, s), y = 97 - s.h, e = 1 - Math.pow(1 - k, 3), x = from + (tx - from) * e;
     if (k < 1) for (let g = 1; g <= 3; g++) { ctx.globalAlpha = 0.25 / g; drawSprite(s, x - (tx - from) * 0.08 * g, y, from > tx, CHARS[id].color()); }
     ctx.globalAlpha = 1;
@@ -899,7 +1071,7 @@ export function drawIntro(t) {
     return;
   }
   ctx.save(); ctx.translate(ox, oy);
-  const usesHd = t >= BEAT0 && t < LOGO0, [h] = usesHd ? hdBegin() : [null];
+  const usesHd = (t >= BEAT0 && t < LOGO0) || (t >= LOGO0 && ART), [h] = usesHd ? hdBegin() : [null];
   if (h) { h.save(); h.translate(ox, oy); }
   if (t < BEAT0) {
     // the story, typed over the dark arena
@@ -917,7 +1089,7 @@ export function drawIntro(t) {
     const i = Math.floor((t - BEAT0) / BEAT);
     drawBeat(i, t - BEAT0 - i * BEAT, h);
   } else if (t < LOGO0) drawLineup(t - LINEUP, h);
-  else drawLogoPhase(t);
+  else drawLogoPhase(t, h);
   ctx.restore();
   if (h) h.restore();
   // the black halves split along the first cut
@@ -933,9 +1105,9 @@ export function drawIntro(t) {
   if (t >= LOGO0 - 0.12 && t < LOGO0 + 0.25) {
     const a = t < LOGO0 ? (t - (LOGO0 - 0.12)) / 0.12 : 1 - (t - LOGO0) / 0.25;
     veil(a * 0.95);
-    if (t < LOGO0 && h) { h.globalAlpha = a * (settings.flash ? 1 : 0.2); h.fillStyle = P.paper; h.fillRect(0, 0, W, H); h.globalAlpha = 1; }
+    if (h) { h.globalAlpha = a * (settings.flash ? 1 : 0.2); h.fillStyle = P.paper; h.fillRect(0, 0, W, H); h.globalAlpha = 1; }
   }
-  if (t >= ULT && t < ULT + 0.2) veil((ULT + 0.2 - t) / 0.2 * 0.6);
+  if (t >= ULT && t < ULT + 0.2) { veil((ULT + 0.2 - t) / 0.2 * 0.6); if (h) { h.globalAlpha = (ULT + 0.2 - t) / 0.2 * 0.4 * (settings.flash ? 1 : 0.3); h.fillStyle = P.paper; h.fillRect(0, 0, W, H); h.globalAlpha = 1; } }
 }
 
 // ---------- phone controls: a fixed stick on the left, buttons on the right (drag the attack button to aim) ----------
@@ -1030,7 +1202,7 @@ export function drawLockin(t, id) {
     h.restore();
   }
   // the fighter dashes in at 5x with afterimages, then settles and breathes
-  const S = 5, k = ease((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % 4] : set.idles[Math.floor(t * 7) % 8];
+  const S = 5, k = ease((t - 0.06) / 0.28), fr = k < 1 ? set.run[Math.floor(t * 18) % set.run.length] : set.idles[Math.floor(t * 7) % set.idles.length];
   if (!pic) {
   const tx = 34, x = -130 + (tx + 130) * k, y = Math.round(H / 2 + 8 - (fr.h * S) / 2 + (k >= 1 && Math.floor(t * 3) % 2 ? 1 : 0));
   if (k < 1) for (let g = 4; g >= 1; g--) {

@@ -1,21 +1,23 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=115';
-import { input, keyHit, endFrame } from './input.js?v=115';
-import { A } from './audio.js?v=115';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=115';
-import { buildSprites } from './sprites.js?v=115';
-import { byId } from './upgrades.js?v=115';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=115';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=170';
+import { input, keyHit, endFrame } from './input.js?v=170';
+import { A } from './audio.js?v=170';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=170';
+import { releaseModels } from './models.js?v=170';
+import { buildSprites } from './sprites.js?v=170';
+import { byId } from './upgrades.js?v=170';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=170';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
-  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, INTRO_CUES,
-} from './ui.js?v=115';
+  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, loadArt, INTRO_CUES,
+} from './ui.js?v=170';
 
 loadAll();
 applyTheme(settings.theme);
 applyDisplay(settings);
 buildSprites();
 refreshArt();
+loadArt();
 showMap(settings.map);
 fit();
 addEventListener('resize', fit);
@@ -27,7 +29,8 @@ let save = loadRun((id) => !!byId(id));
 
 function go(s) { scene = s; sceneT = 0; }
 function toTitle() { settingsFrom = 'title'; save = loadRun((id) => !!byId(id)); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
-function startRun(char, s) { A.init(settings); newRun(char, s); go('play'); }
+function startRun(char, s) {
+  releaseModels(); A.init(settings); newRun(char, s); go('play'); }
 function checkpoint() { if (G && !G.dead) { saveRun(snapshot()); bankStats(); } }
 function recordBest(won) {
   bankStats();
@@ -50,9 +53,14 @@ function applySettings(prev) {
 addEventListener('blur', () => { if (scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); } });
 
 function tick(now) {
+  // capped at 60 fps: 90 and 120 Hz phones would otherwise update and draw twice as often for nothing,
+  // which costs battery and heat and makes them throttle
+  if (now - last < 1000 / 62) { requestAnimationFrame(tick); return; }
   // the step is capped so a long stall can't jump the game ahead, but high enough (down to about 12 fps) that a
   // slow device still runs at full speed instead of in slow motion
   const rdt = Math.max(0, Math.min(0.08, (now - last) / 1000));
+  // performance mode: if frames run long during a fight, effects thin out until the device keeps up again
+  if (scene === 'play') { fx.ema = (fx.ema || 1 / 60) * 0.97 + rdt * 0.03; if (!fx.lowFx && fx.ema > 1 / 46) fx.lowFx = true; else if (fx.lowFx && fx.ema < 1 / 58) fx.lowFx = false; }
   last = now;
   sceneT += rdt;
   if (scene === 'intro') sceneT = introClock(sceneT, rdt);
@@ -88,7 +96,7 @@ function tick(now) {
     if (scene === 'title') drawTitle(0.8, titleItems(save, (r) => r));
   } else if (scene === 'title') {
     const items = titleItems(save, (r) => r);
-    const r = runMenu(titleMenu, items, (W - 150) / 2, 104, 150, 12);
+    const r = runMenu(titleMenu, items, titleMenuX(), titleMenuY(items.length), TITLE_MENU.w, TITLE_MENU.row);
     if (r === 'continue' && save) startRun(save.char, save);
     else if (r === 'select') { sel.i = Math.max(0, OPTIONS.char.indexOf(settings.char)); if (!isUnlocked(settings.char)) sel.i = 0; sel.row = 0; sel.t = 0; go('select'); }
     else if (r === 'settings') { settingsFrom = 'title'; setm.tab = 0; setm.sel = 0; go('settings'); }

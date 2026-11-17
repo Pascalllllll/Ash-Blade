@@ -1,0 +1,32 @@
+{
+  "version": 4,
+  "design": "Soul Knight 2-facing soft-angle \u2014 stabilized character scale, authored gait",
+  "frame": {
+    "w": 120,
+    "h": 96,
+    "footX": 60,
+    "footY": 91
+  },
+  "actions": {
+    "entrance": 8,
+    "idle": 8,
+    "walk": 8,
+    "run": 8,
+    "attack1": 8,
+    "attack2": 8,
+    "attack3": 8,
+    "skill1": 8,
+    "skill2": 8,
+    "ultimate": 10,
+    "dash": 6,
+    "hit": 4,
+    "death": 8
+  },
+  "normalHeight": 54,
+  "gromHeight": 60,
+  "specialLocomotion": {
+    "wizard": "float",
+    "robot": "treads",
+    "dev": "wheelchair"
+  }
+}

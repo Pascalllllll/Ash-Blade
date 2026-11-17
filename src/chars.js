@@ -1,27 +1,14 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=115';
-import { SPR } from './sprites.js?v=115';
-import { A } from './audio.js?v=115';
-import { input } from './input.js?v=115';
-import { best } from './store.js?v=115';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=170';
+import { kaelEntranceV2Frame, kaelEntranceV2Ready, KAEL_ENTRANCE_V2_DURATION } from './kael-entrance-v2.js?v=170'; // ASHBLADE_KAEL_ENTRANCE_V2_24F
+import { SPR } from './sprites.js?v=170';
+import { A } from './audio.js?v=170';
+import { input } from './input.js?v=170';
+import { best } from './store.js?v=170';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick,
-} from './world.js?v=115';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint } from './world.js?v=170';
 
 // ---------- helpers ----------
-// Grom's shield, as pixel rows: a steel kite shield with a gold cross, and Titan Grom's blackened shield
-// with a blood-red rim, bone spikes and a glowing red sigil
-const SHIELDS = {
-  base: { rows: ['.RRRRR.', 'RFFJFFR', 'RFFJFFR', 'RJJJJJR', 'RFFJFFR', 'RFFJFFR', 'RfFJFfR', '.RFJFR.', '..RFR..', '...R...'],
-    map: { R: '#cfe0f5', F: '#5a6a82', f: '#3c4a63', J: '#ffd447' } },
-  evo: { rows: ['S.....S', 'SRRRRRS', 'RFFFFFR', 'RFFEFFR', 'RFEeEFR', 'RFFEFFR', 'RfFFFfR', '.RFFFR.', '..RFR..', '..SRS..', '...S...'],
-    map: { S: '#d8c8b4', R: '#a0101e', F: '#2a2228', f: '#4e3e48', E: '#ff1a2a', e: '#ffd0d0' } },
-};
-function drawShield(x, y, big) {
-  const d = G.evo === true ? SHIELDS.evo : SHIELDS.base, k = big ? 2 : 1, w = d.rows[0].length * k;
-  d.rows.forEach((r, j) => [...r].forEach((c, i) => { if (c !== '.') rect(Math.round(x - w / 2 + i * k), Math.round(y + j * k), k, k, d.map[c]); }));
-  if (G.evo === true) glow(x, y + 4 * k, '#ff1a2a', 4 * k, 0.4 + Math.sin(G.time * 6) * 0.15);
-}
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
 const canParry = (s) => s.owner === 'enemy' && !s.dead && !s.noparry && !s.ret && !s.fist;
 const STORM_R = 26;
@@ -34,7 +21,16 @@ function aimPoint(p, max) {
   if (d > max) { x = p.x + ((x - p.x) / d) * max; y = p.y + ((y - p.y) / d) * max; }
   return [clamp(x, B.x0 + 6, B.x1 - 6), clamp(y, B.y0 + 6, B.y1 - 4)];
 }
-const hand = (p, flip) => [p.x + (flip ? -4 : 4), p.y - (G.kit?.handY ?? 4)];
+// the hand: each hero's own grip point on the side they face (world.js handPoint), where the weapon's grip sits too
+const hand = (p) => handPoint(p);
+// the tip of the held weapon along angle a (the end of Morrow's staff, the muzzle of Vega's revolver)
+const weaponTip = (p, a) => {
+  const left = (p.softFacingDirection || 1) < 0, [hx, hy] = hand(p), w = SPR.weapons?.[G.char];
+  if (!w) return [hx + Math.cos(a) * 8, hy + Math.sin(a) * 8];
+  // along the aim, and across it (flipped when the weapon is mirrored for aiming left)
+  const c = w.across * (left ? -1 : 1);
+  return [hx + Math.cos(a) * w.along - Math.sin(a) * c, hy + Math.sin(a) * w.along + Math.cos(a) * c];
+};
 const nearest = (x, y, range, skip) => {
   let best = null, bd = range;
   for (const e of G.E) { if (!alive(e) || (skip && skip.has(e))) continue; const d = hyp(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } }
@@ -45,9 +41,19 @@ function muzzle(x, y, a, c, n = 5) { for (let i = 0; i < n; i++) { const s = a +
 
 // ---------- entrances: a short cinematic when a run starts ----------
 function entrance(kind) {
-  const p = G.p, k = { t: 0, life: kind === 'robot' ? 1.6 : 1.4, done: false, hit: false };
+  const p = G.p, kaelV2 = kind === 'drop' && G.char === 'BLADE';
+  const k = { t: 0, life: kaelV2 ? KAEL_ENTRANCE_V2_DURATION : kind === 'robot' ? 1.6 : 1.4, done: false, hit: false };
   p.state = 'cine';
-  const spr = () => (G.evo === true ? SPR.evo : SPR.chars)[G.char].idle;
+  const spr = () => {
+    // Dedicated 24-frame Kael entrance; never affects the 13-row combat atlas.
+    if (kaelV2) { const frame = kaelEntranceV2Frame(k.t); if (frame) return frame; }
+    const original=(G.evo===true?SPR.evo:SPR.chars)[G.char];
+    // Kael's initial entrance faces the camera; other heroes retain their existing entrance art.
+    const set=original.directions?.down||original;
+    const frames=set.act?.entrance;
+    // the hero's idle loop with the weapon in hand (the fall, the slide and the rest move it about)
+    return frames?.length ? frames[Math.min(frames.length-1,Math.floor((k.t/k.life)*frames.length))] : set.idles[Math.floor(k.t * 7) % set.idles.length];
+  };
   const land = (big) => {
     k.hit = true;
     shake(big ? 1 : 0.55); hitstop(0.08); A.boom(big ? 1.8 : 1);
@@ -61,10 +67,10 @@ function entrance(kind) {
     const t = k.t;
     if (kind === 'drop' || kind === 'meteor') {
       const fall = kind === 'meteor' ? 0.75 : 0.5;
-      if (t < fall && Math.random() < 0.8) part(p.x + rnd(-3, 3), p.y - 160 * (1 - t / fall) - 8, rnd(-20, 20), -rnd(20, 60), 0.4, kind === 'meteor' ? P.ember : G.kit.color(), { glow: true, keep: true });
-      if (t >= fall && !k.hit) {
+      if (!kaelV2 && t < fall && Math.random() < 0.8) part(p.x + rnd(-3, 3), p.y - 160 * (1 - t / fall) - 8, rnd(-20, 20), -rnd(20, 60), 0.4, kind === 'meteor' ? P.ember : G.kit.color(), { glow: true, keep: true });
+      if (t >= (kaelV2 ? 0.56 : fall) && !k.hit) {
         land(kind === 'meteor');
-        if (kind === 'drop') G.slashes.push({ follow: false, x: p.x, y: p.y, a: 0, r: 34, arc: 6.2, dir: 1, t: 0, life: 0.3, th: 10, col: 'ember' });
+        if (kind === 'drop' && !kaelV2) G.slashes.push({ follow: false, x: p.x, y: p.y, a: 0, r: 34, arc: 6.2, dir: 1, t: 0, life: 0.3, th: 10, col: 'ember' });
         if (kind === 'meteor') G.quakes.push({ x: p.x, y: p.y, r: 0, delay: 0, max: 110, friendly: true, hit: new Set(), dmg: 0, speed: 220 });
       }
     } else if (kind === 'slide') {
@@ -88,20 +94,23 @@ function entrance(kind) {
       if (t >= 1.1 && !k.hit) { k.hit = true; flash(P.volt, 0.15, false); addRing(p.x, p.y - 6, P.volt, 220, 0.4, 2); A.shieldUp(); shake(0.3); }
       if (Math.floor(t / 0.3) !== Math.floor((t - dt) / 0.3) && t < 1.1) A.zip();
     }
-    if (k.t >= k.life) { G.cine = null; p.state = 'move'; p.inv = 0.5; }
+    // the entrance ends with the hero settling: a squash that springs back
+    if (k.t >= k.life) { G.cine = null; p.state = 'move'; p.inv = 0.5; p.sq = 0.26; p.sqv = 0; }
   };
   k.draw = () => {
     const t = k.t, s = spr(), x = p.x - s.w / 2, y = p.y - s.h + 1;
-    if (kind === 'drop' || kind === 'meteor') {
+    if (kaelV2 && kaelEntranceV2Ready()) {
+      // The first 6 frames already contain smoke/ember streaks and the later frames contain landing.
+      // Do not move the entire sprite vertically or re-draw its sword.
+      drawSprite(s, x, y, false, null);
+    } else if (kind === 'drop' || kind === 'meteor') {
       const fall = kind === 'meteor' ? 0.75 : 0.5, z = t < fall ? 160 * Math.pow(1 - t / fall, 1.5) : 0;
       ring(p.x, p.y, Math.max(2, 10 - z / 20), 1, P.blood);
       drawSprite(s, x, y - z, false, t < fall ? (kind === 'meteor' ? P.ember : P.paper) : null);
       if (kind === 'meteor' && t < fall) glow(p.x, p.y - z - 6, P.ember, 14, 0.7);
-      if (t >= fall) G.kit.drawWeapon(p, false);
     } else if (kind === 'slide') {
       const k2 = Math.min(1, t / 0.6), off = 160 * Math.pow(1 - k2, 2);
       drawSprite(s, x - off, y, false, null);
-      if (t > 0.6) { line(p.x + 3, p.y - 7, p.x + 3, p.y - 14, P.dust, 2); }
     } else if (kind === 'portal') {
       const r = Math.min(1, t / 0.5) * 16;
       ring(p.x, p.y - 2, r, 1, '#b48cff'); ring(p.x, p.y - 2, r * 0.6, 1, '#7a52c8');
@@ -114,14 +123,14 @@ function entrance(kind) {
       }
     } else if (kind === 'smoke') {
       for (let i = 0; i < 3; i++) { const a = (i * TAU) / 3 + 0.5, d = 14; if (t > 0.1 + i * 0.12) { line(p.x + Math.cos(a) * d - 2, p.y + Math.sin(a) * d * 0.6, p.x + Math.cos(a) * d + 2, p.y + Math.sin(a) * d * 0.6, P.bone); px(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.6 - 1, P.paper); } }
-      if (t >= 0.7) { ctx.globalAlpha = Math.min(1, (t - 0.7) / 0.3); drawSprite(s, x, y, false, null); ctx.globalAlpha = 1; G.kit.drawWeapon(p, false); }
+      if (t >= 0.7) { ctx.globalAlpha = Math.min(1, (t - 0.7) / 0.3); drawSprite(s, x, y, false, null); ctx.globalAlpha = 1; }
     } else if (kind === 'crate') {
       if (t < 0.9) {
         const z = t < 0.45 ? 140 * Math.pow(1 - t / 0.45, 2) : 0, sh = t > 0.6 ? (Math.floor(t * 40) % 2 ? 1 : -1) : 0;
         rect(p.x - 8 + sh, p.y - 15 - z, 16, 15, '#7a5030'); rect(p.x - 8 + sh, p.y - 15 - z, 16, 1, '#a8743a');
         line(p.x - 8 + sh, p.y - 15 - z, p.x + 7 + sh, p.y - 1 - z, '#4a2e18'); line(p.x + 7 + sh, p.y - 15 - z, p.x - 8 + sh, p.y - 1 - z, '#4a2e18');
         rect(p.x - 8 + sh, p.y - 1 - z, 16, 1, '#2a1a0c');
-      } else { drawSprite(s, x, y - Math.max(0, 8 * Math.sin(Math.min(1, (t - 0.9) / 0.3) * Math.PI)), false, null); G.kit.drawWeapon(p, false); }
+      } else { drawSprite(s, x, y - Math.max(0, 8 * Math.sin(Math.min(1, (t - 0.9) / 0.3) * Math.PI)), false, null); }
     } else if (kind === 'robot') {
       const w = t < 1.1 ? 6 + Math.sin(t * 40) : Math.max(0, 6 * (1 - (t - 1.1) / 0.3));
       if (w > 0) { rect(p.x - w / 2, fx.cam.y - 10, w, p.y - fx.cam.y + 10, P.volt); rect(p.x - w / 4, fx.cam.y - 10, Math.max(1, w / 2), p.y - fx.cam.y + 10, P.paper); glow(p.x, p.y - 4, P.volt, 16, 0.6); }
@@ -151,7 +160,7 @@ function burst(x, y, n, cols, v0, v1, o = {}) {
 }
 
 // ---------- weapons drawn in hand ----------
-function swordAngle(p) {
+export function swordAngle(p) {
   // winding up: the weapon drawn back over the shoulder, trembling harder as the charge fills
   if (p.state === 'charge') return p.aim + (Math.cos(p.aim) < 0 ? 1 : -1) * 2.3 + Math.sin(G.time * 50) * 0.06 * chargeLevel(p);
   if (p.state === 'chg' && p.chg?.ang) return p.chg.ang(p);
@@ -285,7 +294,12 @@ export const CHARS = {
             const a = (u.phase === 'gather' ? Math.min(1, u.t / 0.4) : 1) * 0.86;
             ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(cx, cy, 320, 180); ctx.globalAlpha = 1;
             for (const e of G.E) if (!e.dead) { const s = sprFor(e); drawSprite(s, e.x - s.w / 2, e.y - s.h + 1, e.face < 0, P.bone); }
-            { const s = (G.evo === true ? SPR.evo : SPR.chars).BLADE.idle; drawSprite(s, p.x - s.w / 2, p.y - s.h + 1, Math.cos(p.aim) < 0, P.ember); }
+            { const a=(G.evo===true?SPR.evo:SPR.chars).BLADE;
+              const frames=a.act?.ultimate;
+              const elapsed=G.time-(p.spriteAction?.start||G.time);
+              const ix=Math.min((frames?.length||1)-1,Math.floor(Math.max(0,elapsed)/1.85*(frames?.length||1)));
+              const s=frames?.[ix]||a.idle;
+              drawSprite(s,p.x-s.w/2,p.y-s.h+1,false,P.ember); }
             for (const c of u.cuts) {
               const ux = (Math.cos(c.a) * c.L) / 2, uy = (Math.sin(c.a) * c.L) / 2;
               line(c.x - ux, c.y - uy + 1, c.x + ux, c.y + uy + 1, P.blood); line(c.x - ux, c.y - uy, c.x + ux, c.y + uy, P.paper);
@@ -311,8 +325,8 @@ export const CHARS = {
       if (k.stand > 0) {
         if (held && k.fireT <= 0) {
           k.fireT = 0.035;
-          const a = p.aim + rnd(-0.12, 0.12), [hx, hy] = hand(p, Math.cos(p.aim) < 0);
-          shoot({ x: hx + Math.cos(a) * 10, y: hy + Math.sin(a) * 10, a, sp: 430, dmg: pd(3), kb: 90, life: 0.7, kind: 'bullet', pierce: 2, c: P.gold, ug: false });
+          const a = p.aim + rnd(-0.12, 0.12), [hx, hy] = hand(p, Math.cos(p.aim) < 0), [tx, ty] = weaponTip(p, p.aim);
+          shoot({ x: tx, y: ty, a, sp: 430, dmg: pd(3), kb: 90, life: 0.7, kind: 'bullet', pierce: 2, c: P.gold, ug: false });
           part(hx, hy, -Math.sin(a) * 60 + rnd(-20, 20), Math.cos(a) * 60, 0.5, P.gold2, { z: 6, vz: 60, g: 300, drag: 2 });
           k.flashT = 0.03; A.minigun(); shake(0.05);
           p.vx -= Math.cos(a) * 8; p.vy -= Math.sin(a) * 8;
@@ -322,9 +336,9 @@ export const CHARS = {
       if (k.reload > 0) { k.reload -= dt; if (k.reload <= 0) { k.ammo = mag; A.reload(); } return; }
       if (held && k.fireT <= 0 && k.ammo > 0) {
         k.fireT = 0.11 / G.up.spd; k.ammo--;
-        const a = p.aim + rnd(-0.05, 0.05), [hx, hy] = hand(p, Math.cos(p.aim) < 0);
-        shoot({ x: hx + Math.cos(a) * 8, y: hy + Math.sin(a) * 8, a, sp: 400, dmg: pd(2), kb: 70, life: 0.7, kind: 'bullet', pierce: G.up.pierce, c: P.gold });
-        muzzle(hx + Math.cos(a) * 8, hy + Math.sin(a) * 8, a, P.gold, 3);
+        const a = p.aim + rnd(-0.05, 0.05), [hx, hy] = hand(p, Math.cos(p.aim) < 0), [tx, ty] = weaponTip(p, p.aim);
+        shoot({ x: tx, y: ty, a, sp: 400, dmg: pd(2), kb: 70, life: 0.7, kind: 'bullet', pierce: G.up.pierce, c: P.gold });
+        muzzle(tx, ty, a, P.gold, 3);
         part(hx, hy, -Math.sin(a) * 50 + rnd(-20, 20), Math.cos(a) * 50, 0.5, P.gold2, { z: 6, vz: 60, g: 300, drag: 2 });
         k.flashT = 0.04; A.charAtk('GUNNER'); shake(0.04);
         p.vx -= Math.cos(a) * 20; p.vy -= Math.sin(a) * 20;
@@ -340,9 +354,9 @@ export const CHARS = {
     q: {
       name: 'BUCKSHOT', cost: 25, cd: 1.2, icon: 'burst', desc: 'POINT-BLANK SHOTGUN BLAST',
       use(p) {
-        const [hx, hy] = hand(p, Math.cos(p.aim) < 0);
+        const [hx, hy] = weaponTip(p, p.aim);
         for (let i = 0; i < 11; i++) { const a = p.aim + rnd(-0.42, 0.42); shoot({ x: hx, y: hy, a, sp: rnd(300, 380), dmg: pd(3), kb: 220, life: 0.38, kind: 'pellet', c: P.ember2, ug: false }); }
-        muzzle(hx + Math.cos(p.aim) * 6, hy + Math.sin(p.aim) * 6, p.aim, P.ember2, 14);
+        muzzle(...weaponTip(p, p.aim), p.aim, P.ember2, 14);
         p.vx = -Math.cos(p.aim) * 180; p.vy = -Math.sin(p.aim) * 180;
         p.state = 'recover'; p.recT = 0.15; p.k.flashT = 0.08;
         A.shotgun(); shake(0.35); hitstop(0.03);
@@ -363,8 +377,9 @@ export const CHARS = {
           if (!alive(e)) return;
           const [hx, hy] = hand(p, e.x < p.x), a = Math.atan2(e.y - e.r - hy, e.x - hx);
           p.aim = a;
-          G.bolts.push({ x0: hx, y0: hy, x1: e.x, y1: e.y - e.r, t: 0, life: 0.12, c1: P.paper, c2: P.gold, c3: P.gold2 });
-          muzzle(hx + Math.cos(a) * 8, hy + Math.sin(a) * 8, a, P.gold, 6);
+          const [tx, ty] = weaponTip(p, a);
+          G.bolts.push({ x0: tx, y0: ty, x1: e.x, y1: e.y - e.r, t: 0, life: 0.12, c1: P.paper, c2: P.gold, c3: P.gold2 });
+          muzzle(tx, ty, a, P.gold, 6);
           part(hx, hy, -Math.sin(a) * 50, Math.cos(a) * 50, 0.5, P.gold2, { z: 6, vz: 60, g: 300, drag: 2 });
           damage(e, pd(11), { dir: a, kb: 170, src: 'bolt', crit: true });
           sparks(e.x, e.y - e.r, a, 6, 0.5, P.gold, 200);
@@ -419,8 +434,8 @@ export const CHARS = {
       k.fireT -= dt; k.castT -= dt;
       if (held && k.fireT <= 0) {
         k.fireT = 0.3 / G.up.spd; k.castT = 0.1;
-        const [hx, hy] = hand(p, Math.cos(p.aim) < 0);
-        shoot({ x: hx + Math.cos(p.aim) * 6, y: hy - 6, a: p.aim, sp: 210, dmg: pd(5), kb: 80, life: 1.4, kind: 'arcane', r: 3, c: '#b48cff', homing: 2.5, splash: { R: 14, dmg: pd(2) } });
+        const [hx, hy] = weaponTip(p, p.aim);
+        shoot({ x: hx, y: hy, a: p.aim, sp: 210, dmg: pd(5), kb: 80, life: 1.4, kind: 'arcane', r: 3, c: '#b48cff', homing: 2.5, splash: { R: 14, dmg: pd(2) } });
         A.charAtk('WIZARD');
       }
     },
@@ -563,7 +578,7 @@ export const CHARS = {
     q: {
       name: 'SENKO', cost: 50, cd: 2, icon: 'bolt', desc: 'A LASER FROM THE SWORD, HUGE DAMAGE',
       use(p) {
-        const [hx, hy] = hand(p, Math.cos(p.aim) < 0), a = p.aim, L = beamLen(hx, hy, a, 320), x1 = hx + Math.cos(a) * L, y1 = hy + Math.sin(a) * L;
+        const a = p.aim, [hx, hy] = weaponTip(p, a), L = beamLen(hx, hy, a, 320), x1 = hx + Math.cos(a) * L, y1 = hy + Math.sin(a) * L;
         for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, hx, hy, x1, y1) < e.r + 6) {
           damage(e, e.type === 'boss' ? pd(68) : pd(90), { dir: a, kb: 240, src: 'bolt', slice: true, crit: true, heavy: true });
           if (G.up.venom && alive(e)) { e.burn = 3; e.burnDps = G.up.evoVenom ? 6 : 3; }
@@ -674,6 +689,12 @@ export const CHARS = {
           draw(cx, cy) {
             ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a0a1a'; ctx.fillRect(cx, cy, 320, 180); ctx.globalAlpha = 1;
             for (const [x0, y0, x1, y1] of u.path) { line(x0, y0 + 1, x1, y1 + 1, P.blood); line(x0, y0, x1, y1, P.paper); }
+            // Rin's own front-facing Issen animation stays visible over the frozen battlefield.
+            const set=(G.evo===true?SPR.evo:SPR.chars).NINJA;
+            const frames=set.act?.ultimate;
+            const elapsed=G.time-(p.spriteAction?.start||G.time);
+            const sprite=frames?.[Math.min(frames.length-1,Math.floor(Math.max(0,elapsed)/1.6*frames.length))]||set.idle;
+            drawSprite(sprite,p.x-sprite.w/2,p.y-sprite.h+1,false);
             for (let i = 0; i < 6; i++) { const x = cx + ((G.time * 40 + i * 57) % 320), y = cy + ((G.time * 25 + i * 31) % 180); px(x, y, '#ffb7d5'); }
           },
         };
@@ -925,12 +946,10 @@ export const CHARS = {
       name: 'FORTRESS', icon: 'shield', desc: '6S INVINCIBLE, REFLECT ALL',
       use(p) { p.fortress = G.up.evoUlt ? 10 : 6; p.k.pulseT = 0; banner(G.up.evoUlt ? 'FORTRESS II' : 'FORTRESS', P.gold); A.shieldUp(); A.ultStart(); shake(0.4); },
     },
-    // Fortress: the shield comes off his back and is raised in front of him, twice the size, glowing
+    // Fortress: a pulsing glow round him while it lasts (his sheet has no shield, so none is drawn)
     draw(p) {
       if (!(p.fortress > 0)) return;
-      const flip = Math.cos(p.aim) < 0, x = p.x + (flip ? -9 : 9), pulse = 0.25 + Math.sin(G.time * 10) * 0.1;
-      glow(x, p.y - 10, G.evo === true ? '#ff1a2a' : P.gold, 16, pulse);
-      drawShield(x, p.y - 22, true);
+      glow(p.x, p.y - 10, G.evo === true ? '#ff1a2a' : P.gold, 16, 0.25 + Math.sin(G.time * 10) * 0.1);
     },
     drawWeapon(p, flip) {
       const a = swordAngle(p), [hx, hy] = hand(p, flip), cx = Math.cos(a), cy = Math.sin(a);
@@ -956,7 +975,7 @@ export const CHARS = {
       if (held) {
         k.firing = true;
         k.heat += 34 * (G.up.evoCoolant ? 0.25 : G.up.coolant ? 0.6 : 1) * dt;
-        const [hx, hy] = hand(p, Math.cos(p.aim) < 0), a = p.aim;
+        const a = p.aim, [hx, hy] = weaponTip(p, a);
         const L = beamLen(hx, hy, a, 160), ex = hx + Math.cos(a) * L, ey = hy + Math.sin(a) * L;
         k.end = [ex, ey];
         k.tick -= dt;
@@ -1029,7 +1048,7 @@ export const CHARS = {
     draw(p) {
       const k = p.k;
       if (k.firing) {
-        const [hx, hy] = hand(p, Math.cos(p.aim) < 0), [ex, ey] = k.end, w = 3 + (Math.random() < 0.5 ? 1 : 0) + (G.evo === true ? 2 : 0);
+        const [hx, hy] = weaponTip(p, p.aim), [ex, ey] = k.end, w = 3 + (Math.random() < 0.5 ? 1 : 0) + (G.evo === true ? 2 : 0);
         line(hx, hy, ex, ey, P.volt2, w + 2); line(hx, hy, ex, ey, P.volt, w); line(hx, hy, ex, ey, P.paper, 1);
         glow(ex, ey, P.volt, 10, 0.6); glow(hx, hy, P.volt, 6, 0.5);
       }
@@ -1218,7 +1237,9 @@ function devEntrance() {
     if (k.t >= k.life) { G.cine = null; p.state = 'move'; p.inv = 0.5; }
   };
   k.draw = () => {
-    const s = SPR.chars.DEV.idle, x = p.x - s.w / 2, y = p.y - s.h + 1;
+    const set=SPR.chars.DEV, f=set.act?.entrance;
+    const s=f?.length?f[Math.min(f.length-1,Math.floor(k.t/k.life*f.length))]:set.idle;
+    const x=p.x-s.w/2,y=p.y-s.h+1;
     textO(line1.slice(0, Math.floor(k.t * 16)), p.x - 20, p.y - 30, GREEN);
     if (k.t > 0.6) {
       const q = Math.min(1, (k.t - 0.6) / 0.4), off = Math.round((1 - q) * 4);
@@ -1317,10 +1338,15 @@ CHARS.DEV = {
           }
         },
         draw() {
-          ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-          if (u.t > 0.9) for (let i = 0; i < 10; i++) { const y = Math.floor(rnd(H)), h = Math.floor(rnd(2, 10)); ctx.drawImage(canvas, 0, y, W, h, Math.round(rnd(-14, 14)), y, W, h); }
+          ctx.save(); ctx.setTransform(SS, 0, 0, SS, 0, 0);
+          if (u.t > 0.9) for (let i = 0; i < 10; i++) { const y = Math.floor(rnd(H)), h = Math.floor(rnd(2, 10)); ctx.drawImage(canvas, 0, y * SS, W * SS, h * SS, Math.round(rnd(-14, 14)), y, W, h); }
           ctx.globalAlpha = 0.9; ctx.fillStyle = '#05140a'; ctx.fillRect(20, H - 46, W - 40, 30); ctx.globalAlpha = 1;
           rect(20, H - 46, W - 40, 1, GREEN);
+          // Show The Dev's front-facing ultimate frame above the terminal overlay.
+          const set=(G.evo===true?SPR.evo:SPR.chars).DEV;
+          const frames=set.act?.ultimate;
+          const us=frames?.[Math.min(frames.length-1,Math.floor(Math.min(1,u.t/1.55)*frames.length))]||set.idle;
+          drawSprite(us, W/2-us.w/2, H-47-us.h, false);
           text(cmd.slice(0, Math.floor(Math.min(1, u.t / 0.85) * cmd.length)) + (Math.floor(u.t * 6) % 2 ? '_' : ''), 26, H - 40, GREEN);
           if (u.t > 0.9) text('DELETING ' + G.E.filter(alive).length + ' PROCESSES...', 26, H - 30, P.paper);
           ctx.restore();
@@ -1413,8 +1439,7 @@ const AURA = {
   // the tread glow and the core glow sit where the treaded body is; Omega hovers higher and glows at its jets
   ROBOT(p) { if (G.evo === true) return; glow(p.x, p.y, P.volt, 8 + Math.sin(G.time * 30), 0.35); glow(p.x, p.y - 8, P.volt, 5 + Math.sin(G.time * 6) * 2, 0.35); },
   BLADE(p) { glow(p.x, p.y - 8, P.ember, 12, 0.12); },
-  // his shield rides on his back, unless Fortress has it raised in front
-  TANK(p, flip) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); if (!(p.fortress > 0)) { const o = G.evo === true ? 11 : 9; drawShield(p.x + (flip ? o : -o), p.y - 16, false); } },
+  TANK(p) { glow(p.x, p.y - 12, '#ff9a3c', 6, 0.25); },
 };
 const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#a070ff', MECHANIC: '#ff9a3c', TANK: '#ff9a3c', ROBOT: '#ff3b3b', GUNNER: '#ffd447', BLADE: '#ffb04a' };
 // ---------- awakened powers ----------

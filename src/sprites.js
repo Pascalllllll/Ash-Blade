@@ -1,4 +1,5 @@
-import { makeSprite, P } from './gfx.js?v=115';
+import { installHeroSprites } from './hero-sprites.js?v=170';
+import { makeSprite, P } from './gfx.js?v=170';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -23,16 +24,6 @@ const ROBE_LEGS_ALT = ['.oRRRRRRRRRRRRo.', '.oRoooRoooRoooo.'];
 // flow: letters that flutter in the wind (hair and cloth); legs 'baked': the last two rows are feet that
 // walk in the run frames. Vega and Unit-7 keep their original hand-outlined sprites.
 const BODIES = {
-  BLADE: { auto: true, legs: 'baked', lids: '', eye: [10, 9], flow: 'HhzB',
-    rows: [
-      '....H...H.H.....', '..H.HH.HHHH.....', '..HHHhHHhHHHH...', '.HHhHHHHHhHHHH..',
-      'HHHHHHhHHHHHHHH.', '.HHHHHHHHHHHHH..', '..HHHhfHHhHfHHH.', '..HHffFfHffffH..',
-      '..HfffffffffffH.', '..HffKKffKKfff..', '.ezzzzzzzzzzzz..', 'eezzEzzzzzzzze..',
-      '.e..ezzzzzze....', '....UTTTTTTU....', '...fUTzTTzTUf...', '....TezzzzeT....',
-      '...BBBBBBBBBB...', '...BBbB..BbBB...', '....GGG..GGG....',
-    ],
-    map: () => ({ f: '#d8b090', F: '#b08060', K: '#120d1c', E: P.ember3, e: '#b8401a', w: '#ffffff', m: '#7a3a3a', p: '#e08a8a', H: '#3a2e58', h: '#5e4d8c', U: P.bone, z: P.ember, J: '#8a7a9a', j: '#c8b8d8', T: '#4a4560', t: '#7a7498', B: '#2a2238', b: '#4a4560', L: '#2a2238', G: '#191322' }),
-  },
   GUNNER: {
     lids: 'E', eye: [10, 7], flow: 'YrRD',
     rows: ['.....oooooo.....', '..o.oHHHHHHo.o..', '.oHohhhhhhhhoHo.', 'oHHHHHHHHHHHHHHo', '.oooYYYYYYYYooo.', '.oYYYYYYYYYYYYo.',
@@ -291,12 +282,9 @@ export const EVO_NAMES = Object.fromEntries(Object.entries(EVO).map(([k, v]) => 
 
 export function buildSprites() {
   const O = P.ink0;
-  SPR.chars = {}; SPR.evo = {};
-  for (const id in BODIES) {
-    SPR.chars[id] = buildChar(BODIES[id], IDLE[id]);
-    const ev = EVO[id];
-    SPR.evo[id] = ev.body ? buildChar(ev.body, IDLE[id + '_EVO']) : buildChar(BODIES[id], IDLE[id], ev.map, ev.rows);
-  }
+  // the heroes: bodies and weapons from art/sprites/heroes (hero-sprites.js). Their sets are made once and kept
+  // when the theme changes and this runs again (the pictures fill them when they've loaded).
+  if (!SPR.heroesReady) installHeroSprites(SPR);
   // the wave 50 boss is the evolved Dev, drawn three times bigger
   SPR.devbossSet = buildChar(DEV_HOOD, IDLE.DEV_EVO);
   SPR.devboss = SPR.devbossSet.idles;
@@ -454,6 +442,7 @@ export function buildSprites() {
   SPR.heartE = makeSprite(['.oo.oo.', 'oeeoeeo', 'oeeeeeo', 'oeeeeeo', '.oeeeo.', '..oeo..', '...o...'], UI);
   SPR.heal = makeSprite(['.#.#.', '#+###', '#####', '.###.', '..#..'], UI);
   for (const k in iconCache) delete iconCache[k];
+  // Kael-only async override disabled (all heroes share the same loader).
 }
 
 // 9x9 icons, '#' takes the given color, '+' is a highlight

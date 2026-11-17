@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ASHBLADE · Kael Visual Master QA</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#100c1b;color:#eee8fb}
+*{box-sizing:border-box}
+body{max-width:1050px;margin:0 auto;padding:2rem 1.25rem}
+h1{font-size:1.6rem;margin:.3rem 0}.sub{color:#b4a6ce;margin-top:0}
+.grid{display:grid;grid-template-columns: minmax(270px,1fr) minmax(300px,1fr);gap:1.5rem}
+@media(max-width:730px){.grid{grid-template-columns:1fr}}
+.panel{padding:1rem;background:#1b152b;border:1px solid #483459;border-radius:14px}
+canvas{display:block;width:100%;max-width:512px;image-rendering:pixelated;image-rendering:crisp-edges;background-color:#2c223b;background-image:linear-gradient(45deg,#39304a 25%,transparent 25%),linear-gradient(-45deg,#39304a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#39304a 75%),linear-gradient(-45deg,transparent 75%,#39304a 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
+label{font-weight:600;display:block;margin:.8rem 0 .2rem}select,input[type=range],button{width:100%;font:inherit}select,button{background:#29203d;color:#eee;border:1px solid #654a82;border-radius:8px;padding:.65rem}button{cursor:pointer;margin-top:.6rem}button:hover{background:#45325d}
+small,footer{color:#b4a6ce}pre{background:#120e1d;padding:1rem;border-radius:8px;white-space:pre-wrap;font-size:.75rem}.row{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+</style>
+</head>
+<body>
+<h1>Kael · Sprite Animation QA</h1>
+<p class="sub">Hybrid 4+Mirror · original visual master · 128×96 RGBA cells · ~54px character height</p>
+<div class="grid">
+  <section class="panel"><canvas id="view" width="512" height="384" aria-label="Animated Kael sprite"></canvas><p id="status">Loading sprites…</p><small>No UI borders or effects are stored in the atlas background.</small></section>
+  <section class="panel">
+    <div class="row"><div><label for="direction">Direction</label><select id="direction"><option value="right">Right</option><option value="left">Left (mirror)</option><option value="up">Up / back</option><option value="down">Down / front</option></select></div><div><label for="action">Animation</label><select id="action"></select></div></div>
+    <label for="fps">Playback FPS <output id="fpsLabel">12</output></label><input id="fps" type="range" min="3" max="24" value="12">
+    <div class="row"><button id="play">Pause animation</button><button id="next">Next frame</button></div>
+    <pre id="info"></pre>
+    <small>Left is mirrored from right at runtime; no separate left atlas. Test every direction and attack before importing.</small>
+  </section>
+</div>
+<footer><p>Gameplay: the larger slashes, area lightning, ultimate cuts, and entrance shockwaves already exist in ASHBLADE's engine. This atlas contains character poses plus small local accents only.</p></footer>
+<script type="module">
+const actions={entrance:8,idle:8,walk:8,run:8,attack1:8,attack2:8,attack3:8,skill1:8,skill2:8,ultimate:10,dash:6,hit:4,death:8};
+const sel=document.querySelector('#action'),dir=document.querySelector('#direction'),fpsEl=document.querySelector('#fps');
+for(const key of Object.keys(actions)){const o=document.createElement('option');o.value=key;o.textContent=`${key.toUpperCase()} · ${actions[key]} frames`;sel.append(o)};
+sel.value='attack1';
+const image={};const ready=Promise.all(['right','up','down'].map((d)=>new Promise((r,j)=>{const im=new Image();im.onload=()=>{image[d]=im;r()};im.onerror=()=>{document.querySelector('#status').textContent=`Missing ${d} atlas`;r()};im.src=`./assets/kael-${d}.png`})));
+let running=true,frame=0,last=0;const canvas=document.querySelector('#view'),ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
+function draw(ts){
+  const action=sel.value,count=actions[action],fps=Number(fpsEl.value);document.querySelector('#fpsLabel').textContent=fps;
+  if(running&&ts-last>1000/fps){frame=(frame+1)%count;last=ts;}
+  ctx.clearRect(0,0,512,384);
+  const direction=dir.value,img=image[direction==='left'?'right':direction];
+  if(img){let sx=frame*128,sy=Object.keys(actions).indexOf(action)*96;
+    ctx.save();if(direction==='left'){ctx.translate(512,0);ctx.scale(-1,1)}
+    ctx.drawImage(img,sx,sy,128,96,0,0,512,384);ctx.restore();
+  }
+  document.querySelector('#info').textContent=JSON.stringify({direction,action,frame:frame+1,total:count,cell:'128×96',groundPivot:[64,95],loop:running},null,2);
+  requestAnimationFrame(draw)
+}
+for(const el of [sel,dir])el.addEventListener('change',()=>{frame=0});
+document.querySelector('#play').onclick=()=>{running=!running;document.querySelector('#play').textContent=running?'Pause animation':'Play animation'};
+document.querySelector('#next').onclick=()=>{running=false;frame=(frame+1)%actions[sel.value];document.querySelector('#play').textContent='Play animation'};
+ready.then(()=>{document.querySelector('#status').textContent='Ready. Transparent RGBA atlases loaded.';requestAnimationFrame(draw)});
+</script>
+</body>
+</html>

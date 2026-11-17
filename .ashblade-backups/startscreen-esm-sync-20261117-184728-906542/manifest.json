@@ -1,0 +1,10 @@
+[
+  {
+    "path": "src/main.js",
+    "existed": true
+  },
+  {
+    "path": "index.html",
+    "existed": true
+  }
+]

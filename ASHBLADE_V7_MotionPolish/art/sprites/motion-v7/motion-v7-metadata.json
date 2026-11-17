@@ -1,0 +1,39 @@
+{
+  "version": 7,
+  "frame": {
+    "w": 120,
+    "h": 96,
+    "cols": 16,
+    "rows": 6,
+    "footX": 60,
+    "footY": 92
+  },
+  "actions": [
+    "idle",
+    "walk",
+    "run",
+    "attack1",
+    "attack2",
+    "attack3"
+  ],
+  "counts": {
+    "idle": 16,
+    "walk": 12,
+    "run": 12,
+    "attack1": 12,
+    "attack2": 12,
+    "attack3": 12
+  },
+  "heights": {
+    "blade": 54,
+    "gunner": 54,
+    "wizard": 54,
+    "ninja": 54,
+    "mechanic": 54,
+    "tank": 58,
+    "robot": 54,
+    "dev": 54
+  },
+  "dir": "right slight front, left mirrored",
+  "alpha": "0 or 255; transparent RGB zero; nearest-neighbor"
+}

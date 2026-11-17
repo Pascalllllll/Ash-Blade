@@ -1,9 +1,15 @@
 // Low-res pixel renderer: everything draws into a 320x180 canvas that CSS scales up by whole numbers.
 export const W = 320, H = 180;
 export const canvas = document.getElementById('screen');
-canvas.width = W;
-canvas.height = H;
+// The world is drawn on a 960 x 540 canvas: positions stay in game pixels (320 x 180), and every sprite has a
+// pixel density. Density 1 sprites (monsters, bosses, effects) keep their exact pixels, each one shown as 3 x 3;
+// the heroes are pixel art at density 3, so an 18 game-pixel hero is a 54-pixel sprite.
+export const SS = 3;
+canvas.width = W * SS;
+canvas.height = H * SS;
 export const ctx = canvas.getContext('2d');
+ctx.setTransform(SS, 0, 0, SS, 0, 0);
+ctx.imageSmoothingEnabled = false;
 ctx.imageSmoothingEnabled = false;
 
 export const P = {
@@ -40,8 +46,27 @@ export function makeCanvas(w, h) {
 // through hdBegin(); cleared on frames that don't use it.
 export const hd = document.createElement('canvas');
 hd.id = 'hd';
+hd.style.visibility = 'hidden';
+// The poster layer: a still picture under the HD layer, painted once (and again on resize). Its slow zoom is a
+// CSS transform, which the GPU does almost for free, so the title screen only redraws what actually moves.
+export const poster = document.createElement('canvas');
+poster.id = 'poster';
+poster.setAttribute('aria-hidden', 'true');
+poster.style.visibility = 'hidden';
+let posterImg = null, posterUsed = false;
+export function posterShow(img, z) {
+  if (posterImg !== img || poster.width !== hd.width) {
+    poster.width = hd.width; poster.height = hd.height;
+    const g = poster.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, poster.width, poster.height);
+    posterImg = img;
+  }
+  poster.style.transform = `scale(${z.toFixed(4)})`;
+  if (poster.style.visibility !== 'visible') poster.style.visibility = 'visible';
+  posterUsed = true;
+}
 hd.setAttribute('aria-hidden', 'true');
 canvas.after(hd);
+canvas.after(poster);
 const hctx = hd.getContext('2d');
 let hdUsed = false, hdDirty = false;
 // starts an HD frame: returns the context scaled to game units, and the device pixels per game unit
@@ -50,12 +75,16 @@ export function hdBegin() {
   hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hd.width, hd.height);
   hctx.setTransform(k, 0, 0, k, 0, 0); hctx.imageSmoothingEnabled = false;
   hdUsed = true; hdDirty = true;
+  if (hd.style.visibility !== 'visible') hd.style.visibility = 'visible';
   return [hctx, k];
 }
 export const hdActive = () => hdUsed;
 export const hdCtx = () => hctx;
 export function hdEnd() {
-  if (!hdUsed && hdDirty) { hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hd.width, hd.height); hdDirty = false; }
+  // an unused layer is hidden, so the browser stops compositing a screen-sized transparent canvas every frame
+  if (!hdUsed && hdDirty) { hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hd.width, hd.height); hdDirty = false; hd.style.visibility = 'hidden'; }
+  if (!posterUsed && poster.style.visibility === 'visible') poster.style.visibility = 'hidden';
+  posterUsed = false;
   hdUsed = false;
 }
 
@@ -72,9 +101,10 @@ export function fit() {
   canvas.style.width = W * s + 'px';
   canvas.style.height = H * s + 'px';
   // the HD layer matches the screen in device pixels
-  const dpr = devicePixelRatio || 1;
-  hd.width = Math.round(W * s * dpr); hd.height = Math.round(H * s * dpr);
-  hd.style.width = W * s + 'px'; hd.style.height = H * s + 'px';
+  // capped at 2x pixel density and 2560 wide: phones at 3x don't need more, and every pixel costs
+  const dpr = Math.min(2, devicePixelRatio || 1), k = Math.min(1, 2560 / (W * s * dpr));
+  hd.width = Math.round(W * s * dpr * k); hd.height = Math.round(H * s * dpr * k);
+  hd.style.width = poster.style.width = W * s + 'px'; hd.style.height = poster.style.height = H * s + 'px';
 }
 
 export function rect(x, y, w, h, c) { C.fillStyle = rc(c); C.fillRect(Math.round(x), Math.round(y), w, h); }
@@ -133,8 +163,10 @@ export function mix(a, b, k) {
   return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
 }
 // eyes: the characters in `rows` that are eyes. They get a highlight and a closed-eye frame for blinking.
-export function makeSprite(rows, map, eyes) {
-  const h = rows.length, w = Math.max(...rows.map((r) => r.length));
+// opt.k: pixel density (2 = two sprite pixels per game pixel); opt.flat: hand-shaded art, so no automatic
+// light and shadow pass (the outline still takes its own color)
+export function makeSprite(rows, map, eyes, opt = {}) {
+  const h = rows.length, w = Math.max(...rows.map((r) => r.length)), k = opt.k || 1;
   const build = (pick, flip) => {
     const c = makeCanvas(w, h), g = c.getContext('2d');
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -147,9 +179,10 @@ export function makeSprite(rows, map, eyes) {
     }
     return c;
   };
-  const s = { w, h, cache: {} };
-  // icons use '#'; every other sprite gets an automatic detail pass
-  const shade = !map['#'];
+  // w and h are in game pixels; the images themselves are k times bigger
+  const s = { w: w / k, h: h / k, k, cache: {} };
+  // icons use '#' and hand-shaded art is flat; every other sprite gets an automatic detail pass
+  const shade = !map['#'] && !opt.flat;
   const at = (x, y) => rows[y]?.[x];
   const empty = (c) => !c || c === '.';
   const edge = (c) => empty(c) || c === 'o';
@@ -191,8 +224,27 @@ export function makeSprite(rows, map, eyes) {
     }
     return c;
   };
-  s.n = buildLit(false);
-  s.f = buildLit(true);
+  // fast path: every pixel's color worked out once and written into one image buffer, and the mirrored copy drawn
+  // flipped in one go (painting pixel by pixel twice made building a hero's 70 frames slow on phones)
+  const fast = () => {
+    const img = new ImageData(w, h), d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const ch = rows[y][x];
+      if (!ch || ch === '.') continue;
+      let col = lit(ch, x, y);
+      if (!col) continue;
+      if (eyes && eyes.includes(ch) && !eyes.includes(at(x - 1, y)) && !eyes.includes(at(x, y - 1))) col = mix(map[ch], '#ffffff', 0.75);
+      if (col.length !== 7 || col[0] !== '#') return null;
+      const v = parseInt(col.slice(1), 16), i = (y * w + x) * 4;
+      d[i] = v >> 16; d[i + 1] = (v >> 8) & 255; d[i + 2] = v & 255; d[i + 3] = 255;
+    }
+    const n = makeCanvas(w, h); n.getContext('2d').putImageData(img, 0, 0);
+    const f = makeCanvas(w, h), g = f.getContext('2d'); g.translate(w, 0); g.scale(-1, 1); g.drawImage(n, 0, 0);
+    return [n, f];
+  };
+  const nf = fast();
+  if (nf) [s.n, s.f] = nf;
+  else { s.n = buildLit(false); s.f = buildLit(true); }
   s.tint = (col, flip) => {
     const k = col + (flip ? 'f' : 'n');
     return s.cache[k] || (s.cache[k] = build((ch) => (map[ch] ? col : null), flip));
@@ -200,7 +252,7 @@ export function makeSprite(rows, map, eyes) {
   if (eyes) {
     // the blink frame: eyes become a dark lid line
     const closed = rows.map((r) => [...r].map((c) => (eyes.includes(c) ? 'o' : c)).join(''));
-    s.blink = makeSprite(closed, map);
+    s.blink = makeSprite(closed, map, undefined, opt);
   }
   return s;
 }
@@ -209,25 +261,28 @@ export function makeSprite(rows, map, eyes) {
 export function drawBreath(s, x, y, flip, tint, off, split = 0.58) {
   if (!off) { drawSprite(s, x, y, flip, tint); return; }
   const img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, cut = Math.round(s.h * split);
-  x = Math.round(x); y = Math.round(y);
+  x = snap(x); y = snap(y);
   // lower body first, so the sinking head overlaps the neck instead of losing its chin
-  C.drawImage(img, 0, cut, s.w, s.h - cut, x, y + cut, s.w, s.h - cut);
-  C.drawImage(img, 0, 0, s.w, cut, x, y + off, s.w, cut);
+  const k = s.k;
+  C.drawImage(img, 0, cut * k, s.w * k, (s.h - cut) * k, x, y + cut, s.w, s.h - cut);
+  C.drawImage(img, 0, 0, s.w * k, cut * k, x, y + off, s.w, cut);
 }
 
 // a lean: horizontal bands, each one a pixel further over than the one below (feet stay planted)
 export function drawLean(s, x, y, flip, tint, lean) {
   if (!lean) { drawSprite(s, x, y, flip, tint); return; }
   const img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, n = Math.abs(lean) + 1, d = Math.sign(lean);
-  x = Math.round(x); y = Math.round(y);
+  x = snap(x); y = snap(y);
   for (let i = 0; i < n; i++) {
     const y0 = Math.round(s.h * (1 - (i + 1) / n)), y1 = Math.round(s.h * (1 - i / n));
-    if (y1 > y0) C.drawImage(img, 0, y0, s.w, y1 - y0, x + d * i, y + y0, s.w, y1 - y0);
+    if (y1 > y0) C.drawImage(img, 0, y0 * s.k, s.w * s.k, (y1 - y0) * s.k, x + d * i, y + y0, s.w, y1 - y0);
   }
 }
 
+// sprites move in canvas pixels (a third of a game pixel), so motion is three times finer and stays crisp
+export const snap = (v) => Math.round(v * SS) / SS;
 export function drawSprite(s, x, y, flip, tint) {
-  C.drawImage(tint ? s.tint(tint, flip) : flip ? s.f : s.n, Math.round(x), Math.round(y));
+  C.drawImage(tint ? s.tint(tint, flip) : flip ? s.f : s.n, snap(x), snap(y), s.w, s.h);
 }
 
 // ---------- dithered additive glow ----------
@@ -363,7 +418,9 @@ export const THEMES = {
 };
 export function applyTheme(name) { Object.assign(P, THEMES[name] || THEMES.EMBER); }
 export function applyDisplay(s) {
-  canvas.style.filter = hd.style.filter = `saturate(${s.vibrancy}) brightness(${s.bright}) contrast(${s.contrast}) hue-rotate(${s.hue}deg)`;
+  // a CSS filter costs a full-screen pass every frame (heavy on phones), so it's only set when it changes something
+  const neutral = s.vibrancy === 1 && s.bright === 1 && s.contrast === 1 && !s.hue;
+  canvas.style.filter = hd.style.filter = poster.style.filter = neutral ? 'none' : `saturate(${s.vibrancy}) brightness(${s.bright}) contrast(${s.contrast}) hue-rotate(${s.hue}deg)`;
   document.documentElement.classList.toggle('crt', !!s.crt);
   if (s.res && s.res !== view.res) { view.res = s.res; fit(); }
 }

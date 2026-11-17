@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ASHBLADE V7 — Hero Motion Preview</title><style>
+:root{color-scheme:dark;font-family:system-ui,Arial,sans-serif;background:#100d1b;color:#efecf8}body{margin:0;padding:28px;max-width:1100px;margin:auto}h1{font-size:26px;margin:0 0 5px}.sub{color:#a99cbe;margin:0 0 20px}.controls{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px}select,button{background:#272038;color:#fff;border:1px solid #604879;border-radius:7px;padding:9px 12px;font:inherit;cursor:pointer}.stage{display:flex;gap:25px;align-items:center;flex-wrap:wrap}.canvaswrap{background:repeating-conic-gradient(#201932 0% 25%,#171223 0% 50%) 50%/32px 32px;border:1px solid #483454;border-radius:15px;padding:12px}.stagecanvas{width:480px;height:384px;image-rendering:pixelated;max-width:85vw}.notes{max-width:350px;color:#c4bbd3;line-height:1.6}.timeline{margin-top:22px;display:flex;gap:4px;flex-wrap:wrap} .tile{background:#20172c;border:1px solid #302441;border-radius:4px;image-rendering:pixelated;width:100px;height:80px}footer{color:#aa9cbb;font-size:13px;margin-top:26px}
+</style></head><body><h1>ASHBLADE — V7 Animation Viewer</h1><p class="sub">Two-facing soft-angle · alpha-transparent PNG frames · constant feet anchors</p>
+<div class="controls"><select id="hero"><option value="blade">Kael</option><option value="gunner">Vega Hale</option><option value="wizard">Morrow</option><option value="ninja">Rin</option><option value="mechanic">Rivet</option><option value="tank">Grom</option><option value="robot">Unit-7</option><option value="dev">The Dev</option></select>
+<select id="skin"><option value="base">Base</option><option value="evolved">Evolved</option></select>
+<select id="action"><option>idle</option><option>walk</option><option>run</option><option>attack1</option><option>attack2</option><option>attack3</option></select>
+<select id="facing"><option value="right">Right</option><option value="left">Left</option></select>
+<select id="fps"><option value="7">7 FPS</option><option value="10">10 FPS</option><option value="12" selected>12 FPS</option><option value="16">16 FPS</option></select><button id="toggle">Pause</button><button id="prev">← Frame</button><button id="next">Frame →</button></div>
+<div class="stage"><div class="canvaswrap"><canvas id="sprite" width="120" height="96" class="stagecanvas"></canvas></div><div class="notes"><p id="status">Loading...</p><p id="details"></p><p><strong>Arrow keys</strong> step through each frame after pressing Pause. The checkerboard is only in the preview, never part of the sprites.</p><p>Idle, Walk, Run and three combos are new V7 artwork. Other Q/E/R, Dash, Hit, Death frames are preserved from your current game.</p></div></div><div id="timeline" class="timeline"></div><footer>Full PNG atlases live in <code>art/sprites/motion-v7/</code>, 16 columns × 6 rows. No white compositing background is embedded in the sprite.</footer>
+<script>
+const byId=id=>document.getElementById(id),heroes=['blade','gunner','wizard','ninja','mechanic','tank','robot','dev'];
+const actions=['idle','walk','run','attack1','attack2','attack3'],counts=[16,12,12,12,12,12];
+const cvs=byId('sprite'),ctx=cvs.getContext('2d');ctx.imageSmoothingEnabled=false;
+let current=null,index=0,play=true,last=0;
+function source(){return `art/sprites/motion-v7/${byId('hero').value}-${byId('skin').value}-motion-v7.png`}
+function refresh(){const img=new Image();img.onload=()=>{current=img;index=0;buildTimeline();render();byId('status').textContent='Atlas loaded · 120×96 frames · transparent.'};img.onerror=()=>{byId('status').textContent='Cannot load '+source();current=null};img.src=source()+'?cache='+Date.now();}
+function getRow(){return actions.indexOf(byId('action').value)}
+function len(){return counts[getRow()]}
+function render(){if(!current)return;ctx.clearRect(0,0,120,96);const row=getRow();ctx.save();if(byId('facing').value==='left'){ctx.translate(120,0);ctx.scale(-1,1)}ctx.drawImage(current,index*120,row*96,120,96,0,0,120,96);ctx.restore();byId('details').textContent=`${byId('hero').selectedOptions[0].text}: ${byId('action').value.toUpperCase()} | frame ${index+1}/${len()} | original 120×96 RGBA`}
+function buildTimeline(){const t=byId('timeline');t.innerHTML='';for(let i=0;i<len();i++){const el=document.createElement('canvas');el.width=120;el.height=96;el.className='tile';el.title='Frame '+(i+1);el.onclick=()=>{index=i;play=false;byId('toggle').textContent='Play';render()};let tctx=el.getContext('2d');tctx.imageSmoothingEnabled=false;if(current)tctx.drawImage(current,i*120,getRow()*96,120,96,0,0,120,96);t.append(el)}}
+function tick(now){if(play&&now-last>1000/Number(byId('fps').value)){index=(index+1)%len();render();last=now}requestAnimationFrame(tick)}
+for(const id of ['hero','skin'])byId(id).onchange=refresh;
+byId('action').onchange=()=>{index=0;buildTimeline();render()};byId('facing').onchange=render;
+byId('toggle').onclick=()=>{play=!play;byId('toggle').textContent=play?'Pause':'Play'};
+byId('prev').onclick=()=>{play=false;byId('toggle').textContent='Play';index=(index+len()-1)%len();render()};
+byId('next').onclick=()=>{play=false;byId('toggle').textContent='Play';index=(index+1)%len();render()};
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')byId('prev').click();if(e.key==='ArrowRight')byId('next').click()});
+refresh();requestAnimationFrame(tick);
+</script></body></html>

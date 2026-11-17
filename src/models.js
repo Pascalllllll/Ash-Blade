@@ -2,7 +2,7 @@
 // are plain scripts, all requested at once as the page opens (downloaded in parallel, run in order),
 // so the opening cinematic can show them. Frames are painted as they are needed and cached; only
 // the current fighter keeps its whole animation in memory.
-const Q = '?v=115';
+const Q = '?v=170';
 const FILES = { BLADE: 'kael', GUNNER: 'vega', WIZARD: 'morrow', NINJA: 'rin', MECHANIC: 'rivet', TANK: 'grom', ROBOT: 'unit7', DEV: 'dev' };
 export const hasModel = (id) => id in FILES;
 // Every portrait fills its own picture, so each is drawn at a share of the portrait box that matches the
@@ -52,6 +52,12 @@ export function modelFrame(id, t) {
   if (!arr[want]) arr[want] = paint(name, want);
   else for (let k = 1; k < m.frames; k++) { const j = (want + k) % m.frames; if (!arr[j]) { arr[j] = paint(name, j); break; } }
   return arr[want];
+}
+// a run is starting: drop every cached animation frame but the first of each fighter (a fighter's loop is
+// about 70 MB, which phones need back for the game itself)
+export function releaseModels() {
+  for (const arr of frames.values()) arr.length = Math.min(arr.length, 1);
+  recent.length = 0;
 }
 export function modelStill(id) {
   if (state !== 'ready' || !hasModel(id)) return null;

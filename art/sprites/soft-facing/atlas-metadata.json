@@ -1,0 +1,88 @@
+{
+  "version": "6.0",
+  "style": "Soul Knight-inspired 2-facing large-head chibi",
+  "source": "redesigned 8-hero master roster",
+  "frame": {
+    "width": 120,
+    "height": 96,
+    "cols": 10,
+    "rows": 13,
+    "foot": [
+      60,
+      92
+    ]
+  },
+  "animations": {
+    "entrance": 8,
+    "idle": 8,
+    "walk": 8,
+    "run": 8,
+    "attack1": 8,
+    "attack2": 8,
+    "attack3": 8,
+    "skill1": 8,
+    "skill2": 8,
+    "ultimate": 10,
+    "dash": 6,
+    "hit": 4,
+    "death": 8
+  },
+  "heroes": {
+    "blade": {
+      "heroHeight": 54,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 30,
+      "base": "blade-base-right.png",
+      "evolved": "blade-evolved-right.png"
+    },
+    "gunner": {
+      "heroHeight": 54,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 29,
+      "base": "gunner-base-right.png",
+      "evolved": "gunner-evolved-right.png"
+    },
+    "wizard": {
+      "heroHeight": 54,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 28,
+      "base": "wizard-base-right.png",
+      "evolved": "wizard-evolved-right.png"
+    },
+    "ninja": {
+      "heroHeight": 54,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 32,
+      "base": "ninja-base-right.png",
+      "evolved": "ninja-evolved-right.png"
+    },
+    "mechanic": {
+      "heroHeight": 54,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 30,
+      "base": "mechanic-base-right.png",
+      "evolved": "mechanic-evolved-right.png"
+    },
+    "tank": {
+      "heroHeight": 58,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 33,
+      "base": "tank-base-right.png",
+      "evolved": "tank-evolved-right.png"
+    },
+    "robot": {
+      "heroHeight": 54,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 22,
+      "base": "robot-base-right.png",
+      "evolved": "robot-evolved-right.png"
+    },
+    "dev": {
+      "heroHeight": 51,
+      "visualDirection": "right 15\u00b0 / left mirrored",
+      "bodyAnchor": 22,
+      "base": "dev-base-right.png",
+      "evolved": "dev-evolved-right.png"
+    }
+  }
+}

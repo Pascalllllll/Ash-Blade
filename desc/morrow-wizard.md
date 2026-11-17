@@ -1,15 +1,15 @@
 # Morrow, the Wizard
 
-**Class:** Wizard · **Unlock:** land a 100-hit combo · **Awakened form:** Archmage Morrow
+**Unlock:** land a 100-hit combo · **Awakened form:** Archmage Morrow
+
+The rules every fighter shares (controls, charged attacks, Flash Strike, awakening and its bonuses) are in [heroes.md](heroes.md).
 
 > A warlock who traded his face for the names of the stars.
 
 ## Look
-A deep purple hood with nothing inside it but shadow and two glowing cyan eyes. A long white beard spills out of the hood over violet robes. He doesn't walk: he floats, and his cowl and beard drift in the wind.
+A deep purple hood trimmed in gold, with nothing inside but shadow and two glowing blue eyes, and a long white beard spilling over purple robes. He casts with an arcane staff topped by a blue orb, and swirls of violet magic ring him when he casts.
 
-Awakened as **Archmage Morrow**, his hood and robes turn white with gold trim and his eyes burn pink.
-
-Awakened, his bolts arc to a second enemy, his powers call lightning on the 3 nearest enemies, and Starfall adds lightning on 8 more. Awakening also makes basic hits and the ultimate 30% stronger, Q and E a quarter cheaper and a fifth faster to recharge, and the ultimate charge a quarter faster, keeping 30% of its charge after each use.
+Awakened as **Archmage Morrow**, his hood and robes turn white-lavender with gold trim and his eyes burn pink.
 
 ## How he plays
 The hardest hitter and the frailest fighter. Every spell is strong, but he can't take many hits.
@@ -24,6 +24,8 @@ The hardest hitter and the frailest fighter. Every spell is strong, but he can't
 | Q (25 energy) | Arcane Missiles | A rune circle flares at his feet and 5 violet missiles leave his staff one after another, each hunting its own target |
 | E (40 energy) | Blizzard | A frost storm on the aimed spot for 3 seconds: ice rains inside a rune circle, cutting and freezing everything in it |
 | R (ultimate) | Starfall | Meteors land on every enemy for about 3 seconds |
+
+**Awakened powers:** his bolts arc to a second enemy, his skills call lightning on the 3 nearest enemies, and Starfall adds lightning on 8 more.
 
 ## Kill and death
 - **His kills:** enemies unravel into motes of arcane light.

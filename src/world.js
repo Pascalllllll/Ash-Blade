@@ -1,13 +1,14 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, drawLean, glow, text, textO } from './gfx.js?v=115';
-import { SPR, IDLE_BREATH, EVO_NAMES } from './sprites.js?v=115';
-import { A } from './audio.js?v=115';
-import { input, keyDown, keyHit } from './input.js?v=115';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=115';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=115';
-import { CHARS, ALLY } from './chars.js?v=115';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=115';
-import { byId } from './upgrades.js?v=115';
-import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=115';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=170';
+import { SPR, EVO_NAMES } from './sprites.js?v=170';
+import { A } from './audio.js?v=170';
+import { input, keyDown, keyHit } from './input.js?v=170';
+import { settings, OPTIONS, best, saveBest } from './store.js?v=170';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=170';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=170';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=170';
+import { byId } from './upgrades.js?v=170';
+import { KILLS, startDeath, updateDeath, drawDeath } from './deaths.js?v=170';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=170';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -325,8 +326,9 @@ export function spawnEnemy(type, x, y) {
 // ---------- particles & small effects ----------
 export function part(x, y, vx, vy, life, c, o) {
   if (G.pfx && G.awPal) c = G.awPal[c] || c;
-  const low = settings.particles === 'LOW';
-  if (G.parts.length > (low ? 600 : 1500) || (low && !o?.keep && Math.random() < 0.5)) return;
+  // LOW particles (or performance mode, when the device is struggling) keep half of them and fewer in total
+  const low = settings.particles === 'LOW' || fx.lowFx;
+  if (G.parts.length > (low ? 500 : 1500) || (low && !o?.keep && Math.random() < 0.5)) return;
   G.parts.push({ x, y, vx, vy, life, t: 0, c, z: o?.z ?? 0, vz: o?.vz ?? 0, g: o?.g ?? 0, drag: o?.drag ?? 5, s: o?.s ?? 1, blood: o?.blood, glow: o?.glow });
 }
 export function bleed(x, y, dir, n, c, c2, force = 1) {
@@ -421,7 +423,7 @@ export function addRing(x, y, c, vr, life, th = 2, r = 2) { if (G.pfx && G.awPal
 // the fighter's current look: the evolved skin once it has awakened
 export const heroSet = () => (G && G.evo === true ? SPR.evo[G.char] : SPR.chars[G.char]);
 export function ghost(p, c = P.volt, spr) {
-  G.ghosts.push({ x: p.x, y: p.y, flip: Math.cos(p.aim) < 0, t: 0, life: 0.26, c, spr: spr || heroSet().idle });
+  G.ghosts.push({ x: p.x, y: p.y, flip: softFacingLeft(p), t: 0, life: 0.26, c, spr: spr || heroSet().idle });
 }
 
 // ---------- combo ----------
@@ -692,7 +694,7 @@ export function tryHurt(dmg, sx, sy) {
   }
   p.hp -= dmg;
   // a short grace after a hit: enough to not lose two hearts to one blow, not enough to stand in a crowd
-  p.inv = 0.35; p.hurtT = 0.3;
+  p.inv = 0.35; p.hurtT = 0.3; p.sq = 0.26; p.sqv = 0;
   const a = Math.atan2(p.y - sy, p.x - sx);
   p.vx = Math.cos(a) * 220; p.vy = Math.sin(a) * 220;
   if (p.state === 'attack' || p.state === 'recover' || p.state === 'charge') p.state = 'move';
@@ -838,6 +840,10 @@ function updatePlayer(dt) {
   p.t += dt; p.atkT += dt;
   p.holdT = p.atkHeld ? p.holdT + dt : 0;
   p.inv = Math.max(0, p.inv - dt); p.hurtT -= dt; p.comboWin -= dt;
+  // the body's squash and stretch springs back to rest (positive: squashed wide, negative: stretched tall), and a
+  // shot's kick fades out
+  { const d = Math.min(dt, 1 / 30); p.sqv = (p.sqv || 0) + (-320 * (p.sq || 0) - 19 * (p.sqv || 0)) * d; p.sq = Math.max(-0.32, Math.min(0.32, (p.sq || 0) + p.sqv * d)); }
+  p.recoil = Math.max(0, (p.recoil || 0) - dt * 7);
   if (p.counter > 0) { p.counter -= dt; if (p.counter <= 0) p.counterHit = false; }
   p.bufAtk -= dt; p.bufDash -= dt; p.bufQ -= dt; p.bufE -= dt; p.bufR -= dt;
   if (p.castAim && (p.castAim.t -= dt) <= 0) p.castAim = null;
@@ -936,7 +942,7 @@ function updatePlayer(dt) {
         }
       }
       if (p.dashT <= 0) {
-        p.state = 'move'; p.vx *= 0.3; p.vy *= 0.3;
+        p.state = 'move'; p.vx *= 0.3; p.vy *= 0.3; p.sq = 0.15; p.sqv = 0;
         if (up.evoSwift && p.dashFrom) {
           const [x0, y0] = p.dashFrom;
           G.cuts.push({ x0, y0: y0 - 5, x1: p.x, y1: p.y - 5, a: Math.atan2(p.y - y0, p.x - x0), t: 0, pend: 0.28, marked: [], echo: 0, done: false,
@@ -989,9 +995,9 @@ function updatePlayer(dt) {
     const canAct = free || p.state === 'charge' || (p.state === 'attack' && p.atkT >= p.cancelAt);
     const canDash = p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
-    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); p.castAim = null; buzz('ult'); if (awake()) { G.kit.awake.ult(p); p.ult = 30; addText(p.x, p.y - 30, 'AWAKENED', P.gold); } if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = Math.max(p.ult, 25); p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
-    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const fs = flashStrike(p); const okQ = kit.q.use(p) !== false; G.skillMult = 1; if (fs && okQ) flashFx(p); p.castAim = null; if (okQ) { p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); if (awake()) G.kit.awake.skill(p, 'q'); } }
-    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const fs = flashStrike(p); const okE = kit.e.use(p) !== false; G.skillMult = 1; if (fs && okE) flashFx(p); p.castAim = null; if (okE) { p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); if (awake()) G.kit.awake.skill(p, 'e'); } }
+    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); setSpriteAction(p,'ultimate'); p.castAim = null; buzz('ult'); if (awake()) { G.kit.awake.ult(p); p.ult = 30; addText(p.x, p.y - 30, 'AWAKENED', P.gold); } if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = Math.max(p.ult, 25); p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
+    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const fs = flashStrike(p); const okQ = kit.q.use(p) !== false; G.skillMult = 1; if (fs && okQ) flashFx(p); p.castAim = null; if (okQ) { setSpriteAction(p,'skill1'); p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); if (awake()) G.kit.awake.skill(p, 'q'); } }
+    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const fs = flashStrike(p); const okE = kit.e.use(p) !== false; G.skillMult = 1; if (fs && okE) flashFx(p); p.castAim = null; if (okE) { setSpriteAction(p,'skill2'); p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); if (awake()) G.kit.awake.skill(p, 'e'); } }
     else if (kit.melee) {
       // a fighter with a charged attack waits a moment on a fresh press: a tap swings when it's let go, a hold goes
       // straight into the charge without a swing first
@@ -1004,7 +1010,9 @@ function updatePlayer(dt) {
     if (!kit.melee && p.state !== 'dead') {
       const held = (input.mouse.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || input.tb.attack;
       G.tagBasic = true;
+      const shots = G.shots.length;
       kit.primary(p, dt, held && (p.state === 'move' || p.state === 'recover'));
+      if (G.shots.length > shots) { p.recoil = 1; p.sq = Math.max(p.sq || 0, 0.06); }
       G.tagBasic = false;
     }
   }
@@ -1042,7 +1050,7 @@ export function aimAssist() {
 // so letting go at half charge hits half as hard (and dashes or spreads half as far).
 export const chargeLevel = (p) => Math.min(1, p.chargeT / (G.kit.charge.time / (G.up.spd * (p.ascend > 0 ? 1.4 : 1))));
 function startCharge(p) {
-  p.state = 'charge'; p.chargeT = 0; p.chargeFull = false; p.comboWin = 0; p.chgDir = null;
+  p.state = 'charge'; p.chargeT = 0; p.chargeFull = false; p.comboWin = 0; p.chgDir = null; p.sq = 0.12; p.sqv = 0;
   // a charge begun inside Flash Strike's window keeps the bonus until it's released
   p.chgFlash = G.kit.dashStrike && p.dashBuffT > 0; if (p.chgFlash) p.dashBuffT = 0;
   A.swing(0);
@@ -1060,7 +1068,7 @@ function releaseCharge(p, f) {
   p.state = 'move'; p.bufAtk = 0;
   // barely charged: just a normal swing (the press turned out to be a slow tap)
   if (f < 0.15) { p.chgFlash = false; startAttack(); return; }
-  G.inCharge = true;
+  G.inCharge = true; p.sq = -0.26; p.sqv = 0;
   // Flash Strike on a charge: its hits (which may land a moment later, like Rin's delayed cuts) do bonus damage
   if (p.chgFlash) { p.chgFlash = false; p.chgFlashT = 1.2; flashFx(p); }
   const act = G.kit.charge.release(p, f);
@@ -1076,7 +1084,7 @@ function startAttack() {
   p.step = p.state === 'attack' || p.comboWin > 0 ? (p.step + 1) % m.steps.length : 0;
   if (input.device === 'keys') aimAssist();
   p.atkAng = p.aim;
-  p.state = 'attack'; p.atkT = 0;
+  p.state = 'attack'; p.atkT = 0; p.sq = -0.17; p.sqv = 0;
   const s = m.steps[p.step];
   // m.slow: every melee swing recovers slower than it used to, so mashing is weaker than timing and charging
   const spd = (up.spd * (p.ascend > 0 ? 1.4 : 1)) / (m.slow || 1);
@@ -1193,7 +1201,7 @@ function startDash(mx, my, ml) {
   p.dx = Math.cos(a); p.dy = Math.sin(a);
   if (p.state === 'attack') p.comboWin = 0.35;
   p.dashFrom = [p.x, p.y];
-  p.state = 'dash'; p.dashT = kit.dash.time; p.ghostT = 0;
+  p.state = 'dash'; p.dashT = kit.dash.time; p.ghostT = 0; p.sq = -0.24; p.sqv = 0;
   p.inv = Math.max(p.inv, kit.dash.time + 0.05); p.perfectUsed = false; p.phantomHit = new Set();
   A.dash(); dust(p.x, p.y, 6, 60); shake(0.05);
 }
@@ -2047,36 +2055,96 @@ export function drawSlash(s) {
   glow(cx + Math.cos(tipA) * R * 0.8, cy + Math.sin(tipA) * R * 0.8, cols[2], 10, 0.5 * (1 - tail));
 }
 
+// Visually distinct, pre-drawn Q/E/R animations. These do not alter the game's move logic.
+const SPECIAL_DUR = { BLADE:1.85, GUNNER:4, WIZARD:2.6, NINJA:1.6,
+  MECHANIC:1.4, TANK:6, ROBOT:4.5, DEV:1.55 };
+function setSpriteAction(p, name) {
+  let dur = name === 'ultimate' ? SPECIAL_DUR[G.char] || 1.3 : name === 'skill1' ? 0.48 : 0.67;
+  if (name === 'ultimate') {
+    if (G.char === 'GUNNER') dur = p.k.stand || dur;
+    if (G.char === 'WIZARD') dur = p.k.star || dur;
+    if (G.char === 'TANK') dur = p.fortress || dur;
+    if (G.char === 'ROBOT') dur = p.k.orb || dur;
+  }
+  p.spriteAction = { kind:name, start:G.time, duration:dur };
+  p.sq = name === 'ultimate' ? 0.24 : 0.14; p.sqv = 0;
+}
+// ---------- the hero and the weapon in hand ----------
+// The hand that holds the weapon: the hero's own grip point (hero-rig.js), on the side the hero faces. Shots, spells
+// and the weapon's grip all start here (the second argument is ignored: the facing decides the side).
+export function handPoint(p) {
+  const rig = heroSet()?.rig, left = softFacingLeft(p);
+  if (!rig) return [p.x + (left ? -4 : 4), p.y - (G.kit?.handY ?? 6)];
+  const dx = (rig.hand[0] + 0.5) / SS - 20, dy = (rig.hand[1] + 0.5) / SS - 31;
+  return [p.x + (left ? -dx : dx), p.y + dy];
+}
+const lerpAngle = (a, b, w) => a + angDiff(b, a) * w;
+const CW_HERO = 120;
+// where the weapon points: the swing for blades (chars.js swordAngle: drawn back while charging, through the cut
+// while attacking, lowered toward the aim at rest), the aim for guns and staffs. A shot kicks the muzzle up; Q and E
+// twirl a blade once (a gun jerks up), and R lifts the weapon high for a moment.
+function weaponAngle(p, kit, flip) {
+  let a = kit.melee ? swordAngle(p) : p.aim;
+  const r = p.recoil || 0, up = flip ? 1 : -1;
+  if (!kit.melee && r > 0) a += up * 0.38 * r * r;
+  // Unit-7's beam shakes the cannon while it fires
+  if (p.k?.firing) a += Math.sin(G.time * 70) * 0.03;
+  const q = p.spriteAction, t = q ? G.time - q.start : 9;
+  if (q && t < 0.5) {
+    const k = Math.min(1, t / 0.3), e = 1 - (1 - k) ** 3;
+    if (q.kind === 'ultimate') a = lerpAngle(a, -Math.PI / 2 - up * 0.3, t < 0.36 ? Math.min(1, t / 0.08) : Math.max(0, 1 - (t - 0.36) / 0.14));
+    else if (kit.melee) a += -up * e * TAU;
+    else a += up * 0.6 * (1 - e);
+  }
+  return a;
+}
+// the weapon at the hand (x, y), with afterimages fanning behind a fast swing, a glow while it charges, and a flash
+// at the muzzle on a shot
+function drawHeldWeapon(p, set, flip, x, y, a) {
+  let name = set.rig.weapon;
+  if (G.char === 'GUNNER' && p.k?.stand > 0) name = 'minigun';
+  if (!name) return;
+  const kit = G.kit, skin = !!set.evolved, wp = SPR.weapons[G.char];
+  // a gun kicks back along itself; a blade reaches out as it cuts
+  const push = -0.9 * (p.recoil || 0) + (p.state === 'attack' && p.atkT < 0.14 ? 1 : 0) + (p.state === 'chg' ? 1 : 0);
+  const hx = x + Math.cos(a) * push, hy = y + Math.sin(a) * push;
+  const prev = p.wpnA ?? a, d = angDiff(a, prev);
+  p.wpnA = a;
+  // a fast swing leaves the blade's afterimages between where it was and where it is
+  if (kit.melee && Math.abs(d) > 0.22) for (let j = 3; j >= 1; j--) drawWeaponAt(ctx, name, skin, hx, hy, a - (d * j) / 4, flip, 0.5 - j * 0.12);
+  drawWeaponAt(ctx, name, skin, hx, hy, a, flip);
+  const len = wp ? wp.along : 6, tx = hx + Math.cos(a) * len * 0.95, ty = hy + Math.sin(a) * len * 0.95;
+  if (p.state === 'charge') {
+    const f = chargeLevel(p), c = f >= 1 && Math.floor(G.time * 20) % 2 ? P.paper : kit.color();
+    glow(tx, ty, c, 4 + Math.round(f * 7), 0.35 + f * 0.45);
+    glow((hx + tx) / 2, (hy + ty) / 2, c, 3 + Math.round(f * 4), 0.2 + f * 0.3);
+  } else if (G.evo === true) glow(tx, ty, kit.color(), 4, 0.25 + Math.sin(G.time * 6) * 0.08);
+  if (!kit.melee && (p.recoil || 0) > 0.72) { disc(tx, ty, 1.5, P.paper); glow(tx, ty, kit.color(), 7, 0.75); }
+}
 function drawPlayer() {
   const p = G.p, kit = G.kit;
   if (p.state === 'dead' || p.state === 'cine') return;
   if (p.inv > 0 && p.hurtT > -0.8 && p.state !== 'dash' && Math.floor(G.time * 22) % 2) return;
-  const set = heroSet();
-  const flip = Math.cos(p.state === 'attack' ? p.atkAng : p.aim) < 0;
+  // the body faces left or right only (mostly toward the player); the aim, the weapon, shots and cuts go all 360
+  // degrees
+  const set = heroSet(), body = set.body;
   const moving = (p.state === 'move' || p.state === 'skill' || p.state === 'charge') && hyp(p.vx, p.vy) > 20;
-  // Rin runs like a ninja: quicker steps, leaning hard into the run, no bounce, afterimages behind her
+  const flip = softFacingLeft(p);
+  // Rin runs with pink afterimages behind her
   const ninja = G.char === 'NINJA' && moving && p.state === 'move';
-  // she leans the way she runs (whichever way she's facing)
-  // Rin runs like a ninja: thrown forward into the run (her arms sweep back in the run frames)
-  const leanR = ninja ? Math.round(Math.cos(p.moveAng) * 4) : 0;
-  const fi = Math.floor(p.runT * (ninja ? 15 : 11)) % 4;
-  const blink = !moving && (G.time % 3.1) < 0.13;
-  // standing still plays the 8-frame idle loop: breathing plus each fighter's own secondary motion
-  const ii = Math.floor(G.time * 7) % set.idles.length, still = set.idles[ii];
-  // Morrow doesn't walk: he floats, robe and beard streaming, while he moves
-  // Unit-7 Omega hovers on its jets all the time
+  // walking (slow) and running cycles: 8 frames each, the run steps 13 times a second
+  const walking = moving && hyp(p.vx, p.vy) < (kit.stats?.speed || 100) * 0.7;
+  const moveFrames = walking ? body.walk : body.run;
+  const fi = Math.floor(p.runT * (walking ? 9 : 13)) % moveFrames.length;
+  // standing still plays the 16-frame idle loop: breathing, a blink, cloth in the wind
+  const ii = Math.floor(G.time * 7) % body.idles.length;
+  // Morrow floats while he moves; Unit-7 Omega hovers on its jets all the time
   const jets = G.char === 'ROBOT' && G.evo === true;
   const floats = (G.char === 'WIZARD' && moving) || jets;
-  const fr = floats ? still : moving ? set.run[fi] : blink && still.blink ? still.blink : still;
+  const fr = moving ? moveFrames[fi] : body.idles[ii];
   const hover = floats ? (jets ? 5 : 4) + Math.round(Math.sin(G.time * (jets ? 4 : 6)) * 1.5) : 0;
-  // Unit-7 and The Dev ride (treads, a wheelchair): they glide instead of bobbing
-  const rides = G.char === 'ROBOT' || G.char === 'DEV';
-  const bob = (moving && !floats && !rides && !ninja && fi % 2 ? 1 : 0) + hover;
-  // idle breathing, and a lean into each swing
-  const breathe = !moving && p.state === 'move' ? IDLE_BREATH[ii] : 0;
+  // a lunge into each swing, a lean into a dash
   const lean = p.state === 'attack' && p.atkT < 0.12 ? 2 : p.state === 'dash' ? 1 : 0, la = p.state === 'attack' ? p.atkAng : p.aim;
-  const wa = p.state === 'attack' ? p.atkAng : p.aim;
-  const behind = Math.sin(wa) < -0.3;
   shadow(p.x, p.y, hover ? 4 : 6);
   if (hover && !jets && Math.random() < 0.5) part(p.x + rnd(-4, 4), p.y - rnd(0, 2), rnd(-10, 10), rnd(-10, -2), 0.4, '#b48cff', { glow: true, drag: 3 });
   // jet exhaust under both thrusters
@@ -2086,16 +2154,32 @@ function drawPlayer() {
   }
   if (p.invis > 0) ctx.globalAlpha = 0.3 + (Math.floor(G.time * 10) % 2) * 0.1;
   kit.drawAura?.(p, flip);
-  // the weapon rises and sinks with the breath
-  if (breathe || hover) { ctx.save(); ctx.translate(0, breathe - hover); }
-  if (behind) { remap(G.awPal); kit.drawWeapon(p, flip); remap(null); }
-  if (breathe || hover) ctx.restore();
-  const sx = Math.round(p.x - fr.w / 2 + Math.cos(la) * lean), sy = Math.round(p.y - fr.h + 1 - bob + Math.sin(la) * lean * 0.5);
-  const tintP = p.hurtT > 0.15 ? P.blood : p.state === 'dash' ? kit.color() : null;
+  // the feet point, and the body's squash and stretch about it (a charge crouches deeper as it fills)
+  const fx0 = snap(p.x + Math.cos(la) * lean), fy0 = snap(p.y - hover + Math.sin(la) * lean * 0.5);
+  const sq = clamp((p.sq || 0) + (p.state === 'charge' ? 0.07 * chargeLevel(p) : 0), -0.32, 0.32), scx = 1 + 0.55 * sq, scy = 1 - sq;
+  // the hand on this frame: on the drawn sprite (a running bob lifts it a pixel), then squashed with the body
+  const rig = set.rig, cx = flip ? CW_HERO - 0.5 - rig.hand[0] : rig.hand[0] + 0.5;
+  const bobH = moving && !floats && !walking && fi % 4 === 2 ? 1 / SS : 0;
+  const hx = fx0 + (cx / SS - 20) * scx, hy = fy0 + ((rig.hand[1] + 0.5) / SS - 31 - bobH) * scy;
+  // the weapon eases toward where it should point (a swing snaps, everything else glides, so it never jumps when a
+  // swing ends or the hero turns)
+  const target = weaponAngle(p, kit, flip), swinging = p.state === 'attack' || p.state === 'chg' || (p.spriteAction && G.time - p.spriteAction.start < 0.5);
+  const now = G.time, step = Math.min(0.05, Math.max(0, now - (p.wpnT ?? now))); p.wpnT = now;
+  p.wpnS = swinging || p.wpnS === undefined || p.wpnFlip !== flip ? target : lerpAngle(p.wpnS, target, 1 - Math.exp(-step * (kit.melee ? 24 : 40)));
+  p.wpnFlip = flip;
+  // the weapon goes behind the body when it points up, except while winding up a charge or raising it for an
+  // ultimate (those poses should show)
+  const raised = p.spriteAction?.kind === 'ultimate' && G.time - p.spriteAction.start < 0.5;
+  const wa = p.wpnS, behind = Math.sin(wa) < -0.35 && p.state !== 'charge' && !raised;
+  if (behind) drawHeldWeapon(p, set, flip, hx, hy, wa);
+  // a hit flashes the body red for an instant
+  const tintP = p.hurtT > 0.22 ? (p.hurtT > 0.27 ? P.paper : P.blood) : null;
   if (ninja) {
     if (Math.floor(G.time * 16) !== Math.floor((G.time - 1 / 60) * 16)) G.ghosts.push({ x: p.x - Math.cos(p.moveAng) * 3, y: p.y, flip, t: 0, life: 0.16, c: '#ffb7d5', spr: fr });
-    drawLean(fr, sx, sy, flip, tintP, leanR);
-  } else drawBreath(fr, sx, sy, flip, tintP, breathe);
+  }
+  ctx.save(); ctx.translate(fx0, fy0); if (sq) ctx.scale(scx, scy);
+  ctx.drawImage(tintP ? fr.tint(tintP, flip) : flip ? fr.f : fr.n, -fr.w / 2, -fr.h + 1, fr.w, fr.h);
+  ctx.restore();
   // winding up a charged attack: a ring at the feet fills, and flashes once full
   if (p.state === 'charge') {
     const f = chargeLevel(p), full = f >= 1, c = full ? (Math.floor(G.time * 20) % 2 ? P.paper : P.gold) : kit.color();
@@ -2114,15 +2198,9 @@ function drawPlayer() {
       if (Math.random() < 0.5 + f) part(p.x + rnd(-10, 10), p.y - rnd(0, 4), 0, -rnd(30, 70), rnd(0.3, 0.6), Math.random() < 0.6 ? col : P.paper, { drag: 1, glow: true });
     }
   }
-  // glowing eyes
-  const leanX = leanR ? Math.sign(leanR) * Math.min(Math.abs(leanR), Math.floor((1 - (set.eye[1] + 0.5) / fr.h) * (Math.abs(leanR) + 1))) : 0;
-  const ex = sx + leanX + (flip ? fr.w - 1 - set.eye[0] : set.eye[0]), ey = sy + set.eye[1] + breathe, ec = kit.eyeColor || kit.color();
-  if (!blink) glow(ex, ey, ec, 4, 0.7);
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
-  if (breathe || hover) { ctx.save(); ctx.translate(0, breathe - hover); }
-  if (!behind) { remap(G.awPal); kit.drawWeapon(p, flip); remap(null); }
-  if (breathe || hover) ctx.restore();
+  if (!behind) drawHeldWeapon(p, set, flip, hx, hy, wa);
   ctx.globalAlpha = 1;
   // a faint glow at the chest (it rises with a hovering fighter)
   glow(p.x + (flip ? -1 : 1), p.y - 9 - hover, kit.color(), 10, 0.2);
@@ -2370,7 +2448,8 @@ function drawZones() {
 }
 
 export function drawWorld() {
-  const cx = Math.round(fx.cam.x + fx.ox), cy = Math.round(fx.cam.y + fx.oy);
+  // the camera scrolls in canvas pixels, not whole game pixels, so following the hero is smooth
+  const cx = snap(fx.cam.x + fx.ox), cy = snap(fx.cam.y + fx.oy);
   ctx.fillStyle = P.void; ctx.fillRect(0, 0, W, H);
   ctx.drawImage(floor, -cx, -cy);
   ctx.drawImage(decal, -cx, -cy);
@@ -2515,9 +2594,9 @@ export function drawWorld() {
   for (const q of G.parts) {
     if (q.t > q.life * 0.75 && !q.blood && Math.floor(G.time * 30) % 2) continue;
     rect(q.x, q.y - q.z, q.s, q.s, q.c);
-    if (q.glow && q.t < q.life * 0.5) glow(q.x, q.y - q.z, q.c, 3, 0.35);
+    if (q.glow && !fx.lowFx && q.t < q.life * 0.5) glow(q.x, q.y - q.z, q.c, 3, 0.35);
   }
-  for (const a of G.amb) { px(a.x, a.y, a.c); if (a.glow) glow(a.x, a.y, a.c, 4, 0.4 * Math.sin((a.t / a.life) * Math.PI)); }
+  for (const a of G.amb) { px(a.x, a.y, a.c); if (a.glow && !fx.lowFx) glow(a.x, a.y, a.c, 4, 0.4 * Math.sin((a.t / a.life) * Math.PI)); }
 
   for (const b of G.bolts) { remap(b.pfx ? G.awPal : null); drawBolt(b, b.c1, b.c2, b.c3); }
   remap(null);

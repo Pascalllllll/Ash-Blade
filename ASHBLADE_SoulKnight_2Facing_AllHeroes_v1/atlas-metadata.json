@@ -1,0 +1,821 @@
+{
+  "version": 1,
+  "design": "Soul Knight-inspired 2-facing soft-angle",
+  "frame": {
+    "w": 120,
+    "h": 96,
+    "feet": [
+      60,
+      92
+    ]
+  },
+  "directions": {
+    "right": "original front-biased pose",
+    "left": "horizontal mirror of right"
+  },
+  "target_height_px": {
+    "normal": 54,
+    "TANK": 60
+  },
+  "rows": [
+    "entrance",
+    "idle",
+    "walk",
+    "run",
+    "attack1",
+    "attack2",
+    "attack3",
+    "skill1",
+    "skill2",
+    "ultimate",
+    "dash",
+    "hit",
+    "death"
+  ],
+  "heroes": {
+    "BLADE": {
+      "name": "Kael",
+      "original_frame": [
+        74,
+        64
+      ],
+      "geometry": {
+        "scale": 0.9,
+        "offset": [
+          29,
+          34
+        ],
+        "draw": [
+          67,
+          58
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": false,
+          "note": ""
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": false,
+          "note": ""
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": false,
+          "note": ""
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": false,
+          "note": ""
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": false,
+          "note": ""
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack3",
+          "provisional": false,
+          "note": ""
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill1",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill2",
+          "provisional": false,
+          "note": ""
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "attack3",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": false,
+          "note": ""
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": false,
+          "note": ""
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    },
+    "GUNNER": {
+      "name": "Vega Hale",
+      "original_frame": [
+        104,
+        56
+      ],
+      "geometry": {
+        "scale": 0.9818181818181818,
+        "offset": [
+          9,
+          37
+        ],
+        "draw": [
+          102,
+          55
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": false,
+          "note": ""
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": false,
+          "note": ""
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": false,
+          "note": ""
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": false,
+          "note": ""
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "Source has 10 frames; frames repeated to meet display count"
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "No dedicated third combo pose in source; placeholder"
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for Q"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for E"
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": false,
+          "note": ""
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": false,
+          "note": ""
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    },
+    "WIZARD": {
+      "name": "Morrow",
+      "original_frame": [
+        100,
+        56
+      ],
+      "geometry": {
+        "scale": 0.9818181818181818,
+        "offset": [
+          9,
+          37
+        ],
+        "draw": [
+          98,
+          55
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "Source has 9 frames; frames repeated to meet display count"
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "No dedicated third combo pose in source; placeholder"
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for Q"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for E"
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": true,
+          "note": "Source has 5 frames; frames repeated to meet display count"
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": true,
+          "note": "Source has 3 frames; frames repeated to meet display count"
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    },
+    "NINJA": {
+      "name": "Rin",
+      "original_frame": [
+        104,
+        58
+      ],
+      "geometry": {
+        "scale": 0.9642857142857143,
+        "offset": [
+          9,
+          36
+        ],
+        "draw": [
+          100,
+          56
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "Source has 9 frames; frames repeated to meet display count"
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "No dedicated third combo pose in source; placeholder"
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for Q"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for E"
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": true,
+          "note": "Source has 5 frames; frames repeated to meet display count"
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": false,
+          "note": ""
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    },
+    "MECHANIC": {
+      "name": "Rivet",
+      "original_frame": [
+        80,
+        58
+      ],
+      "geometry": {
+        "scale": 0.9818181818181818,
+        "offset": [
+          20,
+          35
+        ],
+        "draw": [
+          79,
+          57
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": false,
+          "note": ""
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "Source has 10 frames; frames repeated to meet display count"
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "No dedicated third combo pose in source; placeholder"
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for Q"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for E"
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": true,
+          "note": "Source has 5 frames; frames repeated to meet display count"
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": true,
+          "note": "Source has 3 frames; frames repeated to meet display count"
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    },
+    "TANK": {
+      "name": "Grom",
+      "original_frame": [
+        94,
+        58
+      ],
+      "geometry": {
+        "scale": 1.0909090909090908,
+        "offset": [
+          9,
+          29
+        ],
+        "draw": [
+          103,
+          63
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "Source has 9 frames; frames repeated to meet display count"
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "No dedicated third combo pose in source; placeholder"
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for Q"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for E"
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": true,
+          "note": "Source has 5 frames; frames repeated to meet display count"
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": true,
+          "note": "Source has 3 frames; frames repeated to meet display count"
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    },
+    "ROBOT": {
+      "name": "Unit-7",
+      "original_frame": [
+        82,
+        56
+      ],
+      "geometry": {
+        "scale": 0.9642857142857143,
+        "offset": [
+          20,
+          38
+        ],
+        "draw": [
+          79,
+          54
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": false,
+          "note": ""
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": false,
+          "note": ""
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": false,
+          "note": ""
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": false,
+          "note": ""
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "Source has 10 frames; frames repeated to meet display count"
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "No dedicated third combo pose in source; placeholder"
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for Q"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for E"
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": true,
+          "note": "Source has 5 frames; frames repeated to meet display count"
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": true,
+          "note": "Source has 3 frames; frames repeated to meet display count"
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    },
+    "DEV": {
+      "name": "The Dev",
+      "original_frame": [
+        60,
+        58
+      ],
+      "geometry": {
+        "scale": 0.9642857142857143,
+        "offset": [
+          30,
+          36
+        ],
+        "draw": [
+          58,
+          56
+        ]
+      },
+      "animations": {
+        "entrance": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Scene-specific entrance VFX handled by game; temporary idle poses"
+        },
+        "idle": {
+          "count": 8,
+          "source": "idle",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "walk": {
+          "count": 8,
+          "source": "walk",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "run": {
+          "count": 8,
+          "source": "run",
+          "provisional": true,
+          "note": "Source has 7 frames; frames repeated to meet display count"
+        },
+        "attack1": {
+          "count": 8,
+          "source": "attack1",
+          "provisional": false,
+          "note": ""
+        },
+        "attack2": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "Source has 10 frames; frames repeated to meet display count"
+        },
+        "attack3": {
+          "count": 8,
+          "source": "attack2",
+          "provisional": true,
+          "note": "No dedicated third combo pose in source; placeholder"
+        },
+        "skill1": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for Q"
+        },
+        "skill2": {
+          "count": 8,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art skill sequence reused for E"
+        },
+        "ultimate": {
+          "count": 10,
+          "source": "skill",
+          "provisional": true,
+          "note": "Original art has no dedicated ultimate pose; placeholder only"
+        },
+        "dash": {
+          "count": 6,
+          "source": "dash",
+          "provisional": true,
+          "note": "Source has 5 frames; frames repeated to meet display count"
+        },
+        "hit": {
+          "count": 4,
+          "source": "hit",
+          "provisional": true,
+          "note": "Source has 3 frames; frames repeated to meet display count"
+        },
+        "death": {
+          "count": 8,
+          "source": "death",
+          "provisional": true,
+          "note": "Source has 6 frames; frames repeated to meet display count"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "path": "src/sprites.js",
+    "existed": true
+  },
+  {
+    "path": "src/world.js",
+    "existed": true
+  },
+  {
+    "path": "index.html",
+    "existed": true
+  },
+  {
+    "path": "src/soft-angle-atlases.js",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/blade-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/blade-evolved-right.png",
+    "existed": true
+  }
+]

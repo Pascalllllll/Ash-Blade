@@ -1,0 +1,86 @@
+{
+  "version": "option-c-hybrid-4-mirror-v1",
+  "hero": "BLADE",
+  "frame": [
+    128,
+    96
+  ],
+  "pivot": [
+    64,
+    95
+  ],
+  "pixelDensity": 3,
+  "directions": [
+    "right",
+    "up",
+    "down"
+  ],
+  "left": "mirror(right)",
+  "actions": {
+    "entrance": {
+      "row": 0,
+      "frames": 8
+    },
+    "idle": {
+      "row": 1,
+      "frames": 8
+    },
+    "walk": {
+      "row": 2,
+      "frames": 8
+    },
+    "run": {
+      "row": 3,
+      "frames": 8
+    },
+    "attack1": {
+      "row": 4,
+      "frames": 8
+    },
+    "attack2": {
+      "row": 5,
+      "frames": 8
+    },
+    "attack3": {
+      "row": 6,
+      "frames": 8
+    },
+    "skill1": {
+      "row": 7,
+      "frames": 8
+    },
+    "skill2": {
+      "row": 8,
+      "frames": 8
+    },
+    "ultimate": {
+      "row": 9,
+      "frames": 10
+    },
+    "dash": {
+      "row": 10,
+      "frames": 6
+    },
+    "hit": {
+      "row": 11,
+      "frames": 4
+    },
+    "death": {
+      "row": 12,
+      "frames": 8
+    }
+  },
+  "assets": {
+    "base": {
+      "right": "art/sprites/blade-base-right.png",
+      "up": "art/sprites/blade-base-up.png",
+      "down": "art/sprites/blade-base-down.png"
+    },
+    "evolved": {
+      "right": "art/sprites/blade-evolved-right.png",
+      "up": "art/sprites/blade-evolved-up.png",
+      "down": "art/sprites/blade-evolved-down.png"
+    }
+  },
+  "source": "Procedural manually defined pixel shapes, not AI image-to-sprite slicing; a draft art pass."
+}

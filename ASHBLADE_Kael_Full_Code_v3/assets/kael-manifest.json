@@ -1,0 +1,104 @@
+{
+  "version": 3,
+  "hero": "BLADE",
+  "cell": {
+    "width": 128,
+    "height": 96
+  },
+  "pixelDensity": 3,
+  "visualHeight": 54,
+  "groundAnchor": {
+    "x": 64,
+    "y": 95
+  },
+  "columns": 10,
+  "directions": [
+    "right",
+    "up",
+    "down"
+  ],
+  "left": "mirror-right",
+  "rows": {
+    "entrance": 0,
+    "idle": 1,
+    "walk": 2,
+    "run": 3,
+    "attack1": 4,
+    "attack2": 5,
+    "attack3": 6,
+    "skill1": 7,
+    "skill2": 8,
+    "ultimate": 9,
+    "dash": 10,
+    "hit": 11,
+    "death": 12
+  },
+  "animations": {
+    "entrance": {
+      "frames": 8,
+      "fps": 13,
+      "loop": false
+    },
+    "idle": {
+      "frames": 8,
+      "fps": 9,
+      "loop": true
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 9,
+      "loop": true
+    },
+    "run": {
+      "frames": 8,
+      "fps": 13,
+      "loop": true
+    },
+    "attack1": {
+      "frames": 8,
+      "fps": 12,
+      "loop": false
+    },
+    "attack2": {
+      "frames": 8,
+      "fps": 12,
+      "loop": false
+    },
+    "attack3": {
+      "frames": 8,
+      "fps": 12,
+      "loop": false
+    },
+    "skill1": {
+      "frames": 8,
+      "fps": 16,
+      "loop": false
+    },
+    "skill2": {
+      "frames": 8,
+      "fps": 13,
+      "loop": false
+    },
+    "ultimate": {
+      "frames": 10,
+      "fps": 16,
+      "loop": false
+    },
+    "dash": {
+      "frames": 6,
+      "fps": 16,
+      "loop": false
+    },
+    "hit": {
+      "frames": 4,
+      "fps": 13,
+      "loop": false
+    },
+    "death": {
+      "frames": 8,
+      "fps": 13,
+      "loop": false
+    }
+  },
+  "source": "Approved Kael visual master v2; coded action variants"
+}

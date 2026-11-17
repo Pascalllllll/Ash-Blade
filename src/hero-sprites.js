@@ -1,0 +1,146 @@
+// The heroes' sprites. Each hero's body (no weapon) comes from art/sprites/heroes/<hero>-<skin>.png: 120 x 96 cells,
+// rows idle (16), walk (8), run (8), death (8), feet on row 92, facing right (left is the mirror). Each weapon is its
+// own sprite, pre-turned to 64 angles in art/sprites/heroes/weapon-<name>.png (8 x 8 per skin, base on top), so the
+// game can point it wherever the player aims. Both are made by tools/build_hero_sprites.py from the master pictures.
+//
+// The sets exist from the start with empty frames (the title screen draws them on its first frame); the pictures fill
+// those same frames when they arrive, so nothing holds on to an empty one.
+import { SS } from './gfx.js?v=170';
+import { RIG, WEAPON_ART } from './hero-rig.js?v=170';
+
+const CW = 120, CH = 96;
+const ROWS = { idle: [0, 16], walk: [1, 8], run: [2, 8], death: [3, 8] };
+const N = 64; // weapon angles
+// where a weapon rests in the menus and on the hero's own still pictures (afterimages, the mirror boss): melee
+// weapons lowered forward, guns level, the staff held up
+const REST = { sword: 0.62, revolver: 0.12, minigun: 0.1, staff: -1.15, katana: 0.72, wrench: 0.6, hammer: 0.95, cannon: 0.12 };
+
+function canvas(w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').imageSmoothingEnabled = false;
+  return c;
+}
+// a frame shaped like makeSprite's: n and f canvases (f is the mirror), w/h in game pixels, k sprite pixels each
+function frame() {
+  const n = canvas(CW, CH), f = canvas(CW, CH), tints = new Map();
+  return {
+    n, f, k: SS, w: CW / SS, h: CH / SS, tints,
+    tint(col, flip) {
+      const key = col + (flip ? 'L' : 'R');
+      let t = tints.get(key);
+      if (t) return t;
+      t = canvas(CW, CH); const g = t.getContext('2d');
+      g.drawImage(flip ? f : n, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, CW, CH);
+      if (tints.size > 6) tints.clear();
+      tints.set(key, t);
+      return t;
+    },
+  };
+}
+function fill(fr, img, col, row, under) {
+  const g = fr.n.getContext('2d');
+  g.clearRect(0, 0, CW, CH);
+  g.drawImage(img, col * CW, row * CH, CW, CH, 0, 0, CW, CH);
+  if (under) under(g);
+  const m = fr.f.getContext('2d');
+  m.clearRect(0, 0, CW, CH); m.save(); m.translate(CW, 0); m.scale(-1, 1); m.drawImage(fr.n, 0, 0); m.restore();
+  fr.tints.clear();
+}
+
+// ---------- weapons ----------
+// SPR.weapons[id]: the weapon picture, its cell, the tip (along/across the weapon from the grip, in game pixels:
+// where shots leave) and the angle frame lookup. Unit-7's cannon and every melee weapon too; the Dev has none.
+export const WEAPON_IMG = {};
+export function weaponFrame(name, skin, a) {
+  // the frame for angle a: 64 steps, base skin on the top 8 rows, the awakened one below
+  const w = WEAPON_ART[name], img = WEAPON_IMG[name];
+  if (!w || !img) return null;
+  let i = Math.round((a / (Math.PI * 2)) * N) % N; if (i < 0) i += N;
+  const C = w.cell, r = (skin ? 8 : 0) + (i >> 3);
+  return { img, sx: (i & 7) * C, sy: r * C, C };
+}
+// draws the weapon with its grip at x, y (game pixels), turned to a; `left` mirrors it top to bottom, so a gun held
+// facing left still has its grip down and a blade its edge the right way
+export function drawWeaponAt(g, name, skin, x, y, a, left, alpha = 1) {
+  const fr = weaponFrame(name, skin, left ? -a : a);
+  if (!fr) return;
+  const s = fr.C / SS;
+  g.save();
+  if (alpha !== 1) g.globalAlpha *= alpha;
+  g.translate(x, y);
+  if (left) g.scale(1, -1);
+  g.drawImage(fr.img, fr.sx, fr.sy, fr.C, fr.C, -s / 2, -s / 2, s, s);
+  g.restore();
+}
+
+// ---------- the hero sets ----------
+function makeSet(id, evolved) {
+  const rig = RIG[id], f = () => frame();
+  const body = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 8 }, f), run: Array.from({ length: 8 }, f), death: Array.from({ length: 8 }, f) };
+  // what the menus, afterimages and the mirror boss show: the same frames with the weapon in hand at rest
+  const shown = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 8 }, f), run: Array.from({ length: 8 }, f) };
+  const set = {
+    idle: shown.idles[0], idles: shown.idles, walk: shown.walk, run: shown.run,
+    // the body without a weapon (drawPlayer draws the weapon itself, turned to the aim)
+    body, rig, evolved,
+    art: true, noWeapon: true, ownWeapon: false, softFacing: true,
+    eye: [rig.eye[0] / SS, rig.eye[1] / SS],
+    act: { death: body.death, stance: shown.idles[0] },
+  };
+  return set;
+}
+function fillSet(set, img) {
+  const { rig } = set, wname = rig.weapon, w = wname && WEAPON_ART[wname];
+  const withWeapon = (bob) => (g) => {
+    if (!w) return;
+    const fr = weaponFrame(wname, set.evolved, REST[wname] ?? 0.3);
+    if (!fr) return;
+    // the grip on the hand (the cell's own pixels here, not game pixels)
+    g.drawImage(fr.img, fr.sx, fr.sy, fr.C, fr.C, rig.hand[0] + 0.5 - fr.C / 2, rig.hand[1] + 0.5 - fr.C / 2 + bob, fr.C, fr.C);
+  };
+  for (const [name, [row, n]] of Object.entries(ROWS)) {
+    const key = name === 'idle' ? 'idles' : name;
+    for (let i = 0; i < n; i++) {
+      fill(set.body[key][i], img, i, row);
+      // the still pictures (not the death) get the weapon in hand; the run lifts it with the body on its high steps
+      if (name !== 'death') fill(set[key][i], img, i, row, withWeapon(name === 'run' && i % 4 === 2 ? -1 : 0));
+    }
+  }
+}
+
+function load(url) {
+  return new Promise((res, rej) => {
+    const im = new Image(); im.decoding = 'async';
+    im.onload = () => res(im); im.onerror = () => rej(new Error('missing ' + url));
+    im.src = url;
+  });
+}
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=170`, import.meta.url).href;
+
+// fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
+export function installHeroSprites(SPR) {
+  SPR.chars = {}; SPR.evo = {}; SPR.weapons = {};
+  for (const id in RIG) {
+    SPR.chars[id] = makeSet(id, false);
+    SPR.evo[id] = makeSet(id, true);
+    const wn = RIG[id].weapon, w = wn && WEAPON_ART[wn];
+    if (w) SPR.weapons[id] = { name: wn, along: w.tip[0] / SS, across: w.tip[1] / SS };
+  }
+  const weapons = Object.keys(WEAPON_ART).map((n) => load(art(`weapon-${n}.png`)).then((im) => { WEAPON_IMG[n] = im; }));
+  SPR.heroesReady = Promise.all(weapons).then(() => Promise.all(Object.keys(RIG).flatMap((id) => [false, true].map((evo) =>
+    load(art(`${RIG[id].file}-${evo ? 'evolved' : 'base'}.png`)).then((im) => fillSet(evo ? SPR.evo[id] : SPR.chars[id], im))))))
+    .catch((err) => console.error('[Ashblade] hero sprites failed to load', err));
+  return SPR.heroesReady;
+}
+
+// which way the hero faces: by the aim (by the swing while attacking), with a dead zone around straight up and down
+// so aiming vertically doesn't flicker; moving sideways decides inside the dead zone
+export function softFacingLeft(p) {
+  const a = p.state === 'attack' ? (p.atkAng ?? p.aim) : p.aim;
+  const x = Math.cos(Number.isFinite(a) ? a : 0);
+  let dir = p.softFacingDirection || 1;
+  if (x < -0.28) dir = -1; else if (x > 0.28) dir = 1;
+  else if (Math.abs(p.vx || 0) > Math.max(25, Math.abs(p.vy || 0) * 1.8)) dir = Math.sign(p.vx);
+  p.softFacingDirection = dir;
+  return dir < 0;
+}

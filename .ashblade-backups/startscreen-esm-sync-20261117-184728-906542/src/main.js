@@ -1,0 +1,183 @@
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=165';
+import { input, keyHit, endFrame } from './input.js?v=165';
+import { A } from './audio.js?v=165';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=165';
+import { releaseModels } from './models.js?v=165';
+import { buildSprites } from './sprites.js?v=7motion';
+import { byId } from './upgrades.js?v=165';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=7motion';
+import {
+  drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
+  pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
+  sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, loadArt, INTRO_CUES,
+} from './ui.js?v=165';
+
+loadAll();
+applyTheme(settings.theme);
+applyDisplay(settings);
+buildSprites();
+refreshArt();
+loadArt();
+showMap(settings.map);
+fit();
+addEventListener('resize', fit);
+addEventListener('touchstart', fit, { once: true });
+
+let lockId = null;
+let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
+let save = loadRun((id) => !!byId(id));
+
+function go(s) { scene = s; sceneT = 0; }
+function toTitle() { settingsFrom = 'title'; save = loadRun((id) => !!byId(id)); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
+function startRun(char, s) {
+  releaseModels(); A.init(settings); newRun(char, s); go('play'); }
+function checkpoint() { if (G && !G.dead) { saveRun(snapshot()); bankStats(); } }
+function recordBest(won) {
+  bankStats();
+  newBest = G.score > best.score;
+  if (newBest) best.score = G.score;
+  best.wave = Math.max(best.wave, G.wave);
+  if (won) best.won = true;
+  const r = best.chars[G.char] || { score: 0, wave: 0, won: false };
+  best.chars[G.char] = { score: Math.max(r.score, G.score), wave: Math.max(r.wave, G.wave), won: r.won || won };
+  saveBest();
+}
+function applySettings(prev) {
+  if (prev.theme !== settings.theme) { applyTheme(settings.theme); buildSprites(); refreshArt(); }
+  applyDisplay(settings);
+  A.settings(settings);
+  if (settingsFrom === 'title' && prev.map !== settings.map) showMap(settings.map);
+  saveSettings();
+}
+
+addEventListener('blur', () => { if (scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); } });
+
+function tick(now) {
+  // capped at 60 fps: 90 and 120 Hz phones would otherwise update and draw twice as often for nothing,
+  // which costs battery and heat and makes them throttle
+  if (now - last < 1000 / 62) { requestAnimationFrame(tick); return; }
+  // the step is capped so a long stall can't jump the game ahead, but high enough (down to about 12 fps) that a
+  // slow device still runs at full speed instead of in slow motion
+  const rdt = Math.max(0, Math.min(0.08, (now - last) / 1000));
+  // performance mode: if frames run long during a fight, effects thin out until the device keeps up again
+  if (scene === 'play') { fx.ema = (fx.ema || 1 / 60) * 0.97 + rdt * 0.03; if (!fx.lowFx && fx.ema > 1 / 46) fx.lowFx = true; else if (fx.lowFx && fx.ema < 1 / 58) fx.lowFx = false; }
+  last = now;
+  sceneT += rdt;
+  if (scene === 'intro') sceneT = introClock(sceneT, rdt);
+
+  let ts = 1;
+  fx.freezeCd = Math.max(0, (fx.freezeCd || 0) - rdt);
+  if (fx.freeze > 0) { fx.freeze -= rdt; ts = 0; }
+  else if (fx.slowT > 0) { fx.slowT -= rdt; ts = fx.slowF; if (fx.slowT <= 0) fx.slowF = 1; }
+  fx.trauma = Math.max(0, fx.trauma - rdt * 1.5);
+  fx.shakeT += rdt * 30;
+  const sh = fx.trauma * fx.trauma * settings.shake;
+  fx.ox = Math.round(10 * sh * Math.sin(fx.shakeT * 1.7));
+  fx.oy = Math.round(7 * sh * Math.sin(fx.shakeT * 2.3 + 1));
+  // the directional kick springs back fast, in real time so it settles during hit-stop
+  const kd = Math.exp(-16 * rdt); fx.kx *= kd; fx.ky *= kd;
+  fx.ox += Math.round(fx.kx); fx.oy += Math.round(fx.ky);
+  fx.flashT -= rdt;
+  if (input.any || input.mouse.pressed) A.init(settings);
+  input.touchPlay = scene === 'play' && G && !G.dead && !G.cine;
+  // phones held upright: pause and let the overlay ask for landscape
+  const portrait = input.touch && innerHeight > innerWidth;
+  if (portrait && scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
+
+  if (scene === 'splash') {
+    if (input.any || input.mouse.pressed) { A.init(settings); A.scene('intro'); go('intro'); }
+    drawSplash(sceneT, input.touch);
+  } else if (scene === 'intro') {
+    for (const [ct, cue, bz] of INTRO_CUES) if (sceneT >= ct && sceneT - rdt < ct) { cue(); if (bz) buzz(bz); }
+    // the title music starts when the opening ends or is skipped
+    if (sceneT > 0.3 && (input.any || input.mouse.pressed)) { go('title'); A.scene('title'); }
+    else if (sceneT >= INTRO_LEN) { go('title'); A.scene('title'); }
+    else drawIntro(sceneT);
+    if (scene === 'title') drawTitle(0.8, titleItems(save, (r) => r));
+  } else if (scene === 'title') {
+    const items = titleItems(save, (r) => r);
+    const r = runMenu(titleMenu, items, titleMenuX(), titleMenuY(items.length), TITLE_MENU.w, TITLE_MENU.row);
+    if (r === 'continue' && save) startRun(save.char, save);
+    else if (r === 'select') { sel.i = Math.max(0, OPTIONS.char.indexOf(settings.char)); if (!isUnlocked(settings.char)) sel.i = 0; sel.row = 0; sel.t = 0; go('select'); }
+    else if (r === 'settings') { settingsFrom = 'title'; setm.tab = 0; setm.sel = 0; go('settings'); }
+    drawTitle(sceneT, items);
+  } else if (scene === 'select') {
+    const r = updateSelect(rdt);
+    if (r?.map || r?.diff) { const prev = { ...settings }; Object.assign(settings, r); applySettings(prev); }
+    if (r?.back) toTitle();
+    else if (r?.start) { settings.char = r.start; saveSettings(); clearRun(); lockId = r.start; A.init(settings); go('lockin'); }
+    else drawSelect(sceneT);
+    if (scene === 'play') drawWorld();
+  } else if (scene === 'lockin') {
+    const cues = [[0, () => A.rift()], [0.1, () => A.dash()], [0.32, () => A.riftCut()], [0.37, () => { A.boom(0.9); buzz('heavy'); }], [0.62, () => A.charAtk(lockId, true)]];
+    for (const [ct, fn] of cues) if (sceneT >= ct && sceneT - rdt < ct) fn();
+    // into the arena: the lock-in's white flash fades out over the first moments of the run
+    if (sceneT >= LOCK_LEN || (sceneT > 0.5 && (keyHit('Enter', 'Space', 'Escape') || input.mouse.pressed))) { startRun(lockId, null); flash(P.paper, 0.55, true); checkpoint(); drawWorld(); }
+    else drawLockin(sceneT, lockId);
+  } else if (scene === 'settings') {
+    const items = settingsItems({ hasSave: !!save });
+    const prev = { ...settings };
+    const r = updateSettings(items);
+    if (r === 'changed') applySettings(prev);
+    else if (r === 'reset') { resetSettings(); applySettings(prev); }
+    else if (r === 'erase') { clearRun(); save = null; }
+    else if (r === 'back') { if (settingsFrom === 'pause') go('pause'); else toTitle(); }
+    if (settingsFrom === 'pause') { drawWorld(); vignette(); }
+    drawSettings(sceneT, items, settingsFrom === 'pause');
+  } else if (scene === 'play') {
+    if ((keyHit('Escape', 'KeyP') || input.thit.has('pause')) && !G.dead && !G.cine) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
+    else {
+      controls();
+      update(rdt * ts, rdt);
+      if (G.victory && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); go('victory'); A.scene('title'); }
+      else if (G.wantUpgrade) { G.wantUpgrade = false; openUpgrade(); go('upgrade'); }
+      if (G.dead && G.deadT > 3.4) { recordBest(false); clearRun(); save = null; go('over'); }
+    }
+    drawWorld(); vignette(); drawHUD();
+  } else if (scene === 'upgrade') {
+    update(0, rdt);
+    const pick = updateUpgrade(rdt);
+    if (pick >= 0) {
+      const o = upg.opts[pick];
+      o.f(G.up, G.p);
+      G.taken[o.id] = (G.taken[o.id] || 0) + 1;
+      A.select();
+      startWave(G.wave + 1);
+      if (o.req) evolveFx(typeof o.name === 'function' ? o.name(G.kit) : o.name, o.id);
+      checkpoint();
+      go('play');
+    }
+    drawWorld(); vignette(); drawHUD(true); drawUpgrade();
+  } else if (scene === 'pause') {
+    const items = pauseItems((r) => r);
+    const r = keyHit('Escape', 'KeyP') ? 'resume' : runMenu(pauseMenu, items, 70, 64, 180, 13);
+    if (r === 'resume') { go('play'); A.scene(G.boss ? 'boss_' + G.boss.boss : 'fight'); }
+    else if (r === 'settings') { settingsFrom = 'pause'; setm.tab = 0; setm.sel = 0; go('settings'); }
+    else if (r === 'restart') { const s = loadRun((id) => !!byId(id)); if (s) startRun(s.char, s); else { startRun(G.char, null); checkpoint(); } }
+    else if (r === 'exit') toTitle();
+    if (scene === 'pause' || scene === 'settings') { drawWorld(); vignette(); drawHUD(true); if (scene === 'pause') drawPause(items); }
+  } else if (scene === 'over') {
+    update(rdt * ts, rdt);
+    const tapL = input.touch && input.mouse.pressed && input.mouse.x < W / 2, tapR = input.touch && input.mouse.pressed && !tapL;
+    if (sceneT > 1 && (keyHit('Enter', 'Space') || (!input.touch && input.mouse.pressed) || tapL)) { const c = G.char; startRun(c, null); checkpoint(); }
+    else if (sceneT > 0.5 && (keyHit('Escape') || (sceneT > 1 && tapR))) toTitle();
+    if (scene !== 'title') { drawWorld(); vignette(); drawOver(sceneT, newBest); }
+  } else if (scene === 'victory') {
+    update(rdt * ts, rdt);
+    const tapL = input.touch && input.mouse.pressed && input.mouse.x < W / 2, tapR = input.touch && input.mouse.pressed && !tapL;
+    if (sceneT > 1.2 && (keyHit('Enter', 'Space') || (!input.touch && input.mouse.pressed) || tapL)) { openUpgrade(); go('upgrade'); A.scene('calm'); }
+    else if (sceneT > 1.2 && (keyHit('Escape') || tapR)) toTitle();
+    if (scene !== 'title') { drawWorld(); vignette(); drawVictory(sceneT); }
+  }
+  if (scene === 'title' || scene === 'select' || scene === 'settings') { /* menus draw their own backdrop */ }
+  screenFlash();
+  cursor();
+  endFrame();
+  hdEnd();
+  requestAnimationFrame(tick);
+}
+
+ctx.fillStyle = P.void;
+ctx.fillRect(0, 0, W, H);
+document.documentElement.classList.add('ready');
+requestAnimationFrame(tick);

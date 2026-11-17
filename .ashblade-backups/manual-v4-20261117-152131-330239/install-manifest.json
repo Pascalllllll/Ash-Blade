@@ -1,0 +1,90 @@
+[
+  {
+    "path": "src/sprites.js",
+    "existed": true
+  },
+  {
+    "path": "src/world.js",
+    "existed": true
+  },
+  {
+    "path": "index.html",
+    "existed": true
+  },
+  {
+    "path": "src/soft-angle-atlases.js",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/atlas-metadata.json",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/blade-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/blade-evolved-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/dev-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/dev-evolved-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/gunner-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/gunner-evolved-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/mechanic-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/mechanic-evolved-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/ninja-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/ninja-evolved-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/robot-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/robot-evolved-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/tank-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/tank-evolved-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/v4-frame-audit.json",
+    "existed": false
+  },
+  {
+    "path": "art/sprites/soft-facing/wizard-base-right.png",
+    "existed": true
+  },
+  {
+    "path": "art/sprites/soft-facing/wizard-evolved-right.png",
+    "existed": true
+  }
+]

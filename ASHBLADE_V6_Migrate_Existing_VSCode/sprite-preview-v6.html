@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>ASHBLADE — SoulKnight sprite studio</title>
+<style>body{background:#101019;color:#e7dcf9;font-family:system-ui,Arial;margin:0;padding:24px}h1{font-size:26px;margin:0 0 4px}p{color:#a9a5ba}nav{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:24px 0}label{font-size:13px}select,input,button{background:#292336;color:white;border:1px solid #665282;border-radius:6px;padding:9px}button{cursor:pointer}.panel{display:flex;gap:28px;align-items:center;flex-wrap:wrap}canvas{image-rendering:pixelated;background:#211d32;border:1px solid #71588d;border-radius:8px}#info{font:13px monospace;color:#ae9acb}footer{color:#958aa7;margin-top:25px;font-size:13px}</style></head><body>
+<h1>ASHBLADE · SoulKnight Redesign V6</h1><p>Eight hero masters · Two-facing, slight turn · Transparent 120×96 sprite frames · Base &amp; Evolved</p>
+<nav><label>Hero <select id="hero"></select></label><label>Action <select id="action"></select></label><label>Skin <select id="skin"><option>base</option><option>evolved</option></select></label><label>Facing <select id="face"><option>right</option><option>left</option></select></label><label>FPS <input id="fps" type="range" min="2" max="24" value="10"></label><button id="play">Pause</button></nav>
+<div class="panel"><canvas id="view" width="600" height="480"></canvas><div><div id="info"></div><p>Action sprite only; big projectiles, beams, and cinematic VFX remain in the game engine.</p></div></div>
+<footer>Launch via <code>python3 -m http.server 8000</code> and open <code>/sprite-preview-v6.html</code>.</footer>
+<script>
+const ids={blade:'Kael',gunner:'Vega Hale',wizard:'Morrow',ninja:'Rin',mechanic:'Rivet',tank:'Grom',robot:'Unit-7',dev:'The Dev'};
+const counts={entrance:8,idle:8,walk:8,run:8,attack1:8,attack2:8,attack3:8,skill1:8,skill2:8,ultimate:10,dash:6,hit:4,death:8};
+const heroes=document.getElementById('hero'),actions=document.getElementById('action'),skin=document.getElementById('skin'),face=document.getElementById('face'),fps=document.getElementById('fps'),info=document.getElementById('info'),canvas=document.getElementById('view'),c=canvas.getContext('2d');
+Object.entries(ids).forEach(([id,label])=>heroes.add(new Option(label,id)));Object.keys(counts).forEach(v=>actions.add(new Option(v,v)));
+let img=new Image(),frame=0,playing=true,last=0;
+function reload(){frame=0;img.src=`art/sprites/soft-facing/${heroes.value}-${skin.value}-right.png?v=6`;}
+heroes.addEventListener('change',reload);skin.addEventListener('change',reload);actions.addEventListener('change',()=>frame=0);
+document.getElementById('play').onclick=()=>{playing=!playing;document.getElementById('play').textContent=playing?'Pause':'Play';};
+function render(t){const action=actions.value;const idx=Object.keys(counts).indexOf(action);if(playing&&t-last>1000/Number(fps.value)){frame=(frame+1)%counts[action];last=t;}
+c.fillStyle='#181528';c.fillRect(0,0,600,480);c.imageSmoothingEnabled=false;
+if(img.complete&&img.naturalWidth===1200){c.save();if(face.value==='left'){c.translate(600,0);c.scale(-1,1);}c.drawImage(img,frame*120,idx*96,120,96,0,0,600,480);c.restore();}
+info.textContent=`${ids[heroes.value]} · ${skin.value} · ${action} (${frame+1}/${counts[action]})`;
+requestAnimationFrame(render);}reload();requestAnimationFrame(render);
+</script></body></html>
