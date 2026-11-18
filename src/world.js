@@ -1,16 +1,16 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=185';
-import { SPR, EVO_NAMES } from './sprites.js?v=185';
-import { A } from './audio.js?v=185';
-import { input, keyDown, keyHit } from './input.js?v=185';
-import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=185';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=185';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=185';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=185';
-import { byId } from './upgrades.js?v=185';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=185';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=185';
-import { WEAPON_ART } from './hero-rig.js?v=185';
-import { say, updateTalk, TALK, startLines, bossDeadLines, lastWords } from './story.js?v=185';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=189';
+import { SPR, EVO_NAMES } from './sprites.js?v=189';
+import { A } from './audio.js?v=189';
+import { input, keyDown, keyHit } from './input.js?v=189';
+import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=189';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=189';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=189';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=189';
+import { byId } from './upgrades.js?v=189';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=189';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=189';
+import { WEAPON_ART } from './hero-rig.js?v=189';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=189';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -134,20 +134,20 @@ function fadeStains(dt) {
   const a = settings.blood === '10 SEC' ? 0.1 : settings.blood === '30 SEC' ? 0.035 : 0;
   if (!a) return;
   G.fadeT = (G.fadeT || 0) - dt;
-  G.sweepT = (G.sweepT ?? 3) - dt;
   if (G.fadeT <= 0) {
     G.fadeT = 0.5;
     dctx.globalCompositeOperation = 'destination-out'; dctx.globalAlpha = a;
     dctx.fillRect(0, 0, AW, AH);
     dctx.globalCompositeOperation = 'source-over'; dctx.globalAlpha = 1;
   }
-  if (G.sweepT <= 0) {
-    // 8-bit alpha never quite reaches zero, so clear the faint leftovers now and then
-    G.sweepT = 3;
-    const img = dctx.getImageData(0, 0, AW, AH), d = img.data;
-    for (let i = 3; i < d.length; i += 4) if (d[i] && d[i] < 24) d[i] = 0;
-    dctx.putImageData(img, 0, 0);
-  }
+}
+// 8-bit alpha never quite reaches zero, so the faint leftovers are cleared now and then. Reading the stain layer
+// back stalls the GPU (a hitch you feel on a phone), so it happens between waves, never mid-fight.
+function sweepStains() {
+  if (settings.blood === 'NEVER FADES') return;
+  const img = dctx.getImageData(0, 0, AW, AH), d = img.data;
+  for (let i = 3; i < d.length; i += 4) if (d[i] && d[i] < 24) d[i] = 0;
+  dctx.putImageData(img, 0, 0);
 }
 export function stain(x, y, c, s = 1) { dctx.globalAlpha = 0.8; dctx.fillStyle = c; dctx.fillRect(Math.round(x), Math.round(y), s, s); dctx.globalAlpha = 1; }
 export function splat(x, y, size, c, c2) {
@@ -207,9 +207,14 @@ export function newRun(charId, save) {
     Object.assign(G.p, { hp: save.hp, maxHp: save.maxHp, energy: save.energy, ult: save.ult, dashMax: save.dashMax, charges: save.dashMax });
     if (G.kit.init) G.p.k = G.kit.init();
     startWave(save.wave);
-  } else startWave(1);
+  } else {
+    // TESTING, temporary: start at a later wave (past the King counts him as beaten; NIGHT is the endless night)
+    const at = { 'WAVE 20': 20, 'WAVE 45': 45, 'WAVE 50': 50, NIGHT: 51 }[settings.testStart] || 1;
+    if (at > 20) G.won = true;
+    startWave(at);
+  }
   G.cine = G.kit.entrance();
-  fx.cam.x = clamp(G.p.x - W / 2, 0, AW - W); fx.cam.y = clamp(G.p.y - H / 2, 0, AH - H);
+  fx.cam.x = clamp(G.p.x - W / 2, SX, AW - W - SX); fx.cam.y = clamp(G.p.y - H / 2, 0, AH - H);
 }
 
 // checkpoint taken at the start of each wave
@@ -226,6 +231,9 @@ export function snapshot() {
 export const isBossWave = (n) => n % 5 === 0;
 
 export function startWave(n) {
+  if (n > 1) sweepStains();
+  // after Nox (wave 50) there are no more waves: the endless night
+  if (n > 50) { startNight(); return; }
   G.wave = n;
   G.phase = 'intro';
   G.phaseT = 1.7;
@@ -241,9 +249,10 @@ export function startWave(n) {
     G.twist = G.lastTwist = keys[Math.floor(rnd(keys.length))];
   }
   G.queue = buildQueue(n);
-  // the King talks to the fighter through the run; past wave 20, something older answers from below
-  const line_ = n === 1 ? startLines(G.char) : n === 21 ? TALK.deeper : boss && bossFor(n) !== 'king' ? TALK[bossFor(n)] : n < 20 ? TALK['w' + n] : null;
-  if (line_) G.timers.push({ t: n === 1 || n === 21 || TALK['w' + n] ? 2.4 : 1.1, fn: () => say(line_) });
+  // the King talks to the fighter through the run; past wave 20, something older answers from below. The story is told
+  // before the monsters come (the fight waits for it); small talk comes once the wave is under way.
+  const tk = waveTalk(n, G.char, boss ? bossFor(n) : null);
+  if (tk) G.timers.push({ t: tk.lore ? 0.7 : boss ? 1.1 : 2.4, fn: () => sayAfterEntrance(tk.lines, { lore: tk.lore }) });
   if (boss) {
     const bd = BOSSES[bossFor(n)];
     G.banner = { text: bd.name, sub: bd.sub, t: 0, life: 2.6, c: bd.col };
@@ -259,6 +268,58 @@ export function startWave(n) {
     }
   }
   A.waveStart(boss);
+}
+
+// a talk never starts over the fighter's entrance: it waits for it to end
+function sayAfterEntrance(lines, o) {
+  if (G.cine) G.timers.push({ t: 0.25, fn: () => sayAfterEntrance(lines, o) });
+  else say(lines, o);
+}
+
+// ---------- the endless night ----------
+// After Nox there are no more waves. Monsters come in packs that grow and come quicker; after the first minute the
+// bosses climb back out of the dark one at a time, after five minutes two at a time; everything gets tougher the longer
+// it lasts, until the fighter falls. G.night.t: the seconds survived.
+const NIGHT_BOSSES = ['warden', 'brood', 'colossus', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock'];
+const NIGHT_MONSTERS = [['husk', 3], ['wisp', 2], ['tick', 2], ['slime', 2], ['brute', 2], ['spitter', 2], ['archer', 2], ['priest', 1], ['shade', 2]];
+export const nightMinutes = () => (G?.night ? G.night.t / 60 : 0);
+export function startNight() {
+  G.wave = 51; G.phase = 'night'; G.phaseT = 0; G.queue = []; G.twist = null; G.dark = 0;
+  G.wantUpgrade = false; G.undyingUsed = false; G.nightFall = false; G.saidLow = G.saidCombo = false;
+  G.night = { t: 0, spawnT: 1.5, bossT: 0, said1: false, said5: false };
+  G.banner = { text: 'THE ENDLESS NIGHT', sub: 'HOLD ON FOR AS LONG AS YOU CAN', t: 0, life: 3, c: '#b48cff' };
+  A.scene('night'); A.waveStart(true);
+}
+function updateNight(dt) {
+  const n = G.night;
+  n.t += dt;
+  const m = n.t / 60, around = G.E.filter((e) => !e.dead).length + G.sigils.length;
+  // a pack of monsters every couple of seconds, bigger and quicker as the night wears on
+  n.spawnT -= dt;
+  if (n.spawnT <= 0 && around < Math.min(14 + Math.floor(m * 2.5), 30)) {
+    n.spawnT = Math.max(0.9, 2.6 - m * 0.18);
+    const total = NIGHT_MONSTERS.reduce((a, x) => a + x[1], 0);
+    for (let i = 0, pack = Math.min(6, 2 + Math.floor(m / 1.5)); i < pack; i++) {
+      let k = rnd(total), type = NIGHT_MONSTERS[0][0];
+      for (const [t, w] of NIGHT_MONSTERS) if ((k -= w) <= 0) { type = t; break; }
+      const [x, y] = placeSpawn(type);
+      G.sigils.push({ x, y, type, t: -i * 0.12, life: 0.8 });
+    }
+    A.sigil();
+  }
+  // after the first minute the bosses come back, one at a time; from five minutes, two at a time
+  if (n.t < 60) return;
+  n.bossT -= dt;
+  const most = m >= 5 ? 2 : 1, bosses = G.E.filter((e) => e.type === 'boss' && !e.dead).length + G.sigils.filter((g) => g.type === 'boss').length;
+  if (bosses >= most || n.bossT > 0) return;
+  const key = NIGHT_BOSSES[Math.floor(rnd(NIGHT_BOSSES.length))], bd = BOSSES[key];
+  const x = clamp(G.p.x + (G.p.x < AW / 2 ? 120 : -120), B.x0 + 60, B.x1 - 60), y = clamp(G.p.y + rnd(-50, 50), B.y0 + 50, B.y1 - 40);
+  G.sigils.push({ x, y, type: 'boss', boss: key, t: 0, life: 1.4 });
+  n.bossT = Math.max(8, 30 - m * 2);
+  G.banner = { text: bd.name, sub: 'CLIMBS BACK OUT OF THE DARK', t: 0, life: 2.2, c: bd.col };
+  A.bossRoar(); shake(0.5);
+  if (!n.said1) { n.said1 = true; say(TALK.night1); }
+  else if (most === 2 && !n.said5) { n.said5 = true; say(TALK.night5); }
 }
 
 function buildQueue(n) {
@@ -288,7 +349,7 @@ function buildQueue(n) {
   return q;
 }
 
-export function spawnEnemy(type, x, y) {
+export function spawnEnemy(type, x, y, bossKey) {
   let d = DEF[type];
   const ef = endless(), sc = (1 + (G.wave - 1) * 0.09) * G.D.hp * (1 + 0.15 * ef);
   const e = {
@@ -300,18 +361,18 @@ export function spawnEnemy(type, x, y) {
     summoned: type !== 'boss' && isBossWave(G.wave),
   };
   if (type === 'boss') {
-    const key = bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / ORDER.length);
+    const key = bossKey || bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / ORDER.length);
     d = { r: bd.r, hp: bd.hp, kbRes: 0.97, col: bd.col, colD: bd.colD, score: bd.score, speed: bd.speed, energy: 0 };
     e.def = d; e.boss = key;
-    e.hp = Math.round(bd.hp * 1.5 * (1 + tier * 0.7) * G.D.hp * (1 + 0.12 * ef));
+    e.hp = Math.round(bd.hp * 1.5 * (1 + tier * 0.7) * G.D.hp * (1 + 0.12 * ef) * (1 + 0.25 * nightMinutes()));
     d.scale = bd.scale || 1; d.tint = bd.tint;
     e.speed = bd.speed * (1 + tier * 0.1);
     e.phase = 1; e.last = ''; e.cd = 1;
     G.boss = e; G.bossClean = true;
     bd.init?.(e);
   } else {
-    e.hp = Math.round(d.hp * sc);
-    e.speed = d.speed * (1 + Math.min(0.45, (G.wave - 1) * 0.03)) * G.D.spd * Math.min(1.35, 1 + 0.012 * ef);
+    e.hp = Math.round(d.hp * sc * (1 + 0.3 * nightMinutes()));
+    e.speed = d.speed * (1 + Math.min(0.45, (G.wave - 1) * 0.03)) * G.D.spd * Math.min(1.35, 1 + 0.012 * ef) * (1 + Math.min(0.25, 0.02 * nightMinutes()));
     if (G.twist === 'BLOOD') e.speed *= 1.25;
     if (G.twist === 'SWARM' || G.twist === 'GLASS') e.hp = Math.max(1, Math.round(e.hp * 0.5));
     if (type === 'lootling') e.life = 11;
@@ -336,7 +397,7 @@ export function part(x, y, vx, vy, life, c, o) {
   if (G.pfx && G.awPal) c = G.awPal[c] || c;
   // LOW particles (or performance mode, when the device is struggling) keep half of them and fewer in total
   const low = settings.particles === 'LOW' || fx.lowFx;
-  if (G.parts.length > (low ? 500 : 1500) || (low && !o?.keep && Math.random() < 0.5)) return;
+  if (G.parts.length > (low ? 500 : input.touch ? 900 : 1500) || (low && !o?.keep && Math.random() < 0.5)) return;
   G.parts.push({ x, y, vx, vy, life, t: 0, c, z: o?.z ?? 0, vz: o?.vz ?? 0, g: o?.g ?? 0, drag: o?.drag ?? 5, s: o?.s ?? 1, blood: o?.blood, glow: o?.glow });
   // an awakened fighter's effects come with a second, glowing spark each, so every power looks fuller
   if (G.pfx && G.awPal && !low && !o?.blood && G.parts.length < 1200 && Math.random() < 0.5) {
@@ -365,15 +426,15 @@ export function addText(x, y, s, c, sc = 1, num = false) {
 }
 // the moment an evolution is picked: a pillar of light, slow motion, a burst
 // ---------- skin evolution ----------
-// Every fighter awakens once, after any five evolutions (every upgrade has one). The Dev is rewritten into his
+// Every fighter awakens once, after any four evolutions (every upgrade has one). The Dev is rewritten into his
 // hooded form by a laser from the sky.
-export const AWAKEN_NEED = TEST_BUFF ? 1 : 5;
+export const AWAKEN_NEED = TEST_BUFF ? 1 : 4;
 export const evosDone = () => Object.keys(G.taken).filter((id) => byId(id)?.req).length;
 function wantsEvo() {
   return evosDone() >= AWAKEN_NEED;
 }
 function checkEvo() {
-  if (G.evo || G.phase !== 'fight' || G.banner || G.p.state === 'dead' || bossLock() || !wantsEvo()) return;
+  if (G.evo || (G.phase !== 'fight' && G.phase !== 'night') || G.banner || G.p.state === 'dead' || bossLock() || !wantsEvo()) return;
   const p = G.p, dev = G.char === 'DEV', col = dev ? '#39ff6a' : P.gold;
   p.inv = Math.max(p.inv, 2);
   // the warning ring, then the beam, then the new look
@@ -442,7 +503,7 @@ export function ghost(p, c = P.volt, spr) {
 export function addCombo(n) {
   G.combo += n;
   // a long chain draws the King's attention, once a run
-  if (G.combo >= 50 && !G.saidCombo && !G.won && !G.talk) { G.saidCombo = true; say(TALK.combo); }
+  if (G.combo >= 50 && !G.saidCombo && !G.talk) { G.saidCombo = true; say(G.night ? TALK.comboNight : G.won ? TALK.comboDeep : TALK.combo); }
   G.comboT = 3;
   if (G.combo > G.maxCombo) G.maxCombo = G.combo;
   if (G.combo >= 100) unlock('WIZARD');
@@ -457,7 +518,7 @@ export function addCombo(n) {
       if (r >= 5) { flash(c, 0.07, false); shake(0.2); }
     }
     if (r > G.bestRank) G.bestRank = r;
-    if (r >= 4 && !G.boss) A.scene('hot');
+    if (r >= 4 && !G.boss && !G.night) A.scene('hot');
   }
 }
 
@@ -672,10 +733,13 @@ function drawCorpse(c) {
 const hex6 = (r, g, b) => '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 // cv: the picture (k picture pixels to a game pixel, drawn sc times bigger) with its feet at x, y, z up.
 // o.cut: the cut's angle (two halves) or undefined (one piece); o.from: the direction the crumbling runs along.
+// A sprite frame's pixels, read once and kept: reading a picture back from the GPU stalls it, which was a hitch on
+// every kill on a phone.
+const pixCache = new WeakMap();
 function crumble(cv, k, sc, x, y, z, o) {
   const W = cv.width, H = cv.height;
-  let data = null;
-  try { data = cv.getContext('2d').getImageData(0, 0, W, H).data; } catch { return false; }
+  let data = pixCache.get(cv);
+  if (!data) { try { data = cv.getContext('2d').getImageData(0, 0, W, H).data; } catch { return false; } pixCache.set(cv, data); }
   const halves = o.cut === undefined ? [0] : [1, -1], nx = o.cut === undefined ? 0 : -Math.sin(o.cut), ny = o.cut === undefined ? 0 : Math.cos(o.cut);
   const ax = Math.cos(o.from ?? 0), ay = Math.sin(o.from ?? 0);
   for (const side of halves) {
@@ -738,6 +802,8 @@ export function healPlayer(n) {
 export function tryHurt(dmg, sx, sy) {
   const p = G.p;
   if (p.state === 'dead' || G.cine || p.fortress > 0) return false;
+  // TESTING, temporary: god mode
+  if (settings.god) return false;
   if (p.state === 'dash' || (p.state === 'skill' && p.k.skillInv)) { if (p.state === 'dash' && !p.perfectUsed) perfectDodge(); if (p.state === 'skill') G.kit.onGuard?.(p, sx, sy); return 'perfect'; }
   if (p.inv > 0) return false;
   if (p.shield > 0) {
@@ -773,7 +839,7 @@ export function tryHurt(dmg, sx, sy) {
   }
   p.hp -= dmg;
   // close to death, the King smells it, once a run
-  if (p.hp > 0 && p.hp <= 2 && !G.saidLow && !G.won) { G.saidLow = true; say(TALK.lowHp); }
+  if (p.hp > 0 && p.hp <= 2 && !G.saidLow && !G.talk) { G.saidLow = true; say(G.night ? TALK.lowHpNight : G.won ? TALK.lowHpDeep : TALK.lowHp); }
   // a short grace after a hit: enough to not lose two hearts to one blow, not enough to stand in a crowd
   p.inv = 0.35; p.hurtT = 0.3; p.sq = 0.26; p.sqv = 0;
   // a hit only nudges you back a little
@@ -786,7 +852,7 @@ export function tryHurt(dmg, sx, sy) {
   bleed(p.x, p.y, a, 14, P.blood, P.bloodD, 1);
   if (G.combo >= 5) addText(p.x, p.y - 24, 'COMBO LOST', P.dust);
   G.combo = 0; G.rank = 0; G.comboT = 0;
-  if (!G.boss) A.scene('fight');
+  if (!G.boss && !G.night) A.scene('fight');
   if (p.hp <= 0) die();
   return true;
 }
@@ -1755,10 +1821,16 @@ export const atWall = (e, cx, cy) => (cx < 0 && e.x <= B.x0 + e.r + 1) || (cx > 
 function bossDeath(e) {
   G.bosses++;
   e.dying = 2.2; e.state = 'dying'; e.t = 0; e.vx = e.vy = 0; e.z = 0; e.under = false; e.shieldUp = false; e.armor = 0;
-  A.bossRoar(); A.stopLoops();
+  A.bossRoar();
   const bd = BOSSES[e.boss];
   G.banner = { text: bd.death || (bd.final ? 'THE KING FALLS' : bd.short + ' SLAIN'), sub: '', t: 0, life: 2.6, c: P.gold };
-  say(bd.final ? TALK.kingDead : bossDeadLines(e.boss, G.char));
+  if (G.night) {
+    // in the endless night a boss falls and the night goes on: only the beams it was firing go with it
+    for (let i = G.hbeams.length - 1; i >= 0; i--) if (G.hbeams[i].owner === e) G.hbeams.splice(i, 1);
+    return;
+  }
+  A.stopLoops();
+  say(bd.final ? TALK.kingDead : bd.end ? TALK.noxDead : bossDeadLines(e.boss, G.char), { lore: !!(bd.final || bd.end) });
   G.queue.length = 0; G.sigils.length = 0; G.hbeams.length = 0; G.hlines.length = 0; G.dark = 0;
   for (const s of G.strikes) if (!s.friendly) s.dead = true;
   for (const o of G.E) if (o !== e && alive(o)) damage(o, 9999, { dir: Math.atan2(o.y - e.y, o.x - e.x), kb: 200, src: 'boom' });
@@ -1778,20 +1850,24 @@ function bossDying(e, dt) {
 }
 function bossFinal(e) {
   const bd = BOSSES[e.boss];
-  e.dead = true; G.boss = null; G.kills++;
+  e.dead = true; G.kills++;
+  // with two bosses out in the night, the other one becomes the one the music and the camera follow
+  if (G.boss === e) G.boss = G.E.find((o) => o !== e && o.type === 'boss' && alive(o)) || null;
   makeGibs(e, rnd(TAU));
   bleed(e.x, e.y, rnd(TAU), 60, e.def.col, e.def.colD, 1.6);
   splat(e.x, e.y, 26, e.def.col, e.def.colD);
   addRing(e.x, e.y - 16, P.paper, 420, 0.5, 3);
   addRing(e.x, e.y - 16, e.def.col, 300, 0.6, 2);
-  for (let i = 0; i < 24; i++) dropPick(e.x, e.y, 'energy');
-  for (let i = 0; i < 3; i++) dropPick(e.x, e.y, 'heal');
+  for (let i = 0; i < (G.night ? 12 : 24); i++) dropPick(e.x, e.y, 'energy');
+  for (let i = 0; i < (G.night ? 1 : 3); i++) dropPick(e.x, e.y, 'heal');
   G.score += Math.round(e.def.score * (G.wave / 5) * RANKS[G.rank].m * G.D.score);
   flash(P.paper, 0.4, true); shake(1); hitstop(0.15);
   A.ultRelease(); buzz('boss');
   if (G.bossClean) unlock('TANK');
   if (bd.final) unlock('ROBOT');
   if (bd.final && !G.won) { G.won = true; G.victory = true; A.victory(); }
+  // Nox's shape breaks: the story of the endless night plays before it begins (main.js)
+  if (bd.end && !G.night) { G.nightFall = true; A.victory(); }
 }
 
 // ---------- main update ----------
@@ -1857,16 +1933,17 @@ export function update(dt, rdt) {
     }
   } else if (G.phase === 'clear') {
     G.phaseT -= dt;
-    if (G.phaseT <= 0 && (G.picks.length === 0 || G.phaseT < -1.2) && !G.victory) G.wantUpgrade = true;
-  }
+    // (a conversation finishes first: the upgrade screen would cover it; never more than a few seconds)
+    if (G.phaseT <= 0 && (G.picks.length === 0 || G.phaseT < -1.2) && !G.victory && !G.nightFall && (!G.talk || G.phaseT < -8)) G.wantUpgrade = true;
+  } else if (G.phase === 'night') updateNight(dt);
 
   checkEvo();
   for (const s of G.sigils) {
     s.t += dt;
-    const col = s.type === 'boss' ? BOSSES[bossFor(G.wave)].col : DEF[s.type].col;
-    if (Math.random() < dt * 30) { const a = rnd(TAU); part(s.x + Math.cos(a) * 10, s.y + Math.sin(a) * 6, 0, -rnd(10, 30), 0.4, col, { drag: 1, glow: true }); }
+    const col = s.type === 'boss' ? BOSSES[s.boss || bossFor(G.wave)].col : DEF[s.type].col;
+    if (s.t > 0 && Math.random() < dt * 30) { const a = rnd(TAU); part(s.x + Math.cos(a) * 10, s.y + Math.sin(a) * 6, 0, -rnd(10, 30), 0.4, col, { drag: 1, glow: true }); }
     if (s.t >= s.life) {
-      spawnEnemy(s.type, s.x, s.y);
+      spawnEnemy(s.type, s.x, s.y, s.boss);
       addRing(s.x, s.y - 4, col, 140, 0.2, 2);
       dust(s.x, s.y, 8, 50);
       A.spawn();
@@ -2226,12 +2303,12 @@ function updateAmbient(dt) {
 }
 
 function updateCam(dt) {
-  const p = G.p, b = G.boss, show = b && b.state === 'intro';
+  const p = G.p, b = G.boss, show = b && b.state === 'intro' && !G.night;
   // during a boss entrance the camera frames the boss instead of you
   const fxp = show ? b.x : p.x + Math.cos(p.aim) * 16, fyp = show ? b.y - 20 : p.y - 8 + Math.sin(p.aim) * 11;
   const tx = fxp - W / 2, ty = fyp - H / 2;
   const k = 1 - Math.exp(-7 * dt);
-  fx.cam.x = clamp(fx.cam.x + (tx - fx.cam.x) * k, 0, AW - W);
+  fx.cam.x = clamp(fx.cam.x + (tx - fx.cam.x) * k, SX, AW - W - SX);
   fx.cam.y = clamp(fx.cam.y + (ty - fx.cam.y) * k, 0, AH - H);
 }
 
@@ -2733,19 +2810,24 @@ function drawTelegraphs() {
     }
   }
   for (const l of G.hlines) {
-    if (!l.done) line(l.x0, l.y0, l.x1, l.y1, Math.floor(G.time * 30) % 2 ? P.blood : l.t > l.pend - 0.3 ? P.paper : P.bloodD);
+    // (lines with their own color: Nox's reaching dark is violet)
+    const c1 = l.c || P.blood, c0 = l.c0 || P.bloodD;
+    if (!l.done) line(l.x0, l.y0, l.x1, l.y1, Math.floor(G.time * 30) % 2 ? c1 : l.t > l.pend - 0.3 ? P.paper : c0);
     else {
       const k = (l.t - l.pend) / 0.3, w = Math.max(1, Math.round(5 * (1 - k)));
-      line(l.x0, l.y0 + 1, l.x1, l.y1 + 1, P.blood, w + 2); line(l.x0, l.y0, l.x1, l.y1, P.paper, w);
+      line(l.x0, l.y0 + 1, l.x1, l.y1 + 1, c1, w + 2); line(l.x0, l.y0, l.x1, l.y1, P.paper, w);
     }
   }
   for (const b of G.hbeams) {
     const ex = b.x + Math.cos(b.a) * b.len, ey = b.y + Math.sin(b.a) * b.len;
-    if (b.t < b.warn) { if (blink) line(b.x, b.y, ex, ey, P.blood); }
+    // Nox's eyes in the dark stare their beams in violet; an eye opens where each one starts
+    const c1 = b.eye ? '#b48cff' : P.blood, c0 = b.eye ? '#2a0e4a' : P.bloodD;
+    if (b.eye) { const open = Math.min(1, b.t / 0.4); glow(b.x, b.y, c1, 10, 0.6); rect(b.x - 4, b.y - Math.round(2 * open), 9, Math.max(1, Math.round(4 * open)), '#ece0ff'); rect(b.x - 1, b.y - Math.round(2 * open), 2, Math.max(1, Math.round(4 * open)), '#08040e'); }
+    if (b.t < b.warn) { if (blink) line(b.x, b.y, ex, ey, c1); }
     else {
       const w = b.w + (Math.random() < 0.5 ? 1 : 0);
-      line(b.x, b.y, ex, ey, P.bloodD, w + 4); line(b.x, b.y, ex, ey, P.blood, w); line(b.x, b.y, ex, ey, P.paper, Math.max(1, w - 4));
-      glow(ex, ey, P.blood, 14, 0.5); glow(b.x, b.y, P.blood, 12, 0.5);
+      line(b.x, b.y, ex, ey, c0, w + 4); line(b.x, b.y, ex, ey, c1, w); line(b.x, b.y, ex, ey, P.paper, Math.max(1, w - 4));
+      glow(ex, ey, c1, 14, 0.5); glow(b.x, b.y, c1, 12, 0.5);
     }
   }
 }
@@ -2769,10 +2851,10 @@ function drawZones() {
 export function drawWorld() {
   // the camera scrolls in canvas pixels, not whole game pixels, so following the hero is smooth
   const cx = snap(fx.cam.x + fx.ox), cy = snap(fx.cam.y + fx.oy);
-  ctx.fillStyle = P.void; ctx.fillRect(0, 0, W, H);
+  fillScreen(P.void);
   ctx.drawImage(floor, -cx, -cy);
   ctx.drawImage(decal, -cx, -cy);
-  if (G.twist === 'BLOOD') { ctx.globalAlpha = 0.12 + Math.sin(G.time * 2) * 0.03; ctx.fillStyle = '#ff1a2a'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+  if (G.twist === 'BLOOD') fillScreen('#ff1a2a', 0.12 + Math.sin(G.time * 2) * 0.03);
   ctx.save();
   ctx.translate(-cx, -cy);
 
@@ -2791,7 +2873,8 @@ export function drawWorld() {
   drawDeathUnder();
 
   for (const s of G.sigils) {
-    const k = s.t / s.life, boss = s.type === 'boss', col = boss ? BOSSES[bossFor(G.wave)].col : DEF[s.type].col, big = boss ? 2.2 : 1;
+    if (s.t < 0) continue;
+    const k = s.t / s.life, boss = s.type === 'boss', col = boss ? BOSSES[s.boss || bossFor(G.wave)].col : DEF[s.type].col, big = boss ? 2.2 : 1;
     const r = 9 * big * Math.min(1, k * 2.2);
     ring(s.x, s.y, r, 1, col);
     ring(s.x, s.y, r * 0.55, 1, boss ? P.ink3 : DEF[s.type].colD);
@@ -2921,12 +3004,18 @@ export function drawWorld() {
   }
   remap(null);
 
+  const blink = Math.floor(G.time * 30) % 2;
   for (const q of G.parts) {
-    if (q.t > q.life * 0.75 && !q.blood && Math.floor(G.time * 30) % 2) continue;
+    if (q.t > q.life * 0.75 && !q.blood && blink) continue;
     rect(q.x, q.y - q.z, q.s, q.s, q.c);
-    if (q.glow && !fx.lowFx && q.t < q.life * 0.5) glow(q.x, q.y - q.z, q.c, 3, 0.35);
   }
-  for (const a of G.amb) { px(a.x, a.y, a.c); if (a.glow && !fx.lowFx) glow(a.x, a.y, a.c, 4, 0.4 * Math.sin((a.t / a.life) * Math.PI)); }
+  for (const a of G.amb) px(a.x, a.y, a.c);
+  if (!fx.lowFx) {
+    glowBegin();
+    for (const q of G.parts) if (q.glow && q.t < q.life * 0.5) glowAt(q.x, q.y - q.z, q.c, 3, 0.35);
+    for (const a of G.amb) if (a.glow) glowAt(a.x, a.y, a.c, 4, 0.4 * Math.sin((a.t / a.life) * Math.PI));
+    glowEnd();
+  }
 
   for (const b of G.bolts) { remap(b.pfx ? G.awPal : null); drawBolt(b, b.c1, b.c2, b.c3); }
   remap(null);
@@ -2952,17 +3041,19 @@ export function drawWorld() {
 }
 
 // the final boss's last phase: everything outside a small circle around you goes dark
-const darkLayer = makeCanvas(W, H), dkg = darkLayer.getContext('2d');
+// (screen wide: the stage and its sides)
+let darkLayer = makeCanvas(FW, H), dkg = darkLayer.getContext('2d');
+onWidth(() => { darkLayer = makeCanvas(FW, H); dkg = darkLayer.getContext('2d'); });
 function drawDark() {
-  const p = G.p, sx = Math.round(p.x - fx.cam.x - fx.ox), sy = Math.round(p.y - 6 - fx.cam.y - fx.oy);
+  const p = G.p, sx = Math.round(p.x - fx.cam.x - fx.ox + SX), sy = Math.round(p.y - 6 - fx.cam.y - fx.oy);
   dkg.globalCompositeOperation = 'source-over';
-  dkg.clearRect(0, 0, W, H);
+  dkg.clearRect(0, 0, FW, H);
   dkg.fillStyle = '#030206';
   dkg.globalAlpha = 0.88 * G.dark;
-  dkg.fillRect(0, 0, W, H);
+  dkg.fillRect(0, 0, FW, H);
   dkg.globalCompositeOperation = 'destination-out';
   for (let r = 70; r > 20; r -= 10) { dkg.globalAlpha = 0.25; dkg.beginPath(); dkg.arc(sx, sy, r, 0, TAU); dkg.fill(); }
   dkg.globalAlpha = 1;
   dkg.globalCompositeOperation = 'source-over';
-  ctx.drawImage(darkLayer, 0, 0);
+  ctx.drawImage(darkLayer, -SX, 0);
 }

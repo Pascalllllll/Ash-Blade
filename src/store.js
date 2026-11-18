@@ -4,7 +4,7 @@ const KEY_BEST = 'ashblade.best.v2';
 
 // Every choice the settings menu can make. Saved values outside these lists are thrown away.
 export const OPTIONS = {
-  track: ['AUTO', 'LAST LIGHT', 'HYPERDRIVE', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE', 'ASHEN HYMN', 'TALE OF ASH', 'DAWN', 'WARDEN', 'BROOD', 'COLOSSUS', 'KINGFALL', 'VOID', 'TEMPEST', 'REFLECTION', 'ECLIPSE', 'OFF'],
+  track: ['AUTO', 'LAST LIGHT', 'HYPERDRIVE', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE', 'ASHEN HYMN', 'TALE OF ASH', 'DAWN', 'WARDEN', 'BROOD', 'COLOSSUS', 'KINGFALL', 'VOID', 'TEMPEST', 'REFLECTION', 'ECLIPSE', 'LAST NIGHT', 'ENDLESS NIGHT', 'OFF'],
   combat: ['HYPERDRIVE', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE'],
   theme: ['EMBER', 'FROST', 'TOXIC', 'BLOOD MOON', 'ROYAL', 'NOIR'],
   particles: ['HIGH', 'LOW'],
@@ -14,6 +14,8 @@ export const OPTIONS = {
   vibe: ['OFF', 'LIGHT', 'MEDIUM', 'STRONG'],
   blood: ['10 SEC', '30 SEC', 'NEVER FADES'],
   res: ['AUTO', 'SHARP', '1280X720', '1600X900', '1920X1080', '2560X1440'],
+  // TESTING, temporary (the TEST tab in settings): where a new run starts
+  testStart: ['OFF', 'WAVE 20', 'WAVE 45', 'WAVE 50', 'NIGHT'],
 };
 
 const DEFAULTS = {
@@ -21,12 +23,15 @@ const DEFAULTS = {
   theme: 'EMBER', vibrancy: 1, bright: 1, contrast: 1, hue: 0, crt: false,
   shake: 0.25, flash: true, numbers: true, particles: 'HIGH',
   map: 'PIT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC', res: 'AUTO',
+  // TESTING, temporary: nothing can hurt you; runs start at a later wave
+  god: false, testStart: 'OFF',
 };
 const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], bright: [0.6, 1.4], contrast: [0.6, 1.6], hue: [0, 345], shake: [0, 1] };
 
 export const settings = { ...DEFAULTS, ver: 4 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
-export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0 };
+// night: the longest the endless night has been held, in seconds
+export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0, night: 0 };
 // TESTING SWITCH, temporary: a very strong game, to reach the awakened looks fast. While it is true: every fighter
 // is pickable, every hit does 6 times the damage, fighters start with 20 more health, an upgrade counts as maxed after
 // one pick (so its evolution is offered on the next upgrade screen), one evolution awakens the fighter, the HUD shows
@@ -53,7 +58,7 @@ export function loadAll() {
   const s = read(KEY_SETTINGS);
   if (s) {
     for (const k in RANGES) settings[k] = num(s[k], RANGES[k][0], RANGES[k][1], DEFAULTS[k]);
-    for (const k of ['crt', 'flash', 'numbers']) settings[k] = typeof s[k] === 'boolean' ? s[k] : DEFAULTS[k];
+    for (const k of ['crt', 'flash', 'numbers', 'god']) settings[k] = typeof s[k] === 'boolean' ? s[k] : DEFAULTS[k];
     for (const k in OPTIONS) settings[k] = OPTIONS[k].includes(s[k]) ? s[k] : DEFAULTS[k];
     // settings saved before HYPERDRIVE existed move to it once
     if (!(s.ver >= 3)) { settings.combat = 'HYPERDRIVE'; settings.track = 'AUTO'; }
@@ -68,6 +73,7 @@ export function loadAll() {
     best.kills = Math.floor(num(b.kills, 0, 1e9, 0));
     best.combo = Math.floor(num(b.combo, 0, 1e7, 0));
     best.perfects = Math.floor(num(b.perfects, 0, 1e6, 0));
+    best.night = Math.floor(num(b.night, 0, 1e7, 0));
     if (Array.isArray(b.unlocked)) best.unlocked = ['BLADE', ...new Set(b.unlocked.filter((c) => OPTIONS.char.includes(c) && c !== 'BLADE'))];
     if (b.chars && typeof b.chars === 'object') {
       for (const c of OPTIONS.char) {
@@ -78,7 +84,9 @@ export function loadAll() {
   }
 }
 export const saveSettings = () => write(KEY_SETTINGS, settings);
-export const saveBest = () => { if (!TEST_BUFF) write(KEY_BEST, best); };
+// TESTING, temporary: a run in god mode or started at a later wave doesn't count for records or unlocks
+export const testing = () => settings.god || settings.testStart !== 'OFF';
+export const saveBest = () => { if (!TEST_BUFF && !testing()) write(KEY_BEST, best); };
 export function resetSettings() { Object.assign(settings, DEFAULTS); saveSettings(); }
 
 // ---------- saved run: a checkpoint written at the start of every wave ----------

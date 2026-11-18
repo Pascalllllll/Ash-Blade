@@ -1,6 +1,6 @@
-import { installHeroSprites } from './hero-sprites.js?v=185';
-import { makeSprite, P } from './gfx.js?v=185';
-import { MONSTER_ART } from './monster-art.js?v=185';
+import { installHeroSprites } from './hero-sprites.js?v=189';
+import { makeSprite, P } from './gfx.js?v=189';
+import { MONSTER_ART } from './monster-art.js?v=189';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -13,9 +13,6 @@ export function buildSprites() {
   // the heroes: bodies and weapons from art/sprites/heroes (hero-sprites.js). Their sets are made once and kept
   // when the theme changes and this runs again (the pictures fill them when they've loaded).
   if (!SPR.heroesReady) installHeroSprites(SPR);
-  // the wave 50 boss is the awakened Dev himself (Root), drawn three times bigger
-  SPR.devbossSet = SPR.evo.DEV;
-  SPR.devboss = SPR.devbossSet.idles;
 
   // the monsters and bosses, drawn in the heroes' style by tools/build_monsters.py (src/monster-art.js): one character
   // is an art pixel (k 1.5, so each is a 2 x 2 block like the heroes'), 'o' the outline, 'g' the eyes (they get a

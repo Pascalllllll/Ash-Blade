@@ -1,19 +1,20 @@
 # Ashblade
 
-A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fighter and hold an arena against waves of monsters. Every fifth wave is a boss. Beating the Ashen King on wave 20 frees the sun and plays the ending, and then the game goes endless, getting harder every wave.
+A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fighter and hold an arena against waves of monsters. Every fifth wave is a boss. Beating the Ashen King on wave 20 frees the sun and plays the ending. Then you choose: go home and see your fighter's own ending, or go deeper into the pit, down to Nox, the dark itself, on wave 50. After Nox comes the endless night: no more waves, just monsters and returning bosses, tougher by the minute, until you fall.
 
 **Play it at [ash-blade.vercel.app](https://ash-blade.vercel.app/).**
 
 - 8 chibi pixel-art fighters, each with a combo, three powers, a cinematic entrance that ends on their name card, a gory death scene of their own and an awakened second look. Every fighter's weapon is held in hand and turns to wherever you aim: blades swing through each cut and guns kick back when they fire
 - Fighters that move with weight: 12-frame walks and runs where the body sinks into every step and springs up on the next, the arms swing against the feet and the run leans in. Rin, the fastest, has a quick little ninja run of her own, leaning hard with her arms swept back and her katana trailing behind her. They push off in a puff of dust, skid when they turn hard or stop, throw themselves forward into a dash with speed lines and afterimages, and flinch with their eyes screwed shut when hit. Stand still for a few seconds and they show off: Kael spins his sword, Vega twirls her revolver, Morrow raises his staff, Rin flicks her katana clean, Rivet tosses her wrench, Grom heaves his hammer onto his shoulder
-- A big animated pixel portrait of every fighter on the select screen, each in a pose and a scene of their own, ending in a signature move: Kael glares over the blade he holds across his face under a burning sun, then cleaves down in fire; Vega leans back with her revolver by her cheek against a striped desert sunset, spins it and fires twice; Morrow floats before a star chart and a turning rune ring, his staff bursting into starlight; Rin crouches in her iaido stance under a red moon and a cherry branch, then draws in one flash across the screen; Rivet brandishes her wrench in front of turning gears and flips it into the air; Grom leans on his planted hammer under the King's torn banner, then heaves it up and slams the ground; Unit-7 locks its cannon on through a targeting screen and fires; the Dev sits in his falling code and glitches
+- A full-length portrait of every fighter on the select screen, in pixels three times finer than the sprites, from the owner's own High Pixel Model pictures: Kael steps in with his dagger low and his fist up, Vega aims her revolver, Morrow holds out a violet orb with his staff high, Rin points with her katana raised, Rivet shoulders her wrench with a wink, Grom carries his hammer, Unit-7 aims its arm cannon, and the Dev works his laptop from his wheelchair with code windows around him. They breathe, and their scarves, capes, coat tails, sashes, robes and hair ripple in the wind; light runs along their weapons, and lamps, screens and orbs pulse. Each stands on a shadow as wide as their own stance, lands with a burst of light in their color when picked, and has a scene and effects of their own: embers and a burning sun, a shot fired into a desert sunset, motes circling a violet orb under a star chart, petals and a flash cut under a red moon, sparks and turning gears, forge sparks off Grom's hammer under the King's torn banner, Unit-7 charging and firing through its targeting screen, falling code
 - A title screen drawn in the game's own pixels: the swallowed sun over the ruins of the pit, and the eight fighters on a battlement, taking turns to show off their weapons
-- An opening that tells the story in illustrated pixel panels (how King Aurel swallowed the sun) and shows the goal of a run, then all eight fighters cut in one after another and drop onto that battlement as the logo slams down (any key turns the page, Escape skips it)
-- A villain who talks: the Ashen King taunts you through the run, meets you face to face on wave 20 (every fighter answers him in their own words), and an ending plays when he falls
+- An opening that tells the story in illustrated pixel pages: how King Aurel swallowed the sun, and the fighters at the edge of his pit, twenty torches lighting one by one down to his throne. Then all eight fighters cut in one after another and drop onto that battlement as the logo slams down (any key turns the page, Escape skips it)
+- A story told while you fight: the Ashen King taunts you and tells you who he was, a voice in the ash begs you to free his people, every fighter answers in their own words, and past wave 20 the dark itself talks. When the King falls, an illustrated ending plays, then a comic page of your victory and two roads: go home to your fighter's own ending, or go deeper. Falling down there has a story of its own
 - 10 kinds of monsters, drawn in the same pixel style as the fighters, including an archer whose aim you can see and a priest that heals the others, plus elites with affixes and wave twists that change the rules. Every kill breaks a monster apart pixel by pixel
-- 10 bosses, up to The Dev, the game's own developer, on wave 50
+- 10 bosses, up to Nox, the dark under the pit, on wave 50, then the endless night, where they come back one at a time and later two at a time
 - Upgrades after every wave and a relic after every boss
-- 5 arenas, 4 difficulties, phone controls, and a save at every wave
+- A soundtrack made in the browser: an epic title theme with war drums, a choir, running strings and a horn, a sad flute theme for the story, a hopeful dawn theme for the ending, hard-hitting battle music and a theme for every boss. Every story page has sounds of its own (the sun's bells, the swallowing, the army's drums, a horn as the torches light, the seal breaking, bells for the fallen), and the fight sounds land: kills break into a crackle of pixels with a chime that climbs the scale as your combo grows, pickups climb the same scale, a horn opens each wave, and the music dips for an instant under every big hit
+- 5 arenas, 4 difficulties, a save at every wave, and phone controls on a screen that fills the whole phone, edge to edge
 
 ![The title screen: the eight fighters on the battlement under the swallowed sun](docs/opening.png)
 
@@ -21,9 +22,14 @@ A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fig
 
 Aurel was the Sun King, and his kingdom lived in its light. When the sun grew old and dim he feared the dark that waits for everything, so he swallowed the sun whole, to burn forever. The sky went black, the land turned to ash, and he became the Ashen King. Every night his army of ash climbs out of the pit below his throne.
 
-Eight fighters hold the pit, each for a reason of their own. The goal of a run: survive 20 waves, kill the Ashen King on the twentieth, and free the sun. He speaks to you on the way down: when the run begins, when each of his bosses arrives and dies, and face to face before the last fight, where every fighter answers him in their own voice. When he falls the sun breaks out of him, the light comes back, and your fighter has the last word.
+Eight fighters hold the pit, each for a reason of their own. The goal of a run: survive 20 nights, kill the Ashen King on the twentieth, and cut the sun out of him. He speaks to you on the way down: when the run begins, between his bosses, where he tells you who he was a piece at a time, when each of his bosses arrives and dies, when you are close to death or fighting too well, and face to face before the last fight. Your fighter answers him every time, in their own voice. Between his speeches a voice in the ash speaks too: the monsters you have been cutting down were his people, and they ask you to set them free. If you fall, he has a last word over your body.
 
-Past wave 20 the pit keeps going. With the King dead, nothing keeps shut what was sealed below it, and something older starts to answer.
+The story never talks over a fight. When something important is said, the fight stops and the words appear in a box along the bottom of the screen, with the speaker's face; press Enter or Space, click or tap to read on, and Escape skips the rest. Taunts, quips and a boss's arrival are a small box at the top that comes and goes while you keep fighting.
+
+When he falls the sun breaks out of him, his people burn away into light, and Aurel looks at the sun one last time, no longer afraid of the dark. The light comes back to the land and your fighter has the last word. Then a comic page shows what you won, and you choose:
+
+- **Go home.** Your fighter climbs out of the pit into the first morning in a hundred years, and you see their own ending: Kael lays his blade on Aurel's grave, Vega buys the whole town a round, Morrow gives the new sun a very long name, Rin is late for class, Rivet builds a windmill from the Colossus, Grom stands one last watch, Unit-7 watches the sunrise, and the Dev ships the ending. The run ends there.
+- **Go deeper.** The King's fire was what kept his pit sealed. With it out, the seal breaks, and the dark he was always afraid of opens its eyes underneath. If it reaches the surface the new dawn dies, so your fighter turns away from the light and goes down. The run goes on, and the dark talks to you now. On wave 50 it rises out of the floor with a shape and a name, Nox, the night after the last night, and every fighter answers it. Nox cannot truly die: when its shape breaks, everything it ever swallowed climbs back out of it, and the endless night begins. Fall down there and the story tells how long you held it back while the sun rose above.
 
 ## Fighters
 
@@ -52,7 +58,7 @@ The eighth fighter is The Dev, a programmer in a motorized wheelchair who wrote 
 
 Pink afterimages trail behind Rin when she runs. She wears her katana sheathed at her hip: swinging, charging, a power or running flat out draws it, and a moment after she's done she flicks it clean and slides it home with a click. The first cut out of the scabbard is a quick draw (IAI): a flash along the cut and a sure critical hit, half again as hard. Her **Flash Strike**: the first sword swing or skill within 0.6 seconds after a dash does 2.5 times the damage, so a dash into Senko hits for well over 200.
 
-Every fighter awakens once per run, after any five evolutions (see Upgrades). The evolution banner counts them, AWAKENING 1/5 to 5/5. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom, Unit-7 Omega and Root. Awakening brings a new look, 1 more max health, and an evolved kit for the rest of the run:
+Every fighter awakens once per run, after any four evolutions (see Upgrades). The evolution banner counts them, AWAKENING 1/4 to 4/4. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom, Unit-7 Omega and Root. Awakening brings a new look, 1 more max health, and an evolved kit for the rest of the run:
 
 - **Look:** mostly black and gold. Ashen Kael gets silver-white hair, a gold scarf and black clothes; Deadeye Vega a black hat and coat with gold, silver hair and a crimson bandana; Archmage Morrow a black robe with gold trim and blazing gold eyes; Oni Rin a samurai's battle dress: a red scarf whose end folds into a cape, a black chest plate with a white V and thin gold trim, white bracers banded red, a red obi with its knot, red skirt plates hemmed in gold over a grey hakama, and long blue hair falling down both sides with pink ends; Rivet Mk-II platinum hair, red-lensed gold goggles and black overalls with gold; Titan Grom black plate with gold trim and a burning red visor; Unit-7 Omega a gold shell on a black frame, and it flies on two jet engines with swept wings; Root a black hoodie, four orbiting screens and windows popping up around him.
 - **Weapon:** each awakened fighter carries a weapon of their own: a black-and-gold greatsword with a burning edge, a long-barreled gold hand cannon with a sight, a black staff with a gold crescent and a sun-gold orb, a black nodachi with a glowing crimson edge, a gold power wrench with a glowing core, a spiked black-and-gold maul with red runes, a gold plasma cannon.
@@ -118,7 +124,7 @@ You start with Blade. The select screen shows each mission and how close you are
 
 ## Upgrades
 
-After every wave you pick one of three upgrades. Every upgrade has an evolution, offered once you max it. Any five evolutions awaken your fighter.
+After every wave you pick one of three upgrades. Every upgrade has an evolution, offered once you max it. Any four evolutions awaken your fighter.
 
 | Max this | Evolution |
 | --- | --- |
@@ -216,11 +222,15 @@ Monsters die in pixels. A cut splits a monster along its own pixel grid, and bot
 | 35 | The Mirror | A dark copy of your own fighter |
 | 40 | Eclipse | A giant eye with spirals and rotating beams |
 | 45 | The Clockwork | Its clock hands sweep the arena as beams |
-| 50 | The Dev | The developer himself, three times the size: RM -RF lines, fork bombs, and a Kernel Panic at 25% health |
+| 50 | Nox | The dark under the pit, given a shape. It names itself before the fight, then rains dead stars, reaches across the arena in lines you dash through, bursts in rings of night, sends shades, and breathes in to drag you toward it. At two thirds the night falls around you; at one third its eyes open in the corners of the arena and sweep beams across it |
 
-After wave 50 all ten come back with more health. Every boss enrages after 60 seconds.
+Every boss enrages after 60 seconds.
 
-![Oni Rin fighting The Dev on wave 50](docs/boss.png)
+### The endless night
+
+After Nox there are no more waves. Monsters come in packs that grow bigger and come faster. After the first minute the bosses climb back out of the dark one at a time, and from five minutes two at a time. Everything gets tougher the longer it lasts, until you fall. The HUD shows how long you have held, and the game keeps your best time.
+
+![Oni Rin fighting Nox on wave 50](docs/boss.png)
 
 ## Controls
 
@@ -231,7 +241,7 @@ After wave 50 all ten come back with more health. Every boss enrages after 60 se
 | Attack | Left click or J. Hold to keep firing or to charge | Attack button |
 | Dash | Space or right click | Dash button |
 | Powers | Q, E, R | Tap to cast at the nearest enemy, or hold and drag to aim |
-| Pause | Esc | Button at the top |
+| Pause and menu | Esc | MENU button in the top right corner |
 
 Hearts are rare: ordinary monsters seldom drop one, a boss's summoned army never does, and after a hit you're only safe for a third of a second. Dashing makes you untouchable. Dash through an attack as it lands and time slows, and your next hit is a counter for triple damage. Hit a pink orb to send it back.
 
@@ -241,13 +251,13 @@ Hits in a row build a combo, ranked D, C, B, A, S, SS and SSS. From A up the ran
 
 ## Settings
 
-The game fills the window on any screen by default. Sharp mode instead zooms by whole numbers so every pixel is the same size, and there are fixed sizes from 720p to 1440p.
+The game fills the window on any screen by default. On a screen wider than 16:9, a phone on its side for example, the arena and the menus widen to fill it instead of leaving bars at the sides. Sharp mode instead zooms by whole numbers so every pixel is the same size, and there are fixed sizes from 720p to 1440p.
 
-The other settings cover volume and music choice, color theme and screen filters, arena, difficulty, and vibration on Android phones. Screen shake starts at 25%. Shake, flashes, damage numbers and particles can all be turned up or down.
+The settings are in four tabs (audio, display, effects, game) with rows tall enough to tap. They cover volume and music choice, color theme and screen filters, arena, difficulty, and vibration on Android phones. Screen shake starts at 25%. Shake, flashes, damage numbers and particles can all be turned up or down.
 
 ## How it's built
 
-Plain JavaScript with no libraries and no build step. The game runs on a 320×180 grid and draws on a 960×540 canvas, three canvas pixels to a game pixel, so the fighters can carry three times the detail of the world around them. Each fighter comes from one picture of them, read on that picture's own pixel grid so every drawn pixel becomes exactly one sprite pixel (`art/sprites/soulknight-masters/`, about 27 by 32 pixels each). Their idle, walk, run, dash, hurt and death frames and their awakened colors are drawn from it at that size, then doubled, so every pixel is a crisp 2×2 block (`art/sprites/heroes/`). Each weapon is its own sprite at the same pixel size, turned in advance to 64 angles so it can point anywhere. The entrances, the deaths, the opening and the title screen are drawn in code from the same sprites: a death can cut the body along straight lines into pieces that each fall, spin, bounce and bleed on their own. The select screen's portraits are posed and animated from the same pictures (`art/sprites/portraits/`), then drawn eleven times bigger with their effects in code. Monsters and bosses are pixel grids in `src/monster-art.js`, shaded the way the fighters are: flat bands of light and shadow with a checkered seam between them, dark lines where one shape overlaps another, and a little grain on rough skin and stone. The story, the dialog box and the ending are in `src/story.js`, and the music and sound are generated in the browser with the Web Audio API. The page makes no network requests, and runs and settings save only in your browser. It is built to run smoothly on phones: the game is capped at 60 fps, sprites and the camera move in canvas pixels so motion stays smooth, the large pictures sit on their own layers and are only redrawn when they change, the fighters' sprite sheets and portraits are small (about 530 KB for all of them), and if a device starts falling behind in a big fight the game thins out its particle effects on its own until it keeps up again.
+Plain JavaScript with no libraries and no build step. The game runs on a 320×180 grid and draws on a 960×540 canvas, three canvas pixels to a game pixel, so the fighters can carry three times the detail of the world around them. Each fighter comes from one picture of them, read on that picture's own pixel grid so every drawn pixel becomes exactly one sprite pixel (`art/sprites/soulknight-masters/`, about 27 by 32 pixels each). Their idle, walk, run, dash, hurt and death frames and their awakened colors are drawn from it at that size, then doubled, so every pixel is a crisp 2×2 block (`art/sprites/heroes/`). Each weapon is its own sprite at the same pixel size, turned in advance to 64 angles so it can point anywhere. The entrances, the deaths, the opening and the title screen are drawn in code from the same sprites: a death can cut the body along straight lines into pieces that each fall, spin, bounce and bleed on their own. The select screen's portraits come from the owner's High Pixel Model pictures, rebuilt as clean pixel art at their real size (each cell takes the middle of what's in it, the colors are cut to a palette of 64, the edges made hard), then animated in whole pixels: cloth and hair ripple from where they're fixed to the body, the upper body breathes, lights glint and pulse (`art/sprites/portraits-hd/`). Every monster and boss is drawn at the same pixel size as the fighters: the King and Nox, bigger than their designs, are drawn with more pixels rather than bigger ones. Monsters and bosses are pixel grids in `src/monster-art.js`, shaded the way the fighters are: flat bands of light and shadow with a checkered seam between them, dark lines where one shape overlaps another, and a little grain on rough skin and stone. The story, the two kinds of dialog, the story pages and the choice after the King are in `src/story.js`, and the music and sound are generated in the browser with the Web Audio API (`src/audio.js`): a step sequencer plays each theme's drums, bass, pads, strings, choir and lead from patterns, and everything goes through a hall reverb, a compressor and a limiter. The page makes no network requests, and runs and settings save only in your browser. It is built to run smoothly on phones: the game is capped at 60 fps, sprites and the camera move in canvas pixels so motion stays smooth, the large pictures sit on their own layers and are only redrawn when they change, the fighters' sprite sheets and portraits are small (about 900 KB for all of them), kills read each monster's pixels once and reuse them, glows are drawn in one batch, phones get fewer particles and lighter sounds, and if a device starts falling behind in a big fight the game thins out its particle effects on its own until it keeps up again.
 
 | Folder | Contents |
 | --- | --- |

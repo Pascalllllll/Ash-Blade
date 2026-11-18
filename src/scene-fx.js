@@ -1,10 +1,10 @@
 // Shared tools for the heroes' entrances (entrances.js) and deaths (deaths.js): the hero drawn in any pose with the
 // weapon in hand, a body cut into pieces that fly, bounce and bleed, spurts and pools of blood, cracks in the floor,
 // and the entrance's letterbox and name card.
-import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, makeCanvas } from './gfx.js?v=185';
-import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=185';
-import { drawWeaponAt, REST } from './hero-sprites.js?v=185';
-import { WEAPON_ART } from './hero-rig.js?v=185';
+import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, FW, SX, makeCanvas } from './gfx.js?v=189';
+import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=189';
+import { drawWeaponAt, REST } from './hero-sprites.js?v=189';
+import { WEAPON_ART } from './hero-rig.js?v=189';
 
 const CW = 120, FX = 60, FY = 92;             // a hero cell's width, and where the feet are on it
 export const BLOOD = ['#c4243a', '#8a0f22', '#5a0612'];
@@ -268,7 +268,7 @@ export function stampCracks(cr) {
 // ---------- the entrance's letterbox and name card (screen space, over the HUD) ----------
 export function drawLetterbox(k) {
   const h = Math.round(22 * ease(k));
-  if (h > 0) { rect(0, 0, W, h, '#000'); rect(0, H - h, W, h, '#000'); }
+  if (h > 0) { rect(-SX, 0, FW, h, '#000'); rect(-SX, H - h, FW, h, '#000'); }
 }
 // the hero's name slides in on a slanted band of their color, the title under it on the black bar
 export function drawNameCard(name, sub, col, t, life) {

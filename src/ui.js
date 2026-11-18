@@ -1,42 +1,52 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=185';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=185';
-import { loadPortraits, portraitReady, drawPortrait, PORTRAIT_SCALE } from './portraits.js?v=185';
-import { SPR, icon } from './sprites.js?v=185';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=185';
-import { A } from './audio.js?v=185';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF } from './store.js?v=185';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=185';
-import { CHARS } from './chars.js?v=185';
-import { BOSSES, bossFor } from './bosses.js?v=185';
-import { MAPS } from './maps.js?v=185';
-import { drawTalk } from './story.js?v=185';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=185';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=189';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=189';
+import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=189';
+import { SPR, icon } from './sprites.js?v=189';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=189';
+import { A } from './audio.js?v=189';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=189';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=189';
+import { CHARS } from './chars.js?v=189';
+import { BOSSES, bossFor } from './bosses.js?v=189';
+import { MAPS } from './maps.js?v=189';
+import { drawTalk } from './story.js?v=189';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=189';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
 const back = (k) => { k = Math.min(1, Math.max(0, k)); const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
 const inBox = (x, y, w, h) => input.mouse.x >= x && input.mouse.x < x + w && input.mouse.y >= y && input.mouse.y < y + h;
 const C = (k) => P[k] || k;
-function dim(a) { ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+function dim(a) { fillScreen(P.void, a); }
 
 // ---------- overlays ----------
+// screen-wide (the stage and its sides on a wide screen), drawn at x = -SX; remade when the width changes
 function dithered(fn, col) {
-  const c = makeCanvas(W, H), g = c.getContext('2d');
-  g.fillStyle = col;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (fn(x, y) > (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16) g.fillRect(x, y, 1, 1);
+  const c = makeCanvas(FW, H), g = c.getContext('2d'), img = g.createImageData(FW, H), d = img.data;
+  const r = parseInt(col.slice(1, 3), 16), gr = parseInt(col.slice(3, 5), 16), b = parseInt(col.slice(5, 7), 16);
+  for (let y = 0; y < H; y++) for (let x = 0; x < FW; x++) {
+    if (fn(x, y) <= (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16) continue;
+    const i = (y * FW + x) * 4; d[i] = r; d[i + 1] = gr; d[i + 2] = b; d[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
   return c;
 }
-const edge = (x, y) => Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2));
-const VIG = dithered((x, y) => Math.max(0, (edge(x, y) - 0.86) * 2.2), '#07060b');
-const RED = dithered((x, y) => Math.max(0, (edge(x, y) - 0.5) * 1.8), '#e0223f');
+const edge = (x, y) => Math.hypot((x - FW / 2) / (FW / 2), (y - H / 2) / (H / 2));
+let VIG, RED;
+function overlays() {
+  VIG = dithered((x, y) => Math.max(0, (edge(x, y) - 0.86) * 2.2), '#07060b');
+  RED = dithered((x, y) => Math.max(0, (edge(x, y) - 0.5) * 1.8), '#e0223f');
+}
+overlays();
+onWidth(overlays);
 let LOGO = null;
 export function refreshArt() { LOGO = logoCanvas('ASHBLADE', 4, [P.paper, P.paper, P.ember3, P.ember3, P.ember2, P.ember, P.ember], P.ink0); }
 
-export function vignette() { ctx.drawImage(VIG, 0, 0); }
+export function vignette() { ctx.drawImage(VIG, -SX, 0); }
 export function screenFlash() {
   if (fx.flashT <= 0) return;
   const k = fx.flashT / fx.flashMax, max = settings.flash ? (fx.flashStrong ? 0.8 : 0.4) : 0.12;
-  ctx.globalAlpha = Math.min(1, k * max); ctx.fillStyle = fx.flashC; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+  fillScreen(fx.flashC, k * max);
 }
 export function cursor() {
   if (input.device !== 'mouse') return;
@@ -61,8 +71,9 @@ export function runMenu(m, items, x, y, w, rowH = 11) {
   const it = items[m.sel];
   if (it.adjust && keyHit('ArrowLeft', 'KeyA')) { it.adjust(-1); A.ui(); }
   if (it.adjust && keyHit('ArrowRight', 'KeyD')) { it.adjust(1); A.ui(); }
+  const top = Math.floor((rowH - 6) / 2);
   for (let i = 0; i < items.length; i++) {
-    if (!inBox(x, y + i * rowH - 3, w, rowH)) continue;
+    if (!inBox(x, y + i * rowH - top, w, rowH)) continue;
     if (input.mouse.moved && m.sel !== i) { m.sel = i; A.ui(); }
     if (input.mouse.pressed) {
       m.sel = i;
@@ -78,8 +89,8 @@ export function runMenu(m, items, x, y, w, rowH = 11) {
 }
 export function drawMenu(m, items, x, y, w, rowH = 11) {
   for (let i = 0; i < items.length; i++) {
-    const it = items[i], yy = y + i * rowH, sel = m.sel === i;
-    if (sel) { rect(x, yy - 3, w, rowH - 1, P.ink3); rect(x, yy - 3, 2, rowH - 1, P.ember); }
+    const it = items[i], yy = y + i * rowH, sel = m.sel === i, top = Math.floor((rowH - 6) / 2);
+    if (sel) { rect(x, yy - top, w, rowH - 1, P.ink3); rect(x, yy - top, 2, rowH - 1, P.ember); }
     text(it.label, x + 8, yy, sel ? P.paper : it.dimmed ? P.stone2 : P.dust);
     if (it.value) { const v = it.value(); text((sel && it.adjust ? '< ' : '') + v + (sel && it.adjust ? ' >' : ''), x + w - 8, yy, sel ? P.ember2 : P.bone, 1, 'r'); }
   }
@@ -97,11 +108,55 @@ function abilityBox(x, y, key, ready, frac, deny, ic, col) {
   if (deny > 0) { rect(x - 1, y - 1, 18, 1, P.blood); rect(x - 1, y + 16, 18, 1, P.blood); }
 }
 
+function drawUnlock(un) {
+  const ch = CHARS[un.id], set = SPR.chars[un.id], s = set.idles[Math.floor(un.t * 7) % set.idles.length];
+  const inK = back(un.t / 0.4), out = un.t > 4 ? ease((un.t - 4) / 0.4) : 0;
+  // (lower down while someone is talking at the top)
+  const cw = 178, chh = 62, x = Math.round(W / 2 - cw / 2), y = Math.round((G.talk ? 46 : 34) - (1 - inK) * 40 - out * 70);
+  const blink = Math.floor(un.t * 6) % 2, col = ch.color();
+  // the card: dark, gold rims, a slanted color band behind the fighter, rays turning behind them
+  rect(x - 1, y - 1, cw + 2, chh + 2, P.ink0); rect(x, y, cw, chh, '#0c0911');
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, 68, chh); ctx.clip();
+  ctx.globalAlpha = 0.22; for (let i = 0; i < 10; i++) { const a = un.t * 0.8 + (i * Math.PI) / 5; line(x + 34, y + 40, x + 34 + Math.cos(a) * 70, y + 40 + Math.sin(a) * 70, i % 2 ? P.gold : col, 3); } ctx.globalAlpha = 1;
+  glow(x + 34, y + 38, col, 30, 0.35);
+  ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, cw, chh); ctx.clip();
+  // the whole fighter, feet on the card's floor, twice the size they are in the arena
+  // (a hero's feet are on row 92 of its 96-row cell, a third of that in game pixels)
+  const sc = 2, fx0 = x + 34 - (s.w * sc) / 2, fy0 = y + chh - 3 - Math.round((92 / 3) * sc);
+  ctx.drawImage(s.n, Math.round(fx0), Math.round(fy0), s.w * sc, s.h * sc);
+  if (un.t < 0.5) { ctx.globalAlpha = 1 - un.t / 0.5; ctx.drawImage(s.tint('#ffffff', false), Math.round(fx0), Math.round(fy0), s.w * sc, s.h * sc); ctx.globalAlpha = 1; }
+  ctx.restore();
+  rect(x, y, cw, 1, P.gold); rect(x, y + chh - 1, cw, 1, P.gold); rect(x + 68, y + 6, 1, chh - 12, P.ink3);
+  textO('NEW FIGHTER', x + 74, y + 8, blink ? P.gold : P.paper, 2);
+  textO('UNLOCKED', x + 74, y + 22, P.gold, 1);
+  textO(ch.hero, x + 74, y + 34, col, 1);
+  text(ch.name, x + 74, y + 42, P.bone, 1);
+  text('PICK THEM ON THE MENU', x + 74, y + 52, P.stone2, 1);
+}
+
+function bossBar(b, y) {
+  const bd = BOSSES[b.boss], w = 180, x = (W - w) / 2;
+  textO(bd.name + (b.phase > 1 ? '  ' + 'I'.repeat(b.phase) : ''), W / 2, y - 8, b.phase > 1 ? bd.col : P.bone, 1, 'c');
+  rect(x - 1, y - 1, w + 2, 5, P.ink0); rect(x, y, w, 3, P.ink2);
+  b.chip = b.chip === undefined ? b.hp : Math.max(b.hp, b.chip - (b.maxHp * 0.25) / 60);
+  rect(x, y, Math.round((w * Math.max(0, b.chip)) / b.maxHp), 3, P.paper);
+  rect(x, y, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 3, bd.col);
+  if (b.shieldUp) rect(x, y - 1, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 1, '#62efff');
+  // phase marks where the boss changes, an enrage countdown, then the enraged tag
+  for (const m of bd.marks || (bd.final ? [0.33, 0.66] : [0.5])) rect(x + Math.round(w * m), y - 1, 1, 5, P.ink0);
+  if (b.enraged) textO('ENRAGED', x + w, y - 8, Math.floor(G.time * 6) % 2 ? P.blood : P.paper, 1, 'r');
+  else if ((b.fightT || 0) > 45) textO('ENRAGE IN ' + Math.ceil(60 - b.fightT), x + w, y - 8, P.ember3, 1, 'r');
+}
+const clockOf = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+
 export function drawHUD(menu) {
   const p = G.p, kit = G.kit;
   // a hero's entrance: no HUD yet, just its letterbox and name card
   if (G.cine?.overlay) { G.cine.overlay(); return; }
-  const lb = G.boss && BOSSES[G.boss.boss].bars(G.boss);
+  const lb = G.boss && !G.night && BOSSES[G.boss.boss].bars(G.boss);
+  // the left corner (health, energy, the ultimate, the ability boxes) hugs the screen's left edge
+  ctx.save(); ctx.translate(-SX, 0);
   for (let i = 0; i < p.maxHp; i++) drawSprite(i < p.hp ? SPR.heart : SPR.heartE, 5 + (i % 12) * 8, 5 + Math.floor(i / 12) * 8 + (i < p.hp && p.hp <= 2 && Math.floor(G.time * 6) % 2 ? -1 : 0), false);
   const oy = p.maxHp > 12 ? 8 : 0;
   const ex = 6, ey = 15 + oy, ew = 64;
@@ -119,21 +174,28 @@ export function drawHUD(menu) {
   kit.hud?.(p, ex, uy + (full ? 12 : 5));
 
   const by = H - 21;
-  if (input.touch) { drawTouch(p, kit, full); }
-  else {
-  abilityBox(6, by, 'Q', p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), G.deny.q, kit.q.icon, kit.color());
-  abilityBox(26, by, 'E', p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), G.deny.e, kit.e.icon, kit.color());
-  abilityBox(46, by, 'R', full, p.ult / 100, G.deny.r, kit.r.icon, P.gold);
+  if (!input.touch) {
+    abilityBox(6, by, 'Q', p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), G.deny.q, kit.q.icon, kit.color());
+    abilityBox(26, by, 'E', p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), G.deny.e, kit.e.icon, kit.color());
+    abilityBox(46, by, 'R', full, p.ult / 100, G.deny.r, kit.r.icon, P.gold);
   }
+  ctx.restore();
+  // the phone controls place themselves against the screen edges (see input.js)
+  if (input.touch && !G.talk?.lore) drawTouch(p, kit, full);
 
-  // score and high score, top right
-  const hi = Math.max(best.score, G.startBest ?? best.score), beat = G.score > hi && hi > 0;
-  textO('WAVE ' + G.wave, W - 6, 4, P.bone, 1, 'r');
   if (TEST_BUFF) textO('TEST BUFF ON', W / 2, 4, Math.floor(G.time * 2) % 2 ? P.gold : P.paper, 1, 'c');
+  // TESTING, temporary: say so while god mode or a test start is on
+  if (testing() && !G.talk) textO(settings.god ? 'GOD MODE' : 'TEST RUN', W / 2, 4, P.gold, 1, 'c');
+  // score and high score, against the screen's right edge
+  ctx.save(); ctx.translate(SX, 0);
+  const hi = Math.max(best.score, G.startBest ?? best.score), beat = G.score > hi && hi > 0;
+  // (on a phone the menu button sits in the very corner, so the numbers make room for it)
+  const rx = input.touch ? W - 30 : W - 6, waveTxt = G.night ? 'NIGHT ' + clockOf(G.night.t) : 'WAVE ' + G.wave;
+  textO(waveTxt, rx, 4, G.night ? '#b48cff' : P.bone, 1, 'r');
   // the wave twist, tagged next to the wave number
-  if (G.twist) { const tw = TWISTS[G.twist]; textO(tw.name, W - 12 - ('WAVE ' + G.wave).length * 4, 4, Math.floor(G.time * 2) % 2 ? tw.c : P.paper, 1, 'r'); }
-  textO('SCORE ' + String(G.score).padStart(7, '0'), W - 6, 12, P.paper, 1, 'r');
-  textO((beat ? 'NEW BEST ' : 'BEST ') + String(Math.max(hi, G.score)).padStart(7, '0'), W - 6, 20, beat && Math.floor(G.time * 4) % 2 ? P.paper : P.gold, 1, 'r');
+  if (G.twist) { const tw = TWISTS[G.twist]; textO(tw.name, rx - 6 - waveTxt.length * 4, 4, Math.floor(G.time * 2) % 2 ? tw.c : P.paper, 1, 'r'); }
+  textO('SCORE ' + String(G.score).padStart(7, '0'), rx, 12, P.paper, 1, 'r');
+  textO((beat ? 'NEW BEST ' : 'BEST ') + String(Math.max(hi, G.score)).padStart(7, '0'), rx, 20, beat && Math.floor(G.time * 4) % 2 ? P.paper : P.gold, 1, 'r');
 
   if (G.combo >= 2) {
     const rk = RANKS[G.rank], rc = C(rk.c), pop = G.rankPop > 0.5 ? 1 : 0;
@@ -149,21 +211,11 @@ export function drawHUD(menu) {
     if (pw > 0) textO('POWER +' + pw + '%', W - 7, 93 + pop * 3, Math.floor(G.time * 4) % 2 && G.rank >= 6 ? P.paper : rc, 1, 'r');
     if (G.rank >= 4) glow(W - 20, 72, rc, 18, 0.18);
   }
+  ctx.restore();
 
   const b = G.boss;
-  if (b && !b.dead && !lb) {
-    const bd = BOSSES[b.boss], w = 180, x = (W - w) / 2, y = H - 12;
-    textO(bd.name + (b.phase > 1 ? '  ' + 'I'.repeat(b.phase) : ''), W / 2, y - 8, b.phase > 1 ? bd.col : P.bone, 1, 'c');
-    rect(x - 1, y - 1, w + 2, 5, P.ink0); rect(x, y, w, 3, P.ink2);
-    b.chip = b.chip === undefined ? b.hp : Math.max(b.hp, b.chip - (b.maxHp * 0.25) / 60);
-    rect(x, y, Math.round((w * Math.max(0, b.chip)) / b.maxHp), 3, P.paper);
-    rect(x, y, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 3, bd.col);
-    if (b.shieldUp) rect(x, y - 1, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 1, '#62efff');
-    // phase marks where the boss changes, an enrage countdown, then the enraged tag
-    for (const m of bd.marks || (bd.final ? [0.33, 0.66] : [0.5])) rect(x + Math.round(w * m), y - 1, 1, 5, P.ink0);
-    if (b.enraged) textO('ENRAGED', x + w, y - 8, Math.floor(G.time * 6) % 2 ? P.blood : P.paper, 1, 'r');
-    else if ((b.fightT || 0) > 45) textO('ENRAGE IN ' + Math.ceil(60 - b.fightT), x + w, y - 8, P.ember3, 1, 'r');
-  }
+  // a health bar for every boss out (two at once in the endless night), stacked up from the bottom
+  if (!lb) G.E.filter((e) => e.type === 'boss' && !e.dead).slice(0, 2).forEach((e, i) => bossBar(e, H - 12 - i * 17));
   // multi-kill callout: pops in, colour climbs with the count, the bonus lands when the chain ends
   const mk = G.mkShow;
   if (mk && !lb) {
@@ -177,25 +229,20 @@ export function drawHUD(menu) {
   }
   if (bossLock()) textO('GET READY', W / 2, H - 30, Math.floor(G.time * 4) % 2 ? P.paper : P.dust, 1, 'c');
 
-  // a fighter was just unlocked
+  // a fighter was just unlocked: a card drops in at the top middle (clear of the corners and the phone controls)
+  // with the whole fighter standing in it, twice their size
   const un = G.unlocks[0];
-  if (un) {
+  if (un && !G.talk?.lore) {
     un.t += 1 / 60;
-    if (un.t > 4) G.unlocks.shift();
-    else {
-      const ch = CHARS[un.id], k2 = ease(un.t / 0.3), y = 118 + Math.round((1 - k2) * 30);
-      rect(60, y - 4, 200, 26, P.ink0); rect(60, y - 4, 200, 1, P.gold); rect(60, y + 21, 200, 1, P.gold);
-      bust(SPR.chars[un.id].idle, 66, y - 1, 18);
-      textO('NEW FIGHTER UNLOCKED', 160, y, Math.floor(un.t * 6) % 2 ? P.gold : P.paper, 1, 'c');
-      textO(ch.hero + '  THE ' + ch.name.replace('THE ', ''), 160, y + 10, ch.color(), 1, 'c');
-    }
+    if (un.t > 4.4) G.unlocks.shift();
+    else drawUnlock(un);
   }
   // arrow on the screen edge pointing at an off-screen boss
   if (b && !b.dead && !lb) {
     const bx = b.x - fx.cam.x, by = b.y - 16 - fx.cam.y;
-    if (bx < 4 || bx > W - 4 || by < 4 || by > H - 4) {
+    if (bx < 4 - SX || bx > W + SX - 4 || by < 4 || by > H - 4) {
       const cx = W / 2, cy = H / 2, a = Math.atan2(by - cy, bx - cx);
-      const m = Math.min((W / 2 - 14) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 14) / Math.abs(Math.sin(a) || 1e-6));
+      const m = Math.min((FW / 2 - 14) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 14) / Math.abs(Math.sin(a) || 1e-6));
       const ax = cx + Math.cos(a) * m, ay = cy + Math.sin(a) * m, col = BOSSES[b.boss].col, pulse = Math.sin(G.time * 8) * 2;
       for (let i = 0; i < 7; i++) { const w = 7 - i; line(ax + Math.cos(a) * (i + pulse) - Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) + Math.cos(a) * w, ax + Math.cos(a) * (i + pulse) + Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) - Math.cos(a) * w, col); }
       glow(ax, ay, col, 10, 0.5);
@@ -205,7 +252,7 @@ export function drawHUD(menu) {
   // letterbox while a boss makes its entrance
   if (lb) {
     const k = ease(Math.min(1, (b.introMax ??= b.t, (b.introMax - b.t) / 0.4)));
-    rect(0, 0, W, Math.round(22 * k), '#000'); rect(0, H - Math.round(22 * k), W, Math.round(22 * k), '#000');
+    rect(-SX, 0, FW, Math.round(22 * k), '#000'); rect(-SX, H - Math.round(22 * k), FW, Math.round(22 * k), '#000');
     const bd = BOSSES[b.boss];
     if (k > 0.9) { textO(bd.name, W / 2, H - 16, bd.col, 1, 'c'); text(bd.sub, W / 2, H - 8, P.dust, 1, 'c'); }
   }
@@ -213,7 +260,7 @@ export function drawHUD(menu) {
   const bn = menu || lb ? null : G.banner;
   if (bn) {
     const k = bn.t / bn.life, inK = ease(bn.t / 0.25), outK = k > 0.8 ? (k - 0.8) / 0.2 : 0, y = 52;
-    const barW = Math.round(W * inK * (1 - outK));
+    const barW = Math.round(FW * inK * (1 - outK));
     rect((W - barW) / 2, y - 6, barW, 1, bn.c); rect((W - barW) / 2, y + 22, barW, 1, bn.c);
     if (outK < 0.6) {
       const dx = Math.round((1 - inK) * 40);
@@ -222,7 +269,7 @@ export function drawHUD(menu) {
     }
   }
   const low = p.hp <= 2 && p.hp > 0 ? 0.35 + Math.sin(G.time * 6) * 0.15 : 0, a = Math.max(fx.hurtVig * 0.8, low);
-  if (a > 0) { ctx.globalAlpha = a; ctx.drawImage(RED, 0, 0); ctx.globalAlpha = 1; }
+  if (a > 0) { ctx.globalAlpha = a; ctx.drawImage(RED, -SX, 0); ctx.globalAlpha = 1; }
   // whoever is talking: the King, the fighter, or the thing below the pit
   if (!menu) drawTalk();
 }
@@ -247,7 +294,7 @@ function backdropImage(t, darken) {
 export function drawBackdrop(t, darken = 0.6) {
   const cx = Math.round(AW / 2 - W / 2 + Math.sin(t * 0.12) * 70), cy = Math.round(AH / 2 - H / 2 + Math.cos(t * 0.09) * 40);
   ctx.drawImage(backdropImage(t, darken), -cx, -cy);
-  if (embers.length < 60 && Math.random() < 0.5) embers.push({ x: Math.random() * W, y: H + 2, vx: (Math.random() - 0.5) * 8, vy: -10 - Math.random() * 22, c: Math.random() < 0.5 ? P.ember : P.ember2, life: 4 + Math.random() * 4, t: 0 });
+  if (embers.length < 60 && Math.random() < 0.5) embers.push({ x: Math.random() * FW - SX, y: H + 2, vx: (Math.random() - 0.5) * 8, vy: -10 - Math.random() * 22, c: Math.random() < 0.5 ? P.ember : P.ember2, life: 4 + Math.random() * 4, t: 0 });
   for (const e of embers) { e.t += 1 / 60; e.x += (e.vx + Math.sin(e.t * 2 + e.y * 0.05) * 6) / 60; e.y += e.vy / 60; px(e.x, e.y, e.c); glow(e.x, e.y, e.c, 3, 0.4); }
   for (let i = embers.length - 1; i >= 0; i--) if (embers[i].t > embers[i].life || embers[i].y < -4) embers.splice(i, 1);
   vignette();
@@ -262,7 +309,7 @@ export function titleItems(save, go) {
   return items;
 }
 // the title menu sits under the logo, above the fighters' heads
-export const TITLE_MENU = { w: 64, row: 12 };
+export const TITLE_MENU = { w: 132, row: 13 };
 export const titleMenuX = () => (W - TITLE_MENU.w) / 2;
 export const titleMenuY = (n) => 66 - (n - 2) * 6;
 const LOGO_Y = 12;
@@ -306,7 +353,7 @@ const cycle = (list, cur, dir) => list[(list.indexOf(cur) + dir + list.length) %
 // roster tiles: 4 x 2, each a parallelogram leaning right by SLANT pixels
 const TW = 38, TH = 26, TG = 3, SLANT = 4, TX0 = 154, TY0 = 10;
 const tilePos = (i) => [TX0 + (i % 4) * (TW + TG), TY0 + Math.floor(i / 4) * (TH + TG)];
-const ROW_Y = { 1: 139, 2: 148 }, START_Y = 158, PANEL_C = 236;
+const ROW_Y = { 1: 138, 2: 147 }, START_Y = 157, START_W = 100, START_H = 14, PANEL_C = 236;
 export function updateSelect(dt) {
   sel.t += dt;
   loadPortraits();
@@ -339,9 +386,9 @@ export function updateSelect(dt) {
     if (input.mouse.pressed) { A.ui(); return { [key]: cycle(OPTIONS[key], settings[key], input.mouse.x > PANEL_C ? 1 : -1) }; }
   }
   const go = () => { if (locked(ids[sel.i])) { A.deny(); return null; } return { start: ids[sel.i] }; };
-  if (inBox(PANEL_C - 40, START_Y, 80, 11)) { if (input.mouse.moved) sel.row = 3; if (input.mouse.pressed) return go(); }
+  if (inBox(PANEL_C - START_W / 2, START_Y - 1, START_W, START_H + 2)) { if (input.mouse.moved) sel.row = 3; if (input.mouse.pressed) return go(); }
   if (keyHit('Enter', 'Space') && sel.t > 0.2) return go();
-  if (keyHit('Escape') || (input.touch && input.mouse.pressed && input.mouse.x < 44 && input.mouse.y < 12)) return { back: true };
+  if (keyHit('Escape') || (input.touch && input.mouse.pressed && input.mouse.x < 46 && input.mouse.y < 18)) return { back: true };
   return null;
 }
 // The Dev's stats are corrupted: bars fill at random, jitter, change color and the labels scramble.
@@ -413,25 +460,27 @@ function honorFrame(x, y, rank, t, i) {
 function tilePath(x, y, c = ctx) {
   c.beginPath(); c.moveTo(x + SLANT, y); c.lineTo(x + TW + SLANT, y); c.lineTo(x + TW, y + TH); c.lineTo(x, y + TH); c.closePath();
 }
-const PANEL = [[0, 0], [150, 0], [132, H], [0, H]];
-const panelPath = (c) => { c.beginPath(); PANEL.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); };
+const PANEL = () => [[-SX, 0], [150, 0], [132, H], [-SX, H]];
+const panelPath = (c) => { c.beginPath(); PANEL().forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); };
 // the portrait's box in game units: the full screen height, centered in the left panel
 const MW = 120, MH = 180, NAME = makeCanvas(150, 50);
 // the big fighter on the left: slides in when picked, flashes white as it lands, then plays its loop
 function drawHero(id, t, col, lk, h) {
   const e0 = (t - sel.swap) / 0.28, e = ease(e0), x0 = 12 - (1 - e) * 46;
   ctx.save(); panelPath(ctx); ctx.clip();
-  rect(0, 0, 150, H, P.ink1);
+  rect(-SX, 0, 150 + SX, H, P.ink1);
   ctx.globalAlpha = 0.14 + (1 - e) * 0.25;
-  for (let s = -H; s < 160; s += 9) { ctx.beginPath(); ctx.moveTo(s, H); ctx.lineTo(s + 3, H); ctx.lineTo(s + 3 + H * 0.35, 0); ctx.lineTo(s + H * 0.35, 0); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); }
+  for (let s = -H - SX; s < 160; s += 9) { ctx.beginPath(); ctx.moveTo(s, H); ctx.lineTo(s + 3, H); ctx.lineTo(s + 3 + H * 0.35, 0); ctx.lineTo(s + H * 0.35, 0); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); }
   ctx.globalAlpha = 1;
   glow(x0 + MW / 2, 70, col, 70, lk ? 0.08 : 0.24);
   // speed lines while it slides in
-  if (e0 < 1) for (let i = 0; i < 7; i++) { const yy = 30 + ((i * 37) % 130); rect(0, yy, Math.round(90 * (1 - e)) + (i % 3) * 8, 1, P.paper); }
-  ctx.globalAlpha = 0.45; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(x0 + MW / 2, 174, 34, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
-  // the portrait: its own pose and loop, a silhouette while locked, a white flash as it lands
+  if (e0 < 1) for (let i = 0; i < 7; i++) { const yy = 30 + ((i * 37) % 130); rect(-SX, yy, Math.round(90 * (1 - e)) + (i % 3) * 8, 1, P.paper); }
+  // the portrait: its own pose and loop, a silhouette while locked, a white flash and a burst as it lands, a shadow
+  // as wide as its own stance
   const al = Math.min(1, e0 * 2.5 + 0.2), fx0 = x0 + MW / 2, fy0 = 173;
-  if (!drawPortrait(id, t, fx0, fy0, PORTRAIT_SCALE, { tint: lk ? '#07050b' : null, alpha: al, still: lk, scene: true })) {
+  if (!lk && e0 >= 1 && sel.landed !== sel.swap) { sel.landed = sel.swap; portraitLand(id, col); }
+  if (!drawPortrait(id, t, fx0, fy0, PORTRAIT_SCALE, { tint: lk ? '#07050b' : null, alpha: al, still: lk, scene: true, shadow: true })) {
+    ctx.globalAlpha = 0.45; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(x0 + MW / 2, 174, 34, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
     // still loading: the in-game sprite, big
     const s = SPR.chars[id].idles[Math.floor(t * 7) % SPR.chars[id].idles.length], k = 6;
     ctx.globalAlpha = al;
@@ -450,7 +499,7 @@ export function drawSelect(t) {
   const [h] = hdBegin();
   drawHero(id, t, col, lk, h);
   // name over the left panel: painted into its own small canvas and put on the HD layer, above the portrait
-  const secret = lk && id === 'DEV', ny = input.touch ? 12 : 6;
+  const secret = lk && id === 'DEV', ny = input.touch ? 16 : 6;
   const g = NAME.getContext('2d'); g.clearRect(0, 0, NAME.width, NAME.height); target(g);
   textO(secret ? '???' : k.hero, 8, ny, col, 2);
   text(secret ? 'A SECRET FIGHTER' : k.name, 8, ny + 13, lk ? P.stone2 : P.bone);
@@ -508,14 +557,16 @@ export function drawSelect(t) {
     text((on ? '< ' : '') + val + (on ? ' >' : ''), 312, y, on ? P.ember2 : P.bone, 1, 'r');
   }
   const on = sel.row === 3, pulse = Math.floor(t * 3) % 2;
-  rect(PANEL_C - 40, START_Y, 80, 11, on ? col : P.ink3);
-  textO('START', PANEL_C, START_Y + 3, on && pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
-  if (input.touch) text('< BACK', 6, 3, P.dust); else text('ENTER START   ESC BACK', PANEL_C, 173, P.stone2, 1, 'c');
+  rect(PANEL_C - START_W / 2 - 1, START_Y - 1, START_W + 2, START_H + 2, P.ink0); rect(PANEL_C - START_W / 2, START_Y, START_W, START_H, on ? col : P.ink3);
+  textO('START', PANEL_C, START_Y + 5, on && pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
+  if (input.touch) { rect(3, 2, 34, 11, P.ink0); rect(4, 3, 32, 9, P.ink2); text('< BACK', 7, 5, P.paper); } else text('ENTER START   ESC BACK', PANEL_C, 174, P.stone2, 1, 'c');
 }
 
 // ---------- settings ----------
 export const setm = { tab: 0, sel: 0 };
-const TABS = ['AUDIO', 'VIDEO', 'GAME'];
+// four short tabs, so every row can be tall enough to tap on a phone
+// (TEST is temporary: god mode and starting at a later wave, for testing the new stages)
+const TABS = ['AUDIO', 'DISPLAY', 'EFFECTS', 'GAME', 'TEST'], TAB_X = (i) => 40 + i * 49, TAB_W = 45, SET_ROW = 14;
 const pct = (v) => Math.round(v * 100) + '%';
 const stepNum = (k, d, lo, hi) => (dir) => { settings[k] = Math.round(Math.min(hi, Math.max(lo, settings[k] + dir * d)) * 100) / 100; };
 const stepList = (k) => (dir) => { settings[k] = cycle(OPTIONS[k], settings[k], dir); };
@@ -536,11 +587,19 @@ export function settingsItems(ctxInfo) {
     { label: 'BRIGHTNESS', value: () => pct(settings.bright), adjust: stepNum('bright', 0.05, 0.6, 1.4) },
     { label: 'CONTRAST', value: () => pct(settings.contrast), adjust: stepNum('contrast', 0.05, 0.6, 1.6) },
     { label: 'HUE SHIFT', value: () => settings.hue + ' DEG', adjust: (d) => { settings.hue = (settings.hue + d * 15 + 360) % 360; } },
+    { label: 'BACK', act: () => 'back' },
+  ];
+  if (setm.tab === 2) return [
     { label: 'SCANLINES', value: () => (settings.crt ? 'ON' : 'OFF'), adjust: toggle('crt') },
     { label: 'SCREEN SHAKE', value: () => pct(settings.shake), adjust: stepNum('shake', 0.25, 0, 1) },
     { label: 'FLASHES', value: () => (settings.flash ? 'ON' : 'REDUCED'), adjust: toggle('flash') },
     { label: 'DAMAGE NUMBERS', value: () => (settings.numbers ? 'ON' : 'OFF'), adjust: toggle('numbers') },
     { label: 'PARTICLES', value: () => settings.particles, adjust: stepList('particles') },
+    { label: 'BACK', act: () => 'back' },
+  ];
+  if (setm.tab === 4) return [
+    { label: 'GOD MODE', value: () => (settings.god ? 'ON' : 'OFF'), adjust: toggle('god') },
+    { label: 'START NEW RUNS AT', value: () => (settings.testStart === 'NIGHT' ? 'THE ENDLESS NIGHT' : settings.testStart === 'WAVE 50' ? 'WAVE 50 (NOX)' : settings.testStart === 'WAVE 20' ? 'WAVE 20 (THE KING)' : settings.testStart), adjust: stepList('testStart') },
     { label: 'BACK', act: () => 'back' },
   ];
   return [
@@ -555,11 +614,11 @@ export function settingsItems(ctxInfo) {
 }
 export function updateSettings(items) {
   const tabKey = keyHit('KeyQ', 'PageUp') ? -1 : keyHit('KeyE', 'PageDown', 'Tab') ? 1 : 0;
-  if (tabKey) { setm.tab = (setm.tab + tabKey + 3) % 3; setm.sel = 0; A.ui(); return 'changed'; }
-  for (let i = 0; i < 3; i++) if (inBox(40 + i * 82, 14, 76, 11) && input.mouse.pressed) { setm.tab = i; setm.sel = 0; A.ui(); return 'changed'; }
+  if (tabKey) { setm.tab = (setm.tab + tabKey + TABS.length) % TABS.length; setm.sel = 0; A.ui(); return 'changed'; }
+  for (let i = 0; i < TABS.length; i++) if (inBox(TAB_X(i) - 2, 11, TAB_W + 4, 18) && input.mouse.pressed) { setm.tab = i; setm.sel = 0; A.ui(); return 'changed'; }
   if (keyHit('Escape')) return 'back';
   const before = JSON.stringify(settings);
-  const r = runMenu(setm, items, 40, 36, 240, setm.tab === 1 ? 10 : 11);
+  const r = runMenu(setm, items, 40, 38, 240, SET_ROW);
   if (r) return r;
   return JSON.stringify(settings) !== before ? 'changed' : null;
 }
@@ -567,13 +626,18 @@ export function drawSettings(t, items, inRun) {
   if (inRun) dim(0.82); else drawBackdrop(t, 0.7);
   textO('SETTINGS', W / 2, 3, P.paper, 1, 'c');
   TABS.forEach((n, i) => {
-    const x = 40 + i * 82, on = setm.tab === i;
-    rect(x, 14, 76, 11, on ? P.ember : P.ink2);
-    text(n, x + 38, 17, on ? P.ink0 : P.dust, 1, 'c');
+    const x = TAB_X(i), on = setm.tab === i;
+    rect(x, 14, TAB_W, 12, on ? P.ember : P.ink2);
+    text(n, x + TAB_W / 2, 18, on ? P.ink0 : P.dust, 1, 'c');
   });
-  drawMenu(setm, items, 40, 36, 240, setm.tab === 1 ? 10 : 11);
-  if (setm.tab === 1) roster().forEach((id, i) => bust(SPR.chars[id].idles[Math.floor(t * 7 + i * 3) % SPR.chars[id].idles.length], 290, 34 + i * 17, 16));
-  if (setm.tab === 2 && inRun) text('ARENA AND DIFFICULTY APPLY TO YOUR NEXT RUN', W / 2, 106, P.stone2, 1, 'c');
+  drawMenu(setm, items, 40, 38, 240, SET_ROW);
+  // the color theme and filters, on the fighters themselves
+  if (setm.tab === 1) roster().forEach((id, i) => { const set = SPR.chars[id], s = set.idles[Math.floor(t * 7 + i * 3) % set.idles.length]; ctx.drawImage(s.n, Math.round(56 + i * 30 - s.w / 2), Math.round(164 - 92 / 3), s.w, s.h); });
+  if (setm.tab === 3 && inRun) text('ARENA AND DIFFICULTY APPLY TO YOUR NEXT RUN', W / 2, 142, P.stone2, 1, 'c');
+  if (setm.tab === 4) {
+    text("FOR TESTING ONLY. WHILE EITHER IS ON, RUNS DON'T SAVE", W / 2, 92, P.stone2, 1, 'c');
+    text('SCORES, RECORDS OR UNLOCKS. START AT APPLIES TO NEW RUNS.', W / 2, 100, P.stone2, 1, 'c');
+  }
   text(input.touch ? 'TAP A TAB, TAP LEFT OR RIGHT SIDE OF A ROW TO CHANGE IT' : 'Q / E SWITCH TABS   ARROWS CHANGE   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
 }
 
@@ -621,6 +685,7 @@ export function drawUpgrade() {
 
 // ---------- pause ----------
 export const pauseMenu = { sel: 0 };
+export const PAUSE_ROW = 16;
 export function pauseItems(go) {
   return [
     { label: 'RESUME', act: () => go('resume') },
@@ -633,12 +698,12 @@ export function drawPause(items) {
   dim(0.8);
   textO('PAUSED', W / 2, 22, P.paper, 3, 'c');
   text(G.kit.name + '   WAVE ' + G.wave + '   ' + MAPS[G.mapKey].name + '   ' + G.diffKey, W / 2, 46, P.dust, 1, 'c');
-  drawMenu(pauseMenu, items, 70, 64, 180, 13);
+  drawMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
   text('YOUR RUN SAVES AT THE START OF EVERY WAVE', W / 2, 150, P.stone2, 1, 'c');
   if (!input.touch) text('ESC TO RESUME', W / 2, 162, P.stone2, 1, 'c');
 }
 
-// ---------- game over & victory ----------
+// ---------- game over ----------
 // two columns of run stats; each number counts up as it appears
 function stats(y0, t) {
   const tm = Math.floor(G.time), clock = Math.floor(tm / 60) + ':' + String(tm % 60).padStart(2, '0');
@@ -662,23 +727,21 @@ export function drawOver(t, isBest) {
   const k = ease(t / 0.6);
   dim(0.75 * k);
   textO('YOU FELL', W / 2, 26 - Math.round((1 - k) * 12), P.blood, 4, 'c');
-  textO(G.kit.name + ' ON WAVE ' + G.wave, W / 2, 52, P.bone, 1, 'c');
+  // below the pit, what counts is how long they held the dark back; in the endless night, for how long
+  const held = G.wave - 20;
+  textO(G.night ? G.kit.name + ' HELD THE ENDLESS NIGHT FOR ' + clockOf(G.night.t) + '   BEST ' + clockOf(Math.max(best.night || 0, G.night.t))
+    : G.won ? G.kit.name + ' HELD THE DARK FOR ' + held + (held === 1 ? ' NIGHT' : ' NIGHTS') : G.kit.name + ' ON WAVE ' + G.wave, W / 2, 52, G.won ? '#b48cff' : P.bone, 1, 'c');
   if (G.deathLine) text(G.deathLine, W / 2, 61, P.dust, 1, 'c');
   stats(72, t);
   if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 127, P.gold, 2, 'c');
   // the King's parting words over your body (the pit's, once he's dead), typed out
   if (G.lastWords && t > 0.8) { const n = Math.floor((t - 0.8) * 30); textO(G.lastWords.slice(0, n), W / 2, 139, G.won ? '#b48cff' : P.ember, 1, 'c'); }
-  if (t > 1) textO(input.touch ? 'TAP LEFT  AGAIN       TAP RIGHT  MENU' : 'ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
-}
-export function drawVictory(t) {
-  const k = ease(t / 0.8);
-  dim(0.7 * k);
-  for (let i = 0; i < 3; i++) glow(W / 2 + Math.sin(t + i * 2) * 80, 30 + Math.cos(t * 1.3 + i) * 10, P.gold, 30, 0.15);
-  textO('VICTORY', W / 2, 18 - Math.round((1 - k) * 14), P.gold, 4, 'c');
-  textO('THE ASHEN KING HAS FALLEN. THE SUN IS FREE.', W / 2, 44, P.ember3, 1, 'c');
-  text(G.kit.name + '  ' + MAPS[G.mapKey].name + '  ' + G.diffKey, W / 2, 54, P.dust, 1, 'c');
-  stats(66, t);
-  if (t > 1.2) { textO((input.touch ? 'TAP LEFT' : 'ENTER') + '  KEEP GOING (ENDLESS)', W / 2, 128, P.paper, 1, 'c'); textO((input.touch ? 'TAP RIGHT' : 'ESC') + '  BACK TO MENU', W / 2, 140, P.dust, 1, 'c'); }
+  if (t > 1 && !input.touch) textO('ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
+  // on a phone, two big buttons (the left half of the screen plays again, the right half goes to the menu)
+  if (t > 1 && input.touch) for (const [x, label, c] of [[W / 2 - 104, 'AGAIN', P.ember], [W / 2 + 8, 'MENU', P.stone2]]) {
+    rect(x - 1, 145, 98, 20, P.ink0); rect(x, 146, 96, 18, P.ink2); rect(x, 146, 96, 1, c);
+    textO(label, x + 48, 151, P.paper, 2, 'c');
+  }
 }
 
 // ---------- opening: a press-to-begin gate (browsers need a gesture for sound), then the intro cinematic ----------
@@ -734,7 +797,7 @@ const sparks = [];
 export function drawSplash(t, touch) {
   warmPortraits();
   const beat = Math.pow(Math.max(0, Math.sin(t * Math.PI * 1.1)), 12), cx = W / 2, cy = 58, R = 30;
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  fillScreen('#000');
   // a red sky that brightens toward the horizon, dithered in bands
   for (let y = 0; y < H; y++) {
     const k = Math.max(0, (y - 20) / (H - 20)) * (0.55 + beat * 0.25);
@@ -776,7 +839,7 @@ export function drawSplash(t, touch) {
   text('SOUND ON', cx, 171, P.stone2, 1, 'c');
 }
 const TAU_ = Math.PI * 2;
-const veil = (a, col = P.paper) => { if (a <= 0) return; ctx.globalAlpha = Math.min(1, a) * (settings.flash ? 1 : 0.2); rect(0, 0, W, H, col); ctx.globalAlpha = 1; };
+const veil = (a, col = P.paper) => { if (a <= 0) return; ctx.globalAlpha = Math.min(1, a) * (settings.flash ? 1 : 0.2); rect(-SX, 0, FW, H, col); ctx.globalAlpha = 1; };
 // the secret fighter stays a silhouette until unlocked
 const hidden = (id) => id === 'DEV' && locked(id);
 // one fighter's beat: a slanted band in their color, the fighter (their sprite five times the size) slamming in
@@ -784,11 +847,11 @@ const hidden = (id) => id === 'DEV' && locked(id);
 function drawBeat(i, t) {
   const id = OPTIONS.char[i], ch = CHARS[id], lk = hidden(id), col = lk ? P.dust : ch.color(), right = i % 2 === 1;
   const k = ease(t / 0.16), dir = right ? 1 : -1;
-  rect(-10, -10, W + 20, H + 20, P.void);
+  rect(-SX - 10, -10, FW + 20, H + 20, P.void);
   // speed lines in the fighter's color, rushing the way the fighter came from
   for (let j = 0; j < 22; j++) {
-    const y = (j * 37 + i * 13) % H, len = 24 + ((j * 53) % 80), run = (t * 900 * (1 + (j % 3) * 0.4) + j * 71) % (W + 200);
-    const x = right ? W + 100 - run : run - 100 - len;
+    const y = (j * 37 + i * 13) % H, len = 24 + ((j * 53) % 80), run = (t * 900 * (1 + (j % 3) * 0.4) + j * 71) % (FW + 200);
+    const x = right ? W + SX + 100 - run : run - 100 - len - SX;
     line(x, y, x + len, y, j % 4 ? P.ink2 : col);
   }
   ctx.save(); ctx.translate(W / 2, H / 2 + 10); ctx.rotate(right ? 0.18 : -0.18);
@@ -824,12 +887,12 @@ function drawBeat(i, t) {
 }
 // all eight side by side in slanted slices, dropping in from alternate sides, each showing the fighter's face
 function drawLineup(t) {
-  rect(-10, -10, W + 20, H + 20, P.void);
-  const SW = W / 8, SL = 14;
+  rect(-SX - 10, -10, FW + 20, H + 20, P.void);
+  const SW = FW / 8, SL = 14;
   OPTIONS.char.forEach((id, i) => {
     const k = ease((t - i * 0.05) / 0.22);
     if (k <= 0) return;
-    const lk = hidden(id), col = lk ? P.dust : CHARS[id].color(), dy = Math.round((i % 2 ? 1 : -1) * (1 - k) * H), x0 = i * SW;
+    const lk = hidden(id), col = lk ? P.dust : CHARS[id].color(), dy = Math.round((i % 2 ? 1 : -1) * (1 - k) * H), x0 = i * SW - SX;
     ctx.save();
     ctx.beginPath(); ctx.moveTo(x0 + SL / 2, dy); ctx.lineTo(x0 + SW + SL / 2, dy); ctx.lineTo(x0 + SW - SL / 2, H + dy); ctx.lineTo(x0 - SL / 2, H + dy); ctx.closePath(); ctx.clip();
     rect(x0 - SL, dy, SW + SL * 2, H, P.ink1); glow(x0 + SW / 2, H / 2 + dy, col, 40, 0.3);
@@ -839,7 +902,7 @@ function drawLineup(t) {
     // the slice edges glow in the fighter's color
     line(x0 + SW + SL / 2, dy, x0 + SW - SL / 2, H + dy, col);
   });
-  if (t > 0.45) { ctx.globalAlpha = 0.75 * ease((t - 0.45) / 0.15); rect(0, H - 27, W, 20, P.void); ctx.globalAlpha = 1; textO('HOLD THE PIT', W / 2, H - 20, P.paper, 2, 'c'); }
+  if (t > 0.45) { ctx.globalAlpha = 0.75 * ease((t - 0.45) / 0.15); rect(-SX, H - 27, FW, 20, P.void); ctx.globalAlpha = 1; textO('HOLD THE PIT', W / 2, H - 20, P.paper, 2, 'c'); }
 }
 // the title scene builds up: the fighters drop onto the battlement one by one while the logo slams down letter by
 // letter, then a ring bursts off it. It ends on exactly the title screen, so the switch to the menu has no cut.
@@ -868,7 +931,7 @@ export function drawIntro(t) {
   const ox = Math.round((Math.random() - 0.5) * sh * 2), oy = Math.round((Math.random() - 0.5) * sh * 2);
   // the first cut: a white line runs across the black screen
   if (t < 0.35) {
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    fillScreen('#000');
     const x = Math.round(W * (t / 0.35));
     rect(0, H / 2, x, 1, P.paper); rect(0, H / 2 + 1, x, 1, P.ember);
     glow(x, H / 2, P.paper, 18, 0.8);
@@ -886,7 +949,7 @@ export function drawIntro(t) {
     // still waiting on the fighters' pictures: a thin bar fills under the story
     if (holding(t)) { const w = 120; rect(W / 2 - w / 2, 136, w, 1, P.ink3); rect(W / 2 - w / 2, 136, Math.round(w * Math.min(0.95, held / 3)), 1, P.ember); }
     // the screen closes to black for the first fighter
-    if (t > BEAT0 - 0.2) { ctx.globalAlpha = (t - (BEAT0 - 0.2)) / 0.2; rect(-10, -10, W + 20, H + 20, P.void); ctx.globalAlpha = 1; }
+    if (t > BEAT0 - 0.2) { ctx.globalAlpha = (t - (BEAT0 - 0.2)) / 0.2; rect(-SX - 10, -10, FW + 20, H + 20, P.void); ctx.globalAlpha = 1; }
   } else if (t < LINEUP) {
     const i = Math.floor((t - BEAT0) / BEAT);
     drawBeat(i, t - BEAT0 - i * BEAT);
@@ -933,7 +996,7 @@ function drawTouch(p, kit, full) {
     ctx.globalAlpha = 1;
     const b = TOUCH_BTNS.find((t) => t.id === sk.key);
     if (sk.cancel) textO('CANCEL', b.x - b.r - 4, b.y - 3, P.blood, 1, 'r');
-    else textO('BACK TO CANCEL', W - 4, 60, P.dust, 1, 'r');
+    else textO('BACK TO CANCEL', W + SX - 4, 60, P.dust, 1, 'r');
   }
   const state = {
     attack: [true, 1, PRIMARY_ICON[G.char], kit.color()],
@@ -944,7 +1007,12 @@ function drawTouch(p, kit, full) {
   };
   for (const b of TOUCH_BTNS) {
     if (b.id === 'pause') {
-      ctx.globalAlpha = 0.5; ring(b.x, b.y, b.r, 1, P.paper); rect(b.x - 3, b.y - 3, 2, 6, P.paper); rect(b.x + 1, b.y - 3, 2, 6, P.paper); ctx.globalAlpha = 1;
+      // the menu button: pause, settings, restart, back to the menu
+      const held_ = input.tb.pause;
+      ctx.globalAlpha = 0.85; rect(b.x - 10, b.y - 9, 20, 18, P.ink0); rect(b.x - 9, b.y - 8, 18, 16, held_ ? P.ink3 : P.ink2); ctx.globalAlpha = 1;
+      rect(b.x - 9, b.y - 8, 18, 1, P.stone2);
+      rect(b.x - 4, b.y - 4, 3, 8, P.paper); rect(b.x + 1, b.y - 4, 3, 8, P.paper);
+      textO('MENU', b.x, b.y + 11, P.bone, 1, 'c');
       continue;
     }
     const [ready, frac, ic, col] = state[b.id], held = input.tb[b.id];
@@ -970,10 +1038,10 @@ export function drawLockin(t, id) {
   const slam = t > 0.36 && t < 0.62 ? (0.62 - t) / 0.26 : 0;
   ctx.save();
   if (slam) ctx.translate(Math.round((Math.random() - 0.5) * 8 * slam), Math.round((Math.random() - 0.5) * 5 * slam));
-  rect(-10, -10, W + 20, H + 20, P.void);
+  rect(-SX - 10, -10, FW + 20, H + 20, P.void);
   // speed lines rushing past
   for (let i = 0; i < 28; i++) {
-    const y = (i * 37 + 11) % H, len = 30 + ((i * 53) % 90), x = W + 120 - ((t * 760 * (1 + (i % 3) * 0.5) + i * 61) % (W + 260));
+    const y = (i * 37 + 11) % H, len = 30 + ((i * 53) % 90), x = W + SX + 120 - ((t * 760 * (1 + (i % 3) * 0.5) + i * 61) % (FW + 260));
     line(x, y, x + len, y, i % 4 ? P.ink2 : col);
   }
   // a tilted band the fighter stands on
@@ -986,7 +1054,8 @@ export function drawLockin(t, id) {
   // and pushes in slowly. Without the portrait (still loading) the 5x sprite does the same.
   const pic = portraitReady(id);
   if (pic) {
-    const k = ease((t - 0.06) / 0.28), S = PORTRAIT_SCALE + 4 + (t > 0.5 ? 1 : 0), x = -110 + (84 + 110) * k, y = H - 4;
+    // three canvas pixels to an art pixel, the feet below the screen: a shot from the knees up
+    const k = ease((t - 0.06) / 0.28), S = PORTRAIT_SCALE + 1, x = -110 + (84 + 110) * k, y = H + 64;
     glow(x, H / 2, col, 80, 0.3);
     if (k < 1) for (let g = 4; g >= 1; g--) drawPortrait(id, t, x - g * 18, y, S, { tint: col, alpha: 0.3 / g });
     drawPortrait(id, t, x, y, S);
@@ -1028,7 +1097,7 @@ export function drawLockin(t, id) {
   // a white flash builds over everything (the portrait too) and carries into the arena, where it fades
   if (t > LOCK_LEN - 0.2) {
     const a = Math.min(1, (t - (LOCK_LEN - 0.2)) / 0.2);
-    ctx.globalAlpha = a; rect(0, 0, W, H, P.paper); ctx.globalAlpha = 1;
-    if (pic) { const h = hdCtx(); h.globalAlpha = a; h.fillStyle = P.paper; h.fillRect(0, 0, W, H); h.globalAlpha = 1; }
+    ctx.globalAlpha = a; rect(-SX, 0, FW, H, P.paper); ctx.globalAlpha = 1;
+    if (pic) { const h = hdCtx(); h.globalAlpha = a; h.fillStyle = P.paper; h.fillRect(-SX, 0, FW, H); h.globalAlpha = 1; }
   }
 }

@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=185';
-import { heroEntrance } from './entrances.js?v=185';
-import { SPR } from './sprites.js?v=185';
-import { A } from './audio.js?v=185';
-import { input } from './input.js?v=185';
-import { best } from './store.js?v=185';
+import { ctx, canvas, W, H, FW, SX, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=189';
+import { heroEntrance } from './entrances.js?v=189';
+import { SPR } from './sprites.js?v=189';
+import { A } from './audio.js?v=189';
+import { input } from './input.js?v=189';
+import { best } from './store.js?v=189';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=185';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=189';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -1223,7 +1223,7 @@ CHARS.DEV = {
       const root = G.evo === true, C1 = root ? '#62efff' : GREEN, C2 = root ? '#ff4fa8' : GREEN;
       const GP = root ? ['#62efff', '#ff4fa8', P.paper, '#0a1020'] : null;
       const cmd = root ? '# rm -rf --no-preserve-root /world/*' : '$ sudo rm -rf /enemies' + (G.up.evoUlt ? ' --no-preserve-root' : '');
-      const u = { t: 0, done: false, rain: root ? Array.from({ length: 42 }, (_, i) => ({ x: i * 7.7 + rnd(-2, 2), y: rnd(-H, 0), v: rnd(140, 280), n: Math.floor(rnd(5, 13)) })) : null };
+      const u = { t: 0, done: false, rain: root ? Array.from({ length: Math.ceil(FW / 7.7) }, (_, i) => ({ x: i * 7.7 + rnd(-2, 2) - SX, y: rnd(-H, 0), v: rnd(140, 280), n: Math.floor(rnd(5, 13)) })) : null };
       p.state = 'cine'; p.vx = p.vy = 0;
       A.ultStart();
       G.cine = {
@@ -1250,10 +1250,10 @@ CHARS.DEV = {
           }
         },
         draw() {
-          ctx.save(); ctx.setTransform(SS, 0, 0, SS, 0, 0);
+          ctx.save(); stageTransform();
           if (root) {
             // the screen goes dark blue; code rains down it, and every enemy is boxed for deletion
-            ctx.globalAlpha = Math.min(0.55, u.t * 1.2); ctx.fillStyle = '#020a16'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+            fillScreen('#020a16', Math.min(0.55, u.t * 1.2));
             for (const d of u.rain) for (let j = 0; j < d.n; j++) {
               const y = Math.round(d.y - j * 6);
               if (y < -6 || y > H) continue;

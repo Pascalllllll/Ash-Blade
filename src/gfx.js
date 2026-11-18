@@ -1,5 +1,11 @@
-// Low-res pixel renderer: everything draws into a 320x180 canvas that CSS scales up by whole numbers.
+// Low-res pixel renderer: everything is laid out on a 320x180 stage that CSS scales up to fill the window.
 export const W = 320, H = 180;
+// On a screen wider than 16:9 the canvas grows to FW game pixels (up to 21:9) and the 320-wide stage sits in its
+// middle, SX pixels in. Everything still lays out on the stage; the arena, backgrounds, full-screen effects, the
+// HUD's corners and the touch buttons reach out to the real edges (x from -SX to W + SX).
+export let FW = W, SX = 0;
+const widthHooks = [];
+export const onWidth = (f) => widthHooks.push(f);
 export const canvas = document.getElementById('screen');
 // The world is drawn on a 960 x 540 canvas: positions stay in game pixels (320 x 180), and every sprite has a
 // pixel density. Density 1 sprites (monsters, bosses, effects) keep their exact pixels, each one shown as 3 x 3;
@@ -10,7 +16,17 @@ canvas.height = H * SS;
 export const ctx = canvas.getContext('2d');
 ctx.setTransform(SS, 0, 0, SS, 0, 0);
 ctx.imageSmoothingEnabled = false;
-ctx.imageSmoothingEnabled = false;
+// the stage's own transform: game pixels, shifted SX in (a fill helper uses it to reach the real edges)
+export const stageTransform = (g = ctx) => g.setTransform(SS, 0, 0, SS, SX * SS, 0);
+function setWidth(fw) {
+  if (fw === FW) return;
+  FW = fw; SX = (FW - W) / 2;
+  canvas.width = FW * SS; canvas.height = H * SS;
+  stageTransform(); ctx.imageSmoothingEnabled = false;
+  for (const f of widthHooks) f();
+}
+// fills the whole screen, edge to edge, whatever the stage's width
+export function fillScreen(c, a = 1, g = ctx) { if (a <= 0) return; const ga = g.globalAlpha; g.globalAlpha = ga * Math.min(1, a); g.fillStyle = c; g.fillRect(-SX, 0, FW, H); g.globalAlpha = ga; }
 
 export const P = {
   void: '#07060b', ink0: '#0d0b14', ink1: '#15111d', ink2: '#1f1929', ink3: '#2b2337',
@@ -53,9 +69,9 @@ const hctx = hd.getContext('2d');
 let hdUsed = false, hdDirty = false;
 // starts an HD frame: returns the context scaled to game units, and the device pixels per game unit
 export function hdBegin() {
-  const k = hd.width / W;
+  const k = hd.width / FW, ky = hd.height / H;
   hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hd.width, hd.height);
-  hctx.setTransform(k, 0, 0, k, 0, 0); hctx.imageSmoothingEnabled = false;
+  hctx.setTransform(k, 0, 0, ky, SX * k, 0); hctx.imageSmoothingEnabled = false;
   hdUsed = true; hdDirty = true;
   if (hd.style.visibility !== 'visible') hd.style.visibility = 'visible';
   return [hctx, k];
@@ -68,23 +84,30 @@ export function hdEnd() {
   hdUsed = false;
 }
 
-// AUTO: fills the window at 100%, whatever the device. SHARP: the biggest whole-number zoom, so every
-// game pixel is the same size. A fixed resolution is in device pixels and never grows past the window.
+// AUTO: fills the window, whatever the device: on a screen wider than 16:9 (a phone on its side) the game gets wider
+// instead of leaving bars at the sides. SHARP: the biggest whole-number zoom, so every game pixel is the same size.
+// A fixed resolution is in device pixels and never grows past the window.
 export const view = { res: 'AUTO' };
+export const MAX_W = 426;   // 21:9 and a little more
 export function fit() {
-  const raw = Math.min(innerWidth / W, innerHeight / H);
+  const aspect = innerWidth / Math.max(1, innerHeight), want = 2 * Math.round((H * aspect) / 2);
+  setWidth(view.res === 'AUTO' ? Math.max(W, Math.min(MAX_W, want)) : W);
+  const raw = Math.min(innerWidth / FW, innerHeight / H);
   const touch = document.documentElement.classList.contains('touch');
   let s;
   if (view.res === 'AUTO') s = raw;
   else if (view.res === 'SHARP') s = touch ? Math.max(0.5, raw) : Math.max(1, Math.floor(raw));
   else s = Math.min(raw, parseInt(view.res, 10) / W / (devicePixelRatio || 1));
-  canvas.style.width = W * s + 'px';
-  canvas.style.height = H * s + 'px';
+  let cw = FW * s, ch = H * s;
+  // AUTO on a screen the stage widened to match: fill it exactly, edge to edge (the stretch is under a pixel)
+  if (view.res === 'AUTO' && FW === want) { cw = innerWidth; ch = innerHeight; }
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
   // the HD layer matches the screen in device pixels
   // capped at 2x pixel density and 2560 wide: phones at 3x don't need more, and every pixel costs
-  const dpr = Math.min(2, devicePixelRatio || 1), k = Math.min(1, 2560 / (W * s * dpr));
-  hd.width = Math.round(W * s * dpr * k); hd.height = Math.round(H * s * dpr * k);
-  hd.style.width = W * s + 'px'; hd.style.height = H * s + 'px';
+  const dpr = Math.min(2, devicePixelRatio || 1), k = Math.min(1, 2560 / (cw * dpr));
+  hd.width = Math.round(cw * dpr * k); hd.height = Math.round(ch * dpr * k);
+  hd.style.width = cw + 'px'; hd.style.height = ch + 'px';
 }
 
 export function rect(x, y, w, h, c) { C.fillStyle = rc(c); C.fillRect(Math.round(x), Math.round(y), w, h); }
@@ -272,6 +295,11 @@ function glowTex(col, r) {
   gcache.set(k, c);
   return c;
 }
+// many glows in a row (the particles): set the blend once, draw them all with glowAt, then glowEnd. Switching the
+// blend for every single glow is slow on phones.
+export function glowBegin() { C.globalCompositeOperation = 'lighter'; }
+export function glowAt(x, y, col, r, a = 1) { r = Math.max(2, Math.round(r)); C.globalAlpha = Math.max(0, Math.min(1, a)); C.drawImage(glowTex(rc(col), r), Math.round(x) - r, Math.round(y) - r); }
+export function glowEnd() { C.globalAlpha = 1; C.globalCompositeOperation = 'source-over'; }
 export function glow(x, y, col, r, a = 1) {
   r = Math.max(2, Math.round(r));
   C.globalCompositeOperation = 'lighter';

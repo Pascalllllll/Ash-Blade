@@ -1,7 +1,9 @@
-import { canvas, W, H } from './gfx.js?v=185';
+import { canvas, W, H, FW, SX, onWidth } from './gfx.js?v=189';
 
 // the movement stick sits in a fixed spot; any touch on the left side drives it from there
-export const STICK_X = 50, STICK_Y = 135, STICK_R = 22;
+// the movement stick sits near the screen's left edge (the stage can be narrower than the screen, see gfx.js)
+export let STICK_X = 50;
+export const STICK_Y = 135, STICK_R = 22;
 const AIM_DEAD = 6;
 export const input = {
   down: new Set(),
@@ -22,20 +24,31 @@ export const input = {
   thit: new Set(),
 };
 
-// on-screen buttons in game pixels (the canvas is 320x180)
+// on-screen buttons in game pixels on the 320x180 stage. They hug the screen's right edge (on a wider screen they move
+// out with it, see gfx.js). A touch counts for the nearest button within reach, so neighbors never steal each other's
+// presses.
 export const TOUCH_BTNS = [
-  { id: 'attack', x: 284, y: 138, r: 22 },
-  { id: 'dash', x: 244, y: 160, r: 12 },
-  { id: 'q', x: 246, y: 121, r: 11 },
-  { id: 'e', x: 262, y: 99, r: 11 },
-  { id: 'r', x: 290, y: 95, r: 11 },
-  { id: 'pause', x: 160, y: 9, r: 9 },
+  { id: 'attack', bx: 284, y: 138, r: 23 },
+  { id: 'dash', bx: 243, y: 160, r: 13 },
+  { id: 'q', bx: 245, y: 120, r: 12 },
+  { id: 'e', bx: 262, y: 97, r: 12 },
+  { id: 'r', bx: 291, y: 93, r: 12 },
+  // the menu button (pause, settings, restart, back to the menu) in the top right corner
+  { id: 'pause', bx: 302, y: 12, r: 11 },
 ];
+const REACH = 9;
+function placeButtons() {
+  for (const b of TOUCH_BTNS) b.x = b.mid ? b.bx : b.bx + SX;
+  STICK_X = 50 - SX;
+  const s = input.stick;
+  if (s.id === null) { s.ox = s.x = STICK_X; s.oy = s.y = STICK_Y; }
+}
+const nearestBtn = (x, y) => { let best = null, bd = 1e9; for (const b of TOUCH_BTNS) { const d = Math.hypot(x - b.x, y - b.y); if (d < b.r + REACH && d - b.r < bd) { bd = d - b.r; best = b; } } return best; };
 const roles = new Map();
 let wentFull = false;
 function touchPt(t) {
   const r = canvas.getBoundingClientRect();
-  return { x: ((t.clientX - r.left) / r.width) * W, y: ((t.clientY - r.top) / r.height) * H };
+  return { x: ((t.clientX - r.left) / r.width) * FW - SX, y: ((t.clientY - r.top) / r.height) * H };
 }
 function becomeTouch() {
   if (!input.touch) { input.touch = true; document.documentElement.classList.add('touch'); }
@@ -82,14 +95,14 @@ addEventListener('touchstart', (e) => {
   for (const t of e.changedTouches) {
     const { x, y } = touchPt(t);
     if (input.touchPlay) {
-      const b = TOUCH_BTNS.find((b) => Math.hypot(x - b.x, y - b.y) < b.r + 6);
+      const b = nearestBtn(x, y);
       if (b && !(input.aimable[b.id] && input.skill.id === null)) {
         roles.set(t.identifier, b.id); input.tb[b.id] = true; input.thit.add(b.id);
         if (b.id === 'attack') startAim(t.identifier, b.x, b.y);
       } else if (b && input.aimable[b.id] && input.skill.id === null) {
         roles.set(t.identifier, b.id); input.tb[b.id] = true;
         Object.assign(input.skill, { id: t.identifier, key: b.id, ox: b.x, oy: b.y, dx: 0, dy: 0, active: false, was: false, cancel: false });
-      } else if (x < W * 0.55 && input.stick.id === null) {
+      } else if (x < FW * 0.55 - SX && input.stick.id === null) {
         input.stick.id = t.identifier;
         roles.set(t.identifier, 'stick');
         moveStick(x, y);
@@ -156,7 +169,7 @@ addEventListener('blur', () => {
 
 function toCanvas(e) {
   const r = canvas.getBoundingClientRect();
-  input.mouse.x = Math.max(0, Math.min(W - 1, ((e.clientX - r.left) / r.width) * W));
+  input.mouse.x = Math.max(-SX, Math.min(W + SX - 1, ((e.clientX - r.left) / r.width) * FW - SX));
   input.mouse.y = Math.max(0, Math.min(H - 1, ((e.clientY - r.top) / r.height) * H));
 }
 addEventListener('mousemove', (e) => {
@@ -186,3 +199,7 @@ export function endFrame() {
   input.cast = null;
   input.any = false;
 }
+
+// the buttons and the stick follow the screen edges when the stage widens
+placeButtons();
+onWidth(placeButtons);

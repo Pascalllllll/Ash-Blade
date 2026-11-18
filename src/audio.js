@@ -4,6 +4,8 @@ const layers = {};
 const loops = {};
 const last = {};
 const rnd = (a, b) => a + Math.random() * (b - a);
+// phones: every sound is built from fewer voices (each voice is a few audio nodes made on the spot)
+const LITE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
 function gate(name, gap) {
   if (!ac) return false;
@@ -183,6 +185,26 @@ TRACKS.DAWN = {
   leadType: 'horn', leadVol: 0.065, leadOct: 0,
 };
 
+// Nox, the last night: a war march in D minor under the choir, the horn's line sinking a half step at the end of each
+// phrase, war drums and a distorted bass under it all
+TRACKS['LAST NIGHT'] = {
+  orch: true, choir: true, bell: true, harm: true, bpm: 128, prog: [[38, DM], [39, MA], [34, MA], [37, [0, 3, 6]]],
+  kick: 'x.....x...x.....', snare: '....x.......x..x', hat: 'x.x.x.x.x.x.x.x.', hatVel: 0.5, snareVel: 0.8,
+  taiko: 'x..x..x.x..x..x.', ost: [0, 1, 2, 1, 0, 1, 3, 1, 0, 1, 2, 1, 0, 2, 3, 2],
+  bass: same('0 . 0 . 0 . 0 . 0 . 0 . 1 . 0 .'), bassLen: 1.6, bassCut: 600, dist: true,
+  lead: bars('12 . . . 13 . . . 12 . 10 . 8 . 7 .|5 . . . 7 . . . 8 . 7 . 5 . 3 .|12 . . . 15 . . . 13 . 12 . 10 . 8 .|7 . . . 6 . . . 3 . . . 2 . . .'),
+  leadType: 'horn', leadVol: 0.07, leadOct: 0,
+};
+// the endless night after it: faster, every drum going, the choir never letting up
+TRACKS['ENDLESS NIGHT'] = {
+  orch: true, choir: true, harm: true, bpm: 146, prog: [[38, DM], [36, MA], [34, MA], [33, MA]],
+  kick: 'x..x..x...x..x..', snare: '....x.......x...', hat: 'xxxxxxxxxxxxxxxx', hatVel: 0.4,
+  taiko: 'x...x...x...x.xx', ost: [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 3, 2],
+  bass: same('0 . 0 0 . 0 0 . 0 . 0 0 . 0 12 .'), bassLen: 0.9, bassCut: 900, dist: true,
+  lead: bars('14 . 12 . 10 . 9 . 10 . . . 7 . . .|12 . 10 . 9 . 7 . 9 . . . 5 . . .|10 . 12 . 14 . 15 . 17 . . . 15 . 14 .|13 . . . 12 . . . 9 . . . 13 . . .'),
+  leadType: 'horn', leadVol: 0.06, leadOct: 0,
+};
+
 // what plays in each moment when the soundtrack is AUTO, and how loud each layer is
 const SCENES = {
   // (the gentle themes have quieter parts, so their layers go above 1 to sit just under the battle music)
@@ -202,8 +224,9 @@ const SCENES = {
   boss_mirror: { track: 'REFLECTION', pad: 0.8, bass: 1, drums: 1, arp: 0.6, lead: 1 },
   boss_eclipse: { track: 'ECLIPSE', pad: 1, bass: 1, drums: 1, arp: 0.8, lead: 1 },
   boss_clock: { track: 'TEMPEST', pad: 0.8, bass: 1, drums: 1, arp: 1, lead: 0.8 },
-  // the final boss plays the title theme at full force: he wrote it
-  boss_dev: { track: 'HYPERDRIVE', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
+  // Nox, and the endless night after it
+  boss_nox: { track: 'LAST NIGHT', pad: 1.2, bass: 1.1, drums: 1.2, arp: 1, lead: 1.4 },
+  night: { track: 'ENDLESS NIGHT', pad: 1, bass: 1, drums: 1.1, arp: 1, lead: 1.2 },
   dead: { track: null, pad: 0.6, bass: 0, drums: 0, arp: 0, lead: 0 },
   // the opening plays its own score (A.intro*), so the soundtrack waits
   intro: { track: null, pad: 0, bass: 0, drums: 0, arp: 0, lead: 0 },
@@ -901,13 +924,8 @@ export const A = {
       hiss(3.4, 0.12, 'lowpass', 300, 120, 1, B, t, 0.6);
       for (let k = 0; k < 6; k++) taiko(t + 0.4 + k * 0.42, 0.35 + k * 0.08, 0.7);
       for (let k = 0; k < 3; k++) { const at = t + 0.8 + k * 0.7; tone('sawtooth', 90 + k * 12, 50, 0.6, 0.12, crunch, at, 0.08); hiss(0.5, 0.18, 'bandpass', 500, 300, 4, crunch, at, 0.05); }
-    } else {
-      // the goal: a horn call
-      brassChord([50, 57, 62], t + 0.05, 0.9, 0.06, B);
     }
   },
-  // a goal lands on the last panel: a brass hit, each one higher
-  goalHit(k) { if (!ac) return; const t = ac.currentTime, r = [62, 65, 69][k] ?? 62; brassChord([r, r + 7, r + 12], t, 0.7, 0.07, ibus()); taiko(t, 0.8 + k * 0.2, 1); if (k === 2) cymbal(t, 1.8, 0.1); },
   // ---- the ending ----
   endingCue(i) {
     if (!ac) return;
@@ -931,6 +949,43 @@ export const A = {
       const at = t + 1.8; tone('sawtooth', mtof(26), mtof(25), 3, 0.08, B, at, 1); hiss(2.5, 0.1, 'lowpass', 400, 150, 1, B, at, 1);
     }
   },
+  // ---- the other stories (story.js): the goal panel, the ending's new pages, the choice page, going home, going
+  // deeper, and falling in the deep ----
+  storyCue(name) {
+    if (!ac) return;
+    const t = ac.currentTime, B = ibus();
+    switch (name) {
+      // the fighters gather at the pit's edge: a horn call over far drums
+      case 'gather': brassChord([50, 57, 62], t + 0.05, 1.1, 0.055, B); for (let k = 0; k < 4; k++) taiko(t + 0.5 + k * 0.5, 0.35 + k * 0.1, 0.8); break;
+      // the torches down the pit: a brass hit every five, higher each time; the twentieth wakes the sun in him
+      case 'torch5': case 'torch10': case 'torch15': { const r = { torch5: 57, torch10: 60, torch15: 64 }[name]; brassChord([r, r + 7, r + 12], t, 0.6, 0.05, B); taiko(t, 0.7, 1); break; }
+      case 'torch20': brassChord([62, 69, 74, 78], t, 1.6, 0.07, B); braam(t + 0.05, 1.8, 0.12); cymbal(t, 2, 0.1); taiko(t, 1.2, 0.8); break;
+      // the King's people, set free: a choir rising into a major chord, and bells
+      case 'freed': choirChord(t + 0.2, 4, [57, 64, 69, 73], 0.04); [81, 85, 88, 93].forEach((m, k) => chime(mtof(m), t + 0.9 + k * 0.35, 0.04, 1.4)); break;
+      // Aurel's last look at the sun: one low bell, a soft chord that turns from minor to major
+      case 'aurel': this.bell(); choirChord(t + 0.3, 2.2, [50, 57, 62, 65], 0.03); choirChord(t + 2.4, 2.6, [50, 57, 62, 66], 0.035); break;
+      // a comic panel stamping onto the page
+      case 'stamp': taiko(t, 0.5, 1.3); hiss(0.07, 0.25, 'bandpass', 1800, 900, 1.5, sfx, t); v('sine', 140, 60, 0.12, 0.35, t, { dest: crunch }); break;
+      // the two roads appear: a fanfare
+      case 'choose': brassChord([62, 66, 69, 74], t, 1.2, 0.07, B); cymbal(t, 1.6, 0.08); break;
+      // the climb into the first morning: a warm chord and birds
+      case 'climb': choirChord(t + 0.1, 4, [62, 66, 69, 74], 0.035); whistles(t + 0.6, 4); whistles(t + 2.2, 3); break;
+      // a fighter's own ending: a little rising tune on the bells
+      case 'epilogue': [74, 78, 81, 86, 85, 81].forEach((m, k) => chime(mtof(m), t + 0.3 + k * 0.26, 0.04, 1.1)); choirChord(t + 0.2, 3.4, [62, 69, 74], 0.025); break;
+      // the seal under the throne breaks: a rumble, stone cracking, a sub drop
+      case 'seal': hiss(3, 0.14, 'lowpass', 300, 90, 1, B, t, 0.4); for (let k = 0; k < 5; k++) crackle(t + 0.4 + k * 0.45, 7, 1400 - k * 120, 0.06); subDrop(t + 2.4, 1); break;
+      // the dark opens its eyes: a cold, low choir and a long swell from nothing
+      case 'eyes': choirChord(t + 0.2, 4.2, [38, 45, 50, 53], 0.04); tone('sawtooth', mtof(26), mtof(25), 4, 0.06, B, t, 2.5); hiss(4, 0.08, 'bandpass', 200, 900, 3, B, t, 3); break;
+      // the fighter goes down: war drums, a braam, the wind rushing past
+      case 'descend': for (let k = 0; k < 6; k++) taiko(t + k * 0.4, 0.4 + k * 0.1, 0.8); braam(t + 2.4, 2.2, 0.16, 38); hiss(1.6, 0.18, 'bandpass', 300, 3000, 1.2, B, t + 2.2, 0.3); break;
+      // falling in the deep: three bell tolls and a low choir
+      case 'fall': for (let k = 0; k < 3; k++) setTimeout(() => this.bell(), k * 1100); choirChord(t + 0.2, 4, [45, 52, 57, 60], 0.035); break;
+      // the nights they held the dark back: a slow heartbeat on the drums under a choir
+      case 'hold': for (let k = 0; k < 6; k++) { taiko(t + 0.3 + k * 0.7, 0.45, 0.7); taiko(t + 0.48 + k * 0.7, 0.3, 0.75); } choirChord(t + 0.4, 4, [50, 57, 62, 65], 0.03); break;
+      // high above, the sun still rises
+      case 'rise': choirChord(t + 0.1, 4.4, [62, 66, 69, 74, 78], 0.04); whistles(t + 1, 4); [86, 90, 93].forEach((m, k) => chime(mtof(m), t + 0.5 + k * 0.3, 0.04, 1.4)); break;
+    }
+  },
   ultStart() { if (!ac) return; tone('sine', 70, 30, 1.2, 0.8, crunch); hiss(0.5, 0.4, 'bandpass', 200, 6000, 2, sfx, ac.currentTime, 0.4); },
   ultCut(i) { if (!ac) return; hiss(0.05, 0.4, 'bandpass', 6000, 9500, 3); tone('sine', 1800 + i * 70, 1700 + i * 70, 0.07, 0.05); },
   ultRelease() { if (!ac) return; last.boom = -1; this.boom(2.6); tone('sine', 2600, 2400, 1.3, 0.1); hiss(1, 0.5, 'lowpass', 8000, 200, 0.7); },
@@ -944,15 +999,16 @@ function v(type, f0, f1, dur, vol, t, o = {}) {
   const e = ac.createGain();
   env(e, t, o.a ?? 0.002, vol, dur);
   osc.connect(e); e.connect(o.dest || sfx);
-  if (o.rev && sfxRev) { const g = ac.createGain(); g.gain.value = o.rev; e.connect(g); g.connect(sfxRev); }
+  if (o.rev && sfxRev && !LITE) { const g = ac.createGain(); g.gain.value = o.rev; e.connect(g); g.connect(sfxRev); }
   osc.start(t); osc.stop(t + dur + 0.05);
 }
 function n(dur, vol, type, f0, f1, q, t, o = {}) {
   hiss(dur, vol, type, f0, f1, q, o.dest || sfx, t, o.a ?? 0.002);
-  if (o.rev && sfxRev) hiss(dur, vol * o.rev, type, f0, f1, q, sfxRev, t, o.a ?? 0.002);
+  if (o.rev && sfxRev && !LITE) hiss(dur, vol * o.rev, type, f0, f1, q, sfxRev, t, o.a ?? 0.002);
 }
 // pixels shattering: a quick run of tiny bright blips falling in pitch, a sprite breaking into its pixels
 function crackle(t, count = 9, f0 = 4200, vol = 0.05) {
+  if (LITE) { count = Math.ceil(count / 2); vol *= 1.3; }
   for (let i = 0; i < count; i++) {
     const at = t + i * rnd(0.008, 0.02), f = f0 * (1 - i / (count * 1.7)) * rnd(0.85, 1.15);
     v('square', f, f * 0.8, 0.012, vol * (1 - (i / count) * 0.6), at);
@@ -962,7 +1018,7 @@ function crackle(t, count = 9, f0 = 4200, vol = 0.05) {
 function chime(f, t, vol = 0.06, dur = 0.35) {
   v('triangle', f, f, dur, vol, t, { rev: 0.5 });
   v('sine', f * 2, f * 2, dur * 0.6, vol * 0.45, t + 0.004, { rev: 0.6 });
-  v('sine', f * 3.01, f * 3.01, dur * 0.3, vol * 0.18, t + 0.008);
+  if (!LITE) v('sine', f * 3.01, f * 3.01, dur * 0.3, vol * 0.18, t + 0.008);
 }
 // a brass chord: detuned saws, the filter blown open, then settling
 function brassChord(notes, t, dur = 0.8, vol = 0.05, dest = sfx) {
