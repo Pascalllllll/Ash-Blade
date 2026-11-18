@@ -1,15 +1,16 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=182';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=182';
-import { loadPortraits, portraitReady, drawPortrait, PORTRAIT_SCALE } from './portraits.js?v=182';
-import { SPR, icon } from './sprites.js?v=182';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=182';
-import { A } from './audio.js?v=182';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF } from './store.js?v=182';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=182';
-import { CHARS } from './chars.js?v=182';
-import { BOSSES, bossFor } from './bosses.js?v=182';
-import { MAPS } from './maps.js?v=182';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=182';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=183';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=183';
+import { loadPortraits, portraitReady, drawPortrait, PORTRAIT_SCALE } from './portraits.js?v=183';
+import { SPR, icon } from './sprites.js?v=183';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=183';
+import { A } from './audio.js?v=183';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF } from './store.js?v=183';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=183';
+import { CHARS } from './chars.js?v=183';
+import { BOSSES, bossFor } from './bosses.js?v=183';
+import { MAPS } from './maps.js?v=183';
+import { drawTalk } from './story.js?v=183';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=183';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -222,6 +223,8 @@ export function drawHUD(menu) {
   }
   const low = p.hp <= 2 && p.hp > 0 ? 0.35 + Math.sin(G.time * 6) * 0.15 : 0, a = Math.max(fx.hurtVig * 0.8, low);
   if (a > 0) { ctx.globalAlpha = a; ctx.drawImage(RED, 0, 0); ctx.globalAlpha = 1; }
+  // whoever is talking: the King, the fighter, or the thing below the pit
+  if (!menu) drawTalk();
 }
 
 // ---------- title ----------
@@ -670,7 +673,7 @@ export function drawVictory(t) {
   dim(0.7 * k);
   for (let i = 0; i < 3; i++) glow(W / 2 + Math.sin(t + i * 2) * 80, 30 + Math.cos(t * 1.3 + i) * 10, P.gold, 30, 0.15);
   textO('VICTORY', W / 2, 18 - Math.round((1 - k) * 14), P.gold, 4, 'c');
-  textO('THE ASHEN KING HAS FALLEN', W / 2, 44, P.ember3, 1, 'c');
+  textO('THE ASHEN KING HAS FALLEN. THE SUN IS FREE.', W / 2, 44, P.ember3, 1, 'c');
   text(G.kit.name + '  ' + MAPS[G.mapKey].name + '  ' + G.diffKey, W / 2, 54, P.dust, 1, 'c');
   stats(66, t);
   if (t > 1.2) { textO((input.touch ? 'TAP LEFT' : 'ENTER') + '  KEEP GOING (ENDLESS)', W / 2, 128, P.paper, 1, 'c'); textO((input.touch ? 'TAP RIGHT' : 'ESC') + '  BACK TO MENU', W / 2, 140, P.dust, 1, 'c'); }

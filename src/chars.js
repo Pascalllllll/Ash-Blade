@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=182';
-import { heroEntrance } from './entrances.js?v=182';
-import { SPR } from './sprites.js?v=182';
-import { A } from './audio.js?v=182';
-import { input } from './input.js?v=182';
-import { best } from './store.js?v=182';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=183';
+import { heroEntrance } from './entrances.js?v=183';
+import { SPR } from './sprites.js?v=183';
+import { A } from './audio.js?v=183';
+import { input } from './input.js?v=183';
+import { best } from './store.js?v=183';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=182';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=183';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)

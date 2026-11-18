@@ -1,6 +1,6 @@
 # Ashblade
 
-A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fighter and hold an arena against waves of monsters. Every fifth wave is a boss. Beating the Ashen King on wave 20 ends the story, and then the game goes endless, getting harder every wave.
+A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fighter and hold an arena against waves of monsters. Every fifth wave is a boss. Beating the Ashen King on wave 20 frees the sun and plays the ending, and then the game goes endless, getting harder every wave.
 
 **Play it at [ash-blade.vercel.app](https://ash-blade.vercel.app/).**
 
@@ -8,8 +8,9 @@ A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fig
 - Fighters that move with weight: 12-frame walks and runs where the body sinks into every step and springs up on the next, the arms swing against the feet and the run leans in. Rin, the fastest, has a quick little ninja run of her own, leaning hard with her arms swept back and her katana trailing behind her. They push off in a puff of dust, skid when they turn hard or stop, throw themselves forward into a dash with speed lines and afterimages, and flinch with their eyes screwed shut when hit. Stand still for a few seconds and they show off: Kael spins his sword, Vega twirls her revolver, Morrow raises his staff, Rin flicks her katana clean, Rivet tosses her wrench, Grom heaves his hammer onto his shoulder
 - A big animated pixel portrait of every fighter on the select screen, each in a pose of their own and ending in a signature move: Kael's fire slash, Vega's gun twirl, Morrow's orb flare over a turning magic circle, Rin's flash cut through falling petals, Rivet's wrench taps, Grom's ground slam, Unit-7's charged shot, the Dev's glitch among floating code windows
 - A title screen drawn in the game's own pixels: the swallowed sun over the ruins of the pit, and the eight fighters on a battlement, taking turns to show off their weapons
-- An opening where all eight fighters cut in one after another, then drop onto that battlement as the logo slams down (any key skips it)
-- 10 kinds of monsters, including an archer whose aim you can see and a priest that heals the others, plus elites with affixes and wave twists that change the rules
+- An opening that tells the story in illustrated pixel panels (how King Aurel swallowed the sun) and shows the goal of a run, then all eight fighters cut in one after another and drop onto that battlement as the logo slams down (any key turns the page, Escape skips it)
+- A villain who talks: the Ashen King taunts you through the run, meets you face to face on wave 20 (every fighter answers him in their own words), and an ending plays when he falls
+- 10 kinds of monsters, drawn in the same pixel style as the fighters, including an archer whose aim you can see and a priest that heals the others, plus elites with affixes and wave twists that change the rules. Every kill breaks a monster apart pixel by pixel
 - 10 bosses, up to The Dev, the game's own developer, on wave 50
 - Upgrades after every wave and a relic after every boss
 - 5 arenas, 4 difficulties, phone controls, and a save at every wave
@@ -18,7 +19,11 @@ A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fig
 
 ## Story
 
-The Ashen King swallowed the sun and sealed the last of the world in a pit. Seven fighters went down after him, each for a reason of their own. An eighth was there before any of them.
+Aurel was the Sun King, and his kingdom lived in its light. When the sun grew old and dim he feared the dark that waits for everything, so he swallowed the sun whole, to burn forever. The sky went black, the land turned to ash, and he became the Ashen King. Every night his army of ash climbs out of the pit below his throne.
+
+Eight fighters hold the pit, each for a reason of their own. The goal of a run: survive 20 waves, kill the Ashen King on the twentieth, and free the sun. He speaks to you on the way down: when the run begins, when each of his bosses arrives and dies, and face to face before the last fight, where every fighter answers him in their own voice. When he falls the sun breaks out of him, the light comes back, and your fighter has the last word.
+
+Past wave 20 the pit keeps going. With the King dead, nothing keeps shut what was sealed below it, and something older starts to answer.
 
 ## Fighters
 
@@ -49,7 +54,7 @@ Pink afterimages trail behind Rin when she runs. She wears her katana sheathed a
 
 Every fighter awakens once per run, after any five evolutions (see Upgrades). The evolution banner counts them, AWAKENING 1/5 to 5/5. The awakened forms are Ashen Kael, Deadeye Vega, Archmage Morrow, Oni Rin, Rivet Mk-II, Titan Grom, Unit-7 Omega and Root. Awakening brings a new look, 1 more max health, and an evolved kit for the rest of the run:
 
-- **Look:** mostly black and gold. Ashen Kael gets silver-white hair, a gold scarf and black clothes; Deadeye Vega a black hat and coat with gold, silver hair and a crimson bandana; Archmage Morrow a black robe with gold trim and blazing gold eyes; Oni Rin a samurai's battle dress: a red scarf flowing into a cape, a black kimono with a white collar and gold shoulder plates, white sleeves banded red, a red obi and a red skirt hemmed in gold, and long blue twin tails streaked pink down to her feet; Rivet Mk-II platinum hair, red-lensed gold goggles and black overalls with gold; Titan Grom black plate with gold trim and a burning red visor; Unit-7 Omega a gold shell on a black frame, and it flies on two jet engines with swept wings; Root a black hoodie, four orbiting screens and windows popping up around him.
+- **Look:** mostly black and gold. Ashen Kael gets silver-white hair, a gold scarf and black clothes; Deadeye Vega a black hat and coat with gold, silver hair and a crimson bandana; Archmage Morrow a black robe with gold trim and blazing gold eyes; Oni Rin a samurai's battle dress: a red scarf whose end folds into a cape, a black chest plate with a white V and thin gold trim, white bracers banded red, a red obi with its knot, red skirt plates hemmed in gold over a grey hakama, and long blue hair falling down both sides with pink ends; Rivet Mk-II platinum hair, red-lensed gold goggles and black overalls with gold; Titan Grom black plate with gold trim and a burning red visor; Unit-7 Omega a gold shell on a black frame, and it flies on two jet engines with swept wings; Root a black hoodie, four orbiting screens and windows popping up around him.
 - **Weapon:** each awakened fighter carries a weapon of their own: a black-and-gold greatsword with a burning edge, a long-barreled gold hand cannon with a sight, a black staff with a gold crescent and a sun-gold orb, a black nodachi with a glowing crimson edge, a gold power wrench with a glowing core, a spiked black-and-gold maul with red runes, a gold plasma cannon.
 - **Effects:** slashes, shots, beams, particles and powers switch to an awakened color scheme, drawn thicker, with an extra glowing spark on every effect, a sparkling trail behind every shot, a colored ribbon behind every swing, and a weapon that smoulders all the time.
 - **Basic attack:** 30% more damage, plus an extra effect on every hit.
@@ -91,7 +96,7 @@ Each fighter also has their own sounds and an entrance of about three seconds in
 | Morrow | Enemies unravel into arcane light | His own spell lifts him up and tears him into burning pieces that rain down with his blood. *The spell was never finished* |
 | Rin | A burst of petals | Six cuts flash across her, then she falls apart along all of them at once, and the pieces scatter into petals. *She scatters with the blossoms* |
 | Rivet | Enemies come apart into bolts and springs | Her rig overloads and blows her apart, head and chest flying, and her machines go up with her. *Warranty void* |
-| Grom | Enemies are flattened into a splat | Heaves his hammer overhead one last time, topples onto his back, and it comes down on his chest. *The wall has fallen* |
+| Grom | Enemies are flattened into a splat | The King's crown comes down out of the dark onto his helm and makes his last guard kneel: his armor buckles plate by plate, blood bursting from its joints, he braces on his hammer until the haft snaps, and the crown crushes him into his own armor. His helm rolls away and its visor light goes out. *Kneel before the King* |
 | Unit-7 | Enemies disintegrate into pixels | Its head pops off on a fountain of oil, the body counts down from three and blows itself to scrap. *Shutdown complete* |
 | The Dev | Enemies are deleted, now and then with a 404 | A FATAL ERROR box, and he is deleted line by line. *Process terminated* |
 
@@ -196,7 +201,7 @@ About one wave in three from wave 6 also comes with a twist. Survive it for a bo
 
 ![Grom in a Blood Moon wave](docs/twist.png)
 
-Heavy hits launch bodies across the arena and knock over whatever they hit. Kills close together chain into multi-kills, up to Annihilation at 20.
+Monsters die in pixels. A cut splits a monster along its own pixel grid, and both halves fly apart and crumble from the wound outward, shedding square chips that bounce on the floor; any other kill dissolves it pixel by pixel from the side the blow came from. Heavy hits launch bodies across the arena, tumbling a quarter turn at a time and knocking over whatever they hit, until they shatter. Kills close together chain into multi-kills, up to Annihilation at 20.
 
 ## Bosses
 
@@ -205,7 +210,7 @@ Heavy hits launch bodies across the arena and knock over whatever they hit. Kill
 | 5 | The Warden | Sword sweeps, shockwave jumps, rings and spirals of orbs |
 | 10 | The Brood Mother | Burrows under you, spits acid, lays eggs |
 | 15 | Iron Colossus | Lasers and missiles. Its shield only breaks to an orb you knocked back |
-| 20 | The Ashen King | Three phases, armored knights, rings of fire, and his own Thousand Cuts |
+| 20 | The Ashen King | Aurel himself. He talks to you before the fight, then three phases, armored knights, rings of fire, and his own Thousand Cuts |
 | 25 | Void Wyrm | A serpent that tunnels under you and breathes orbs |
 | 30 | Storm Herald | Calls lightning on you and teleports |
 | 35 | The Mirror | A dark copy of your own fighter |
@@ -242,7 +247,7 @@ The other settings cover volume and music choice, color theme and screen filters
 
 ## How it's built
 
-Plain JavaScript with no libraries and no build step. The game runs on a 320×180 grid and draws on a 960×540 canvas, three canvas pixels to a game pixel, so the fighters can carry three times the detail of the world around them. Each fighter comes from one picture of them, read on that picture's own pixel grid so every drawn pixel becomes exactly one sprite pixel (`art/sprites/soulknight-masters/`, about 27 by 32 pixels each). Their idle, walk, run, dash, hurt and death frames and their awakened colors are drawn from it at that size, then doubled, so every pixel is a crisp 2×2 block (`art/sprites/heroes/`). Each weapon is its own sprite at the same pixel size, turned in advance to 64 angles so it can point anywhere. The entrances, the deaths, the opening and the title screen are drawn in code from the same sprites: a death can cut the body along straight lines into pieces that each fall, spin, bounce and bleed on their own. The select screen's portraits are posed and animated from the same pictures (`art/sprites/portraits/`), then drawn eleven times bigger with their effects in code. Monsters and bosses are grids of characters in the code, and the music and sound are generated in the browser with the Web Audio API. The page makes no network requests, and runs and settings save only in your browser. It is built to run smoothly on phones: the game is capped at 60 fps, sprites and the camera move in canvas pixels so motion stays smooth, the large pictures sit on their own layers and are only redrawn when they change, the fighters' sprite sheets and portraits are small (about 530 KB for all of them), and if a device starts falling behind in a big fight the game thins out its particle effects on its own until it keeps up again.
+Plain JavaScript with no libraries and no build step. The game runs on a 320×180 grid and draws on a 960×540 canvas, three canvas pixels to a game pixel, so the fighters can carry three times the detail of the world around them. Each fighter comes from one picture of them, read on that picture's own pixel grid so every drawn pixel becomes exactly one sprite pixel (`art/sprites/soulknight-masters/`, about 27 by 32 pixels each). Their idle, walk, run, dash, hurt and death frames and their awakened colors are drawn from it at that size, then doubled, so every pixel is a crisp 2×2 block (`art/sprites/heroes/`). Each weapon is its own sprite at the same pixel size, turned in advance to 64 angles so it can point anywhere. The entrances, the deaths, the opening and the title screen are drawn in code from the same sprites: a death can cut the body along straight lines into pieces that each fall, spin, bounce and bleed on their own. The select screen's portraits are posed and animated from the same pictures (`art/sprites/portraits/`), then drawn eleven times bigger with their effects in code. Monsters and bosses are pixel grids in `src/monster-art.js`, shaded the way the fighters are: flat bands of light and shadow with a checkered seam between them, dark lines where one shape overlaps another, and a little grain on rough skin and stone. The story, the dialog box and the ending are in `src/story.js`, and the music and sound are generated in the browser with the Web Audio API. The page makes no network requests, and runs and settings save only in your browser. It is built to run smoothly on phones: the game is capped at 60 fps, sprites and the camera move in canvas pixels so motion stays smooth, the large pictures sit on their own layers and are only redrawn when they change, the fighters' sprite sheets and portraits are small (about 530 KB for all of them), and if a device starts falling behind in a big fight the game thins out its particle effects on its own until it keeps up again.
 
 | Folder | Contents |
 | --- | --- |

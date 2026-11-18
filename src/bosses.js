@@ -1,10 +1,11 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=182';
-import { A } from './audio.js?v=182';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=183';
+import { A } from './audio.js?v=183';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor, glitch, heroSet,
-} from './world.js?v=182';
-import { SPR } from './sprites.js?v=182';
+} from './world.js?v=183';
+import { SPR } from './sprites.js?v=183';
+import { say, TALK, meetLines } from './story.js?v=183';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'devboss'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
@@ -381,15 +382,16 @@ export const BOSSES = {
       e.superArmor = true; e.kx = e.ky = 0;
       if (e.phase === 3) G.dark = Math.min(1, G.dark + dt * 0.8);
       if (e.state === 'intro') {
-        // rises from a pillar of fire
-        e.t -= dt;
+        // rises from a pillar of fire, roars, and then he and the fighter talk; the fight waits for them
+        if (!G.talk?.hold) e.t -= dt;
+        if (e.t <= 1 && !e.met) { e.met = true; say(meetLines(G.char), { hold: true }); }
         if (Math.random() < 0.95) part(e.x + rnd(-10, 10), e.y - rnd(0, 10), rnd(-15, 15), -rnd(80, 200), rnd(0.4, 0.9), Math.random() < 0.5 ? P.ember : P.ember3, { glow: true, keep: true, drag: 1 });
         if (e.t < 1.6 && e.t + dt >= 1.6) { flash('#ff6a2b', 0.3, true); shake(1); A.boom(2.4); A.bossRoar(); addRing(e.x, e.y - 10, P.ember, 420, 0.6, 3); for (let i = 0; i < 16; i++) fire(e.x, e.y - 36, (i * TAU) / 16, 40, { life: 1.2, dmg: 0 }); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
         return;
       }
-      if (e.phase === 1 && e.hp < e.maxHp * 0.66) { e.phase = 2; e.state = 'rec'; e.t = 1.2; A.bossRoar(); shake(0.8); flash(P.ember, 0.2, true); phaseBanner('THE KING BURNS', P.ember); }
-      else if (e.phase === 2 && e.hp < e.maxHp * 0.33) { e.phase = 3; e.state = 'rec'; e.t = 1.5; A.bossRoar(); shake(1); phaseBanner('THE KING UNBOUND', P.blood); }
+      if (e.phase === 1 && e.hp < e.maxHp * 0.66) { e.phase = 2; e.state = 'rec'; e.t = 1.2; A.bossRoar(); shake(0.8); flash(P.ember, 0.2, true); phaseBanner('THE KING BURNS', P.ember); say(TALK.kingBurns); }
+      else if (e.phase === 2 && e.hp < e.maxHp * 0.33) { e.phase = 3; e.state = 'rec'; e.t = 1.5; A.bossRoar(); shake(1); phaseBanner('THE KING UNBOUND', P.blood); say(TALK.kingUnbound); }
       const spd = e.phase === 3 ? 1.35 : e.phase === 2 ? 1.15 : 1;
       switch (e.state) {
         case 'walk': {

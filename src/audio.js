@@ -661,6 +661,8 @@ export const A = {
   },
   deny() { if (gate('deny', 0.12)) tone('square', 180, 140, 0.08, 0.07); },
   ui() { if (gate('ui', 0.03)) tone('square', 880, 880, 0.03, 0.05); },
+  // a speaker's voice while their line types out: a short blip, low and rough for the King, brighter for everyone else
+  voice(low) { if (gate('voice', 0.055)) tone(low ? 'sawtooth' : 'square', low ? 95 + Math.random() * 25 : 520 + Math.random() * 140, low ? 80 : 470, 0.035, low ? 0.045 : 0.02); },
   select() { if (!ac) return; tone('square', 660, 660, 0.05, 0.06); tone('square', 990, 990, 0.1, 0.06, sfx, ac.currentTime + 0.05); },
   sigil() { if (gate('sig', 0.12)) { tone('sine', 220, 440, 0.4, 0.04); hiss(0.4, 0.05, 'bandpass', 800, 2400, 6); } },
   spawn() { if (gate('spn', 0.06)) { hiss(0.12, 0.2, 'lowpass', 1200, 300, 1); tone('sine', 300, 90, 0.12, 0.14); } },

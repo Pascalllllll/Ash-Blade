@@ -1,12 +1,12 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, glow, text, textO, makeCanvas } from './gfx.js?v=182';
-import { A } from './audio.js?v=182';
-import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=182';
+import { ctx, P, rect, px, line, glow, text, textO, makeCanvas, SS } from './gfx.js?v=183';
+import { A } from './audio.js?v=183';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=183';
 import {
   BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
   stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
-} from './scene-fx.js?v=182';
+} from './scene-fx.js?v=183';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
@@ -14,10 +14,14 @@ function pixels(s, flip) {
   const img = flip ? s.f : s.n;
   let a = pxCache.get(img);
   if (!a) {
-    // one entry per game pixel (a density 2 sprite is sampled every other pixel)
-    const k = s.k || 1, iw = img.width, d = img.getContext('2d').getImageData(0, 0, iw, img.height).data;
+    // one entry per game pixel, read from the picture pixel under its middle (a finer sprite, k 1.5 or 3, is sampled
+    // on whole picture pixels, so no read falls between two pixels)
+    const k = s.k || 1, iw = img.width, ih = img.height, d = img.getContext('2d').getImageData(0, 0, iw, ih).data;
     a = [];
-    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) { const i = (y * k * iw + x * k) * 4; if (d[i + 3] > 0) a.push([x, y, `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`]); }
+    for (let y = 0; y < Math.round(s.h); y++) for (let x = 0; x < Math.round(s.w); x++) {
+      const sx = Math.min(iw - 1, Math.floor((x + 0.5) * k)), sy = Math.min(ih - 1, Math.floor((y + 0.5) * k)), i = (sy * iw + sx) * 4;
+      if (d[i + 3] > 0) a.push([x, y, `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`]);
+    }
     pxCache.set(img, a);
   }
   return a;
@@ -419,77 +423,98 @@ const DEATHS = {
     under(d) { if (d.s.cr) drawCracks(d.s.cr, (d.t - 0.95) / 0.15, P.ember, 1 - (d.t - 0.95) / 1.5); },
   },
 
-  // Grom: run through. Spear after spear slams into him from every side, each one jerking him and blowing blood
-  // out of the far side; he stays standing, pinned, drops his hammer, and then the wall comes down: his body breaks
-  // apart along the spears into a heap of armor and meat, and the spears clatter down around it.
+  // Grom, the King's last guard, made to kneel. The King's crown comes down out of the dark onto his helm and
+  // presses: his armor buckles in three crunching steps, blood bursting from its joints and plates popping off, the
+  // floor cracking under him. He plants his hammer and pushes back for one breath; then the haft snaps, the crown
+  // slams down and crushes him into his own armor. His helm rolls away across the floor, its visor light going out,
+  // and the crown crumbles to ash on the heap.
   TANK: {
-    line: 'THE WALL HAS FALLEN', col: '#8b98ab',
+    line: 'KNEEL BEFORE THE KING', col: '#8b98ab',
     start(d) {
-      const T = bodyTop(), H = FOOT - T;
-      d.s.spears = Array.from({ length: 6 }, (_, i) => {
-        const side = i % 2 ? 1 : -1, ang = (side < 0 ? 0 : Math.PI) + rnd(-0.75, 0.75) + (i > 3 ? Math.PI / 2 * side : 0);
-        return { t: i * 0.12 + (i > 3 ? 0.06 : 0), ang, c: [mx(d, 60 + rnd(-8, 8)), T + H * rnd(0.42, 0.72)], stuck: false, fall: null };
-      });
-      d.s.jx = 0; d.s.white = 0;
+      Object.assign(d.s, { sy: 1, ty: 1, white: 0, cA: 0, slam: false, head: null, eye: 1, ash: 0 });
+      A.powerUp(0.5);
     },
+    // the squashed body's points: a cell point, with the body pressed down to s.sy (and spread to match)
+    pt(d, cx, cy) { const s = d.s; return cellToWorld(mx(d, cx), cy, d.x, d.y, { sx: 1 + (1 - s.sy) * 0.6, sy: s.sy }); },
     update(d, dt) {
-      const t = d.t, s = d.s;
-      s.jx *= Math.exp(-12 * dt); s.white -= dt;
-      for (const sp of s.spears) if (at(d, sp.t)) {
-        sp.stuck = true;
-        const [wx, wy] = cw(d, ...sp.c), cx = Math.cos(sp.ang), cy = Math.sin(sp.ang);
-        s.jx += cx * 2.4; s.white = 0.05;
-        spurt(wx, d.y, d.y - wy, sp.ang, 1.4, 9, BLOOD, 0.8); spurt(wx, d.y, d.y - wy, sp.ang + Math.PI, 0.5, 3);
-        for (let i = 0; i < 4; i++) part(wx, d.y, cx * rnd(40, 110) + rnd(-20, 20), rnd(-10, 10), rnd(0.7, 1.1), Math.random() < 0.5 ? '#8b98ab' : '#5d6878', { z: d.y - wy, vz: rnd(30, 90), g: 360, drag: 1, s: 2 });
-        A.gore(0.8); A.wall(); shake(0.3); kick(sp.ang, 2.5);
+      const t = d.t, s = d.s, top = bodyTop();
+      s.white -= dt;
+      s.cA = Math.min(1, s.cA + dt * 4);
+      // three crushing steps: the armor buckles, blood bursts from the shoulder joints, plates pop off
+      for (const [ct, ty] of [[0.42, 0.87], [0.64, 0.77], [0.86, 0.67]]) if (at(d, ct)) {
+        s.ty = ty; s.sy = ty - 0.05; s.white = 0.06;
+        for (const side of [-1, 1]) {
+          const [wx, wy] = this.pt(d, 60 + side * 17, top + 34), out = side * d.f > 0 ? 0 : Math.PI;
+          spurt(wx, d.y, d.y - wy, out + rnd(-0.5, 0.3), 1.1, 6, BLOOD, 0.9);
+          for (let i = 0; i < 3; i++) part(wx, d.y, Math.cos(out) * rnd(40, 110), rnd(-12, 12), rnd(0.7, 1.1), Math.random() < 0.5 ? '#8b98ab' : '#5d6878', { z: d.y - wy, vz: rnd(30, 90), g: 380, drag: 1, s: 2 });
+        }
+        dust(d.x, d.y, 6, 50); A.gore(0.6); A.wall(); shake(0.35); kick(Math.PI / 2, 2.5);
       }
-      if (at(d, 0.82)) dropWeapon(d, { vz: 30, vx: d.f * 25, spin: d.f * 4, onLand: () => { A.wall(); A.boom(0.6); shake(0.35); } });
-      // pinned: blood runs out of every wound
-      if (t > 0.1 && t < 1.45 && Math.floor(t / 0.11) !== Math.floor(d.prev / 0.11)) for (const sp of s.spears) if (sp.stuck && Math.random() < 0.6) { const [wx, wy] = cw(d, ...sp.c); spurt(wx + s.jx, d.y, d.y - wy, sp.ang + rnd(-0.5, 0.5), 0.45, 2); }
-      if (at(d, 1.05)) { A.powerUp(0.4); for (let i = 0; i < 3; i++) addRing(d.x, d.y - 12, i % 2 ? P.blood : '#5a0612', 120 + i * 60, 0.3, 2); }
-      if (at(d, 1.45)) {
-        // the wall comes down: the body breaks along every spear
-        const lines = s.spears.map((sp) => { const cx = Math.cos(sp.ang), cy = Math.sin(sp.ang); return [sp.c[0] - cx * 70, sp.c[1] - cy * 70, sp.c[0] + cx * 70, sp.c[1] + cy * 70]; });
-        d.pieces = placePieces(cutFrame(frame('idle', 10), d.flip, lines, { min: 12 }), d.x + s.jx, d.y);
-        for (const b of d.pieces) { const dx = b.x - d.x; b.held = false; b.vx = dx * 6 + rnd(-20, 20); b.vy = rnd(-14, 14); b.vz = rnd(10, 80) + b.z * 2; b.vr = rnd(-6, 6); b.bleed = rnd(1, 1.8); }
-        for (const sp of s.spears) { const [wx, wy] = cw(d, ...sp.c); sp.fall = { x: wx, y: d.y, z: d.y - wy, vz: rnd(20, 60), vx: rnd(-30, 30), rot: sp.ang, vr: rnd(-4, 4) }; }
-        for (let i = 0; i < 5; i++) spurt(d.x, d.y, 10, rnd(TAU), 1.8, 10, BLOOD, 1.1);
-        chunks(d.x, d.y, 10, 18, ['#c4243a', '#8a0f22', '#ecdcc8', '#8b98ab', '#5d6878'], 1.4);
-        A.gore(2); A.boom(1.6); A.wall(); shake(1); kick(Math.PI / 2, 7); flash(P.blood, 0.2, true);
+      if (at(d, 0.42)) s.cr = makeCracks(d.x, d.y, 8, 22);
+      // he plants the hammer and pushes back, one breath
+      if (at(d, 1.02)) { s.ty = 0.74; A.powerUp(0.3); }
+      if (at(d, 1.3)) {
+        // the haft snaps and the crown slams him flat
+        s.slam = true; s.ty = 0.4; s.sy = 0.36; s.white = 0.08;
+        const [hx, hy] = handPos(d.x, d.y, { flip: d.flip, sx: 1 + (1 - 0.74) * 0.6, sy: 0.74 });
+        for (let i = 0; i < 6; i++) part(hx, d.y, rnd(-50, 50), rnd(-10, 10), rnd(0.6, 1), Math.random() < 0.5 ? '#6a4a32' : '#3a2618', { z: d.y - hy, vz: rnd(40, 100), g: 380, drag: 1.5 });
+        dropWeapon(d, { from: [hx, hy], vz: 70, vx: d.f * 45, spin: d.f * 7, onLand: () => { A.wall(); shake(0.25); } });
+        // the helm comes off and rolls away
+        const neck = top + 38, pcs = placePieces(cutFrame(frame('idle', 0), d.flip, [[0, neck, CELL, neck + 1]], { min: 12 }), d.x, d.y);
+        const head = pcs.filter((b) => b.pc.cy < neck).sort((p, q) => q.pc.n - p.pc.n)[0];
+        if (head) {
+          head.z = head.z * 0.6; head.held = false; head.vx = d.f * rnd(55, 75); head.vy = rnd(-8, 8); head.vz = rnd(55, 85); head.vr = d.f * rnd(9, 13); head.bleed = 1.4;
+          d.pieces = [head]; s.head = head; s.neck = neck;
+        }
+        for (let i = 0; i < 6; i++) spurt(d.x + rnd(-4, 4), d.y, 6, i * TAU / 6 + rnd(-0.3, 0.3), 1.7, 9, BLOOD, 0.8);
+        chunks(d.x, d.y, 8, 14, ['#c4243a', '#8a0f22', '#8b98ab', '#5d6878', '#ecdcc8'], 1.2);
+        for (let i = 0; i < 26; i++) part(d.x + rnd(-9, 9), d.y, rnd(-30, 30), rnd(-8, 8), rnd(0.8, 1.6), Math.random() < 0.5 ? P.ember : '#3a3238', { z: rnd(4, 14), vz: rnd(10, 60), g: 120, drag: 1.2, glow: Math.random() < 0.3 });
+        A.gore(2); A.boom(1.6); A.wall(); A.crack(); shake(1); kick(Math.PI / 2, 7); flash(P.blood, 0.2, true);
         splat(d.x, d.y, 16, P.blood, P.bloodD); addPool(d.pools, d.x, d.y + 1, 17, { k: 1 });
-        addRing(d.x, d.y - 4, P.paper, 320, 0.3, 3); addRing(d.x, d.y - 4, P.blood, 220, 0.45, 3);
-        d.s.cr = makeCracks(d.x, d.y, 9, 24); stampCracks(d.s.cr);
+        addRing(d.x, d.y - 3, P.paper, 300, 0.3, 3); addRing(d.x, d.y - 3, P.ember, 200, 0.45, 2);
+        stampCracks(s.cr);
       }
-      for (const sp of s.spears) {
-        const f = sp.fall;
-        if (!f || f.rest) continue;
-        f.vz -= 420 * dt; f.z += f.vz * dt; f.x += f.vx * dt; f.rot += f.vr * dt;
-        if (f.z <= 1) { f.z = 1; if (f.vz < -70) { f.vz *= -0.3; f.vx *= 0.5; f.vr *= 0.4; A.click(); } else { f.rest = true; f.rot = Math.round(f.rot / Math.PI) * Math.PI + rnd(-0.12, 0.12); } }
-      }
-      stepPieces(d.pieces, dt, { onBounce: (b) => { A.splat(); splat(b.x, b.y, 4, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b) });
+      s.sy += (s.ty - s.sy) * Math.min(1, 18 * dt);
+      // the crown crumbles to ash on the heap
+      if (s.slam) { s.cA = Math.max(0, 1 - (t - 1.3) / 0.5); if (Math.random() < 0.5 && s.cA > 0) part(d.x + rnd(-8, 8), d.y, rnd(-8, 8), rnd(-3, 3), rnd(0.6, 1.2), Math.random() < 0.6 ? '#3a3238' : P.ember, { z: rnd(4, 10), vz: rnd(4, 20), g: 60, drag: 1 }); }
+      if (s.head?.rest) s.eye = Math.max(0, s.eye - dt * 0.8);
+      stepPieces(d.pieces, dt, { onBounce: (b) => { A.click(); splat(b.x, b.y, 3, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b, 5) });
     },
-    // a spear: a dark wooden shaft and an iron head, drawn through the body from the side it came in
-    spear(x, y, ang, tipOut = 7, back = 22) {
-      const cx = Math.cos(ang), cy = Math.sin(ang), x0 = x - cx * back, y0 = y - cy * back, x1 = x + cx * tipOut, y1 = y + cy * tipOut;
-      line(x0, y0 + 1, x1, y1 + 1, '#1c1418', 2); line(x0, y0, x1, y1, '#6a4a32');
-      line(x1, y1, x1 + cx * 4, y1 + cy * 4, '#c8d0dc', 2); px(x1 + cx * 5, y1 + cy * 5, P.paper);
+    // the King's crown: black iron spikes on an iron band, a gold rim, embers flickering between the spikes
+    crown(x, y, a, t) {
+      if (a <= 0) return;
+      ctx.globalAlpha = a;
+      glow(x, y - 3, P.ember, 16, 0.35 * a);
+      const X = Math.round(x) - 8, Y = Math.round(y);
+      rect(X, Y - 3, 17, 1, '#2a2230'); rect(X, Y - 2, 17, 2, '#120e16'); rect(X, Y, 17, 1, '#ffd447');
+      for (let i = 0; i < 5; i++) {
+        const sx = X + 1 + i * 4, h = i === 2 ? 5 : i % 2 ? 4 : 3;
+        rect(sx, Y - 3 - h, 2, h, '#120e16'); px(sx, Y - 3 - h, '#ffd447');
+        if (i < 4) { const fl = (Math.floor(t * 12) + i) % 2; px(sx + 2, Y - 5 - fl, P.ember3); px(sx + 2, Y - 4, P.ember); }
+      }
+      ctx.globalAlpha = 1;
     },
     draw(d) {
-      const t = d.t, s = d.s;
-      if (t < 1.45) {
-        const o = { flip: d.flip, tint: s.white > 0 ? P.paper : null };
-        drawHero(frame('idle', t < 0.6 ? 0 : 10), d.x + s.jx, d.y, o, t < 0.82 ? restAngle(d.flip) + Math.sin(t * 30) * 0.08 : null);
-        for (const sp of s.spears) {
-          if (t < sp.t - 0.07) continue;
-          const [wx, wy] = cw(d, ...sp.c);
-          if (!sp.stuck) { const k = (sp.t - t) / 0.07; this.spear(wx + s.jx - Math.cos(sp.ang) * k * 140, wy - Math.sin(sp.ang) * k * 140, sp.ang); continue; }
-          this.spear(wx + s.jx, wy, sp.ang);
-        }
+      const t = d.t, s = d.s, fr = frame('idle', 0), o = { flip: d.flip, sx: 1 + (1 - s.sy) * 0.6, sy: s.sy, tint: s.white > 0 ? P.paper : null };
+      const headY = cellToWorld(60, bodyTop(), d.x, d.y, o)[1];
+      if (!s.slam) {
+        // the hammer: at rest, then planted head down beside him from the second step
+        const k = clamp((t - 0.55) / 0.15, 0, 1), down = Math.PI / 2 + (d.flip ? 0.3 : -0.3), rest = restAngle(d.flip);
+        drawHero(fr, d.x, d.y, o, rest + (down - rest) * ease(k));
+        this.crown(d.x, headY - 1 - 40 * (1 - ease(t / 0.35)), s.cA, t);
+      } else {
+        // crushed into his own armor, no head
+        drawBody(fr, d.x, d.y, { ...o, top: s.neck / SS + 0.5 });
+        this.crown(d.x, headY + 2, s.cA, t);
       }
       drawPieces(d.pieces);
-      for (const sp of s.spears) if (sp.fall) this.spear(sp.fall.x, sp.fall.y - sp.fall.z, sp.fall.rot, 7, 22);
+      // the visor light on the rolling helm goes out
+      if (s.head && s.eye > 0) {
+        const e = heroSet().rig?.eye || [60, 50], [vx, vy] = pieceToWorld(s.head, d.flip ? CELL - e[0] : e[0], e[1]);
+        glow(vx, vy, '#ffe08a', 4, 0.6 * s.eye * (0.7 + 0.3 * Math.sin(t * 20)));
+      }
     },
-    under(d) { if (d.s.cr) drawCracks(d.s.cr, 1); },
+    under(d) { if (d.s.cr) drawCracks(d.s.cr, clamp((d.t - 0.42) / 0.9, 0, 1), P.ember, d.s.slam ? 0 : 0.4); },
   },
 
   // Unit-7: torn apart. Sparks and oil burst out of it, its head pops off on a fountain of oil, the headless body

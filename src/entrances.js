@@ -9,14 +9,14 @@
 //   Grom     the ground shakes, he falls from the sky hammer first and splits the floor with rock spikes.
 //   Unit-7   a countdown, an orbital beam, and the robot builds itself up row by row inside it and powers on.
 //   The Dev  a terminal compiles him, the window shuts off, and he renders in from coarse blocks to full detail.
-import { ctx, disc, ring, W } from './gfx.js?v=182';
-import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=182';
-import { A } from './audio.js?v=182';
-import { input, keyHit } from './input.js?v=182';
+import { ctx, disc, ring, W } from './gfx.js?v=183';
+import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=183';
+import { A } from './audio.js?v=183';
+import { input, keyHit } from './input.js?v=183';
 import {
   P, rnd, TAU, clamp, part, glow, line, rect, px, text, textO, ease, easeIn, at, between, frame, drawBody, drawHero, drawCoarse,
   handPos, eyePos, weaponLen, restAngle, makeCracks, drawCracks, stampCracks, drawLetterbox, drawNameCard, darken, floorRing,
-} from './scene-fx.js?v=182';
+} from './scene-fx.js?v=183';
 
 const SUB = { BLADE: 'THE BLADE', GUNNER: 'THE GUNNER', WIZARD: 'THE WIZARD', NINJA: 'THE SAMURAI', MECHANIC: 'THE MECHANIC', TANK: 'THE TANK', ROBOT: 'THE ROBOT', DEV: 'ROOT ACCESS' };
 const PETAL = ['#ffb7d5', '#ff8fb8', '#ffffff'];

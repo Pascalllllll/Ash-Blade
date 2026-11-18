@@ -1,15 +1,16 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=182';
-import { SPR, EVO_NAMES } from './sprites.js?v=182';
-import { A } from './audio.js?v=182';
-import { input, keyDown, keyHit } from './input.js?v=182';
-import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=182';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=182';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=182';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=182';
-import { byId } from './upgrades.js?v=182';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=182';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=182';
-import { WEAPON_ART } from './hero-rig.js?v=182';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=183';
+import { SPR, EVO_NAMES } from './sprites.js?v=183';
+import { A } from './audio.js?v=183';
+import { input, keyDown, keyHit } from './input.js?v=183';
+import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=183';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=183';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=183';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=183';
+import { byId } from './upgrades.js?v=183';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=183';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=183';
+import { WEAPON_ART } from './hero-rig.js?v=183';
+import { say, updateTalk, TALK } from './story.js?v=183';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -240,6 +241,9 @@ export function startWave(n) {
     G.twist = G.lastTwist = keys[Math.floor(rnd(keys.length))];
   }
   G.queue = buildQueue(n);
+  // the King talks to the fighter through the run; past wave 20, something older answers from below
+  const line_ = n === 1 ? TALK.start : n === 21 ? TALK.deeper : boss && bossFor(n) !== 'king' ? TALK[bossFor(n)] : null;
+  if (line_) G.timers.push({ t: n === 1 || n === 21 ? 2.4 : 1.1, fn: () => say(line_) });
   if (boss) {
     const bd = BOSSES[bossFor(n)];
     G.banner = { text: bd.name, sub: bd.sub, t: 0, life: 2.6, c: bd.col };
@@ -543,6 +547,7 @@ export function kill(e, o) {
   const launch = !gone && e.type !== 'tick' && e.type !== 'egg' && e.type !== 'larva' && (o.heavy || o.src === 'ult' || o.src === 'boom' || o.src === 'corpse' || (!o.slice && (o.kb || 0) >= 150));
   if (launch) launchCorpse(e, dir, o.kb || 200);
   else if (o.slice && !gone) { makeGibs(e, dir); A.slice(); }
+  else if (!gone) dissolve(e, dir);
   if (!gone) {
     bleed(e.x, e.y, dir, e.type === 'brute' ? 30 : 16, e.def.col, e.def.colD, 1.2);
     bleed(e.x, e.y, rnd(TAU), 8, e.def.col, e.def.colD, 0.6);
@@ -634,29 +639,84 @@ function updateCorpses(dt) {
       c.vx *= 0.7; c.vy *= 0.7;
     }
   }
+  // a corpse that's done shatters into pixels where it lies
+  for (const c of G.corpses) if (c.t >= c.life && !c.gone) {
+    c.gone = true;
+    const s = c.s, k = s.k || 1, q = ((Math.round(quarter(c.rot) / (Math.PI / 2)) % 4) + 4) % 4, src = c.flip ? s.f : s.n;
+    const W0 = src.width, H0 = src.height, cv = makeCanvas(q % 2 ? H0 : W0, q % 2 ? W0 : H0), g2 = cv.getContext('2d');
+    g2.translate(cv.width / 2, cv.height / 2); g2.rotate(q * (Math.PI / 2)); g2.drawImage(src, -W0 / 2, -H0 / 2);
+    // the turned picture's feet sit where the corpse's middle puts them
+    const hh = cv.height / k, y = c.y - s.h / 2 + hh / 2;
+    crumble(cv, k, 1, c.x, y, c.z, { from: rnd(TAU), dir: 0, life: rnd(0.45, 0.6), t0: 0.02, noFlash: true, col: c.col, col2: c.col2 });
+  }
   sweep(G.corpses, (c) => c.t < c.life);
 }
+const quarter = (a) => Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
 function drawCorpse(c) {
-  if (c.t > c.life - 0.25 && Math.floor(G.time * 24) % 2) return;
   const s = c.s;
   shadow(c.x, c.y, Math.max(2, c.r - Math.min(3, c.z / 10)));
   ctx.save();
   ctx.translate(Math.round(c.x), Math.round(c.y - c.z - s.h / 2 + 1));
-  ctx.rotate(c.rot);
+  // it tumbles a quarter turn at a time, so its pixels stay on the grid
+  ctx.rotate(quarter(c.rot));
   drawSprite(s, -s.w / 2, -s.h / 2, c.flip, c.t < 0.07 ? P.paper : null);
   ctx.restore();
 }
 
-export function makeGibs(e, dir) {
-  const s = sprFor(e), sa = dir + Math.PI / 2;
-  for (const side of [1, -1]) {
-    const nx = -Math.sin(sa) * side, ny = Math.cos(sa) * side;
-    G.gibs.push({
-      s, flip: e.face < 0, x: e.x, y: e.y, z: 0, vz: rnd(30, 80), sa, side, t: 0, life: rnd(0.75, 1),
-      vx: nx * rnd(25, 60) + Math.cos(dir) * rnd(30, 80), vy: ny * rnd(25, 60) + Math.sin(dir) * rnd(30, 80),
-      col: e.def.col, col2: e.def.colD,
-    });
+// Monsters die in pixels. A cut splits the body along the cut on its own pixel grid (a stair-stepped edge, never a
+// smooth one) and the two halves fly apart; any other kill leaves the body standing for a moment. Then the body
+// crumbles pixel by pixel, from the wound (or the side the blow came from) outward, some pixels dropping off as square
+// chips that bounce on the floor. Each piece is its own small picture, so a crumbled pixel is simply cleared from it.
+const hex6 = (r, g, b) => '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+// cv: the picture (k picture pixels to a game pixel, drawn sc times bigger) with its feet at x, y, z up.
+// o.cut: the cut's angle (two halves) or undefined (one piece); o.from: the direction the crumbling runs along.
+function crumble(cv, k, sc, x, y, z, o) {
+  const W = cv.width, H = cv.height;
+  let data = null;
+  try { data = cv.getContext('2d').getImageData(0, 0, W, H).data; } catch { return false; }
+  const halves = o.cut === undefined ? [0] : [1, -1], nx = o.cut === undefined ? 0 : -Math.sin(o.cut), ny = o.cut === undefined ? 0 : Math.cos(o.cut);
+  const ax = Math.cos(o.from ?? 0), ay = Math.sin(o.from ?? 0);
+  for (const side of halves) {
+    const life = o.life ?? rnd(0.9, 1.15);
+    const g = { cvW: W, cvH: H, k, sc, x, y, z, vz: side ? rnd(30, 80) : (o.vz ?? 0), sa: (o.cut ?? 0), side, t: 0, life, chips: 0, still: !side && !o.vx,
+      vx: side ? nx * side * rnd(25, 60) + Math.cos(o.dir) * rnd(30, 80) : (o.vx ?? 0), vy: side ? ny * side * rnd(25, 60) + Math.sin(o.dir) * rnd(30, 80) : (o.vy ?? 0),
+      col: o.col, col2: o.col2 };
+    const cv2 = makeCanvas(W, H), cg = cv2.getContext('2d'), img = cg.createImageData(W, H), d = img.data;
+    const wh = fx.lowFx || o.noFlash ? null : makeCanvas(W, H), wimg = wh && wh.getContext('2d').createImageData(W, H);
+    const pix = [];
+    let lo = Infinity, hi = -Infinity;
+    for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < W; xx++) {
+      const i = (yy * W + xx) * 4;
+      if (data[i + 3] < 128) continue;
+      const px0 = xx + 0.5 - W / 2, py0 = yy + 0.5 - H / 2, v = px0 * nx + py0 * ny;
+      if (side && (v >= 0 ? 1 : -1) !== side) continue;
+      d[i] = data[i]; d[i + 1] = data[i + 1]; d[i + 2] = data[i + 2]; d[i + 3] = 255;
+      if (wimg) wimg.data[i] = wimg.data[i + 1] = wimg.data[i + 2] = wimg.data[i + 3] = 255;
+      // how far into the crumbling this pixel is: from the cut outward, or along the blow
+      const m = side ? Math.abs(v) : px0 * ax + py0 * ay;
+      lo = Math.min(lo, m); hi = Math.max(hi, m);
+      pix.push([xx, yy, m, hex6(data[i], data[i + 1], data[i + 2]), 0]);
+    }
+    if (!pix.length) continue;
+    cg.putImageData(img, 0, 0);
+    if (wh) wh.getContext('2d').putImageData(wimg, 0, 0);
+    const t0 = o.t0 ?? 0.24, span = life - t0 - 0.1, rng = Math.max(1, hi - lo);
+    for (const q of pix) q[4] = t0 + ((q[2] - lo) / rng) * span * 0.82 + Math.random() * span * 0.18;
+    pix.sort((p, q) => p[4] - q[4]);
+    Object.assign(g, { cv: cv2, cg, wh, pix, pi: 0 });
+    G.gibs.push(g);
   }
+  return true;
+}
+// a cut: two halves fly apart and crumble from the wound
+export function makeGibs(e, dir) {
+  const s = sprFor(e), src = e.face < 0 ? s.f : s.n;
+  crumble(src, s.k || 1, e.def.scale || 1, e.x, e.y, 0, { cut: dir + Math.PI / 2, dir, col: e.def.col, col2: e.def.colD });
+}
+// any other kill: the body stays standing a moment and crumbles away from the side the blow came from
+export function dissolve(e, dir) {
+  const s = sprFor(e), src = e.face < 0 ? s.f : s.n;
+  crumble(src, s.k || 1, e.def.scale || 1, e.x, e.y, e.z || 0, { from: dir + Math.PI, dir, life: rnd(0.5, 0.65), t0: 0.06, col: e.def.col, col2: e.def.colD });
 }
 
 export function dropPick(x, y, kind) {
@@ -755,6 +815,7 @@ function perfectDodge() {
 function die() {
   const p = G.p;
   p.hp = 0; p.state = 'dead'; G.dead = true; G.deadT = 0;
+  G.talk = null;
   shake(1); flash(P.blood, 0.25, true);
   A.death(); A.scene('dead'); A.stopLoops();
   // whatever the fighter had going ends with them: Unit-7's beam and sky laser, Rin's flash cut, Grom's fortress,
@@ -1693,6 +1754,7 @@ function bossDeath(e) {
   A.bossRoar(); A.stopLoops();
   const bd = BOSSES[e.boss];
   G.banner = { text: bd.death || (bd.final ? 'THE KING FALLS' : bd.short + ' SLAIN'), sub: '', t: 0, life: 2.6, c: P.gold };
+  say(bd.final ? TALK.kingDead : TALK[e.boss + 'Dead']);
   G.queue.length = 0; G.sigils.length = 0; G.hbeams.length = 0; G.hlines.length = 0; G.dark = 0;
   for (const s of G.strikes) if (!s.friendly) s.dead = true;
   for (const o of G.E) if (o !== e && alive(o)) damage(o, 9999, { dir: Math.atan2(o.y - e.y, o.x - e.x), kb: 200, src: 'boom' });
@@ -1744,6 +1806,7 @@ function placeSpawn(type) {
 
 export function update(dt, rdt) {
   G.time += rdt;
+  updateTalk(rdt);
   G.rankPop = Math.max(0, G.rankPop - rdt * 4);
   fx.hurtVig = Math.max(0, fx.hurtVig - rdt * 1.5);
   for (const k in G.deny) G.deny[k] = Math.max(0, G.deny[k] - rdt);
@@ -2102,12 +2165,25 @@ function updateFx(dt) {
   sweep(G.parts, (q) => q.t < q.life);
   for (const g of G.gibs) {
     g.t += dt;
-    g.vz -= 240 * dt; g.z += g.vz * dt;
+    if (!g.still) { g.vz -= 240 * dt; g.z += g.vz * dt; }
     if (g.z < 0) { g.z = 0; g.vz = -g.vz * 0.3; g.vx *= 0.6; g.vy *= 0.6; }
     const dr = Math.exp(-2.5 * dt);
     g.vx *= dr; g.vy *= dr;
     g.x += g.vx * dt; g.y += g.vy * dt;
     if (g.t < 0.3 && Math.random() < 0.5) part(g.x, g.y, g.vx * 0.3, g.vy * 0.3, 2, g.col, { z: g.z + 6, vz: 10, g: 300, blood: true, drag: 2 });
+    // the half crumbles from the wound outward; some of its pixels drop off as chips
+    if (g.pix) {
+      const u = g.sc / g.k, top = (g.cvH / g.k) * g.sc - 1, cap = g.sc > 1 ? 110 : 30;
+      while (g.pi < g.pix.length && g.pix[g.pi][4] <= g.t) {
+        const q = g.pix[g.pi++];
+        g.cg.clearRect(q[0], q[1], 1, 1);
+        if (g.chips < cap && (g.pi & 1)) {
+          g.chips++;
+          const wx = g.x - ((g.cvW / g.k) * g.sc) / 2 + (q[0] + 0.5) * u, h = top + g.z - (q[1] + 0.5) * u;
+          part(wx, g.y, g.vx * 0.25 + rnd(-28, 28), g.vy * 0.25 + rnd(-14, 14), rnd(0.4, 0.75), q[3], { z: Math.max(0, h), vz: rnd(10, 60), g: 280, drag: 2.2, keep: g.chips < 8 });
+        }
+      }
+    }
     if (g.t >= g.life) splat(g.x, g.y, 5, g.col, g.col2);
   }
   sweep(G.gibs, (g) => g.t < g.life);
@@ -2404,11 +2480,6 @@ function drawPlayer() {
   ctx.save(); ctx.translate(fx0, fy0); if (jets) ctx.rotate(clamp(p.vx / 90, -1, 1) * 0.14); if (sq) ctx.scale(scx, scy);
   ctx.drawImage(tintP ? fr.tint(tintP, flip) : flip ? fr.f : fr.n, -fr.w / 2, -fr.h + 1, fr.w, fr.h);
   ctx.restore();
-  // awakened Rin's eyes burn red
-  if (G.char === 'NINJA' && G.evo === true && !tintP && !pose) {
-    const ex = fx0 + ((flip ? CW_HERO - rig.eye[0] : rig.eye[0]) / SS - 20) * scx, ey = fy0 + (rig.eye[1] / SS - 31) * scy;
-    glow(ex, ey, '#ff2a3a', 6, 0.32 + Math.sin(G.time * 5) * 0.1);
-  }
   // winding up a charged attack: a ring at the feet fills, and flashes once full
   if (p.state === 'charge') {
     const f = chargeLevel(p), full = f >= 1, c = full ? (Math.floor(G.time * 20) % 2 ? P.paper : P.gold) : kit.color();
@@ -2586,21 +2657,13 @@ export function drawEnemy(e) {
 }
 
 function drawGib(g) {
-  if (g.t > g.life - 0.3 && Math.floor(G.time * 24) % 2) return;
-  const sx = g.x - g.s.w / 2, sy = g.y - g.s.h + 1 - g.z;
-  const cx = g.x, cy = g.y - g.s.h / 2 - g.z;
-  const ux = Math.cos(g.sa), uy = Math.sin(g.sa), nx = -uy * g.side, ny = ux * g.side;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(cx + ux * 50, cy + uy * 50);
-  ctx.lineTo(cx - ux * 50, cy - uy * 50);
-  ctx.lineTo(cx - ux * 50 + nx * 50, cy - uy * 50 + ny * 50);
-  ctx.lineTo(cx + ux * 50 + nx * 50, cy + uy * 50 + ny * 50);
-  ctx.closePath();
-  ctx.clip();
-  drawSprite(g.s, sx, sy, g.flip, g.t < 0.08 ? P.paper : null);
-  ctx.restore();
-  if (g.t < 0.12 && g.side > 0) line(cx - ux * 10, cy - uy * 10, cx + ux * 10, cy + uy * 10, P.paper);
+  if (!g.cv) return;
+  const w = (g.cvW / g.k) * g.sc, h = (g.cvH / g.k) * g.sc;
+  ctx.drawImage(g.t < 0.08 && g.wh ? g.wh : g.cv, snap(g.x - w / 2), snap(g.y - h + 1 - g.z), w, h);
+  if (g.t < 0.12 && g.side > 0) {
+    const cx = g.x, cy = g.y - h / 2 - g.z, ux = Math.cos(g.sa), uy = Math.sin(g.sa);
+    line(cx - ux * 10, cy - uy * 10, cx + ux * 10, cy + uy * 10, P.paper);
+  }
 }
 
 export function drawBolt(b, c1 = P.paper, c2 = P.volt, c3 = P.volt2) {

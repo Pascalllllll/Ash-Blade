@@ -6,8 +6,8 @@
 //
 // The sets exist from the start with empty frames (the title screen draws them on its first frame); the pictures fill
 // those same frames when they arrive, so nothing holds on to an empty one.
-import { SS } from './gfx.js?v=182';
-import { RIG, WEAPON_ART } from './hero-rig.js?v=182';
+import { SS } from './gfx.js?v=183';
+import { RIG, WEAPON_ART } from './hero-rig.js?v=183';
 
 const CW = 120, CH = 96;
 const ROWS = { idle: [0, 16], walk: [1, 12], run: [2, 12], death: [3, 8], dash: [4, 4], hurt: [5, 2] };
@@ -79,7 +79,8 @@ export function drawWeaponAt(g, name, skin, x, y, a, left, alpha = 1) {
 
 // ---------- the hero sets ----------
 function makeSet(id, evolved) {
-  const rig = RIG[id], f = () => frame();
+  // an awakened skin can hold its weapon at its own point (RIG[id].evo)
+  const rig = evolved && RIG[id].evo ? { ...RIG[id], ...RIG[id].evo } : RIG[id], f = () => frame();
   const body = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 12 }, f), run: Array.from({ length: 12 }, f), death: Array.from({ length: 8 }, f),
     dash: Array.from({ length: 4 }, f), hurt: Array.from({ length: 2 }, f) };
   // what the menus, afterimages and the mirror boss show: the same frames with the weapon in hand at rest
@@ -125,7 +126,7 @@ function load(url) {
     im.src = url;
   });
 }
-const art = (file) => new URL(`../art/sprites/heroes/${file}?v=182`, import.meta.url).href;
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=183`, import.meta.url).href;
 
 // fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
 export function installHeroSprites(SPR) {
