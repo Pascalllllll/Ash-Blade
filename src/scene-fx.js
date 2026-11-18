@@ -1,10 +1,10 @@
 // Shared tools for the heroes' entrances (entrances.js) and deaths (deaths.js): the hero drawn in any pose with the
 // weapon in hand, a body cut into pieces that fly, bounce and bleed, spurts and pools of blood, cracks in the floor,
 // and the entrance's letterbox and name card.
-import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, makeCanvas } from './gfx.js?v=183';
-import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=183';
-import { drawWeaponAt, REST } from './hero-sprites.js?v=183';
-import { WEAPON_ART } from './hero-rig.js?v=183';
+import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, makeCanvas } from './gfx.js?v=184';
+import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=184';
+import { drawWeaponAt, REST } from './hero-sprites.js?v=184';
+import { WEAPON_ART } from './hero-rig.js?v=184';
 
 const CW = 120, FX = 60, FY = 92;             // a hero cell's width, and where the feet are on it
 export const BLOOD = ['#c4243a', '#8a0f22', '#5a0612'];
@@ -192,16 +192,6 @@ export function eachPiecePixel(b, fn, step = 2) {
     if (d[i + 3] < 128) continue;
     const [wx, wy] = pieceToWorld(b, pc.ox + x + 0.5, pc.oy + y + 0.5);
     fn(wx, wy, `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`);
-  }
-}
-// every pixel of a whole body frame, drawn with its feet at x, y
-export function eachBodyPixel(fr, flip, x, y, fn, step = 2, o = {}) {
-  const src = flip ? fr.f : fr.n, w = src.width, h = src.height, d = src.getContext('2d').getImageData(0, 0, w, h).data;
-  for (let cy = 0; cy < h; cy += step) for (let cx = 0; cx < w; cx += step) {
-    const i = (cy * w + cx) * 4;
-    if (d[i + 3] < 128) continue;
-    const [wx, wy] = cellToWorld(flip ? CW - cx - 0.5 : cx + 0.5, cy + 0.5, x, y, { ...o, flip });
-    fn(wx, wy, `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`, cy);
   }
 }
 

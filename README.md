@@ -96,7 +96,7 @@ Each fighter also has their own sounds and an entrance of about three seconds in
 | Morrow | Enemies unravel into arcane light | His own spell lifts him up and tears him into burning pieces that rain down with his blood. *The spell was never finished* |
 | Rin | A burst of petals | Six cuts flash across her, then she falls apart along all of them at once, and the pieces scatter into petals. *She scatters with the blossoms* |
 | Rivet | Enemies come apart into bolts and springs | Her rig overloads and blows her apart, head and chest flying, and her machines go up with her. *Warranty void* |
-| Grom | Enemies are flattened into a splat | The King's crown comes down out of the dark onto his helm and makes his last guard kneel: his armor buckles plate by plate, blood bursting from its joints, he braces on his hammer until the haft snaps, and the crown crushes him into his own armor. His helm rolls away and its visor light goes out. *Kneel before the King* |
+| Grom | Enemies are flattened into a splat | The King's crown comes down onto his helm and crushes his last guard the way a body really gives, pixel row by pixel row: his knees snap and he drops onto them, his spine folds down into his armor with blood and bone squeezing out of every seam, he braces on his hammer until the haft snaps, and the crown slams him down onto his own boots. His helm pops off a pumping stump and rolls away, its visor light going out. *Kneel before the King* |
 | Unit-7 | Enemies disintegrate into pixels | Its head pops off on a fountain of oil, the body counts down from three and blows itself to scrap. *Shutdown complete* |
 | The Dev | Enemies are deleted, now and then with a 404 | A FATAL ERROR box, and he is deleted line by line. *Process terminated* |
 
@@ -252,10 +252,9 @@ Plain JavaScript with no libraries and no build step. The game runs on a 320×18
 | Folder | Contents |
 | --- | --- |
 | `src/` | The game. `src/hero-sprites.js` loads the fighters and turns their weapons |
-| `art/` | The fighters' sprite sheets and weapons, and the pictures they're made from |
+| `art/` | The fighters' sprite sheets, weapons and portraits, and the pixel masters they're built from |
 | `icons/` | Browser tab and home screen icons |
 | `skin/` | Each fighter's current and awakened sprite as an image |
-| `desc/` | A description of each fighter |
 | `docs/` | Screenshots for this README |
 
 ## License

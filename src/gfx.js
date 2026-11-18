@@ -47,26 +47,8 @@ export function makeCanvas(w, h) {
 export const hd = document.createElement('canvas');
 hd.id = 'hd';
 hd.style.visibility = 'hidden';
-// The poster layer: a still picture under the HD layer, painted once (and again on resize). Its slow zoom is a
-// CSS transform, which the GPU does almost for free, so the title screen only redraws what actually moves.
-export const poster = document.createElement('canvas');
-poster.id = 'poster';
-poster.setAttribute('aria-hidden', 'true');
-poster.style.visibility = 'hidden';
-let posterImg = null, posterUsed = false;
-export function posterShow(img, z) {
-  if (posterImg !== img || poster.width !== hd.width) {
-    poster.width = hd.width; poster.height = hd.height;
-    const g = poster.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, poster.width, poster.height);
-    posterImg = img;
-  }
-  poster.style.transform = `scale(${z.toFixed(4)})`;
-  if (poster.style.visibility !== 'visible') poster.style.visibility = 'visible';
-  posterUsed = true;
-}
 hd.setAttribute('aria-hidden', 'true');
 canvas.after(hd);
-canvas.after(poster);
 const hctx = hd.getContext('2d');
 let hdUsed = false, hdDirty = false;
 // starts an HD frame: returns the context scaled to game units, and the device pixels per game unit
@@ -83,8 +65,6 @@ export const hdCtx = () => hctx;
 export function hdEnd() {
   // an unused layer is hidden, so the browser stops compositing a screen-sized transparent canvas every frame
   if (!hdUsed && hdDirty) { hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hd.width, hd.height); hdDirty = false; hd.style.visibility = 'hidden'; }
-  if (!posterUsed && poster.style.visibility === 'visible') poster.style.visibility = 'hidden';
-  posterUsed = false;
   hdUsed = false;
 }
 
@@ -104,7 +84,7 @@ export function fit() {
   // capped at 2x pixel density and 2560 wide: phones at 3x don't need more, and every pixel costs
   const dpr = Math.min(2, devicePixelRatio || 1), k = Math.min(1, 2560 / (W * s * dpr));
   hd.width = Math.round(W * s * dpr * k); hd.height = Math.round(H * s * dpr * k);
-  hd.style.width = poster.style.width = W * s + 'px'; hd.style.height = poster.style.height = H * s + 'px';
+  hd.style.width = W * s + 'px'; hd.style.height = H * s + 'px';
 }
 
 export function rect(x, y, w, h, c) { C.fillStyle = rc(c); C.fillRect(Math.round(x), Math.round(y), w, h); }
@@ -268,18 +248,6 @@ export function drawBreath(s, x, y, flip, tint, off, split = 0.58) {
   C.drawImage(img, 0, 0, s.w * k, cut, x, y + off, s.w, cut / k);
 }
 
-// a lean: horizontal bands, each one a pixel further over than the one below (feet stay planted)
-export function drawLean(s, x, y, flip, tint, lean) {
-  if (!lean) { drawSprite(s, x, y, flip, tint); return; }
-  const k = s.k || 1, img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, n = Math.abs(lean) + 1, d = Math.sign(lean), H = Math.round(s.h * k);
-  x = snap(x); y = snap(y);
-  // the bands are cut on the picture's own rows (see drawBreath)
-  for (let i = 0; i < n; i++) {
-    const y0 = Math.round(H * (1 - (i + 1) / n)), y1 = Math.round(H * (1 - i / n));
-    if (y1 > y0) C.drawImage(img, 0, y0, s.w * k, y1 - y0, x + d * i, y + y0 / k, s.w, (y1 - y0) / k);
-  }
-}
-
 // sprites move in canvas pixels (a third of a game pixel), so motion is three times finer and stays crisp
 export const snap = (v) => Math.round(v * SS) / SS;
 export function drawSprite(s, x, y, flip, tint) {
@@ -421,7 +389,7 @@ export function applyTheme(name) { Object.assign(P, THEMES[name] || THEMES.EMBER
 export function applyDisplay(s) {
   // a CSS filter costs a full-screen pass every frame (heavy on phones), so it's only set when it changes something
   const neutral = s.vibrancy === 1 && s.bright === 1 && s.contrast === 1 && !s.hue;
-  canvas.style.filter = hd.style.filter = poster.style.filter = neutral ? 'none' : `saturate(${s.vibrancy}) brightness(${s.bright}) contrast(${s.contrast}) hue-rotate(${s.hue}deg)`;
+  canvas.style.filter = hd.style.filter = neutral ? 'none' : `saturate(${s.vibrancy}) brightness(${s.bright}) contrast(${s.contrast}) hue-rotate(${s.hue}deg)`;
   document.documentElement.classList.toggle('crt', !!s.crt);
   if (s.res && s.res !== view.res) { view.res = s.res; fit(); }
 }

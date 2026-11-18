@@ -8,13 +8,13 @@
 //   say()   the dialog box: the King taunts the fighter through the run, meets them at wave 20 (each fighter answers
 //           in their own voice) and dies with a last word; a line types out letter by letter beside the speaker's face
 //   ENDING  what plays when the King falls: the sun breaks out of him, the light comes back, the fighter's last line
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=183';
-import { SPR } from './sprites.js?v=183';
-import { input, keyHit } from './input.js?v=183';
-import { A } from './audio.js?v=183';
-import { G } from './world.js?v=183';
-import { CHARS } from './chars.js?v=183';
-import { drawFighter } from './title-scene.js?v=183';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=184';
+import { SPR } from './sprites.js?v=184';
+import { input, keyHit } from './input.js?v=184';
+import { A } from './audio.js?v=184';
+import { G } from './world.js?v=184';
+import { CHARS } from './chars.js?v=184';
+import { drawFighter } from './title-scene.js?v=184';
 
 export const KING = 'KING', VOID = 'VOID';
 const ease = (k) => 1 - (1 - Math.min(1, Math.max(0, k))) ** 3;

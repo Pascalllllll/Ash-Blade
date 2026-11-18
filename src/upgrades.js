@@ -1,4 +1,4 @@
-import { TEST_BUFF } from './store.js?v=183';
+import { TEST_BUFF } from './store.js?v=184';
 // One is picked after every cleared wave. `max` caps stacking, `only` limits it to some fighters.
 // Every upgrade has an evolution (`req`), which only appears once the upgrade it needs is maxed out.
 // Any five evolutions awaken the fighter (see world.js).

@@ -40,8 +40,6 @@ html, body {
 
 /* the HD layer sits exactly over the game screen and never takes input */
 #hd { position: absolute; left: 0; top: 0; pointer-events: none; image-rendering: pixelated; }
-/* the title poster sits under the HD layer; it scales from its center for the slow zoom */
-#poster { position: absolute; left: 0; top: 0; pointer-events: none; transform-origin: 50% 50%; will-change: transform; }
 
 #frame { position: relative; line-height: 0; }
 

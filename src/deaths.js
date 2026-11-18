@@ -1,12 +1,12 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, glow, text, textO, makeCanvas, SS } from './gfx.js?v=183';
-import { A } from './audio.js?v=183';
-import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=183';
+import { ctx, P, rect, px, line, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=184';
+import { A } from './audio.js?v=184';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=184';
 import {
   BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
   stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
-} from './scene-fx.js?v=183';
+} from './scene-fx.js?v=184';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
@@ -146,7 +146,6 @@ function burstPieces(list, cx, cy, sp, up, spin) {
   }
 }
 const OIL_POOL = ['#0a0a10', '#1e1c26', '#3a3646'];
-const PINK_POOL = ['#3d0610', '#6e0a18', '#ff8fb8'];
 
 const DEATHS = {
   // Kael: one cut through the chest. A beat of stillness, then his top half slides off along it and his legs fold;
@@ -423,59 +422,111 @@ const DEATHS = {
     under(d) { if (d.s.cr) drawCracks(d.s.cr, (d.t - 0.95) / 0.15, P.ember, 1 - (d.t - 0.95) / 1.5); },
   },
 
-  // Grom, the King's last guard, made to kneel. The King's crown comes down out of the dark onto his helm and
-  // presses: his armor buckles in three crunching steps, blood bursting from its joints and plates popping off, the
-  // floor cracking under him. He plants his hammer and pushes back for one breath; then the haft snaps, the crown
-  // slams down and crushes him into his own armor. His helm rolls away across the floor, its visor light going out,
-  // and the crown crumbles to ash on the heap.
+  // Grom, the King's last guard, crushed under the crown, the way a body really gives, pixel by pixel. The King's
+  // crown comes down onto his helm and presses. His knees break first and he drops onto them, blood spraying out of
+  // the joints and a splinter of bone flying; his spine folds down into his armor, the plates split and spit sparks,
+  // and blood runs out of his visor. He braces on his hammer until the haft snaps, and the crown slams him down onto
+  // his own boots, blood, meat and bone bursting out of every seam. His helm pops off a pumping stump and rolls away,
+  // its visor light going out, while the blood keeps pumping into a spreading pool.
+  // The crushing is done in whole art rows of his sprite (helm 0-18, chest 19-28, legs 29-32, boots 33-34): a row
+  // that gives is gone, everything above it drops onto what's below, and a band of gore squeezes out of the seam.
   TANK: {
     line: 'KNEEL BEFORE THE KING', col: '#8b98ab',
+    STEPS: [[0.42, [30, 31], 'knees'], [0.66, [29, 32], 'knees'], [1.02, [24, 25], 'spine'], [1.3, [19, 20, 21, 22, 23, 26, 27, 28], 'flat']],
     start(d) {
-      Object.assign(d.s, { sy: 1, ty: 1, white: 0, cA: 0, slam: false, head: null, eye: 1, ash: 0 });
+      Object.assign(d.s, { gone: new Set(), white: 0, jx: 0, cA: 0, slam: false, head: null, eye: 1, pump: 0, popped: false });
       A.powerUp(0.5);
     },
-    // the squashed body's points: a cell point, with the body pressed down to s.sy (and spread to match)
-    pt(d, cx, cy) { const s = d.s; return cellToWorld(mx(d, cx), cy, d.x, d.y, { sx: 1 + (1 - s.sy) * 0.6, sy: s.sy }); },
+    // art rows below r that have given way (row r has dropped by this many)
+    drop(d, r) { let n = 0; for (const q of d.s.gone) if (q > r) n++; return n; },
+    // the world y of the top of art row r, as crushed
+    rowY(d, r) { return d.y - 31 + (bodyTop() + 2 * r + 2 * this.drop(d, r)) / SS; },
+    // each art row's left and right edge on the sprite, read once
+    edges(img) {
+      let e = this._e?.get(img);
+      if (!e) {
+        const w = img.width, h = img.height, px_ = img.getContext('2d').getImageData(0, 0, w, h).data, top = bodyTop();
+        e = [];
+        for (let r = 0; r < 35; r++) {
+          const y = top + r * 2;
+          let lo = -1, hi = -1;
+          for (let x = 0; x < w; x++) if (y < h && px_[(y * w + x) * 4 + 3] > 0) { if (lo < 0) lo = x; hi = x; }
+          e.push(lo < 0 ? null : [lo, hi]);
+        }
+        (this._e ??= new WeakMap()).set(img, e);
+      }
+      return e;
+    },
+    // blood, meat and the odd bone or armor shard, one art pixel (two thirds of a game pixel) at a time
+    gore(x, y, i) {
+      const h = (i * 2654435761) >>> 0, c = h % 23 === 0 ? '#ecdcc8' : h % 17 === 0 ? '#8b98ab' : ['#c4243a', '#8a0f22', '#5a0612', '#e0384a', '#8a0f22'][h % 5];
+      ctx.fillStyle = c; ctx.fillRect(snap(x), snap(y), 2 / SS, 2 / SS);
+    },
+    // where the crushed seams are: each run of rows that gave, and the row it landed on
+    seams(d) {
+      const out = [], g = [...d.s.gone].sort((p, q) => p - q);
+      for (let i = 0; i < g.length; i++) { let j = i; while (j + 1 < g.length && g[j + 1] === g[j] + 1) j++; out.push([g[i], g[j]]); i = j; }
+      return out;
+    },
     update(d, dt) {
       const t = d.t, s = d.s, top = bodyTop();
-      s.white -= dt;
-      s.cA = Math.min(1, s.cA + dt * 4);
-      // three crushing steps: the armor buckles, blood bursts from the shoulder joints, plates pop off
-      for (const [ct, ty] of [[0.42, 0.87], [0.64, 0.77], [0.86, 0.67]]) if (at(d, ct)) {
-        s.ty = ty; s.sy = ty - 0.05; s.white = 0.06;
-        for (const side of [-1, 1]) {
-          const [wx, wy] = this.pt(d, 60 + side * 17, top + 34), out = side * d.f > 0 ? 0 : Math.PI;
-          spurt(wx, d.y, d.y - wy, out + rnd(-0.5, 0.3), 1.1, 6, BLOOD, 0.9);
-          for (let i = 0; i < 3; i++) part(wx, d.y, Math.cos(out) * rnd(40, 110), rnd(-12, 12), rnd(0.7, 1.1), Math.random() < 0.5 ? '#8b98ab' : '#5d6878', { z: d.y - wy, vz: rnd(30, 90), g: 380, drag: 1, s: 2 });
+      s.white -= dt; s.jx *= Math.exp(-16 * dt); s.cA = Math.min(1, s.cA + dt * 4);
+      const sideX = (cx) => d.x + (d.flip ? 20 - cx / SS : cx / SS - 20);
+      for (const [ct, rows, kind] of this.STEPS) if (at(d, ct)) {
+        for (const r of rows) s.gone.add(r);
+        // a red flash of pain and a jolt to one side as it gives
+        s.white = 0.04; s.jx = (kind === 'flat' ? 2 : 1.4) * (Math.random() < 0.5 ? -1 : 1);
+        const yW = this.rowY(d, Math.max(...rows) + 1), lift = d.y - yW;
+        if (kind === 'knees') {
+          // the knees snap: blood out of both joints, a splinter of bone, dust
+          for (const side of [-1, 1]) spurt(d.x + side * 4, d.y, lift, side > 0 ? rnd(-0.4, 0.2) : Math.PI + rnd(-0.2, 0.4), 1.2, 7, BLOOD, 0.6);
+          part(d.x + d.f * 3, d.y, d.f * rnd(40, 80), rnd(-10, 10), rnd(0.8, 1.2), '#ecdcc8', { z: lift, vz: rnd(50, 90), g: 380, drag: 1 });
+          dust(d.x, d.y, 8, 60); A.crack(); A.gore(0.5); shake(0.35); kick(Math.PI / 2, 2.5);
+          if (!s.cr) s.cr = makeCracks(d.x, d.y, 8, 22);
+        } else if (kind === 'spine') {
+          // the spine folds: plates split and spit sparks, blood jets from the seam, the visor starts to bleed
+          for (const side of [-1, 1]) spurt(d.x + side * 5, d.y, lift, side > 0 ? rnd(-0.5, 0.1) : Math.PI + rnd(-0.1, 0.5), 1.5, 9, BLOOD, 0.8);
+          for (let i = 0; i < 6; i++) part(d.x + rnd(-6, 6), d.y, rnd(-90, 90), rnd(-14, 14), rnd(0.8, 1.2), Math.random() < 0.5 ? '#8b98ab' : '#5d6878', { z: lift, vz: rnd(40, 110), g: 380, drag: 1, s: 2 });
+          sparks(d.x, d.y - lift, -Math.PI / 2, 10, 1, P.ember3, 140);
+          A.gore(0.9); A.wall(); A.crack(); shake(0.5); kick(Math.PI / 2, 3);
+        } else {
+          // the haft snaps and the crown slams him down onto his boots
+          s.slam = true;
+          const [hx, hy0] = handPos(d.x, d.y, { flip: d.flip }), hy = hy0 + (this.drop(d, 26) - rows.filter((r) => r > 26).length) * 2 / SS;
+          for (let i = 0; i < 6; i++) part(hx, d.y, rnd(-50, 50), rnd(-10, 10), rnd(0.6, 1), Math.random() < 0.5 ? '#6a4a32' : '#3a2618', { z: d.y - hy, vz: rnd(40, 100), g: 380, drag: 1.5 });
+          dropWeapon(d, { from: [hx, hy], vz: 70, vx: d.f * 45, spin: d.f * 7, onLand: () => { A.wall(); shake(0.25); } });
+          for (let i = 0; i < 10; i++) spurt(d.x + rnd(-5, 5), d.y, 3, (i * TAU) / 10 + rnd(-0.2, 0.2), 1.9, 10, BLOOD, 0.5);
+          chunks(d.x, d.y, 4, 22, ['#c4243a', '#8a0f22', '#5a0612', '#ecdcc8', '#8b98ab', '#5d6878'], 1.4);
+          for (let i = 0; i < 26; i++) part(d.x + rnd(-9, 9), d.y, rnd(-30, 30), rnd(-8, 8), rnd(0.8, 1.6), Math.random() < 0.5 ? P.ember : '#3a3238', { z: rnd(4, 14), vz: rnd(10, 60), g: 120, drag: 1.2, glow: Math.random() < 0.3 });
+          A.gore(2); A.boom(1.6); A.wall(); A.crack(); shake(1); kick(Math.PI / 2, 7); flash(P.blood, 0.22, true);
+          splat(d.x, d.y, 18, P.blood, P.bloodD); addPool(d.pools, d.x, d.y + 1, 19, { k: 0.8 });
+          addRing(d.x, d.y - 3, P.paper, 300, 0.3, 3); addRing(d.x, d.y - 3, P.blood, 220, 0.45, 3);
+          if (s.cr) stampCracks(s.cr);
         }
-        dust(d.x, d.y, 6, 50); A.gore(0.6); A.wall(); shake(0.35); kick(Math.PI / 2, 2.5);
       }
-      if (at(d, 0.42)) s.cr = makeCracks(d.x, d.y, 8, 22);
-      // he plants the hammer and pushes back, one breath
-      if (at(d, 1.02)) { s.ty = 0.74; A.powerUp(0.3); }
-      if (at(d, 1.3)) {
-        // the haft snaps and the crown slams him flat
-        s.slam = true; s.ty = 0.4; s.sy = 0.36; s.white = 0.08;
-        const [hx, hy] = handPos(d.x, d.y, { flip: d.flip, sx: 1 + (1 - 0.74) * 0.6, sy: 0.74 });
-        for (let i = 0; i < 6; i++) part(hx, d.y, rnd(-50, 50), rnd(-10, 10), rnd(0.6, 1), Math.random() < 0.5 ? '#6a4a32' : '#3a2618', { z: d.y - hy, vz: rnd(40, 100), g: 380, drag: 1.5 });
-        dropWeapon(d, { from: [hx, hy], vz: 70, vx: d.f * 45, spin: d.f * 7, onLand: () => { A.wall(); shake(0.25); } });
-        // the helm comes off and rolls away
+      // blood runs out of the visor once the spine has gone
+      if (t > 1.05 && t < 1.3 && Math.random() < 0.5) {
+        const e = heroSet().rig?.eye || [60, 50], ex = sideX(e[0]), ey = this.rowY(d, 15);
+        part(ex + rnd(-1.5, 1.5), d.y, rnd(-4, 4), 0, 1.5, Math.random() < 0.6 ? '#c4243a' : '#8a0f22', { z: d.y - ey, vz: -rnd(5, 20), g: 300, drag: 1, blood: true });
+      }
+      // a beat after the slam the helm pops off the stump and rolls away
+      if (at(d, 1.42)) {
+        s.popped = true;
         const neck = top + 38, pcs = placePieces(cutFrame(frame('idle', 0), d.flip, [[0, neck, CELL, neck + 1]], { min: 12 }), d.x, d.y);
         const head = pcs.filter((b) => b.pc.cy < neck).sort((p, q) => q.pc.n - p.pc.n)[0];
         if (head) {
-          head.z = head.z * 0.6; head.held = false; head.vx = d.f * rnd(55, 75); head.vy = rnd(-8, 8); head.vz = rnd(55, 85); head.vr = d.f * rnd(9, 13); head.bleed = 1.4;
-          d.pieces = [head]; s.head = head; s.neck = neck;
+          head.z -= this.drop(d, 18) * 2 / SS; head.held = false;
+          head.vx = d.f * rnd(55, 75); head.vy = rnd(-8, 8); head.vz = rnd(70, 100); head.vr = d.f * rnd(9, 13); head.bleed = 1.6;
+          d.pieces = [head]; s.head = head;
         }
-        for (let i = 0; i < 6; i++) spurt(d.x + rnd(-4, 4), d.y, 6, i * TAU / 6 + rnd(-0.3, 0.3), 1.7, 9, BLOOD, 0.8);
-        chunks(d.x, d.y, 8, 14, ['#c4243a', '#8a0f22', '#8b98ab', '#5d6878', '#ecdcc8'], 1.2);
-        for (let i = 0; i < 26; i++) part(d.x + rnd(-9, 9), d.y, rnd(-30, 30), rnd(-8, 8), rnd(0.8, 1.6), Math.random() < 0.5 ? P.ember : '#3a3238', { z: rnd(4, 14), vz: rnd(10, 60), g: 120, drag: 1.2, glow: Math.random() < 0.3 });
-        A.gore(2); A.boom(1.6); A.wall(); A.crack(); shake(1); kick(Math.PI / 2, 7); flash(P.blood, 0.2, true);
-        splat(d.x, d.y, 16, P.blood, P.bloodD); addPool(d.pools, d.x, d.y + 1, 17, { k: 1 });
-        addRing(d.x, d.y - 3, P.paper, 300, 0.3, 3); addRing(d.x, d.y - 3, P.ember, 200, 0.45, 2);
-        stampCracks(s.cr);
+        for (let i = 0; i < 3; i++) spurt(d.x, d.y, 4, -Math.PI / 2 + rnd(-0.5, 0.5), 2, 12, BLOOD, 1.4);
+        A.squirt?.(); A.gore(1);
       }
-      s.sy += (s.ty - s.sy) * Math.min(1, 18 * dt);
-      // the crown crumbles to ash on the heap
+      // and the stump keeps pumping, weaker each time
+      if (s.popped && t < 3.4) {
+        s.pump -= dt;
+        if (s.pump <= 0) { s.pump = 0.3; const f = Math.max(0.3, 1.6 - (t - 1.42) * 0.6); spurt(d.x + rnd(-1, 1), d.y, 3, -Math.PI / 2 + rnd(-0.6, 0.6), f, 5, BLOOD, 1.2); }
+      }
       if (s.slam) { s.cA = Math.max(0, 1 - (t - 1.3) / 0.5); if (Math.random() < 0.5 && s.cA > 0) part(d.x + rnd(-8, 8), d.y, rnd(-8, 8), rnd(-3, 3), rnd(0.6, 1.2), Math.random() < 0.6 ? '#3a3238' : P.ember, { z: rnd(4, 10), vz: rnd(4, 20), g: 60, drag: 1 }); }
       if (s.head?.rest) s.eye = Math.max(0, s.eye - dt * 0.8);
       stepPieces(d.pieces, dt, { onBounce: (b) => { A.click(); splat(b.x, b.y, 3, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b, 5) });
@@ -495,23 +546,43 @@ const DEATHS = {
       ctx.globalAlpha = 1;
     },
     draw(d) {
-      const t = d.t, s = d.s, fr = frame('idle', 0), o = { flip: d.flip, sx: 1 + (1 - s.sy) * 0.6, sy: s.sy, tint: s.white > 0 ? P.paper : null };
-      const headY = cellToWorld(60, bodyTop(), d.x, d.y, o)[1];
+      const t = d.t, s = d.s, fr = frame('idle', 0), img = s.white > 0 ? fr.tint('#ff3b3b', d.flip) : d.flip ? fr.f : fr.n;
+      const top = bodyTop(), x0 = snap(d.x - 20 + Math.round(s.jx * 3) / 3), e = this.edges(d.flip ? fr.f : fr.n);
+      // the hammer: at rest, then planted head down beside him once his knees go
       if (!s.slam) {
-        // the hammer: at rest, then planted head down beside him from the second step
-        const k = clamp((t - 0.55) / 0.15, 0, 1), down = Math.PI / 2 + (d.flip ? 0.3 : -0.3), rest = restAngle(d.flip);
-        drawHero(fr, d.x, d.y, o, rest + (down - rest) * ease(k));
-        this.crown(d.x, headY - 1 - 40 * (1 - ease(t / 0.35)), s.cA, t);
-      } else {
-        // crushed into his own armor, no head
-        drawBody(fr, d.x, d.y, { ...o, top: s.neck / SS + 0.5 });
-        this.crown(d.x, headY + 2, s.cA, t);
+        const k = clamp((t - 0.7) / 0.15, 0, 1), down = Math.PI / 2 + (d.flip ? 0.55 : -0.55), rest = restAngle(d.flip), wa = rest + (down - rest) * ease(k);
+        const [hx, hy] = handPos(d.x, d.y, { flip: d.flip });
+        if (Math.sin(wa) < -0.35) drawWeapon(hx, hy + this.drop(d, 26) * 2 / SS, wa, d.flip);
+        this.body(d, img, top, x0, s.popped ? 19 : 0);
+        if (Math.sin(wa) >= -0.35) drawWeapon(hx, hy + this.drop(d, 26) * 2 / SS, wa, d.flip);
+      } else this.body(d, img, top, x0, s.popped ? 19 : 0);
+      // gore squeezes out of every seam: wider and thicker the more rows gave there
+      for (const [a, b] of this.seams(d)) {
+        const n = b - a + 1, y = this.rowY(d, b + 1), bulge = Math.ceil(n / 2), rowsG = Math.min(3, 1 + (n >> 1));
+        let lo = 999, hi = -1;
+        for (let r = a; r <= b; r++) if (e[r]) { lo = Math.min(lo, e[r][0]); hi = Math.max(hi, e[r][1]); }
+        if (hi < 0) continue;
+        for (let j = 0; j < rowsG; j++) for (let cx = lo - bulge * 2; cx <= hi + bulge * 2; cx += 2) {
+          if ((j === 0 || j === rowsG - 1) && ((cx * 7 + j * 3 + a) % 5 === 0)) continue;   // a ragged edge
+          this.gore(x0 + cx / SS, y - (rowsG / 2 - j) * 2 / SS, cx * 31 + j * 7 + a * 13);
+        }
       }
+      // the stump, once the helm is off
+      if (s.popped) { const y = this.rowY(d, 19) ; for (let cx = 44; cx <= 76; cx += 2) this.gore(x0 + cx / SS, y - 2 / SS - ((cx * 5) % 3 === 0 ? 2 / SS : 0), cx * 17 + 5); }
+      this.crown(d.x, (s.popped ? this.rowY(d, 19) : this.rowY(d, 0)) - 1 - 40 * (1 - ease(t / 0.35)), s.cA, t);
       drawPieces(d.pieces);
       // the visor light on the rolling helm goes out
       if (s.head && s.eye > 0) {
-        const e = heroSet().rig?.eye || [60, 50], [vx, vy] = pieceToWorld(s.head, d.flip ? CELL - e[0] : e[0], e[1]);
+        const ey = heroSet().rig?.eye || [60, 50], [vx, vy] = pieceToWorld(s.head, d.flip ? CELL - ey[0] : ey[0], ey[1]);
         glow(vx, vy, '#ffe08a', 4, 0.6 * s.eye * (0.7 + 0.3 * Math.sin(t * 20)));
+      }
+    },
+    // his body from art row `from` down, crushed: rows that gave are left out and everything above them drops
+    body(d, img, top, x0, from) {
+      for (let r = 34; r >= from; r--) {
+        if (d.s.gone.has(r)) continue;
+        const cy = top + r * 2;
+        ctx.drawImage(img, 0, cy, CELL, 2, x0, d.y - 31 + (cy + 2 * this.drop(d, r)) / SS, CELL / SS, 2 / SS);
       }
     },
     under(d) { if (d.s.cr) drawCracks(d.s.cr, clamp((d.t - 0.42) / 0.9, 0, 1), P.ember, d.s.slam ? 0 : 0.4); },
