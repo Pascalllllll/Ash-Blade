@@ -1,16 +1,16 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=184';
-import { SPR, EVO_NAMES } from './sprites.js?v=184';
-import { A } from './audio.js?v=184';
-import { input, keyDown, keyHit } from './input.js?v=184';
-import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=184';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=184';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=184';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=184';
-import { byId } from './upgrades.js?v=184';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=184';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=184';
-import { WEAPON_ART } from './hero-rig.js?v=184';
-import { say, updateTalk, TALK } from './story.js?v=184';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=185';
+import { SPR, EVO_NAMES } from './sprites.js?v=185';
+import { A } from './audio.js?v=185';
+import { input, keyDown, keyHit } from './input.js?v=185';
+import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=185';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=185';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=185';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=185';
+import { byId } from './upgrades.js?v=185';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=185';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=185';
+import { WEAPON_ART } from './hero-rig.js?v=185';
+import { say, updateTalk, TALK, startLines, bossDeadLines, lastWords } from './story.js?v=185';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -242,8 +242,8 @@ export function startWave(n) {
   }
   G.queue = buildQueue(n);
   // the King talks to the fighter through the run; past wave 20, something older answers from below
-  const line_ = n === 1 ? TALK.start : n === 21 ? TALK.deeper : boss && bossFor(n) !== 'king' ? TALK[bossFor(n)] : null;
-  if (line_) G.timers.push({ t: n === 1 || n === 21 ? 2.4 : 1.1, fn: () => say(line_) });
+  const line_ = n === 1 ? startLines(G.char) : n === 21 ? TALK.deeper : boss && bossFor(n) !== 'king' ? TALK[bossFor(n)] : n < 20 ? TALK['w' + n] : null;
+  if (line_) G.timers.push({ t: n === 1 || n === 21 || TALK['w' + n] ? 2.4 : 1.1, fn: () => say(line_) });
   if (boss) {
     const bd = BOSSES[bossFor(n)];
     G.banner = { text: bd.name, sub: bd.sub, t: 0, life: 2.6, c: bd.col };
@@ -441,6 +441,8 @@ export function ghost(p, c = P.volt, spr) {
 // ---------- combo ----------
 export function addCombo(n) {
   G.combo += n;
+  // a long chain draws the King's attention, once a run
+  if (G.combo >= 50 && !G.saidCombo && !G.won && !G.talk) { G.saidCombo = true; say(TALK.combo); }
   G.comboT = 3;
   if (G.combo > G.maxCombo) G.maxCombo = G.combo;
   if (G.combo >= 100) unlock('WIZARD');
@@ -770,6 +772,8 @@ export function tryHurt(dmg, sx, sy) {
     return 'blocked';
   }
   p.hp -= dmg;
+  // close to death, the King smells it, once a run
+  if (p.hp > 0 && p.hp <= 2 && !G.saidLow && !G.won) { G.saidLow = true; say(TALK.lowHp); }
   // a short grace after a hit: enough to not lose two hearts to one blow, not enough to stand in a crowd
   p.inv = 0.35; p.hurtT = 0.3; p.sq = 0.26; p.sqv = 0;
   // a hit only nudges you back a little
@@ -815,7 +819,7 @@ function perfectDodge() {
 function die() {
   const p = G.p;
   p.hp = 0; p.state = 'dead'; G.dead = true; G.deadT = 0;
-  G.talk = null;
+  G.talk = null; G.lastWords = lastWords();
   shake(1); flash(P.blood, 0.25, true);
   A.death(); A.scene('dead'); A.stopLoops();
   // whatever the fighter had going ends with them: Unit-7's beam and sky laser, Rin's flash cut, Grom's fortress,
@@ -1754,7 +1758,7 @@ function bossDeath(e) {
   A.bossRoar(); A.stopLoops();
   const bd = BOSSES[e.boss];
   G.banner = { text: bd.death || (bd.final ? 'THE KING FALLS' : bd.short + ' SLAIN'), sub: '', t: 0, life: 2.6, c: P.gold };
-  say(bd.final ? TALK.kingDead : TALK[e.boss + 'Dead']);
+  say(bd.final ? TALK.kingDead : bossDeadLines(e.boss, G.char));
   G.queue.length = 0; G.sigils.length = 0; G.hbeams.length = 0; G.hlines.length = 0; G.dark = 0;
   for (const s of G.strikes) if (!s.friendly) s.dead = true;
   for (const o of G.E) if (o !== e && alive(o)) damage(o, 9999, { dir: Math.atan2(o.y - e.y, o.x - e.x), kb: 200, src: 'boom' });

@@ -1,5 +1,5 @@
 // All sound is synthesized with Web Audio: no files, no network.
-let sfxRev = null, ac = null, master, sfx, mus, crunch, nbuf, delayIn, delayNode, verbIn, padDuck, bassDuck, kickDist;
+let sfxRev = null, ac = null, master, sfx, mus, musDuck, crunch, nbuf, delayIn, delayNode, verbIn, padDuck, bassDuck, kickDist;
 const layers = {};
 const loops = {};
 const last = {};
@@ -40,6 +40,16 @@ function hiss(dur, vol, type, f0, f1, q = 1, dest = sfx, t = ac.currentTime, a =
   s.start(t, Math.random() * 1.2); s.stop(t + a + dur + 0.03);
 }
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+// the music dips under a big hit, then swells back
+function duck(depth = 0.6, hold = 0.05, rel = 0.28) {
+  if (!musDuck) return;
+  const t = ac.currentTime, g = musDuck.gain;
+  g.cancelScheduledValues(t); g.setValueAtTime(Math.min(1, g.value), t);
+  g.linearRampToValueAtTime(depth, t + 0.008); g.setValueAtTime(depth, t + 0.008 + hold); g.linearRampToValueAtTime(1, t + 0.008 + hold + rel);
+}
+// the minor pentatonic over D: reward sounds climb it, so a long chain always sounds like music
+const PENTA = [0, 3, 5, 7, 10];
+const penta = (base, n) => base + PENTA[n % 5] + 12 * Math.min(2, Math.floor(n / 5));
 
 // ---------- soundtrack ----------
 // Lead lines are offsets from D4 (MIDI 62), '.' is a rest. Bass is offset from each bar's root.
@@ -144,9 +154,42 @@ TRACKS.HYPERDRIVE = {
 // the Mirror plays the battle theme backwards, slower and sung
 TRACKS.REFLECTION = { ...TRACKS['PIT DIRGE'], bpm: 146, leadType: 'triangle', leadOct: 12, bell: true, choir: true, hey: null, lead: TRACKS['PIT DIRGE'].lead.map((b) => [...b].reverse()) };
 
+// ----- the story's own music -----
+// the title: an epic theme, war drums, a choir, strings running underneath and a horn melody (D minor)
+TRACKS['LAST LIGHT'] = {
+  orch: true, choir: true, bell: true, bpm: 104, prog: [[38, DM], [34, MA], [41, MA], [36, MA]],
+  kick: '................', snare: '................', hat: '..x...x...x...x.', hatVel: 0.45,
+  taiko: 'x.....x...x.....', ost: [0, 2, 1, 2, 0, 2, 1, 2, 0, 2, 1, 2, 0, 2, 1, 3],
+  bass: same('0 . . . . . . . 0 . . . 7 . . .'), bassLen: 7, bassCut: 600,
+  lead: bars('7 . . . 5 . 3 . 2 . . . 0 . . .|3 . . . 5 . 7 . 8 . . . 7 . . .|10 . . . 7 . 3 . 7 . . . 10 . 12 .|14 . . . 12 . 10 . 5 . . . . . . .'),
+  leadType: 'horn', leadVol: 0.07, leadOct: 0,
+};
+// the story: slow and sad, a flute over a choir, one drum a bar, the dominant pulling back home (D minor)
+TRACKS['TALE OF ASH'] = {
+  orch: true, choir: true, bell: true, bpm: 70, prog: [[38, DM], [34, MA], [43, DM], [33, MA]],
+  kick: '................', snare: '................', hat: '................',
+  taiko: 'x...............', ost: [0, -1, 1, -1, 2, -1, 1, -1, 0, -1, 1, -1, 2, -1, 3, -1],
+  bass: same('0 . . . . . . . . . . . . . . .'), bassLen: 15, bassCut: 400,
+  lead: bars('12 . . . . . 10 . 7 . . . . . . .|8 . . . 7 . 5 . 3 . . . . . . .|5 . . . 7 . 8 . 12 . . . 10 . 8 .|7 . . . . . . . 11 . . . 14 . . .'),
+  leadType: 'flute', leadVol: 0.07, leadOct: 0,
+};
+// the dawn after the King: D major, I V vi IV, bright and lifting
+TRACKS.DAWN = {
+  orch: true, choir: true, bell: true, bpm: 92, prog: [[38, MA], [33, MA], [35, DM], [31, MA]],
+  kick: 'x.......x.......', snare: '....x.......x...', hat: '..x...x...x...x.', hatVel: 0.5, snareVel: 0.5,
+  taiko: '............x...', ost: [0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1, 0, 1, 2, 3],
+  bass: same('0 . . . . . . . 7 . . . . . . .'), bassLen: 7, bassCut: 700,
+  lead: bars('4 . . . 7 . . . 12 . . . 11 . . .|9 . . . 7 . . . 2 . . . . . . .|12 . . . 11 . . . 9 . . . 7 . 9 .|5 . . . 7 . . . 9 . . . 12 . . .'),
+  leadType: 'horn', leadVol: 0.065, leadOct: 0,
+};
+
 // what plays in each moment when the soundtrack is AUTO, and how loud each layer is
 const SCENES = {
-  title: { track: 'HYPERDRIVE', pad: 0.7, bass: 0.8, drums: 0.85, arp: 0.6, lead: 1 },
+  // (the gentle themes have quieter parts, so their layers go above 1 to sit just under the battle music)
+  title: { track: 'LAST LIGHT', pad: 1.3, bass: 1.2, drums: 1.3, arp: 1.4, lead: 1.6 },
+  // the story panels, and the dawn after the King (the ending and the victory screen)
+  lore: { track: 'TALE OF ASH', pad: 2, bass: 1.4, drums: 1.8, arp: 2, lead: 2.4 },
+  dawn: { track: 'DAWN', pad: 1.8, bass: 1.4, drums: 1.4, arp: 1.8, lead: 2.2 },
   calm: { track: 'HYPERDRIVE', pad: 1, bass: 0.5, drums: 0.35, arp: 0.5, lead: 0.6 },
   fight: { track: 'COMBAT', pad: 0.5, bass: 1, drums: 1, arp: 0.7, lead: 0.75 },
   hot: { track: 'COMBAT', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
@@ -284,6 +327,33 @@ function heart(t, vol = 0.6) { tone('sine', 70, 40, 0.18, vol, ibus(), t); tone(
 // D minor, the game's key
 const IN_ROOT = 38;
 
+// a war drum in the music: a deep body and a slap of skin, with the hall around it
+function taikoDrum(t, vol = 1, pitch = 1) {
+  tone('sine', 120 * pitch, 42 * pitch, 0.55, 0.85 * vol, layers.drums, t);
+  tone('triangle', 240 * pitch, 80 * pitch, 0.15, 0.3 * vol, layers.drums, t);
+  hiss(0.08, 0.35 * vol, 'lowpass', 1600, 300, 1, layers.drums, t);
+  hiss(0.3, 0.12 * vol, 'lowpass', 900, 200, 1, verbIn, t);
+}
+// strings playing short and fast underneath (spiccato): two detuned saws, the filter snapping shut
+function ostNote(n, t, i) {
+  const f = ac.createBiquadFilter(), e = ac.createGain(), pn = ac.createStereoPanner();
+  f.type = 'lowpass'; f.Q.value = 1; f.frequency.setValueAtTime(2600, t); f.frequency.exponentialRampToValueAtTime(500, t + 0.12);
+  env(e, t, 0.004, 0.028, 0.14); pn.pan.value = i % 2 ? 0.35 : -0.35;
+  f.connect(e); e.connect(pn); pn.connect(layers.arp); e.connect(verbIn);
+  for (const det of [-7, 7]) { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det; o.connect(f); o.start(t); o.stop(t + 0.2); }
+}
+// an orchestral hit at the top of a phrase: brass on the chord, the drum, a soft cymbal
+function orchHit(root, ch, t) {
+  for (const iv of [0, ch[1], ch[2], 12]) for (const det of [-10, 10]) {
+    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.value = mtof(root + 24 + iv); o.detune.value = det;
+    f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.05); f.frequency.exponentialRampToValueAtTime(600, t + 0.9);
+    env(e, t, 0.02, 0.022, 0.9); o.connect(f); f.connect(e); e.connect(layers.lead); e.connect(verbIn);
+    o.start(t); o.stop(t + 1);
+  }
+  taikoDrum(t, 1.1, 0.85);
+  hiss(1.4, 0.06, 'highpass', 5000, 3500, 0.7, layers.drums, t); hiss(1.2, 0.05, 'highpass', 5000, 3500, 0.7, verbIn, t);
+}
 function snare(t, v = 1) { hiss(0.15, 0.34 * v, 'bandpass', 1900, 1500, 0.8, layers.drums, t); tone('triangle', 200, 150, 0.08, 0.18 * v, layers.drums, t); hiss(0.2, 0.12 * v, 'bandpass', 1900, 1500, 0.8, verbIn, t); }
 function clap(t) { for (let i = 0; i < 3; i++) hiss(0.03 + (i === 2 ? 0.08 : 0), 0.3, 'bandpass', 1400, 1200, 1.5, layers.drums, t + i * 0.012); }
 function hat(t, open, vel) { if (cur.metal) { hiss(0.06, 0.16, 'bandpass', 7200, 6800, 12, layers.drums, t); tone('square', 3100, 3000, 0.02, 0.02, layers.drums, t); } else hiss(open ? 0.09 : 0.025, 0.09 * vel, 'highpass', 8000, 8000, 1, layers.drums, t); }
@@ -329,22 +399,36 @@ function pad(root, ch, t) {
     o.start(t); o.stop(t + dur + 0.05); lfo.start(t); lfo.stop(t + dur + 0.05);
   }
 }
-function leadNote(n, len, t) {
+function leadNote(n, len, t, bright = false) {
   const d = Math.max(0.08, S16() * len * 0.95), f = ac.createBiquadFilter(), e = ac.createGain();
+  const horn = cur.leadType === 'horn', flute = cur.leadType === 'flute', atk = horn ? 0.035 : flute ? 0.07 : 0.01;
   f.type = 'lowpass'; f.frequency.value = cur.leadType === 'sawtooth' ? 2600 : 3200;
+  // a horn's filter opens as it's blown, then settles
+  if (horn) { f.Q.value = 1.4; f.frequency.setValueAtTime(600, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.07); f.frequency.exponentialRampToValueAtTime(1400, t + Math.max(0.12, d)); }
   e.gain.setValueAtTime(0.0001, t);
-  e.gain.exponentialRampToValueAtTime(cur.leadVol, t + 0.01);
-  e.gain.setValueAtTime(cur.leadVol * 0.8, t + d * 0.6);
-  e.gain.exponentialRampToValueAtTime(0.0001, t + d + (cur.bell ? 0.4 : 0.05));
+  e.gain.exponentialRampToValueAtTime(cur.leadVol, t + atk);
+  e.gain.setValueAtTime(cur.leadVol * 0.8, t + Math.max(atk, d * 0.6));
+  e.gain.exponentialRampToValueAtTime(0.0001, t + d + (cur.bell ? 0.4 : flute ? 0.25 : 0.05));
   f.connect(e); e.connect(layers.lead); e.connect(delayIn);
-  const voices = cur.supersaw ? [[0, -14], [0, 0], [0, 14]] : [[0, 0]];
+  // a held note sings: vibrato fades in after the attack
+  let vib = null;
+  if (d > 0.22) {
+    vib = ac.createGain(); vib.gain.setValueAtTime(0, t); vib.gain.linearRampToValueAtTime(flute ? 14 : 9, t + Math.min(d, 0.45));
+    const lfo = ac.createOscillator(); lfo.frequency.value = 5.4; lfo.connect(vib); lfo.start(t); lfo.stop(t + d + 0.5);
+  }
+  const type = horn ? 'sawtooth' : flute ? 'sine' : cur.leadType;
+  const voices = horn ? [[0, -9], [0, 9]] : flute ? [[0, 0], [12, 0]] : cur.supersaw ? [[0, -14], [0, 0], [0, 14]] : [[0, 0]];
   if (cur.harm) voices.push([-12, 0], [7, 0]);
+  if (bright) voices.push([12, 0]);
   for (const [iv, det] of voices) {
     const o = ac.createOscillator();
-    o.type = cur.leadType; o.frequency.value = mtof(n + iv); o.detune.value = det;
-    if (iv) { const hg = ac.createGain(); hg.gain.value = iv === 7 ? 0.35 : 0.5; o.connect(hg); hg.connect(f); } else o.connect(f);
+    o.type = flute && iv === 12 ? 'triangle' : type; o.frequency.value = mtof(n + iv); o.detune.value = det;
+    if (vib) vib.connect(o.detune);
+    if (iv) { const hg = ac.createGain(); hg.gain.value = iv === 7 ? 0.35 : iv === 12 ? (flute ? 0.12 : 0.3) : 0.5; o.connect(hg); hg.connect(f); } else o.connect(f);
     o.start(t); o.stop(t + d + 0.5);
   }
+  // a flute breathes
+  if (flute) hiss(Math.min(d, 0.5), 0.012, 'bandpass', mtof(n), mtof(n), 6, layers.lead, t, 0.05);
   if (cur.bell) {
     const o2 = ac.createOscillator(), e2 = ac.createGain();
     o2.type = 'sine'; o2.frequency.value = mtof(n + 12);
@@ -393,8 +477,9 @@ function playStep(i, t) {
   if (s === 0 && pending) { cur = pending; pending = null; if (delayNode) delayNode.delayTime.setValueAtTime(S16() * 3, t); }
   const [root, ch] = cur.prog[bar];
   if (s === 0) pad(root, ch, t);
-  const edm = cur.bpm > 100, phrase = Math.floor(i / 16) % 8, build = edm && phrase === 7;
+  const edm = cur.bpm > 100 && !cur.orch, phrase = Math.floor(i / 16) % 8, build = edm && phrase === 7;
   if (s === 0 && bar === 0 && edm) { if (phrase === 0 && i > 0) drop(t); else crash(t); }
+  if (s === 0 && bar === 0 && cur.orch && phrase % 4 === 0) orchHit(root, ch, t);
   if (build && s === 0) riser(t, S16() * 16);
   if (build) {
     // snare roll speeding up into the drop, kick drops out for the last half bar
@@ -405,15 +490,19 @@ function playStep(i, t) {
   const bn = cur.bass[bar][s];
   if (bn !== null && bn !== undefined) bassNote(root + bn, t);
   if (cur.kick[s] === 'x' && !(build && s >= 8)) kick(t);
-  if (cur.snare[s] === 'x') snare(t, s % 4 === 0 ? 1 : 0.5);
+  if (cur.snare[s] === 'x') snare(t, (s % 4 === 0 ? 1 : 0.5) * (cur.snareVel ?? 1));
   if (cur.clap && cur.clap[s] === 'x') clap(t);
-  if (cur.hat[s] === 'x') hat(t, s % 8 === 6, s % 2 ? 0.6 : 1);
+  if (cur.hat[s] === 'x') hat(t, s % 8 === 6, (s % 2 ? 0.6 : 1) * (cur.hatVel ?? 1) * rnd(0.8, 1.1));
+  // a drum fill rounds off every other loop of four bars
+  if (!cur.orch && !build && bar === 3 && s >= 12 && Math.floor(i / 64) % 2 === 1 && !(cur.tom && cur.tom.slice(12).includes('x'))) tom(t, s);
+  if (cur.taiko && cur.taiko[s] === 'x') taikoDrum(t, s === 0 ? 1 : 0.65, s === 0 ? 0.9 : 1.15);
+  if (cur.ost && cur.ost[s] >= 0) { const tones = [0, ch[1], ch[2], 12]; ostNote(root + 24 + tones[cur.ost[s]], t, s); }
   if (cur.tom && cur.tom[s] === 'x' && (bar === 3 || !cur.tom.endsWith('xxxx'))) tom(t, s);
   const ln = cur.lead[bar][s];
   if (ln !== null && ln !== undefined) {
     let len = 1;
     while (len < 4 && s + len < 16 && cur.lead[bar][s + len] === null) len++;
-    leadNote(62 + cur.leadOct + ln, len, t);
+    leadNote(62 + cur.leadOct + ln, len, t, Math.floor(i / 64) % 2 === 1 && bar >= 2);
   }
   if (cur.arp) { const tones = [0, ch[1], ch[2], 12]; arpNote(root + 36 + tones[cur.arp[s]], t); }
 }
@@ -450,9 +539,15 @@ export const A = {
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -16; comp.ratio.value = 5; comp.attack.value = 0.002; comp.release.value = 0.12;
     master = ac.createGain();
-    master.connect(comp); comp.connect(ac.destination);
+    // the finish: a little weight under 100 Hz and air above 9 kHz, the glue compressor, then a limiter last so the
+    // loudest moment (a boss dying in the middle of a drop) never clips
+    const low = ac.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 95; low.gain.value = 2.5;
+    const air = ac.createBiquadFilter(); air.type = 'highshelf'; air.frequency.value = 9000; air.gain.value = 2;
+    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.06;
+    master.connect(low); low.connect(air); air.connect(comp); comp.connect(lim); lim.connect(ac.destination);
     sfx = ac.createGain(); sfx.connect(master);
-    mus = ac.createGain(); mus.connect(master);
+    // the music runs through its own duck, which dips for an instant under every big hit so the hit punches through
+    mus = ac.createGain(); musDuck = ac.createGain(); mus.connect(musDuck); musDuck.connect(master);
     crunch = ac.createWaveShaper();
     const curve = new Float32Array(1024);
     for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; curve[i] = Math.tanh(x * 3.2); }
@@ -590,33 +685,48 @@ export const A = {
     tone('sine', h ? 900 : 1300, h ? 380 : 620, 0.09, 0.05);
   },
   heavySwing() { if (gate('hsw', 0.05)) { hiss(0.3, 0.6, 'bandpass', 250, 2400, 1.2); tone('sine', 300, 120, 0.25, 0.15, crunch); } },
+  // a hit lands: a sub punch, the crack of the blow and its body; crits ring, heavy hits push the music back
   hit(heavy, crit) {
     if (!gate('hit', 0.03)) return;
-    tone('sine', heavy ? 200 : 175, 40, heavy ? 0.2 : 0.13, 1, crunch);
-    hiss(0.07, 0.5, 'highpass', 2600, 1200, 0.7);
-    tone('square', rnd(1400, 1800), 600, 0.05, 0.06);
-    if (crit) tone('triangle', 2400, 2300, 0.3, 0.12);
+    const t = ac.currentTime;
+    v('sine', heavy ? 210 : 180, 38, heavy ? 0.22 : 0.14, 1, t, { dest: crunch });
+    n(0.012, 0.6, 'highpass', 5000, 5000, 0.7, t);
+    n(0.07, 0.45, 'bandpass', 2200, 900, 1.2, t + 0.004);
+    v('square', rnd(1500, 1900), 620, 0.04, 0.05, t);
+    if (crit) { chime(2400, t + 0.01, 0.07, 0.4); n(0.25, 0.15, 'highpass', 7000, 9000, 1, t, { rev: 0.6 }); }
+    if (heavy || crit) duck(0.65, 0.04, 0.22);
   },
   tick() { if (gate('tick', 0.045)) { tone('sine', 220, 80, 0.06, 0.4, crunch); hiss(0.03, 0.2, 'highpass', 3000, 2000, 1); } },
+  // a kill: the body thumps and breaks into its pixels with a crackle, and a chime climbs the scale with the combo
   kill(combo = 0) {
     if (!gate('kill', 0.04)) return;
-    const t = ac.currentTime, pm = 1 + Math.min(combo, 60) * 0.008;
+    const t = ac.currentTime;
     v('sine', 130, 26, 0.36, 1, t, { dest: crunch });
     n(0.3, 0.5, 'lowpass', 4200, 180, 0.8, t);
     n(0.2, 0.22, 'bandpass', 7000, 2200, 2.5, t + 0.02, { rev: 0.5 });
-    v('triangle', 1320 * pm, 1310 * pm, 0.14, 0.06, t + 0.03, { rev: 0.6 });
+    crackle(t + 0.03, 8 + Math.min(6, combo >> 2), 4600, 0.035);
+    chime(mtof(penta(76, Math.min(combo, 14))), t + 0.04, 0.045, 0.3);
+    duck(0.7, 0.03, 0.2);
   },
   // a charged attack: a rising whine while it builds, a bright ping when it's full
   charge(f) { if (gate('chg', 0.09)) tone('triangle', 260 + f * 700, 300 + f * 760, 0.08, 0.04 + f * 0.04); },
   chargeFull() { if (!ac) return; tone('sine', 1760, 1760, 0.4, 0.14); tone('triangle', 2640, 2600, 0.25, 0.07); hiss(0.08, 0.3, 'highpass', 5000, 7000, 1); },
   slice() { if (gate('slice', 0.04)) hiss(0.1, 0.35, 'bandpass', 5000, 9500, 2); },
-  dash() { if (gate('dash', 0.05)) { hiss(0.17, 0.32, 'bandpass', 280, 1900, 1.2); tone('sine', 300, 760, 0.12, 0.05); } },
+  dash() { if (gate('dash', 0.05)) { const t = ac.currentTime; n(0.17, 0.32, 'bandpass', 280, 2400, 1.2, t); v('sine', 300, 820, 0.12, 0.05, t); n(0.01, 0.2, 'highpass', 6000, 6000, 1, t); } },
   parry() {
     if (!gate('parry', 0.04)) return;
     tone('sine', 1320, 1320, 0.55, 0.22); tone('sine', 1980, 1975, 0.35, 0.12);
     tone('square', 700, 1400, 0.06, 0.08); hiss(0.05, 0.4, 'highpass', 4000, 4000, 1);
   },
-  perfect() { if (!ac) return; tone('triangle', 500, 1600, 0.35, 0.15); tone('sine', 1600, 1600, 0.6, 0.08, sfx, ac.currentTime + 0.12); hiss(0.4, 0.2, 'bandpass', 2200, 600, 3); },
+  // a perfect dodge: time slows; a rising sweep and a crystal chord ring out over a dipped mix
+  perfect() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    tone('triangle', 500, 1600, 0.35, 0.15);
+    [88, 93, 98].forEach((m, i) => chime(mtof(m), t + 0.08 + i * 0.04, 0.05, 0.6));
+    hiss(0.4, 0.2, 'bandpass', 2200, 600, 3);
+    duck(0.5, 0.15, 0.4);
+  },
   rift() { if (!ac) return; hiss(0.18, 0.45, 'bandpass', 600, 7000, 1.5); tone('sine', 300, 1800, 0.18, 0.12); },
   riftCut() { if (!ac) return; tone('sine', 3200, 2800, 0.6, 0.12); tone('triangle', 1600, 1500, 0.4, 0.1); hiss(0.12, 0.5, 'highpass', 3000, 6000, 1); last.boom = -1; this.boom(0.8); },
   zap() {
@@ -645,25 +755,46 @@ export const A = {
   shieldHit() { if (gate('shh', 0.06)) { tone('triangle', 1600, 800, 0.15, 0.15); hiss(0.08, 0.3, 'highpass', 3000, 3000, 1); } },
   rocket() { if (gate('rk', 0.04)) { hiss(0.3, 0.35, 'bandpass', 600, 3000, 1.5); tone('sawtooth', 200, 400, 0.15, 0.05); } },
   overheat() { if (!ac) return; hiss(0.6, 0.4, 'highpass', 2000, 6000, 1); tone('square', 600, 200, 0.4, 0.08); },
-  pickup(n) {
+  // energy: each pickup in a run climbs the scale, a bright note with a sparkle
+  pickup(k) {
     if (!gate('pk', 0.022)) return;
-    const f = 660 * Math.pow(2, Math.min(n, 24) / 12);
-    tone('triangle', f, f, 0.09, 0.1); tone('sine', f * 2, f * 2, 0.05, 0.04);
+    const t = ac.currentTime, f = mtof(penta(79, Math.min(k, 14)));
+    v('triangle', f, f, 0.09, 0.08, t); v('sine', f * 2, f * 2, 0.07, 0.035, t + 0.01, { rev: 0.5 });
+    n(0.04, 0.05, 'highpass', 8000, 9000, 1, t);
   },
-  heal() { if (!ac) return; tone('sine', 523, 523, 0.15, 0.15); tone('sine', 784, 784, 0.25, 0.15, sfx, ac.currentTime + 0.08); },
-  hurt() { if (!ac) return; tone('sawtooth', 260, 70, 0.3, 0.45, crunch); hiss(0.25, 0.5, 'lowpass', 1800, 200, 1); },
-  death() { if (!ac) return; tone('sawtooth', 220, 30, 1.6, 0.5, crunch); hiss(1.4, 0.5, 'lowpass', 3000, 80, 0.7); },
+  heal() { if (!ac) return; const t = ac.currentTime; [62, 66, 69, 74].forEach((m, i) => chime(mtof(m + 12), t + i * 0.05, 0.05, 0.4)); n(0.4, 0.08, 'highpass', 6000, 9000, 1, t, { rev: 0.7 }); },
+  // taking a hit: a body blow, a grunt of pain, and the music pushed back for a moment
+  hurt() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    v('sine', 190, 40, 0.28, 1, t, { dest: crunch });
+    v('sawtooth', 260, 70, 0.3, 0.35, t, { dest: crunch });
+    n(0.25, 0.5, 'lowpass', 1800, 200, 1, t);
+    n(0.02, 0.5, 'highpass', 4000, 4000, 1, t);
+    duck(0.45, 0.08, 0.4);
+  },
+  // death: a last heavy blow, the sound falling away, and a soft choir sighing as the light goes out
+  death() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    v('sine', 160, 26, 0.9, 1, t, { dest: crunch }); tone('sawtooth', 220, 30, 1.6, 0.4, crunch, t);
+    n(1.4, 0.5, 'lowpass', 3000, 80, 0.7, t);
+    for (const m of [62, 65, 69]) v('triangle', mtof(m), mtof(m - 1), 2.4, 0.025, t + 0.25, { a: 0.5, rev: 0.9 });
+    duck(0.3, 0.5, 1.5);
+  },
   rank(r) {
     if (!ac) return;
     const base = 74 + [0, 0, 2, 3, 5, 7, 10][r];
     tone('triangle', mtof(base), mtof(base), 0.08, 0.12);
     tone('triangle', mtof(base + 7), mtof(base + 7), 0.18, 0.12, sfx, ac.currentTime + 0.07);
   },
-  deny() { if (gate('deny', 0.12)) tone('square', 180, 140, 0.08, 0.07); },
-  ui() { if (gate('ui', 0.03)) tone('square', 880, 880, 0.03, 0.05); },
+  deny() { if (gate('deny', 0.12)) { const t = ac.currentTime; v('square', 190, 170, 0.06, 0.05, t); v('square', 150, 135, 0.08, 0.05, t + 0.07); } },
+  // moving through a menu: a soft, clean tick
+  ui() { if (gate('ui', 0.03)) { const t = ac.currentTime; v('sine', 1500, 1500, 0.025, 0.05, t); v('triangle', 3000, 3000, 0.012, 0.02, t); } },
   // a speaker's voice while their line types out: a short blip, low and rough for the King, brighter for everyone else
   voice(low) { if (gate('voice', 0.055)) tone(low ? 'sawtooth' : 'square', low ? 95 + Math.random() * 25 : 520 + Math.random() * 140, low ? 80 : 470, 0.035, low ? 0.045 : 0.02); },
-  select() { if (!ac) return; tone('square', 660, 660, 0.05, 0.06); tone('square', 990, 990, 0.1, 0.06, sfx, ac.currentTime + 0.05); },
+  // choosing: a two-note chime that rises
+  select() { if (!ac) return; const t = ac.currentTime; chime(mtof(81), t, 0.05, 0.25); chime(mtof(86), t + 0.06, 0.05, 0.35); },
   sigil() { if (gate('sig', 0.12)) { tone('sine', 220, 440, 0.4, 0.04); hiss(0.4, 0.05, 'bandpass', 800, 2400, 6); } },
   spawn() { if (gate('spn', 0.06)) { hiss(0.12, 0.2, 'lowpass', 1200, 300, 1); tone('sine', 300, 90, 0.12, 0.14); } },
   shoot() { if (gate('shoot', 0.05)) tone('triangle', 520, 240, 0.14, 0.07); },
@@ -682,18 +813,41 @@ export const A = {
   powerUp(d = 1) { if (!ac) return; tone('sawtooth', 70, 520, d, 0.07); tone('sine', 140, 1040, d, 0.05); hiss(d, 0.12, 'bandpass', 300, 3000, 2); },
   crack() { if (gate('crack', 0.04)) { tone('square', 1800, 200, 0.03, 0.12, crunch); hiss(0.06, 0.4, 'highpass', 3500, 1500, 2); } },
   warn() { if (gate('warn', 0.2)) { tone('square', 880, 880, 0.08, 0.06); tone('square', 660, 660, 0.08, 0.06, sfx, ac.currentTime + 0.1); } },
+  // a wave begins: a war horn and a drum; a boss wave begins with its roar
   waveStart(boss) {
     if (!ac) return;
     if (boss) { this.bossRoar(); return; }
-    tone('triangle', 147, 147, 0.5, 0.12); tone('triangle', 220, 220, 0.6, 0.1, sfx, ac.currentTime + 0.12);
+    const t = ac.currentTime;
+    brassChord([50, 57, 62], t, 1.1, 0.07);
+    v('sine', 110, 40, 0.5, 0.7, t, { dest: crunch }); n(0.08, 0.35, 'lowpass', 1600, 300, 1, t);
   },
-  waveClear() { if (!ac) return; const t = ac.currentTime; [62, 65, 69, 74, 77].forEach((n, i) => tone('triangle', mtof(n), mtof(n), 0.4, 0.1, sfx, t + i * 0.07)); },
-  victory() { if (!ac) return; const t = ac.currentTime; [62, 66, 69, 74, 78, 81, 86].forEach((n, i) => { tone('triangle', mtof(n), mtof(n), 0.8, 0.1, sfx, t + i * 0.12); tone('sine', mtof(n + 12), mtof(n + 12), 0.6, 0.05, sfx, t + i * 0.12); }); },
+  // a wave is cleared: chimes climbing, a brass chord and a shimmer of cymbal
+  waveClear() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    [62, 65, 69, 74, 77].forEach((m, i) => chime(mtof(m + 12), t + i * 0.06, 0.05, 0.45));
+    brassChord([62, 65, 69, 74], t + 0.3, 1.2, 0.05);
+    n(1.2, 0.07, 'highpass', 6000, 4000, 0.7, t + 0.3, { rev: 0.7 });
+  },
+  // victory: a fanfare in D major (I IV V I), then chimes and a cymbal swell
+  victory() {
+    if (!ac) return;
+    const t = ac.currentTime;
+    [[62, 66, 69], [67, 71, 74], [69, 73, 76], [74, 78, 81]].forEach((c, i) => brassChord(c, t + i * 0.22, i === 3 ? 1.6 : 0.4, 0.07));
+    [74, 78, 81, 86].forEach((m, i) => chime(mtof(m + 12), t + 0.66 + i * 0.07, 0.05, 0.6));
+    n(1.6, 0.08, 'highpass', 6000, 4000, 0.7, t + 0.66, { rev: 0.8 });
+  },
+  // a boss roars: a throat of noise on two sliding vowels, growling saws, a sub you feel, the hall answering
   bossRoar() {
     if (!ac) return;
-    tone('sawtooth', 75, 45, 1.3, 0.5, crunch, ac.currentTime, 0.1);
-    tone('sawtooth', 112, 60, 1.2, 0.3, crunch, ac.currentTime, 0.1);
-    hiss(1.2, 0.4, 'lowpass', 700, 120, 2, sfx, ac.currentTime, 0.1);
+    const t = ac.currentTime;
+    for (const [f1, f2] of [[520, 380], [900, 640]]) n(1.1, 0.4, 'bandpass', f1, f2, 4, t, { dest: crunch, a: 0.08 });
+    tone('sawtooth', 75, 45, 1.3, 0.5, crunch, t, 0.1);
+    tone('sawtooth', 112, 60, 1.2, 0.3, crunch, t, 0.1);
+    tone('sine', 60, 28, 1.4, 0.7, sfx, t, 0.05);
+    hiss(1.2, 0.4, 'lowpass', 700, 120, 2, sfx, t, 0.1);
+    n(1.2, 0.2, 'lowpass', 900, 200, 1, t, { rev: 0.8, a: 0.1 });
+    duck(0.4, 0.4, 1);
   },
   // multi-kills: a power chord that climbs with the count
   multi(n) {
@@ -705,7 +859,7 @@ export const A = {
     if (n >= 5) tone('sawtooth', mtof(b - 12), mtof(b - 24), 0.5, 0.18, crunch, t);
   },
   heartbeat() { if (!ac) return; const t = ac.currentTime; tone('sine', 62, 38, 0.14, 0.5, crunch, t); tone('sine', 58, 34, 0.12, 0.35, crunch, t + 0.16); },
-  coin() { if (gate('coin', 0.05)) { tone('square', 1976, 1976, 0.04, 0.05); tone('square', 2637, 2637, 0.12, 0.05, sfx, ac.currentTime + 0.05); } },
+  coin() { if (gate('coin', 0.05)) { const t = ac.currentTime; v('square', 1976, 1976, 0.04, 0.045, t); v('square', 2637, 2637, 0.14, 0.045, t + 0.05); v('sine', 5274, 5274, 0.1, 0.015, t + 0.05, { rev: 0.5 }); } },
   jackpot() {
     if (!ac) return;
     const t = ac.currentTime;
@@ -717,6 +871,65 @@ export const A = {
     const t = ac.currentTime;
     tone('sawtooth', 110, 55, 1, 0.25, crunch, t); tone('triangle', mtof(69), mtof(68), 0.9, 0.1, sfx, t + 0.1); tone('triangle', mtof(75), mtof(74), 0.9, 0.08, sfx, t + 0.2);
     hiss(0.8, 0.3, 'bandpass', 400, 3000, 3, sfx, t);
+  },
+  // ---- the story panels ----
+  // turning a page: paper sliding past and a soft low thud
+  lorePage() { if (!ac) return; const t = ac.currentTime; n(0.28, 0.16, 'bandpass', 2400, 500, 1.2, t); v('sine', 90, 50, 0.25, 0.3, t + 0.04); },
+  // a caption types out: a soft typewriter tick
+  type() { if (gate('type', 0.04)) { const t = ac.currentTime, f = rnd(1700, 2300); v('square', f, f * 0.8, 0.008, 0.018, t); n(0.006, 0.06, 'highpass', 6000, 6000, 1, t); } },
+  // each panel's moment
+  loreCue(i) {
+    if (!ac) return;
+    const t = ac.currentTime, B = ibus();
+    if (i === 0) {
+      // the golden sun: a warm major chord swells and bells ring out like sunlight
+      choirChord(t + 0.1, 3, [62, 66, 69, 74], 0.035);
+      [86, 93, 98].forEach((m, k) => chime(mtof(m), t + 0.3 + k * 0.18, 0.04, 1.2));
+    } else if (i === 1) {
+      // the sun grows dim: the chord sinks to minor over a cold wind and a low drone of fear
+      choirChord(t + 0.1, 3.2, [62, 65, 69], 0.035);
+      hiss(3, 0.08, 'bandpass', 500, 300, 2, B, t, 1);
+      tone('sawtooth', mtof(38), mtof(37), 3.2, 0.05, B, t, 0.8);
+    } else if (i === 2) {
+      // the swallowing: everything rushes in toward him, then one huge boom and the choir cries out
+      hiss(2.2, 0.2, 'bandpass', 200, 4000, 1.5, B, t, 2);
+      tone('sawtooth', 60, 480, 2.2, 0.05, B, t, 2);
+      const at = t + 2.3; braam(at, 2.4, 0.2); subDrop(at, 1); taiko(at, 1.4, 0.8);
+      choirChord(at, 2.4, [50, 57, 62, 65], 0.05); cymbal(at, 2, 0.12);
+    } else if (i === 3) {
+      // the land in ash and the army climbing out: a rumble, war drums far off, growls in the dark
+      hiss(3.4, 0.12, 'lowpass', 300, 120, 1, B, t, 0.6);
+      for (let k = 0; k < 6; k++) taiko(t + 0.4 + k * 0.42, 0.35 + k * 0.08, 0.7);
+      for (let k = 0; k < 3; k++) { const at = t + 0.8 + k * 0.7; tone('sawtooth', 90 + k * 12, 50, 0.6, 0.12, crunch, at, 0.08); hiss(0.5, 0.18, 'bandpass', 500, 300, 4, crunch, at, 0.05); }
+    } else {
+      // the goal: a horn call
+      brassChord([50, 57, 62], t + 0.05, 0.9, 0.06, B);
+    }
+  },
+  // a goal lands on the last panel: a brass hit, each one higher
+  goalHit(k) { if (!ac) return; const t = ac.currentTime, r = [62, 65, 69][k] ?? 62; brassChord([r, r + 7, r + 12], t, 0.7, 0.07, ibus()); taiko(t, 0.8 + k * 0.2, 1); if (k === 2) cymbal(t, 1.8, 0.1); },
+  // ---- the ending ----
+  endingCue(i) {
+    if (!ac) return;
+    const t = ac.currentTime, B = ibus();
+    if (i === 0) {
+      // the sun breaks out of him: a rush of light, then a choir swelling into a blazing major chord
+      hiss(1.6, 0.15, 'bandpass', 400, 6000, 1.5, B, t, 1.5);
+      const at = t + 1.6; braam(at, 2, 0.14, 38); cymbal(at, 2.6, 0.14); taiko(at, 1.3, 0.8);
+      choirChord(at, 3.4, [62, 66, 69, 74, 78], 0.05);
+      [86, 90, 93, 98].forEach((m, k) => chime(mtof(m), at + 0.1 + k * 0.1, 0.05, 1.4));
+    } else if (i === 1) {
+      // the light comes back: a warm chord, and birds
+      choirChord(t + 0.1, 3.5, [62, 69, 74, 78], 0.035);
+      whistles(t + 0.8, 4); whistles(t + 2, 3);
+    } else if (i === 2) {
+      // the fighter's last word
+      chime(mtof(86), t + 0.4, 0.05, 1.2); chime(mtof(93), t + 0.55, 0.04, 1.2);
+    } else {
+      // THE END: a last chord and a bell, then something stirs below
+      brassChord([50, 57, 62, 66], t + 0.1, 2.2, 0.07, B); this.bell();
+      const at = t + 1.8; tone('sawtooth', mtof(26), mtof(25), 3, 0.08, B, at, 1); hiss(2.5, 0.1, 'lowpass', 400, 150, 1, B, at, 1);
+    }
   },
   ultStart() { if (!ac) return; tone('sine', 70, 30, 1.2, 0.8, crunch); hiss(0.5, 0.4, 'bandpass', 200, 6000, 2, sfx, ac.currentTime, 0.4); },
   ultCut(i) { if (!ac) return; hiss(0.05, 0.4, 'bandpass', 6000, 9500, 3); tone('sine', 1800 + i * 70, 1700 + i * 70, 0.07, 0.05); },
@@ -737,6 +950,30 @@ function v(type, f0, f1, dur, vol, t, o = {}) {
 function n(dur, vol, type, f0, f1, q, t, o = {}) {
   hiss(dur, vol, type, f0, f1, q, o.dest || sfx, t, o.a ?? 0.002);
   if (o.rev && sfxRev) hiss(dur, vol * o.rev, type, f0, f1, q, sfxRev, t, o.a ?? 0.002);
+}
+// pixels shattering: a quick run of tiny bright blips falling in pitch, a sprite breaking into its pixels
+function crackle(t, count = 9, f0 = 4200, vol = 0.05) {
+  for (let i = 0; i < count; i++) {
+    const at = t + i * rnd(0.008, 0.02), f = f0 * (1 - i / (count * 1.7)) * rnd(0.85, 1.15);
+    v('square', f, f * 0.8, 0.012, vol * (1 - (i / count) * 0.6), at);
+  }
+}
+// a soft chime with a sparkle on top and a little hall around it
+function chime(f, t, vol = 0.06, dur = 0.35) {
+  v('triangle', f, f, dur, vol, t, { rev: 0.5 });
+  v('sine', f * 2, f * 2, dur * 0.6, vol * 0.45, t + 0.004, { rev: 0.6 });
+  v('sine', f * 3.01, f * 3.01, dur * 0.3, vol * 0.18, t + 0.008);
+}
+// a brass chord: detuned saws, the filter blown open, then settling
+function brassChord(notes, t, dur = 0.8, vol = 0.05, dest = sfx) {
+  for (const nn of notes) for (const det of [-10, 0, 10]) {
+    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.value = mtof(nn); o.detune.value = det;
+    f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(350, t); f.frequency.exponentialRampToValueAtTime(2800, t + 0.06); f.frequency.exponentialRampToValueAtTime(700, t + dur);
+    env(e, t, 0.03, vol / notes.length, dur);
+    o.connect(f); f.connect(e); e.connect(dest); if (sfxRev && dest === sfx) e.connect(sfxRev);
+    o.start(t); o.stop(t + dur + 0.1);
+  }
 }
 // inharmonic partials ring like struck metal
 const metal = (fs, dur, vol, t, rev = 0.4) => fs.forEach((f) => v('sine', f, f * 0.997, dur, vol / fs.length, t, { rev }));
@@ -875,5 +1112,10 @@ const HIT = {
 Object.assign(A, {
   charAtk(id, heavy, step = 0) { if (gate('atk', 0.025)) (ATK[id] || ATK.BLADE)(heavy, step, ac.currentTime); },
   // hits climb a little in pitch as the combo grows
-  charHit(id, heavy, crit, combo = 0) { if (gate('chit', 0.03)) (HIT[id] || HIT.BLADE)(heavy, crit, 1 + Math.min(combo, 60) * 0.006, ac.currentTime); },
+  charHit(id, heavy, crit, combo = 0) {
+    if (!gate('chit', 0.03)) return;
+    (HIT[id] || HIT.BLADE)(heavy, crit, 1 + Math.min(combo, 60) * 0.006, ac.currentTime);
+    // heavy blows and crits push the music back for an instant
+    if (heavy || crit) duck(0.7, 0.03, 0.18);
+  },
 });

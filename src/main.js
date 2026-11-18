@@ -1,16 +1,16 @@
-import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=184';
-import { input, keyHit, endFrame } from './input.js?v=184';
-import { A } from './audio.js?v=184';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=184';
-import { buildSprites } from './sprites.js?v=184';
-import { byId } from './upgrades.js?v=184';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=184';
+import { fit, ctx, W, H, P, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=185';
+import { input, keyHit, endFrame } from './input.js?v=185';
+import { A } from './audio.js?v=185';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=185';
+import { buildSprites } from './sprites.js?v=185';
+import { byId } from './upgrades.js?v=185';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=185';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, drawPause, drawOver, drawVictory, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=184';
-import { resetLore, updateLore, drawLore, resetEnding, updateEnding, drawEnding } from './story.js?v=184';
+} from './ui.js?v=185';
+import { resetLore, updateLore, drawLore, resetEnding, updateEnding, drawEnding } from './story.js?v=185';
 
 loadAll();
 applyTheme(settings.theme);
@@ -84,7 +84,7 @@ function tick(now) {
   if (portrait && scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
 
   if (scene === 'splash') {
-    if (input.any || input.mouse.pressed) { A.init(settings); A.scene('calm'); resetLore(); go('lore'); }
+    if (input.any || input.mouse.pressed) { A.init(settings); A.scene('lore'); resetLore(); go('lore'); }
     drawSplash(sceneT, input.touch);
   } else if (scene === 'lore') {
     // the story so far, panel by panel: any key turns the page, Escape skips to the menu
@@ -134,7 +134,7 @@ function tick(now) {
     else {
       controls();
       update(rdt * ts, rdt);
-      if (G.victory && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); resetEnding(); go('ending'); A.scene('calm'); }
+      if (G.victory && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); resetEnding(); go('ending'); A.scene('dawn'); }
       else if (G.wantUpgrade) { G.wantUpgrade = false; openUpgrade(); go('upgrade'); }
       if (G.dead && G.deadT > 3.4) { recordBest(false); clearRun(); save = null; go('over'); }
     }
@@ -169,7 +169,7 @@ function tick(now) {
     if (scene !== 'title') { drawWorld(); vignette(); drawOver(sceneT, newBest); }
   } else if (scene === 'ending') {
     // the sun breaks free, the light comes back, the fighter's last word, the end (any key turns the page)
-    if (updateEnding(rdt) === 'done') { go('victory'); A.scene('title'); A.victory(); drawWorld(); vignette(); drawVictory(0); }
+    if (updateEnding(rdt) === 'done') { go('victory'); A.scene('dawn'); A.victory(); drawWorld(); vignette(); drawVictory(0); }
     else drawEnding();
   } else if (scene === 'victory') {
     update(rdt * ts, rdt);

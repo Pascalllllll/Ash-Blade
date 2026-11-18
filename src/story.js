@@ -8,13 +8,13 @@
 //   say()   the dialog box: the King taunts the fighter through the run, meets them at wave 20 (each fighter answers
 //           in their own voice) and dies with a last word; a line types out letter by letter beside the speaker's face
 //   ENDING  what plays when the King falls: the sun breaks out of him, the light comes back, the fighter's last line
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=184';
-import { SPR } from './sprites.js?v=184';
-import { input, keyHit } from './input.js?v=184';
-import { A } from './audio.js?v=184';
-import { G } from './world.js?v=184';
-import { CHARS } from './chars.js?v=184';
-import { drawFighter } from './title-scene.js?v=184';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=185';
+import { SPR } from './sprites.js?v=185';
+import { input, keyHit } from './input.js?v=185';
+import { A } from './audio.js?v=185';
+import { G } from './world.js?v=185';
+import { CHARS } from './chars.js?v=185';
+import { drawFighter } from './title-scene.js?v=185';
 
 export const KING = 'KING', VOID = 'VOID';
 const ease = (k) => 1 - (1 - Math.min(1, Math.max(0, k))) ** 3;
@@ -23,6 +23,14 @@ const ease = (k) => 1 - (1 - Math.min(1, Math.max(0, k))) ** 3;
 // the run, as the King sees it
 export const TALK = {
   start: [[KING, 'ANOTHER MOTH FLIES INTO MY PIT. BURN SLOWLY, LITTLE ONE.']],
+  // between his bosses he tells you who he was, a piece at a time
+  w3: [[KING, 'THEY CALLED ME THE SUN KING ONCE. MY PEOPLE SANG MY NAME AT DAWN.']],
+  w8: [[KING, 'THE SUN WAS DYING, LITTLE ONE. I SAVED IT THE ONLY WAY I COULD. INSIDE ME.']],
+  w13: [[KING, 'MY PEOPLE ARE STILL HERE, YOU KNOW. YOU HAVE BEEN CUTTING THEM DOWN ALL NIGHT.']],
+  w18: [[KING, 'TWO MORE NIGHTS. THEN THE LAST FIRE COMES FOR YOU HIMSELF.']],
+  // when it goes badly for you, or too well
+  lowHp: [[KING, 'I CAN SMELL THE ASH ON YOU ALREADY.']],
+  combo: [[KING, 'YOU DANCE WELL. THEY ALL DANCE WELL, AT FIRST.']],
   warden: [[KING, 'MY WARDEN HAS KEPT THIS PIT FOR A HUNDRED YEARS. HE WILL KEEP YOUR BONES.']],
   wardenDead: [[KING, 'STUBBORN. GOOD. THE STUBBORN ONES BURN THE LONGEST.']],
   brood: [[KING, 'SHE NESTS BELOW MY THRONE, AND HER CHILDREN ARE HUNGRY.']],
@@ -41,6 +49,33 @@ export const TALK = {
   clock: [[VOID, 'TIME ITSELF WANTS YOU GONE.']],
   devboss: [['DEVBOSS', 'YOU WERE NEVER SUPPOSED TO GET THIS FAR. NICE. NOW THE REAL BOSS FIGHT.']],
 };
+// each fighter answers his first taunt
+const REPLY = {
+  BLADE: "I CARRY THE LAST EMBER OF YOUR SUN, AUREL. I'M BRINGING IT HOME.",
+  GUNNER: "BURN SLOW? I WAS HOPING FOR QUICK. YOUR HEAD'S WORTH MORE THAT WAY.",
+  WIZARD: 'THE STARS TOLD ME YOUR NAME, KING. THEY ALSO TOLD ME HOW YOU END.',
+  NINJA: "MOTH? I'M A SAMURAI. ALSO I HAVE A TEST ON MONDAY, SO MOVE IT.",
+  MECHANIC: "NICE PIT. SHAME ABOUT THE WIRING. I'LL FIX IT ON MY WAY DOWN.",
+  TANK: 'I KNOW THAT VOICE, MY KING. I STOOD GUARD BESIDE IT FOR TWENTY YEARS.',
+  ROBOT: 'VOICE PRINT MATCHED. TARGET ONE. ORDER CONFIRMED.',
+  DEV: "OH NO. I WROTE YOUR DIALOGUE. IT'S WORSE OUT LOUD.",
+};
+export const startLines = (id) => [...TALK.start, [id, REPLY[id] || REPLY.BLADE]];
+// and has a word of their own after each of his first three bosses falls
+const QUIP = {
+  BLADE: { warden: "ONE GATE DOWN. I'M COMING, AUREL.", brood: "THEN I'LL BURN THROUGH ALL OF THEM.", colossus: 'THAT IS ALL I WANTED. WAIT FOR ME.' },
+  GUNNER: { warden: "THAT'S ONE BOUNTY. YOU'RE NEXT ON THE POSTER.", brood: "GOOD. I'VE GOT AN ARMY OF BULLETS.", colossus: 'FINALLY, A MEETING WITH THE MANAGEMENT.' },
+  WIZARD: { warden: 'HIS BONES REMEMBERED A SPELL. I MADE THEM FORGET IT.', brood: 'SPIDERS. WHY IS IT ALWAYS SPIDERS.', colossus: 'FIVE MORE NIGHTS, AND THE STARS COME BACK.' },
+  NINJA: { warden: "FIRST BOSS DONE. NOW WHERE'S THE SNACK MACHINE?", brood: "EW. EW. I'M NEVER GETTING THAT OUT OF MY HAIR.", colossus: "YOU HEAR THAT? HE'S SCARED OF ME." },
+  MECHANIC: { warden: 'BONES ARE JUST BAD STRUTS. EASY.', brood: 'BUGS IN THE SYSTEM. MY SPECIALTY.', colossus: "I'M KEEPING THIS CORE. IT'LL MAKE A GREAT TURRET." },
+  TANK: { warden: 'HE WAS A GOOD WARDEN ONCE. REST NOW, BROTHER.', brood: 'SHE NESTED UNDER THE THRONE ROOM. I HEARD HER EVERY NIGHT ON WATCH.', colossus: 'I KNOW THE WAY TO YOUR THRONE. I GUARDED IT.' },
+  ROBOT: { warden: 'OBSTACLE ONE REMOVED. CONTINUING DESCENT.', brood: 'BIOLOGICAL HAZARD CLEARED.', colossus: 'TARGET ONE HAS ACCEPTED ENGAGEMENT.' },
+  DEV: { warden: 'BOSS ONE, PATCHED OUT.', brood: 'I SAID NO SPIDERS IN THE DESIGN DOC.', colossus: 'OK. FINAL BOSS INCOMING. HYPE.' },
+};
+export const bossDeadLines = (boss, id) => (TALK[boss + 'Dead'] ? [...TALK[boss + 'Dead'], ...(QUIP[id]?.[boss] ? [[id, QUIP[id][boss]]] : [])] : null);
+// the King's parting words over your body (and, once he's dead, the pit's)
+const LAST_WORDS = ['ASH TO ASH.', 'ANOTHER LIGHT GOES OUT.', 'THE SUN STAYS MINE.', 'KNEEL. THEY ALL KNEEL IN THE END.', 'SLEEP NOW. THE PIT WILL KEEP YOU.'];
+export const lastWords = () => (G?.won ? '??? : THE PIT KEEPS WHAT FALLS INTO IT.' : 'AUREL: ' + LAST_WORDS[Math.floor(Math.random() * LAST_WORDS.length)]);
 // wave 20: the King and the fighter face to face. [what the fighter says, what the King answers]
 const MEET = {
   BLADE: ['MY BLADE STILL HOLDS AN EMBER OF THE OLD SUN. I CAME TO GIVE IT BACK.', 'THEN I WILL TAKE THAT EMBER FROM YOUR COLD HANDS.'],
@@ -299,11 +334,18 @@ export const LORE = [
   },
 ];
 export const LORE_PANEL = 4.2;          // seconds a panel stays if nobody presses anything
-export const lore = { i: 0, t: 0 };
-export function resetLore() { lore.i = 0; lore.t = 0; }
+export const lore = { i: 0, t: 0, cued: -1, typed: 0 };
+export function resetLore() { lore.i = 0; lore.t = 0; lore.cued = -1; lore.typed = 0; }
+// a panel's caption types out at 34 letters a second after a short pause; returns how many letters show at time t
+const typedAt = (cap, t) => Math.min(cap.reduce((a, l) => a + l.length, 0), Math.floor(Math.max(0, t - 0.25) * 34));
 // any key or a tap: the next panel; Escape (or the corner tap): skip the story. Returns 'skip', 'done' or null.
 export function updateLore(dt) {
+  const t0 = lore.t;
   lore.t += dt;
+  if (lore.cued !== lore.i) { if (lore.i > 0) A.lorePage(); A.loreCue(lore.i); lore.cued = lore.i; lore.typed = 0; }
+  const pnl = LORE[lore.i], n = typedAt(pnl.cap, lore.t);
+  if (n > lore.typed) { lore.typed = n; A.type(); }
+  if (pnl.goal) for (let k = 0; k < 3; k++) { const at = 0.3 + k * 0.35; if (t0 < at && lore.t >= at) A.goalHit(k); }
   const corner = input.mouse.pressed && input.mouse.x > W - 60 && input.mouse.y < 26;
   if (keyHit('Escape') || corner) return 'skip';
   const next = lore.t > 0.35 && (input.any || input.mouse.pressed);
@@ -400,12 +442,15 @@ export const ENDING = [
   },
 ];
 export const ENDING_PANEL = 5;
-export const ending = { i: 0, t: 0, said: false };
-export function resetEnding() { ending.i = 0; ending.t = 0; ending.said = false; }
+export const ending = { i: 0, t: 0, said: false, cued: -1, typed: 0 };
+export function resetEnding() { ending.i = 0; ending.t = 0; ending.said = false; ending.cued = -1; ending.typed = 0; }
 export function updateEnding(dt) {
   ending.t += dt;
   const pnl = ENDING[ending.i];
-  if (pnl.hero && !ending.said && ending.t > 0.5) { ending.said = true; A.select(); }
+  if (ending.cued !== ending.i) { if (ending.i > 0) A.lorePage(); A.endingCue(ending.i); ending.cued = ending.i; ending.typed = 0; }
+  // the captions, and the fighter's last word, type out with their ticks
+  const words = pnl.hero ? Math.min((LAST[G.char] || LAST.BLADE).length, Math.floor(Math.max(0, ending.t - 0.5) * 30)) : typedAt(pnl.cap, ending.t);
+  if (words > ending.typed) { ending.typed = words; A.type(); }
   if (keyHit('Escape')) return 'done';
   const next = ending.t > 0.6 && (input.any || input.mouse.pressed);
   if (next || ending.t > ENDING_PANEL + (pnl.end ? 2 : 0)) {

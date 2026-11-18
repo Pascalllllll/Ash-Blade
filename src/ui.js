@@ -1,16 +1,16 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=184';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=184';
-import { loadPortraits, portraitReady, drawPortrait, PORTRAIT_SCALE } from './portraits.js?v=184';
-import { SPR, icon } from './sprites.js?v=184';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=184';
-import { A } from './audio.js?v=184';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF } from './store.js?v=184';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=184';
-import { CHARS } from './chars.js?v=184';
-import { BOSSES, bossFor } from './bosses.js?v=184';
-import { MAPS } from './maps.js?v=184';
-import { drawTalk } from './story.js?v=184';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=184';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=185';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=185';
+import { loadPortraits, portraitReady, drawPortrait, PORTRAIT_SCALE } from './portraits.js?v=185';
+import { SPR, icon } from './sprites.js?v=185';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=185';
+import { A } from './audio.js?v=185';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF } from './store.js?v=185';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=185';
+import { CHARS } from './chars.js?v=185';
+import { BOSSES, bossFor } from './bosses.js?v=185';
+import { MAPS } from './maps.js?v=185';
+import { drawTalk } from './story.js?v=185';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=185';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -431,7 +431,7 @@ function drawHero(id, t, col, lk, h) {
   ctx.globalAlpha = 0.45; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(x0 + MW / 2, 174, 34, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
   // the portrait: its own pose and loop, a silhouette while locked, a white flash as it lands
   const al = Math.min(1, e0 * 2.5 + 0.2), fx0 = x0 + MW / 2, fy0 = 173;
-  if (!drawPortrait(id, t, fx0, fy0, PORTRAIT_SCALE, { tint: lk ? '#07050b' : null, alpha: al, still: lk })) {
+  if (!drawPortrait(id, t, fx0, fy0, PORTRAIT_SCALE, { tint: lk ? '#07050b' : null, alpha: al, still: lk, scene: true })) {
     // still loading: the in-game sprite, big
     const s = SPR.chars[id].idles[Math.floor(t * 7) % SPR.chars[id].idles.length], k = 6;
     ctx.globalAlpha = al;
@@ -666,6 +666,8 @@ export function drawOver(t, isBest) {
   if (G.deathLine) text(G.deathLine, W / 2, 61, P.dust, 1, 'c');
   stats(72, t);
   if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 127, P.gold, 2, 'c');
+  // the King's parting words over your body (the pit's, once he's dead), typed out
+  if (G.lastWords && t > 0.8) { const n = Math.floor((t - 0.8) * 30); textO(G.lastWords.slice(0, n), W / 2, 139, G.won ? '#b48cff' : P.ember, 1, 'c'); }
   if (t > 1) textO(input.touch ? 'TAP LEFT  AGAIN       TAP RIGHT  MENU' : 'ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
 }
 export function drawVictory(t) {
