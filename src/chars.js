@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=177';
-import { heroEntrance } from './entrances.js?v=177';
-import { SPR } from './sprites.js?v=177';
-import { A } from './audio.js?v=177';
-import { input } from './input.js?v=177';
-import { best } from './store.js?v=177';
+import { ctx, canvas, W, H, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=182';
+import { heroEntrance } from './entrances.js?v=182';
+import { SPR } from './sprites.js?v=182';
+import { A } from './audio.js?v=182';
+import { input } from './input.js?v=182';
+import { best } from './store.js?v=182';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=177';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=182';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -344,7 +344,8 @@ export const CHARS = {
       if (held && k.fireT <= 0) {
         k.fireT = 0.3 / G.up.spd; k.castT = 0.1;
         const [hx, hy] = weaponTip(p, p.aim);
-        shoot({ x: hx, y: hy, a: p.aim, sp: 210, dmg: pd(5), kb: 80, life: 1.4, kind: 'arcane', r: 3, c: '#b48cff', homing: 2.5, splash: { R: 14, dmg: pd(2) } });
+        // awakened, his bolts are starfire: spinning gold stars with pink comet tails (world.js draws kind 'star')
+        shoot({ x: hx, y: hy, a: p.aim, sp: 210, dmg: pd(5), kb: 80, life: 1.4, kind: G.evo === true ? 'star' : 'arcane', r: 3, c: G.evo === true ? '#ffd447' : '#b48cff', homing: 2.5, splash: { R: 14, dmg: pd(2) } });
         A.charAtk('WIZARD');
       }
     },
@@ -356,7 +357,7 @@ export const CHARS = {
         k.missT = 0.07; k.miss--;
         const flip = Math.cos(p.aim) < 0, tx = p.x + (flip ? -1 : 1) * 4 + (flip ? -0.25 : 0.25) * 14, ty = p.y - 4 - 10;
         const a = p.aim + rnd(-1.1, 1.1);
-        shoot({ x: tx, y: ty, a, sp: 190, dmg: pd(5), kb: 70, life: 1.8, kind: 'arcane', r: 3, c: '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) } });
+        shoot({ x: tx, y: ty, a, sp: 190, dmg: pd(5), kb: 70, life: 1.8, kind: G.evo === true ? 'star' : 'arcane', r: 3, c: G.evo === true ? '#ffd447' : '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) } });
         sparks(tx, ty, a, 4, 0.5, '#b48cff', 120); A.zip();
       }
       // blizzards: ice rains inside the circle, every 0.3 s everything in it is cut and frozen
@@ -939,9 +940,22 @@ export const CHARS = {
     },
     e: {
       name: 'BARRIER', cost: 35, cd: 6, icon: 'shield', desc: 'BLOCKS 3 HITS, THEN BURSTS',
-      use(p) { p.shield = 3; p.shieldT = 8; A.shieldUp(); addRing(p.x, p.y - 7, P.volt, 120, 0.3, 2); },
+      use(p) {
+        p.shield = 3; p.shieldT = 8; A.shieldUp(); addRing(p.x, p.y - 7, P.volt, 120, 0.3, 2);
+        // awakened, it raises the Aegis: red plates in gold rims (drawn by world.js drawAegis)
+        if (G.evo === true) {
+          addRing(p.x, p.y - 9, P.gold, 220, 0.35, 2); addText(p.x, p.y - 30, 'AEGIS', P.gold);
+          for (let i = 0; i < 18; i++) { const a = (i * TAU) / 18; part(p.x + Math.cos(a) * 16, p.y - 9 + Math.sin(a) * 11, Math.cos(a) * 40, Math.sin(a) * 30, 0.4, i % 2 ? '#ff2a3a' : P.gold, { drag: 3, glow: true }); }
+        }
+      },
     },
     onShieldBreak(p) {
+      if (G.evo === true) {
+        // the Aegis shatters: its plates fly out in red and gold
+        addRing(p.x, p.y - 6, '#ff2a3a', 380, 0.35, 3); addRing(p.x, p.y - 6, P.gold, 260, 0.3, 2);
+        for (let i = 0; i < 26; i++) { const a = rnd(TAU), v = rnd(80, 220); part(p.x, p.y - 9, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.6), i % 3 ? '#ff3b3b' : P.gold, { drag: 3, glow: true, s: 2 }); }
+        flash('#ff2a3a', 0.1, false);
+      }
       addRing(p.x, p.y - 6, P.volt, 300, 0.3, 3);
       for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 60) damage(e, pd(6), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 260, src: 'bolt' });
       A.zap(); shake(0.4);
@@ -1204,45 +1218,84 @@ CHARS.DEV = {
   r: {
     name: 'RM -RF', icon: 'burst', desc: 'DELETE EVERYTHING ON SCREEN',
     use(p) {
-      const cmd = '$ sudo rm -rf /enemies' + (G.up.evoUlt ? ' --no-preserve-root' : '');
-      const u = { t: 0, done: false };
+      // Awakened as Root it is a different command: a root prompt in cyan and magenta, code raining down the screen,
+      // every enemy boxed and marked for deletion, a progress bar filling, and the enemies blown apart into pixels.
+      const root = G.evo === true, C1 = root ? '#62efff' : GREEN, C2 = root ? '#ff4fa8' : GREEN;
+      const GP = root ? ['#62efff', '#ff4fa8', P.paper, '#0a1020'] : null;
+      const cmd = root ? '# rm -rf --no-preserve-root /world/*' : '$ sudo rm -rf /enemies' + (G.up.evoUlt ? ' --no-preserve-root' : '');
+      const u = { t: 0, done: false, rain: root ? Array.from({ length: 42 }, (_, i) => ({ x: i * 7.7 + rnd(-2, 2), y: rnd(-H, 0), v: rnd(140, 280), n: Math.floor(rnd(5, 13)) })) : null };
       p.state = 'cine'; p.vx = p.vy = 0;
       A.ultStart();
       G.cine = {
         update(dt) {
           u.t += dt;
           if (u.t < 0.9 && Math.floor(u.t * 24) !== Math.floor((u.t - dt) * 24)) A.click();
-          if (u.t > 0.9 && Math.random() < 0.8) glitch(fx.cam.x + rnd(W), fx.cam.y + rnd(H), 40, 6, 0.2, 10);
+          if (u.t > 0.9 && Math.random() < 0.8) glitch(fx.cam.x + rnd(W), fx.cam.y + rnd(H), 40, 6, 0.2, 10, GP);
+          if (u.rain) for (const d of u.rain) { d.y += d.v * dt; if (d.y > H + 60) { d.y = rnd(-60, -10); d.v = rnd(140, 280); } }
           if (u.t > 1.4 && !u.done) {
             u.done = true;
             G.cine = null; p.state = 'move'; p.inv = 0.8;
             const mul = G.up.evoUlt ? 1.6 : 1;
             for (const e of G.E) {
               if (!alive(e)) continue;
-              glitch(e.x, e.y - e.r, 28, 22, 0.5, 18);
+              glitch(e.x, e.y - e.r, 28, 22, 0.5, 18, GP);
+              // Root deletes them: they burst into cyan and magenta pixels
+              if (root) for (let i = 0; i < 18; i++) { const b = rnd(TAU), v = rnd(40, 160); part(e.x, e.y - e.r, Math.cos(b) * v, Math.sin(b) * v - 30, rnd(0.4, 0.9), i % 3 ? (i % 2 ? C1 : C2) : P.paper, { drag: 2, glow: true, s: Math.random() < 0.4 ? 2 : 1 }); }
               damage(e, e.type === 'boss' ? Math.round(e.maxHp * 0.08 * mul) + pd(40) : pd(60 * mul), { dir: rnd(TAU), kb: 240, src: 'ult', slice: true, crit: true });
             }
-            if (G.up.evoUlt) for (const s of G.shots) if (s.owner === 'enemy') s.dead = true;
-            flash(GREEN, 0.35, true); shake(1); hitstop(0.14); A.ultRelease();
-            addText(p.x, p.y - 28, G.E.some(alive) ? 'PERMISSION DENIED' : 'DONE', GREEN, 2);
+            if (G.up.evoUlt || root) for (const s of G.shots) if (s.owner === 'enemy') s.dead = true;
+            flash(C1, root ? 0.45 : 0.35, true); shake(1); hitstop(root ? 0.2 : 0.14); A.ultRelease();
+            if (root) { addRing(p.x, p.y - 6, C1, 420, 0.5, 3); addRing(p.x, p.y - 6, C2, 300, 0.4, 2); }
+            addText(p.x, p.y - 28, G.E.some(alive) ? (root ? 'SEGMENTATION FAULT' : 'PERMISSION DENIED') : root ? 'ROOT: DELETED' : 'DONE', C1, 2);
           }
         },
         draw() {
           ctx.save(); ctx.setTransform(SS, 0, 0, SS, 0, 0);
-          if (u.t > 0.9) for (let i = 0; i < 10; i++) { const y = Math.floor(rnd(H)), h = Math.floor(rnd(2, 10)); ctx.drawImage(canvas, 0, y * SS, W * SS, h * SS, Math.round(rnd(-14, 14)), y, W, h); }
-          ctx.globalAlpha = 0.9; ctx.fillStyle = '#05140a'; ctx.fillRect(20, H - 46, W - 40, 30); ctx.globalAlpha = 1;
-          rect(20, H - 46, W - 40, 1, GREEN);
-          // Show The Dev's front-facing ultimate frame above the terminal overlay.
-          const set=(G.evo===true?SPR.evo:SPR.chars).DEV;
-          const frames=set.act?.ultimate;
-          const us=frames?.[Math.min(frames.length-1,Math.floor(Math.min(1,u.t/1.55)*frames.length))]||set.idle;
-          drawSprite(us, W/2-us.w/2, H-47-us.h, false);
-          text(cmd.slice(0, Math.floor(Math.min(1, u.t / 0.85) * cmd.length)) + (Math.floor(u.t * 6) % 2 ? '_' : ''), 26, H - 40, GREEN);
-          if (u.t > 0.9) text('DELETING ' + G.E.filter(alive).length + ' PROCESSES...', 26, H - 30, P.paper);
+          if (root) {
+            // the screen goes dark blue; code rains down it, and every enemy is boxed for deletion
+            ctx.globalAlpha = Math.min(0.55, u.t * 1.2); ctx.fillStyle = '#020a16'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+            for (const d of u.rain) for (let j = 0; j < d.n; j++) {
+              const y = Math.round(d.y - j * 6);
+              if (y < -6 || y > H) continue;
+              ctx.globalAlpha = j === 0 ? 1 : Math.max(0.15, 1 - j / d.n);
+              text((Math.floor(d.x * 7 + j * 13 + u.t * 9) % 2) ? '1' : '0', Math.round(d.x), y, j === 0 ? P.paper : j % 4 === 2 ? C2 : C1);
+            }
+            ctx.globalAlpha = 1;
+            const blink = Math.floor(u.t * 8) % 2;
+            for (const e of G.E) {
+              if (!alive(e)) continue;
+              const x = Math.round(e.x - fx.cam.x), y = Math.round(e.y - e.r - fx.cam.y), w = e.r + 6;
+              const c = blink ? C2 : P.paper;
+              rect(x - w, y - w, 3, 1, c); rect(x - w, y - w, 1, 3, c); rect(x + w - 2, y - w, 3, 1, c); rect(x + w, y - w, 1, 3, c);
+              rect(x - w, y + w, 3, 1, c); rect(x - w, y + w - 2, 1, 3, c); rect(x + w - 2, y + w, 3, 1, c); rect(x + w, y + w - 2, 1, 3, c);
+              if (u.t > 0.5) text('DEL', x - 5, y - w - 7, C2);
+            }
+          }
+          if (u.t > 0.9) for (let i = 0; i < (root ? 16 : 10); i++) { const y = Math.floor(rnd(H)), h = Math.floor(rnd(2, 10)); ctx.drawImage(canvas, 0, y * SS, W * SS, h * SS, Math.round(rnd(-14, 14)), y, W, h); }
+          ctx.globalAlpha = 0.9; ctx.fillStyle = root ? '#040c1a' : '#05140a'; ctx.fillRect(20, H - 46, W - 40, 30); ctx.globalAlpha = 1;
+          rect(20, H - 46, W - 40, 1, C1);
+          if (root) { rect(20, H - 17, W - 40, 1, C2); rect(20, H - 46, 1, 30, C1); rect(W - 21, H - 46, 1, 30, C2); }
+          // The Dev above the terminal
+          const set = (G.evo === true ? SPR.evo : SPR.chars).DEV;
+          const frames = set.act?.ultimate;
+          const us = frames?.[Math.min(frames.length - 1, Math.floor(Math.min(1, u.t / 1.55) * frames.length))] || set.idle;
+          drawSprite(us, W / 2 - us.w / 2, H - 47 - us.h, false);
+          text(cmd.slice(0, Math.floor(Math.min(1, u.t / 0.85) * cmd.length)) + (Math.floor(u.t * 6) % 2 ? '_' : ''), 26, H - 40, C1);
+          if (u.t > 0.9) {
+            const n = G.E.filter(alive).length;
+            if (root) {
+              // a progress bar filling as it wipes
+              const k = Math.min(1, (u.t - 0.9) / 0.5), bw = 80;
+              text('WIPING ' + n + ' PROCESSES', 26, H - 30, P.paper);
+              rect(130, H - 30, bw, 5, '#0a1a2a'); rect(130, H - 30, Math.round(bw * k), 5, Math.floor(u.t * 16) % 2 ? C1 : C2);
+              text(Math.round(k * 100) + '%', 214, H - 30, C1);
+            } else text('DELETING ' + n + ' PROCESSES...', 26, H - 30, P.paper);
+          }
           ctx.restore();
         },
       };
-      glitch(p.x, p.y - 8, 40, 30, 0.5, 20);
+      glitch(p.x, p.y - 8, 40, 30, 0.5, 20, GP);
+      if (root) { addText(p.x, p.y - 30, 'ROOT ACCESS', C1, 2); flash(C2, 0.12, false); }
     },
   },
   drawWeapon(p, flip) {
@@ -1289,6 +1342,11 @@ const FLAIR = {
     if (Math.random() < dt * 10) part(p.x + rnd(-6, 6), p.y - rnd(0, 14), rnd(-5, 5), -rnd(10, 25), rnd(0.4, 0.8), Math.random() < 0.5 ? '#b48cff' : '#62efff', { drag: 1, glow: true });
   },
   NINJA(p, dt, moving) {
+    // awakened, a dark crimson aura smoulders up round her, with red sparks
+    if (G.evo === true) {
+      if (Math.random() < dt * 24) part(p.x + rnd(-7, 7), p.y - rnd(0, 4), rnd(-6, 6), -rnd(18, 42), rnd(0.5, 0.9), Math.random() < 0.55 ? '#4a0818' : '#a8102a', { drag: 1.5 });
+      if (Math.random() < dt * 7) part(p.x + rnd(-6, 6), p.y - rnd(4, 16), rnd(-10, 10), -rnd(20, 50), rnd(0.3, 0.6), '#ff3b5c', { glow: true, drag: 2 });
+    }
     // sakura petals drift off her as she moves
     if (Math.random() < dt * (moving ? 22 : 4)) part(behindX(p, 4) + rnd(-2, 2), p.y - rnd(6, 14), (Math.cos(p.aim) < 0 ? 1 : -1) * rnd(10, 30), rnd(4, 14), rnd(0.5, 0.9), Math.random() < 0.6 ? '#ffb7d5' : '#ff8fb8', { drag: 2 });
     p.k.shadowT = (p.k.shadowT || 0) - dt;

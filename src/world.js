@@ -1,14 +1,15 @@
-import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=177';
-import { SPR, EVO_NAMES } from './sprites.js?v=177';
-import { A } from './audio.js?v=177';
-import { input, keyDown, keyHit } from './input.js?v=177';
-import { settings, OPTIONS, best, saveBest } from './store.js?v=177';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=177';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=177';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=177';
-import { byId } from './upgrades.js?v=177';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=177';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=177';
+import { remap, W, H, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, text, textO, snap, SS } from './gfx.js?v=182';
+import { SPR, EVO_NAMES } from './sprites.js?v=182';
+import { A } from './audio.js?v=182';
+import { input, keyDown, keyHit } from './input.js?v=182';
+import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=182';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=182';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=182';
+import { BOSSES, bossFor, ORDER } from './bosses.js?v=182';
+import { byId } from './upgrades.js?v=182';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=182';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=182';
+import { WEAPON_ART } from './hero-rig.js?v=182';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -167,7 +168,7 @@ export let G = null;
 function makePlayer(kit, D) {
   const s = kit.stats;
   return {
-    x: AW / 2, y: (B.y0 + B.y1) / 2 + 20, vx: 0, vy: 0, r: 5, hp: s.hp + D.php, maxHp: s.hp + D.php, aim: -Math.PI / 2, moveAng: 0,
+    x: AW / 2, y: (B.y0 + B.y1) / 2 + 20, vx: 0, vy: 0, r: 5, hp: s.hp + D.php + (TEST_BUFF ? 20 : 0), maxHp: s.hp + D.php + (TEST_BUFF ? 20 : 0), aim: -Math.PI / 2, moveAng: 0,
     state: 'move', t: 0, step: 0, atkT: 0, atkDur: 0, cancelAt: 0, atkAng: 0, swing: null, swingHit: null, comboWin: 0,
     bufAtk: 0, bufDash: 0, bufQ: 0, bufE: 0, bufR: 0, dashT: 0, dashCd: 0, charges: kit.dash.charges, dashMax: kit.dash.charges,
     dx: 0, dy: 0, inv: 0, hurtT: -9, recT: 0, energy: 50, ult: 0, ultLock: 0, cdQ: 0, cdE: 0,
@@ -362,7 +363,7 @@ export function addText(x, y, s, c, sc = 1, num = false) {
 // ---------- skin evolution ----------
 // Every fighter awakens once, after any five evolutions (every upgrade has one). The Dev is rewritten into his
 // hooded form by a laser from the sky.
-export const AWAKEN_NEED = 5;
+export const AWAKEN_NEED = TEST_BUFF ? 1 : 5;
 export const evosDone = () => Object.keys(G.taken).filter((id) => byId(id)?.req).length;
 function wantsEvo() {
   return evosDone() >= AWAKEN_NEED;
@@ -425,7 +426,7 @@ export function bankStats() {
   best.perfects = Math.max(best.perfects, G.perfects);
   saveBest();
 }
-export function glitch(x, y, w, h, life = 0.3, n = 8) { G.glitches.push({ x, y, w, h, t: 0, life, n }); }
+export function glitch(x, y, w, h, life = 0.3, n = 8, pal = null) { G.glitches.push({ x, y, w, h, t: 0, life, n, pal }); }
 export function addRing(x, y, c, vr, life, th = 2, r = 2) { if (G.pfx && G.awPal) c = G.awPal[c] || c; G.rings.push({ x, y, r, vr, t: 0, life, c, th }); }
 // the fighter's current look: the evolved skin once it has awakened
 export const heroSet = () => (G && G.evo === true ? SPR.evo[G.char] : SPR.chars[G.char]);
@@ -489,6 +490,7 @@ export function damage(e, dmg, o) {
   if (o.src !== 'lava' && o.src !== 'wall') dmg *= RANK_POWER[G.rank] || 1;
   const basic = o.basic || (G.tagBasic && o.src === 'primary'), aw = awake();
   if (aw && (basic || o.src === 'ult')) dmg *= 1.3;
+  if (TEST_BUFF) dmg *= 6;
   dmg = Math.max(1, Math.round(dmg));
   e.calm = 0;
   if (e.affix) e.tagT = 1.2;
@@ -868,6 +870,7 @@ function updatePlayer(dt) {
   p.recoil = Math.max(0, (p.recoil || 0) - dt * 7);
   p.skidCd = (p.skidCd || 0) - dt;
   flourishUpdate(p, dt);
+  if (G.char === 'NINJA') sheathUpdate(p, dt);
   if (p.counter > 0) { p.counter -= dt; if (p.counter <= 0) p.counterHit = false; }
   p.bufAtk -= dt; p.bufDash -= dt; p.bufQ -= dt; p.bufE -= dt; p.bufR -= dt;
   if (p.castAim && (p.castAim.t -= dt) <= 0) p.castAim = null;
@@ -1143,6 +1146,14 @@ function startAttack() {
   if (fsw) { G.skillMult = 1; flashFx(p); }
   p.swing = { reach: s.reach * up.reach, arc: s.arc, dmg: s.dmg * (fsw ? G.kit.dashStrike : 1), heavy: !!s.heavy || fsw, kb: s.kb, active: delay + 0.085 / up.spd, dir: p.step % 2 ? -1 : 1,
     shape, delay, rehit: shape === 'cross' || shape === 'iai' ? 0.1 / spd : 0, landed: false, th: s.th };
+  // Rin drawing from the scabbard: the quick draw (a flash along the cut, a sure critical hit)
+  if (G.char === 'NINJA' && p.sheathed) {
+    p.sheathed = false; p.drawnT = 0; p.swing.iai = true; p.swing.heavy = true;
+    const [hx, hy] = handPoint(p);
+    G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach + 12, arc: Math.max(1.2, p.swing.arc * 0.8), dir: p.swing.dir, t: -0.01, life: 0.16, th: 2, col: 'paper' });
+    sparks(hx, hy, p.atkAng, 8, 0.3, P.paper, 260);
+    flash(P.paper, 0.06, false); A.slice(); addText(p.x, p.y - 28, 'IAI', P.paper);
+  }
   p.swingHit = new Set();
   const col = RANKS[G.rank].l === 'SSS' ? 'gold' : m.col;
   p.swing.col = col;
@@ -1188,6 +1199,7 @@ function meleeHit(e, sw, dir) {
   if (crit) mult *= 2;
   if (p.invis > 0 && kit.backstab) { mult *= 3; crit = true; p.invis = 0; addText(e.x, e.y - 24, 'BACKSTAB', P.blood); }
   if (e.stunT > 0 || e.state === 'stun') mult *= 1.5;
+  if (sw.iai) { mult *= crit ? 1.5 : 3; crit = true; }
   const killed = damage(e, sw.dmg * mult * G.up.dmg, { dir, kb: sw.kb, src: 'primary', ug: true, slice: true, crit, heavy: sw.heavy, basic: true });
   kick(dir, sw.heavy || crit ? 2 : 1);
   if (!killed) hitstop(e.type === 'boss' ? 0.035 : sw.heavy || crit ? 0.085 : 0.05);
@@ -1267,6 +1279,22 @@ function skid(p, n) {
   const sp = hyp(p.vx, p.vy) || 1;
   kickDust(p, p.vx / sp, p.vy / sp, n);
   A.step();
+}
+
+// ---------- Rin's katana and its scabbard ----------
+// Rin keeps her katana sheathed at her hip. Swinging, charging, a power, a trick or running flat out draws it; a
+// moment after she's done, she flicks it clean and slides it home with a click. The first cut out of the scabbard is
+// a quick draw: a flash of light and a sure critical hit, half again as hard.
+function sheathUpdate(p, dt) {
+  const busy = ['attack', 'charge', 'chg', 'skill'].includes(p.state) || p.atkHeld || !!p.flo || (p.recoil || 0) > 0 ||
+    (p.state === 'move' && hyp(p.vx, p.vy) > (G.kit.stats?.speed || 100) * 0.7);
+  if (busy) { p.drawnT = 0; if (p.sheathed) p.sheathed = false; return; }
+  p.drawnT = (p.drawnT || 0) + dt;
+  if (!p.sheathed && p.drawnT > 1.3) {
+    p.sheathed = true;
+    const [hx, hy] = handPoint(p);
+    sparks(hx, hy, -Math.PI / 2, 4, 1.4, P.gold, 50); A.click();
+  }
 }
 
 // ---------- idle weapon tricks ----------
@@ -2365,7 +2393,9 @@ function drawPlayer() {
   const raised = p.spriteAction?.kind === 'ultimate' && G.time - p.spriteAction.start < 0.5;
   const wa = p.wpnS, behind = Math.sin(wa) < -0.35 && p.state !== 'charge' && !raised;
   const lift = p.flo?.lift || 0;
-  if (behind) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
+  const sheathed = G.char === 'NINJA' && p.sheathed && WEAPON_ART.saya;
+  if (sheathed) drawWeaponAt(ctx, 'saya', !!set.evolved, hx, hy, flip ? 0.35 : Math.PI - 0.35, flip);
+  else if (behind) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
   // a hit flashes the body white then red for an instant, then the flinch (eyes screwed shut) shows
   const tintP = p.hurtT > 0.255 ? (p.hurtT > 0.28 ? P.paper : P.blood) : null;
   if (ninja) {
@@ -2374,6 +2404,11 @@ function drawPlayer() {
   ctx.save(); ctx.translate(fx0, fy0); if (jets) ctx.rotate(clamp(p.vx / 90, -1, 1) * 0.14); if (sq) ctx.scale(scx, scy);
   ctx.drawImage(tintP ? fr.tint(tintP, flip) : flip ? fr.f : fr.n, -fr.w / 2, -fr.h + 1, fr.w, fr.h);
   ctx.restore();
+  // awakened Rin's eyes burn red
+  if (G.char === 'NINJA' && G.evo === true && !tintP && !pose) {
+    const ex = fx0 + ((flip ? CW_HERO - rig.eye[0] : rig.eye[0]) / SS - 20) * scx, ey = fy0 + (rig.eye[1] / SS - 31) * scy;
+    glow(ex, ey, '#ff2a3a', 6, 0.32 + Math.sin(G.time * 5) * 0.1);
+  }
   // winding up a charged attack: a ring at the feet fills, and flashes once full
   if (p.state === 'charge') {
     const f = chargeLevel(p), full = f >= 1, c = full ? (Math.floor(G.time * 20) % 2 ? P.paper : P.gold) : kit.color();
@@ -2394,7 +2429,7 @@ function drawPlayer() {
   }
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
-  if (!behind) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
+  if (!behind && !sheathed) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
   kit.drawAura?.(p, flip, true);
   ctx.globalAlpha = 1;
   // a faint glow at the chest (it rises with a hovering fighter)
@@ -2415,8 +2450,30 @@ function drawPlayer() {
     rect(p.x - w / 2, fx.cam.y - 10, w, p.y - fx.cam.y + 10, ec); rect(p.x - w / 4, fx.cam.y - 10, Math.max(1, w / 2), p.y - fx.cam.y + 10, P.paper);
     glow(p.x, p.y - 9, ec, 30, 0.6);
   }
-  if (p.shield > 0) { ring(p.x, p.y - 8, 13 + Math.sin(G.time * 8), 1, P.volt); glow(p.x, p.y - 8, P.volt, 12, 0.2); }
+  if (p.shield > 0) {
+    if (G.char === 'ROBOT' && G.evo === true) drawAegis(p, hover);
+    else { ring(p.x, p.y - 8, 13 + Math.sin(G.time * 8), 1, P.volt); glow(p.x, p.y - 8, P.volt, 12, 0.2); }
+  }
   if (p.fortress > 0) { const fc = G.evo === true && G.awPal ? kit.color() : P.gold; ring(p.x, p.y - 8, 15 + Math.sin(G.time * 12) * 1.5, 2, fc); glow(p.x, p.y - 8, fc, 18, 0.3); }
+}
+
+// Unit-7 Omega's barrier, the Aegis: hexagonal plates of red light rimmed in gold turning round it, two for every hit
+// it can still take, joined by a lattice of light, with a gold ring turning the other way inside
+function drawAegis(p, hover) {
+  const cx = p.x, cy = p.y - 9 - hover, n = Math.max(2, p.shield * 2), t = G.time;
+  glow(cx, cy, '#ff2a3a', 20, 0.26 + Math.sin(t * 6) * 0.06);
+  for (let i = 0; i < 24; i++) { const a = -t * 2 + (i * TAU) / 24; if (i % 3 !== 2) px(cx + Math.cos(a) * 11, cy + Math.sin(a) * 8, i % 6 === 0 ? P.paper : P.gold); }
+  const pts = [];
+  for (let i = 0; i < n; i++) { const a = t * 1.6 + (i * TAU) / n; pts.push([cx + Math.cos(a) * 17, cy + Math.sin(a) * 12, Math.sin(a)]); }
+  ctx.globalAlpha = 0.55;
+  for (let i = 0; i < n; i++) { const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % n]; line(x0, y0, x1, y1, '#ff2a3a'); }
+  ctx.globalAlpha = 1;
+  for (const [x, y, s] of pts) {
+    const X = Math.round(x), Y = Math.round(y);
+    rect(X - 1, Y - 2, 3, 1, P.gold); rect(X - 1, Y + 2, 3, 1, P.gold); rect(X - 2, Y - 1, 1, 3, P.gold); rect(X + 2, Y - 1, 1, 3, P.gold);
+    rect(X - 1, Y - 1, 3, 3, s > 0 ? '#ff3b3b' : '#a0101e'); px(X - 1, Y - 1, P.paper);
+    glow(X, Y, '#ff2a3a', 4, s > 0 ? 0.5 : 0.25);
+  }
 }
 
 // ---------- monster motion ----------
@@ -2767,6 +2824,15 @@ export function drawWorld() {
       line(s.x - Math.cos(a) * 3, s.y - Math.sin(a) * 3, s.x + Math.cos(a) * 3, s.y + Math.sin(a) * 3, P.bone);
       line(s.x - Math.cos(a + 1.57) * 3, s.y - Math.sin(a + 1.57) * 3, s.x + Math.cos(a + 1.57) * 3, s.y + Math.sin(a + 1.57) * 3, P.bone);
       px(s.x, s.y, P.paper);
+    } else if (s.kind === 'star') {
+      // awakened Morrow's starfire: a spinning four-point star, white-hot at the core with gold rays, trailing a pink comet
+      const a = s.t * 14, L = s.r + 3 + Math.sin(G.time * 40) * 0.6, tx = s.x - s.vx * 0.05, ty = s.y - s.vy * 0.05;
+      line(s.x, s.y, tx, ty, '#ff4fa8', 2); line(s.x, s.y, s.x - s.vx * 0.03, s.y - s.vy * 0.03, '#ffd447');
+      glow(tx, ty, '#ff4fa8', 7, 0.45);
+      for (let i = 0; i < 4; i++) { const b = a + (i * Math.PI) / 2, l = i % 2 ? L * 0.7 : L; line(s.x, s.y, s.x + Math.cos(b) * l, s.y + Math.sin(b) * l, i % 2 ? '#ffd447' : '#fff6d8'); }
+      disc(s.x, s.y, 2, '#ffd447'); px(s.x, s.y, '#ffffff');
+      glow(s.x, s.y, '#ffd447', 11, 0.7);
+      if (Math.random() < 0.6) part(s.x + rnd(-2, 2), s.y + rnd(-2, 2), -s.vx * 0.15 + rnd(-15, 15), -s.vy * 0.15 + rnd(-15, 15), rnd(0.2, 0.45), Math.random() < 0.5 ? '#ffd447' : '#ff4fa8', { drag: 3, glow: true });
     } else if (s.kind === 'rocket') {
       line(s.x, s.y, s.x - s.vx * 0.03, s.y - s.vy * 0.03, P.bone, 2);
       px(s.x, s.y, P.paper);
@@ -2802,7 +2868,7 @@ export function drawWorld() {
     const k = 1 - g.t / g.life;
     for (let i = 0; i < g.n * k; i++) {
       const w = rnd(3, g.w), h = rnd(1, 3);
-      rect(g.x + rnd(-g.w, g.w) / 2 - w / 2, g.y + rnd(-g.h, g.h) / 2, w, h, ['#39ff6a', '#ff4fa8', P.paper, '#1a1a20'][Math.floor(rnd(4))]);
+      rect(g.x + rnd(-g.w, g.w) / 2 - w / 2, g.y + rnd(-g.h, g.h) / 2, w, h, (g.pal || ['#39ff6a', '#ff4fa8', P.paper, '#1a1a20'])[Math.floor(rnd(4))]);
     }
   }
   for (const r of G.rings) ring(r.x, r.y, r.r, Math.max(1, Math.round(r.th * (1 - r.t / r.life))), r.c);

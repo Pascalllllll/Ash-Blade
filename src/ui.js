@@ -1,15 +1,15 @@
-import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=177';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=177';
-import { loadPortraits, portraitReady, drawPortrait, PORTRAIT_SCALE } from './portraits.js?v=177';
-import { SPR, icon } from './sprites.js?v=177';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=177';
-import { A } from './audio.js?v=177';
-import { settings, best, OPTIONS, isUnlocked } from './store.js?v=177';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=177';
-import { CHARS } from './chars.js?v=177';
-import { BOSSES, bossFor } from './bosses.js?v=177';
-import { MAPS } from './maps.js?v=177';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=177';
+import { W, H, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=182';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=182';
+import { loadPortraits, portraitReady, drawPortrait, PORTRAIT_SCALE } from './portraits.js?v=182';
+import { SPR, icon } from './sprites.js?v=182';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=182';
+import { A } from './audio.js?v=182';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF } from './store.js?v=182';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=182';
+import { CHARS } from './chars.js?v=182';
+import { BOSSES, bossFor } from './bosses.js?v=182';
+import { MAPS } from './maps.js?v=182';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=182';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -128,6 +128,7 @@ export function drawHUD(menu) {
   // score and high score, top right
   const hi = Math.max(best.score, G.startBest ?? best.score), beat = G.score > hi && hi > 0;
   textO('WAVE ' + G.wave, W - 6, 4, P.bone, 1, 'r');
+  if (TEST_BUFF) textO('TEST BUFF ON', W / 2, 4, Math.floor(G.time * 2) % 2 ? P.gold : P.paper, 1, 'c');
   // the wave twist, tagged next to the wave number
   if (G.twist) { const tw = TWISTS[G.twist]; textO(tw.name, W - 12 - ('WAVE ' + G.wave).length * 4, 4, Math.floor(G.time * 2) % 2 ? tw.c : P.paper, 1, 'r'); }
   textO('SCORE ' + String(G.score).padStart(7, '0'), W - 6, 12, P.paper, 1, 'r');

@@ -6,15 +6,17 @@
 //
 // The sets exist from the start with empty frames (the title screen draws them on its first frame); the pictures fill
 // those same frames when they arrive, so nothing holds on to an empty one.
-import { SS } from './gfx.js?v=177';
-import { RIG, WEAPON_ART } from './hero-rig.js?v=177';
+import { SS } from './gfx.js?v=182';
+import { RIG, WEAPON_ART } from './hero-rig.js?v=182';
 
 const CW = 120, CH = 96;
 const ROWS = { idle: [0, 16], walk: [1, 12], run: [2, 12], death: [3, 8], dash: [4, 4], hurt: [5, 2] };
 const N = 64; // weapon angles
 // where a weapon rests in the menus and on the hero's own still pictures (afterimages, the mirror boss): melee
 // weapons lowered forward, guns level, the staff held up
-export const REST = { sword: 0.62, revolver: 0.12, minigun: 0.1, staff: -1.15, katana: 0.72, wrench: 0.6, hammer: 0.95, cannon: 0.12 };
+export const REST = { sword: 0.62, revolver: 0.12, minigun: 0.1, staff: -1.15, katana: 0.72, wrench: 0.6, hammer: 0.95, cannon: 0.12, saya: Math.PI - 0.35 };
+// Rin wears her katana in its scabbard at her hip (behind her) until she draws it
+export const SHEATH = { katana: 'saya' };
 
 function canvas(w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -38,9 +40,10 @@ function frame() {
     },
   };
 }
-function fill(fr, img, col, row, under) {
+function fill(fr, img, col, row, under, behind) {
   const g = fr.n.getContext('2d');
   g.clearRect(0, 0, CW, CH);
+  if (behind) behind(g);
   g.drawImage(img, col * CW, row * CH, CW, CH, 0, 0, CW, CH);
   if (under) under(g);
   const m = fr.f.getContext('2d');
@@ -93,9 +96,10 @@ function makeSet(id, evolved) {
 }
 function fillSet(set, img) {
   const { rig } = set, wname = rig.weapon, w = wname && WEAPON_ART[wname];
-  const withWeapon = ([dx, dy]) => (g) => {
+  const sheath = SHEATH[wname];
+  const withWeapon = ([dx, dy], name = wname) => (g) => {
     if (!w) return;
-    const fr = weaponFrame(wname, set.evolved, REST[wname] ?? 0.3);
+    const fr = weaponFrame(name, set.evolved, REST[name] ?? 0.3);
     if (!fr) return;
     // the grip on the hand (the cell's own pixels here, not game pixels)
     g.drawImage(fr.img, fr.sx, fr.sy, fr.C, fr.C, rig.hand[0] + 0.5 - fr.C / 2 + dx, rig.hand[1] + 0.5 - fr.C / 2 + dy, fr.C, fr.C);
@@ -106,7 +110,10 @@ function fillSet(set, img) {
       fill(set.body[key][i], img, i, row);
       // the still pictures (idle, walk, run) get the weapon in hand, moving with the hand on each walk and run frame
       const off = rig.gait?.[name]?.off?.[i] || [0, 0];
-      if (set[key] && name !== 'death') fill(set[key][i], img, i, row, withWeapon(off));
+      if (set[key] && name !== 'death') {
+        if (sheath && WEAPON_ART[sheath]) fill(set[key][i], img, i, row, null, withWeapon(off, sheath));
+        else fill(set[key][i], img, i, row, withWeapon(off));
+      }
     }
   }
 }
@@ -118,7 +125,7 @@ function load(url) {
     im.src = url;
   });
 }
-const art = (file) => new URL(`../art/sprites/heroes/${file}?v=177`, import.meta.url).href;
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=182`, import.meta.url).href;
 
 // fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
 export function installHeroSprites(SPR) {

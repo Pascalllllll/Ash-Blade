@@ -2,9 +2,9 @@
 // same pixels as the game: a blood-red sky with the swallowed black sun, two rows of ruined towers far off, fog,
 // ash and embers on the wind, now and then red lightning, and the eight fighters (their in-game sprites at
 // twice the size) on a broken battlement in front, taking turns to show off their weapons.
-import { ctx, W, H, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=177';
-import { SPR } from './sprites.js?v=177';
-import { drawWeaponAt, REST } from './hero-sprites.js?v=177';
+import { ctx, W, H, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=182';
+import { SPR } from './sprites.js?v=182';
+import { drawWeaponAt, REST, SHEATH } from './hero-sprites.js?v=182';
 
 const TAU = Math.PI * 2;
 // the same "random" every time, so the skyline never changes
@@ -112,10 +112,13 @@ export function drawFighter(id, x, y, s, o = {}) {
   const wn = set.rig.weapon, rest = REST[wn] ?? 0.4, wa = o.wa ?? (flip ? Math.PI - rest : rest);
   const hx = x0 + ((flip ? 120 - set.rig.hand[0] - 0.5 : set.rig.hand[0] + 0.5) / 3) * s, hy = y0 + ((set.rig.hand[1] + 0.5) / 3) * s;
   const weapon = () => { if (!wn || o.tint) return; ctx.save(); ctx.translate(hx, hy); ctx.scale(s, s); drawWeaponAt(ctx, wn, !!set.evolved, 0, 0, wa, flip, o.alpha ?? 1); ctx.restore(); };
+  // Rin stands with her katana in its scabbard at her hip, until she shows it off
+  const sheath = SHEATH[wn] && o.wa === undefined && !o.tint;
+  if (sheath) { ctx.save(); ctx.translate(hx, hy); ctx.scale(s, s); drawWeaponAt(ctx, SHEATH[wn], !!set.evolved, 0, 0, flip ? 0.35 : Math.PI - 0.35, flip, o.alpha ?? 1); ctx.restore(); }
   const behind = Math.sin(wa) < -0.35;
-  if (behind) weapon();
+  if (behind && !sheath) weapon();
   ctx.drawImage(o.tint ? fr.tint(o.tint, flip) : flip ? fr.f : fr.n, 0, 0, 120, 96, x0, y0, w, h);
-  if (!behind) weapon();
+  if (!behind && !sheath) weapon();
   ctx.globalAlpha = 1;
   return [hx, hy, wa];
 }

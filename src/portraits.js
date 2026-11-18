@@ -4,8 +4,8 @@
 // glows of each fighter's own on top: Kael's embers and fire slash, Vega's gun smoke, Morrow's magic circle and
 // orbiting motes, Rin's petals and flash cut, Rivet's sparks, Grom's dust and ground slam, Unit-7's charging cannon,
 // the Dev's floating code windows.
-import { ctx, SS, P, glow } from './gfx.js?v=177';
-import { PORTRAIT_ART } from './hero-rig.js?v=177';
+import { ctx, SS, P, glow } from './gfx.js?v=182';
+import { PORTRAIT_ART } from './hero-rig.js?v=182';
 
 export const PORTRAIT_SCALE = 11; // canvas pixels per art pixel on the select screen
 const TAU = Math.PI * 2;
@@ -18,7 +18,7 @@ export function loadPortraits() {
     const im = new Image();
     im.decoding = 'async';
     im.onload = () => { IMG[id] = im; };
-    im.src = new URL(`../art/sprites/portraits/${PORTRAIT_ART[id].file}.png?v=177`, import.meta.url).href;
+    im.src = new URL(`../art/sprites/portraits/${PORTRAIT_ART[id].file}.png?v=182`, import.meta.url).href;
   }
 }
 export const portraitReady = (id) => !!IMG[id];

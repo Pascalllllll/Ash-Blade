@@ -1,5 +1,6 @@
-import { installHeroSprites } from './hero-sprites.js?v=177';
-import { makeSprite, P } from './gfx.js?v=177';
+import { installHeroSprites } from './hero-sprites.js?v=182';
+import { makeSprite, P } from './gfx.js?v=182';
+import { MONSTER_ART } from './monster-art.js?v=182';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};
@@ -285,144 +286,17 @@ export function buildSprites() {
   // the heroes: bodies and weapons from art/sprites/heroes (hero-sprites.js). Their sets are made once and kept
   // when the theme changes and this runs again (the pictures fill them when they've loaded).
   if (!SPR.heroesReady) installHeroSprites(SPR);
-  // the wave 50 boss is the evolved Dev, drawn three times bigger
-  SPR.devbossSet = buildChar(DEV_HOOD, IDLE.DEV_EVO);
+  // the wave 50 boss is the awakened Dev himself (Root), drawn three times bigger
+  SPR.devbossSet = SPR.evo.DEV;
   SPR.devboss = SPR.devbossSet.idles;
 
-  const HU = { o: O, H: '#7c4674', h: '#b06ea2', g: P.ichor, w: P.paper };
-  const HUSK = ['...ooooo...', '..oHHHHHo..', '.oHhhHHHHo.', '.oHgHHHgHo.', 'oHHHHHHHHHo', 'oHhHHHHHhHo', 'oHHowowoHHo', '.oHHHHHHHo.'];
-  SPR.husk = [makeSprite([...HUSK, '.oHo...oHo.', '.oo.....oo.'], HU, 'g'), makeSprite([...HUSK, '..oHo.oHo..', '..oo...oo..'], HU, 'g')];
-
-  const WI = { o: O, V: '#5e3c9c', v: '#9d72e6', g: P.hex };
-  const WISP = ['...ooo...', '..oVVVo..', '.oVvvVVo.', '.oVgVgVo.', '.oVVVVVo.', '.oVVoVVo.', '..oVVVo..', '..oVvVo..'];
-  SPR.wisp = [makeSprite([...WISP, '...oVo...', '...oVo...', '....o....'], WI, 'g'), makeSprite([...WISP, '..oVo....', '...oVo...', '.....o...'], WI, 'g')];
-
-  const BR = { o: O, K: '#3a3052', k: '#54466e', A: '#76658f', a: '#ad98c9', g: '#ff4f4f' };
-  const BRUTE = ['.....oooooo.....', '....oKKKKKKo....', '...oKkggKgkKo...', '..ooKKKKKKKKoo..', '.oAAoKKKKKKoAAo.', 'oAaaAoooooooAaAo',
-    'oAaAAAAAAAAAAAAo', 'oAAAAAaAAaAAAAAo', '.oAAAAAAAAAAAAo.', '.oAoAAAAAAAAoAo.', '..oooAAAAAAooo..', '...oAAAAAAAAo...'];
-  SPR.brute = [
-    makeSprite([...BRUTE, '...oAAo..oAAo...', '...oKKo..oKKo...', '...oooo..oooo...'], BR, 'g'),
-    makeSprite([...BRUTE, '..oAAo....oAAo..', '..oKKo....oKKo..', '..oooo....oooo..'], BR, 'g'),
-  ];
-
-  const TI = { o: O, T: '#8c2a3a', t: '#d64a5c', r: P.ember3, f: P.ember };
-  const TICK = ['....r....', '...ofo...', '..ooooo..', '.oTTTTTo.', 'oTtTTTtTo', 'oTTTTTTTo', '.oTTTTTo.'];
-  SPR.tick = [makeSprite([...TICK, '.o.o.o.o.'], TI), makeSprite([...TICK, 'o.o.o.o.o'], TI)];
-
-  const LV = { o: O, L: '#4f7a35', g: P.ichor };
-  SPR.larva = [makeSprite(['.o...o.', 'oLo.oLo', '.oLLLo.', 'oLgLgLo', '.ooooo.'], LV, 'g'), makeSprite(['.......', 'oLo.oLo', '.oLLLo.', 'oLgLgLo', '.ooooo.'], LV, 'g')];
-  const EG = { o: O, E: '#c9d48a', e: '#7d8a3a', g: P.ichor };
-  SPR.egg = [
-    makeSprite(['..ooo..', '.oEEEo.', 'oEeEEEo', 'oEEEeEo', 'oEEgEEo', '.oEEEo.', '..ooo..'], EG),
-    makeSprite(['..ooo..', '.oEEEo.', 'oEeEEEo', 'oEEEeEo', 'oEgggEo', '.oEEEo.', '..ooo..'], EG),
-  ];
-
-  // ---------- creeps added later: slimes, spitters, shades ----------
-  const SL = { o: O, S: '#4ad6c0', s: '#a8fff0', g: '#0e2e2a', m: '#1a5a52' };
-  SPR.slime = [
-    makeSprite(['...ooooo...', '..oSSSSSo..', '.oSsSSSSSo.', 'oSSgSSSgSSo', 'oSSSSSSSSSo', 'oSSSSmmSSSo', '.ooooooooo.'], SL, 'g'),
-    makeSprite(['...........', '..ooooooo..', '.oSsSSSSSo.', 'oSSgSSSgSSo', 'oSSSSSSSSSo', 'oSSSmmSSSSo', 'ooooooooooo'], SL, 'g'),
-  ];
-  SPR.slimelet = [makeSprite(['.ooo.', 'oSsSo', 'ogSgo', 'ooooo'], SL), makeSprite(['.....', '.ooo.', 'ogSgo', 'ooooo'], SL)];
-  const SP = { o: O, L: '#4f9a35', l: '#8fd04a', P: '#d6e24a', p: '#f6ff9a', g: '#ff4f4f', M: '#3a0a14', R: '#5a3a24' };
-  const SPIT = ['..oo...oo..', '.oLLo.oLLo.', '.oLlLoLlLo.', '..oLLoLLo..', '...ooooo...', '..oPPPPPo..', '.oPpPPPPPo.', 'oPPgPPPgPPo', 'oPPPPPPPPPo'];
-  SPR.spitter = [
-    makeSprite([...SPIT, 'oPPoooooPPo', 'oPPoMMMoPPo', '.oPPoooPPo.', '..oRRRRRo..', '.oRoRRRoRo.'], SP, 'g'),
-    makeSprite([...SPIT, 'oPoMMMMMoPo', 'oPPoMMMoPPo', '.oPPoooPPo.', '..oRRRRRo..', '.oRoRRRoRo.'], SP, 'g'),
-  ];
-  const SH = { o: O, V: '#4a3a8a', v: '#9a7aff', G: '#e8d8ff' };
-  const SHADE = ['...ooooo...', '..oVVVVVo..', '.oVvVVVVVo.', '.oVoooooVo.', '.oVoGoGoVo.', '.oVoooooVo.', 'oVVVVVVVVVo', 'oVvVVVVVvVo', '.oVVVVVVVo.', '..oVVVVVo..'];
-  SPR.shade = [makeSprite([...SHADE, '...oVVVo...', '....oVo....'], SH, 'G'), makeSprite([...SHADE, '...oVVo....', '...oVo.....'], SH, 'G')];
-
-  // the archer: a hooded goblin with a quiver on its back and a bow held out in front
-  const AR = { o: O, H: '#5a4a3a', h: '#8a7458', F: '#6a9a3a', g: '#ff4f4f', Q: '#7a4a2a', q: '#e8e0c8', B: '#a07040', S: '#e8e0c8' };
-  const ARCH = ['...ooooo....', '..oHHHHHo...', '.oHhHHHHHo..', '.oHoFFFFoo.B', '.oHoFgFgoo.B', 'qoHoFFFFoSoB', 'qQoHHHHHoS.B', 'oQoHhHHHHoB.', '.ooHHHHHHo..', '..oHHHHHo...'];
-  SPR.archer = [makeSprite([...ARCH, '..oFo.oFo...', '..oo..oo....'], AR, 'g'), makeSprite([...ARCH, '...oFoFo....', '...oooo.....'], AR, 'g')];
-  // the ash priest: a pale robed healer with a staff crowned in green flame
-  const PR = { o: O, G: '#7dff9a', g: '#e8ffe8', S: '#8a6a4a', R: '#d8d0c0', r: '#a89880', K: '#1a1420', e: '#7dff9a' };
-  const PRIE = ['.oo..ooooo.', 'oGGooRRRRRo', 'oGgooRrRRRo', '.oSoRKKKKRo', '.oSoKeKKeKo', '.oSoRKKKKRo', '.oSoRRRRRRo', 'oSSoRRrRRRo', '.oSoRRRRRRo', '.oSoRrRRrRo'];
-  SPR.priest = [makeSprite([...PRIE, '.oSoRRRRRRo', '.ooooooooo.'], PR, 'e'), makeSprite([...PRIE, '.oSoRRRRRo.', '.oooooooo..'], PR, 'e')];
-
-  // the lootling: a greedy little goblin hauling a sack of gold over its head
-  const LT = { o: O, G: '#5f9a3a', S: '#c9a24a', s: '#fff2a8', y: '#ffd447', e: '#ff4f4f', m: '#3a0a14', B: '#4a3a2a' };
-  const LOOT = ['...oooooo...', '..oSsSSySo..', '.oSSSySSSSo.', '.oSySSSSsSo.', '.oGoSSSSoGo.', '.oGooooooGo.', '..oGGGGGGo..', '..oGeGGeGo..', '..oGGmmGGo..', '...oGGGGo...'];
-  SPR.lootling = [makeSprite([...LOOT, '..oBo..oBo..'], LT, 'e'), makeSprite([...LOOT, '...oBooBo...'], LT, 'e')];
-
-  // ---------- bosses ----------
-  const WA = { o: O, B: '#c2b294', b: '#8a7a64', W: '#4a4068', w: '#7d6ea6', g: P.hex, R: '#4c2f4a', r: '#7c4a70', C: '#221a2c', c: '#3a2a48' };
-  const WARDEN = ['....o..............o....', '...oBo............oBo...', '...oBbo..........obBo...', '....oBBo..oooo..oBBo....',
-    '.....oBBooWWWWooBBo.....', '......oooWwwwwWooo......', '.......oWWWWWWWWo.......', '.......oWgWWWWgWo.......',
-    '.......oWWWWWWWWo.......', '........oWWooWWo........', '.....oooooWWWWooooo.....', '...ooRRRRoooooooRRRRo...',
-    '..oRRrRRRRWWWWRRRRrRRo..', '.oRRrRRRRWWwwWWRRRRrRRo.', '.oRrRRRRWWwWWwWWRRRRrRo.', '.oRrRRRoWWWWWWWWoRRRrRo.',
-    '.oRRRRoWWWWggWWWWoRRRRo.', '..oRRRoWWWWWWWWWWoRRRo..', '..oRRoCCWWWWWWWWCCoRRo..', '..oRoCCCCWWWWWWCCCCoRo..',
-    '...ooCCCCCCCCCCCCCCoo...', '....oCCcCCCCCCCCcCCo....', '....oCCCCCcCCcCCCCCo....'];
-  SPR.warden = [
-    makeSprite([...WARDEN, '....oCcCCCCCCCCCCcCo....', '.....oCCCoCCCCoCCCo.....', '.....oCCo.oCCo.oCCo.....', '......oo...oo...oo......'], WA, 'g'),
-    makeSprite([...WARDEN, '....oCcCCCCCCCCCCcCo....', '....oCCCoCCCCCoCCCo.....', '....oCCo..oCCo..oCCo....', '.....oo....oo....oo.....'], WA, 'g'),
-  ];
-
-  const BM = { o: O, B: '#4a2a5c', b: P.ichor, H: '#5c3658', h: '#8a5480', g: '#ff4f4f', m: P.bone, M: P.bone, L: '#2f2642' };
-  const BROOD = ['..........oooooooo..........', '........ooBBBBBBBBoo........', '.......oBBbBBBBBBbBBo.......', '......oBBbBBBbbBBBbBBo......',
-    '......oBBBBBbBBbBBBBBo......', '......oBbBBBBBBBBBBbBo......', '.......oBBBBbBBbBBBBo.......', '..o.....ooBBBBBBBBoo.....o..',
-    '.oLo......oHHHHHHo......oLo.', 'oLoLo....oHgHggHgHo....oLoLo', '...oLo..oHHHHHHHHHHo..oLo...', '....oLooHHhHHHHHHhHHooLo....',
-    '.....oLoHHHHHHHHHHHHoLo.....', '...ooLoooHHHHHHHHHHoooLoo...', '..oLo.oLooHHmHHmHHooLo.oLo..'];
-  SPR.brood = [
-    makeSprite([...BROOD, '.oLo.oLo..oHHHHHHo..oLo.oLo.', 'oLo..oo....oMooMo....oo..oLo', 'oo.........oM..Mo.........oo', '............o..o............'], BM, 'g'),
-    makeSprite([...BROOD, '..oLooLo..oHHHHHHo..oLooLo..', '.oLo..oo...oMooMo...oo..oLo.', '.oo.........oMMo.........oo.', '.............oo.............'], BM, 'g'),
-  ];
-
-  const IC = { o: O, I: '#5d6878', i: '#8b98ab', V: '#ff4f4f', r: '#ff7a2b', R: '#ffe08a', C: '#3a404c', c: '#62efff' };
-  const COLOSSUS = ['........oooooooooo........', '.......oIIIIIIIIIIo.......', '......oIiiIIIIIIiiIo......', '......oIVVVVVVVVVVIo......',
-    '......oIIIIIIIIIIIIo......', '...ooooooIIIIIIIIoooooo...', '..oIIIIIoooooooooIIIIIIo..', '.oIiiIIIIoIIIIIoIIIIiiIIo.',
-    '.oIIIIIIoIIrrIIIoIIIIIIIo.', 'oCCCoIIoIIrRRrIIIoIIoCCCo.', 'oCcCoIIoIIIrrIIIIoIIoCcCo.', 'oCCCoIIoIIIIIIIIIoIIoCCCo.',
-    'oCcCooooIIiIIIiIIooooCcCo.', 'oCCCo..oIIIIIIIIIo...oCCCo', '.ooo...oIIoooooIIo....ooo.', '.......oIIo...oIIo........'];
-  SPR.colossus = [
-    makeSprite([...COLOSSUS, '......oIIIo...oIIIo.......', '......oIiIo...oIiIo.......', '.....ooIIIoo.ooIIIoo......', '.....oIIIIIo.oIIIIIo......', '.....ooooooo.ooooooo......'], IC, 'V'),
-    makeSprite([...COLOSSUS, '.......oIIIo..oIIIo.......', '.......oIiIo..oIiIo.......', '......ooIIIooooIIIoo......', '......oIIIIIooIIIIIo......', '......ooooooooooooooo.....'], IC, 'V'),
-  ];
-
-  const KG = { o: O, Y: '#ffd447', K: '#2a2230', F: P.ember, f: P.ember2, A: '#3a2f3a', a: '#6b5a6b', Q: '#5a1420', q: '#8a2a30' };
-  const KING = ['.....o.o.oo.o.o.....', '.....oYoYooYoYo.....', '.....oYYYYYYYYo.....', '....oKKKKKKKKKKo....', '....oKFFKKKKFFKo....',
-    '....oKKKKKKKKKKo....', '.....oKKKooKKKo.....', '..ooooooKKKKoooooo..', '.oAAAAAooooooAAAAAo.', 'oAaAAAAAKKKKAAAAAaAo',
-    'oAAAAAAKKffKKAAAAAAo', 'oAaAAAKKKKKKKKAAAaAo', '.oAAAoKKKKKKKKoAAAo.', '.oAAoKKKKffKKKKoAAo.', '..ooQKKKKKKKKKKQoo..',
-    '...oQQKKKKKKKKQQo...', '..oQQQQKKKKKKQQQQo..', '..oQqQQQQQQQQQQqQo..', '.oQQQQqQQQQQQqQQQQo.', '.oQqQQQQQQQQQQQQqQo.',
-    'oQQQQQQqQQQQqQQQQQQo', 'oQqQQQQQQQQQQQQQQqQo'];
-  SPR.king = [
-    makeSprite([...KING, 'oQQQqQQQoQQoQQQqQQQo', '.ooQQQo.oQQo.oQQQoo.', '...ooo..oKKo..ooo...', '........oooo........'], KG, 'F'),
-    makeSprite([...KING, '.oQQqQQQoQQoQQQqQQo.', 'oQQQo..oQQo..oQQQo..', '.ooo...oKKo...ooo...', '.......oooo.........'], KG, 'F'),
-  ];
-
-  // ---------- bosses after wave 20 ----------
-  const WY = { o: O, V: '#5a2f9c', v: '#8b5ce0', g: P.hex, W: P.bone };
-  const WYRM = ['....oooooooo....', '..ooVVVVVVVVoo..', '.oVVvvVVVVvvVVo.', 'oVVgVVVVVVVVgVVo', 'oVVVVVVVVVVVVVVo', 'oVVVVooooooVVVVo'];
-  SPR.wyrm = [makeSprite([...WYRM, '.oVVoWWoWWoVVo..', '..oVo.o..o.oVo..', '...oo......oo...'], WY, 'g'), makeSprite([...WYRM, '.oVVoW.oW.oVVo..', '..oVoW.o.Wo.Vo..', '...oo......oo...'], WY, 'g')];
-  SPR.wyrmSeg = makeSprite(['..oooooo..', '.oVVVVVVo.', 'oVvVVVVvVo', 'oVVVggVVVo', 'oVvVVVVvVo', '.oVVVVVVo.', '..oooooo..'], WY, 'g');
-  const HE = { o: O, C: '#1f3a6a', E: '#62efff', Y: '#ffe08a', R: '#2a5aa0', r: '#62efff' };
-  const HERALD = ['...o.o..o.o...', '...oYoooYo....', '...oooooooo...', '..oCCCCCCCCo..', '..oCooooooCo..', '..oCoEooEoCo..', '..oCoooooooCo.', '.ooCCCCCCCCCoo',
-    'oRRoCCCCCCCoRRo', 'oRrRoCCYCCoRrRo', '.oRRRCCCCCRRRo.', '..oRRRRRRRRRo..', '..oRrRRRRRrRo..', '...oRRRRRRRo...', '....oRRRRRo....'];
-  SPR.herald = [makeSprite([...HERALD, '.....oRRRo.....', '......oRo......', '.......o.......'], HE, 'E'), makeSprite([...HERALD, '....oRRRo......', '.....oRo.......', '......o........'], HE, 'E')];
-  // eclipse: a black sun with a gold corona and a red slit eye, built from a circle
-  const ecl = [];
-  for (let y = 0; y < 28; y++) {
-    let row = '';
-    for (let x = 0; x < 28; x++) {
-      const d = Math.hypot(x - 13.5, y - 13.5);
-      row += d > 13.5 ? '.' : d > 12.5 ? 'o' : d > 10.5 ? (((x + y) % 3) ? 'G' : 'g') : d > 9.5 ? 'o' : Math.abs(x - 13.5) < 1.6 && Math.abs(y - 13.5) < 7 ? 'R' : d < 3 && x < 13 && y < 13 ? 'w' : 'B';
-    }
-    ecl.push(row);
+  // the monsters and bosses, drawn in the heroes' style by tools/build_monsters.py (src/monster-art.js): one character
+  // is an art pixel (k 1.5, so each is a 2 x 2 block like the heroes'), 'o' the outline, 'g' the eyes (they get a
+  // highlight and a blink frame)
+  for (const [name, a] of Object.entries(MONSTER_ART)) {
+    const frames = a.frames.map((rows) => makeSprite(rows, a.pal, a.eyes || undefined, { k: 1.5, flat: true }));
+    SPR[name] = name === 'wyrmSeg' ? frames[0] : frames;
   }
-  // clockwork: a brass dial with twelve hour marks; its hands are drawn live
-  const clk = [];
-  for (let y = 0; y < 30; y++) {
-    let row = '';
-    for (let x = 0; x < 30; x++) {
-      const d = Math.hypot(x - 14.5, y - 14.5), a = Math.atan2(y - 14.5, x - 14.5), hour = Math.abs(((a / (Math.PI / 6)) % 1 + 1) % 1 - 0.5) > 0.38;
-      row += d > 14.5 ? '.' : d > 13.5 ? 'o' : d > 11.5 ? ((x + y) % 4 ? 'G' : 'g') : d > 10.5 ? 'o' : d > 8.5 && hour ? 'k' : d < 4 && x < 14 && y < 14 ? 'w' : 'F';
-    }
-    clk.push(row);
-  }
-  SPR.clock = [makeSprite(clk, { o: O, G: '#e8c070', g: '#a8803a', F: '#f4ead0', k: '#3a2410', w: '#fffaf0' })];
-  SPR.eclipse = [makeSprite(ecl, { o: O, G: P.gold, g: P.ember2, B: '#0a0610', R: '#ff3b3b', w: '#2a1a30' })];
 
   // ---------- allies ----------
   SPR.turret = makeSprite(['...oooo...', '..oTTTTo..', '..oTttTo..', '..oTTTTo..', '.oooooooo.', '.oLLLLLLo.', 'oLoLLLLoLo', 'oo.oooo.oo'],

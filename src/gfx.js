@@ -260,22 +260,23 @@ export function makeSprite(rows, map, eyes, opt = {}) {
 // breathing: the upper body is drawn `off` pixels lower than the legs
 export function drawBreath(s, x, y, flip, tint, off, split = 0.58) {
   if (!off) { drawSprite(s, x, y, flip, tint); return; }
-  const img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, cut = Math.round(s.h * split);
+  // the cut falls on one of the picture's own rows, so a finer sprite (k above 1) never samples half a row
+  const k = s.k || 1, img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, H = Math.round(s.h * k), cut = Math.round(H * split);
   x = snap(x); y = snap(y);
   // lower body first, so the sinking head overlaps the neck instead of losing its chin
-  const k = s.k;
-  C.drawImage(img, 0, cut * k, s.w * k, (s.h - cut) * k, x, y + cut, s.w, s.h - cut);
-  C.drawImage(img, 0, 0, s.w * k, cut * k, x, y + off, s.w, cut);
+  C.drawImage(img, 0, cut, s.w * k, H - cut, x, y + cut / k, s.w, (H - cut) / k);
+  C.drawImage(img, 0, 0, s.w * k, cut, x, y + off, s.w, cut / k);
 }
 
 // a lean: horizontal bands, each one a pixel further over than the one below (feet stay planted)
 export function drawLean(s, x, y, flip, tint, lean) {
   if (!lean) { drawSprite(s, x, y, flip, tint); return; }
-  const img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, n = Math.abs(lean) + 1, d = Math.sign(lean);
+  const k = s.k || 1, img = tint ? s.tint(tint, flip) : flip ? s.f : s.n, n = Math.abs(lean) + 1, d = Math.sign(lean), H = Math.round(s.h * k);
   x = snap(x); y = snap(y);
+  // the bands are cut on the picture's own rows (see drawBreath)
   for (let i = 0; i < n; i++) {
-    const y0 = Math.round(s.h * (1 - (i + 1) / n)), y1 = Math.round(s.h * (1 - i / n));
-    if (y1 > y0) C.drawImage(img, 0, y0 * s.k, s.w * s.k, (y1 - y0) * s.k, x + d * i, y + y0, s.w, y1 - y0);
+    const y0 = Math.round(H * (1 - (i + 1) / n)), y1 = Math.round(H * (1 - i / n));
+    if (y1 > y0) C.drawImage(img, 0, y0, s.w * k, y1 - y0, x + d * i, y + y0 / k, s.w, (y1 - y0) / k);
   }
 }
 
@@ -327,7 +328,7 @@ const FONT = {
   '.': '.../.../.../.../.#.', ',': '.../.../.../.#./#..', '!': '.#./.#./.#./.../.#.', '?': '##./..#/.#./.../.#.',
   ':': '.../.#./.../.#./...', '-': '.../.../###/.../...', '+': '.../.#./###/.#./...', '/': '..#/..#/.#./#../#..',
   "'": '.#./.#./.../.../...', '%': '#.#/..#/.#./#../#.#', '(': '.#./#../#../#../.#.', ')': '.#./..#/..#/..#/.#.',
-  '>': '#../.#./..#/.#./#..', '<': '..#/.#./#../.#./..#', '[': '##./#../#../#../##.', ']': '.##/..#/..#/..#/.##',
+  '>': '#../.#./..#/.#./#..', '<': '..#/.#./#../.#./..#', '#': '#.#/###/#.#/###/#.#', '$': '.##/##./.#./.##/##.', '[': '##./#../#../#../##.', ']': '.##/..#/..#/..#/.##',
   '=': '.../###/.../###/...', '*': '#.#/.#./#.#/.../...', '_': '.../.../.../.../###',
 };
 const GLY = {};

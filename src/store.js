@@ -27,8 +27,13 @@ const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], b
 export const settings = { ...DEFAULTS, ver: 4 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
 export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0 };
+// TESTING SWITCH, temporary: a very strong game, to reach the awakened looks fast. While it is true: every fighter
+// is pickable, every hit does 6 times the damage, fighters start with 20 more health, an upgrade counts as maxed after
+// one pick (so its evolution is offered on the next upgrade screen), one evolution awakens the fighter, the HUD shows
+// TEST BUFF ON, and runs don't save scores or unlocks. Set it to false to go back to the normal game.
+export const TEST_BUFF = false;
 // Testing switch: true makes every fighter pickable (unlock progress is still tracked). Keep it false for release.
-const OPEN_ROSTER = false;
+const OPEN_ROSTER = false || TEST_BUFF;
 export const isUnlocked = (id) => OPEN_ROSTER || best.unlocked.includes(id);
 
 function read(key) {
@@ -73,7 +78,7 @@ export function loadAll() {
   }
 }
 export const saveSettings = () => write(KEY_SETTINGS, settings);
-export const saveBest = () => write(KEY_BEST, best);
+export const saveBest = () => { if (!TEST_BUFF) write(KEY_BEST, best); };
 export function resetSettings() { Object.assign(settings, DEFAULTS); saveSettings(); }
 
 // ---------- saved run: a checkpoint written at the start of every wave ----------

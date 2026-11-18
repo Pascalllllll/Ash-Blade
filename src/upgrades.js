@@ -1,3 +1,4 @@
+import { TEST_BUFF } from './store.js?v=182';
 // One is picked after every cleared wave. `max` caps stacking, `only` limits it to some fighters.
 // Every upgrade has an evolution (`req`), which only appears once the upgrade it needs is maxed out.
 // Any five evolutions awaken the fighter (see world.js).
@@ -93,7 +94,8 @@ export const UPGRADES = [
 
 export const MEND = { id: 'mend', name: 'MEND', d: ['RESTORE 3 HEALTH', ''], icon: 'heart', c: 'blood', max: 999, f: (u, p) => { p.hp = Math.min(p.maxHp, p.hp + 3); } };
 export const byId = (id) => (id === 'mend' ? MEND : UPGRADES.find((u) => u.id === id));
-const maxed = (taken, id) => (taken[id] || 0) >= byId(id).max;
+// (with the test buff on, one pick counts as maxed, so the evolution comes right after)
+const maxed = (taken, id) => (taken[id] || 0) >= (TEST_BUFF ? 1 : byId(id).max);
 
 export function rollUpgrades(taken, char, afterBoss = false) {
   // after a boss: three relics, if any are left
@@ -106,7 +108,7 @@ export function rollUpgrades(taken, char, afterBoss = false) {
   const take = (u) => out.push(pool.splice(pool.indexOf(u), 1)[0]);
   // an unlocked evolution almost always shows up, then a signature upgrade often does
   const evo = pool.filter((u) => u.req);
-  if (evo.length && Math.random() < 0.85) take(evo[Math.floor(Math.random() * evo.length)]);
+  if (evo.length && (TEST_BUFF || Math.random() < 0.85)) take(evo[Math.floor(Math.random() * evo.length)]);
   const sig = pool.filter((u) => u.only && u.only.length === 1);
   if (sig.length && Math.random() < 0.5) take(sig[Math.floor(Math.random() * sig.length)]);
   while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
