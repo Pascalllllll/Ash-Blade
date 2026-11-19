@@ -1,17 +1,14 @@
 // The title screen's scene, also the opening's backdrop. It is drawn in code at the game's own 320 x 180, in the
 // same pixels as the game: a blood-red sky with the swallowed black sun, two rows of ruined towers far off, fog,
-// ash and embers on the wind, now and then red lightning, and the eight fighters (their in-game sprites at
-// twice the size) on a broken battlement in front, taking turns to show off their weapons.
-import { ctx, W, H, FW, SX, onWidth, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=190';
-import { SPR } from './sprites.js?v=190';
-import { drawWeaponAt, REST, SHEATH } from './hero-sprites.js?v=190';
+// ash and embers on the wind, now and then red lightning, and an empty broken battlement in front with fire
+// glowing through its cracks. (drawFighter and the flourishes below draw the fighters in the opening's cut-ins.)
+import { ctx, W, H, FW, SX, onWidth, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=191';
+import { SPR } from './sprites.js?v=191';
+import { drawWeaponAt, REST, SHEATH } from './hero-sprites.js?v=191';
 
 const TAU = Math.PI * 2;
 // the same "random" every time, so the skyline never changes
 const rand = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
-// left to right along the battlement; the left four face right, the right four face left
-export const LINE = ['TANK', 'WIZARD', 'GUNNER', 'BLADE', 'NINJA', 'MECHANIC', 'ROBOT', 'DEV'];
-export const SPOT = LINE.map((id, i) => ({ id, x: 34 + i * 36, y: i === 3 || i === 4 ? 161 : 157 + (i === 0 || i === 7 ? -1 : 0), flip: i >= 4 }));
 const COLOR = { BLADE: '#ff7a2a', GUNNER: '#ffd447', WIZARD: '#b48cff', NINJA: '#ff8fb8', MECHANIC: '#ff8a3c', TANK: '#8fa2bd', ROBOT: '#62efff', DEV: '#39ff6a' };
 export const fighterColor = (id) => COLOR[id] || P.paper;
 const MELEE = new Set(['BLADE', 'NINJA', 'MECHANIC', 'TANK']);
@@ -141,8 +138,7 @@ export function flourishAngle(id, k, flip) {
   return m(k < 0.2 ? rest - 0.5 * (k / 0.2) : rest - 0.5 + 0.5 * Math.max(0, (k - 0.5) / 0.5));
 }
 
-// the whole scene. o: locked(id) and secret(id) for the roster, drop(i) 0..1 (fighters landing one by one in the
-// opening; missing means all standing), dark (0..1 dims it), sun (0..1 brightness of the corona)
+// the whole scene. o: dark (0..1 dims it), sun (0..1 brightness of the corona)
 export function drawScene(t, o = {}) {
   if (!SKY) paint();
   weather(t);
@@ -177,20 +173,6 @@ export function drawScene(t, o = {}) {
   // the battlement and its burning cracks
   ctx.drawImage(LEDGE, -SX, 150);
   for (const [cx_, ky] of CRACKS) { const kx = cx_ - SX, a = 0.45 + 0.35 * Math.sin(t * 2.2 + cx_); ctx.globalAlpha = a; line(kx - 2, 150 + ky, kx + 3, 150 + ky + 2, P.ember); ctx.globalAlpha = 1; glow(kx, 151 + ky, P.ember, 6, 0.2 * a); }
-  // the fighters, outer ones (further back) first
-  const order = [0, 7, 1, 6, 2, 5, 3, 4];
-  for (const i of order) {
-    const sp = SPOT[i], k = o.drop ? o.drop(i) : 1;
-    if (k <= 0) continue;
-    const lk = o.locked?.(sp.id), secret = o.secret?.(sp.id), y = sp.y - Math.round((1 - k) * (1 - k) * 170);
-    // a shadow that tightens as they land
-    ctx.globalAlpha = 0.5 * k; ctx.fillStyle = '#05020a'; ctx.beginPath(); ctx.ellipse(sp.x, sp.y + 1, 9, 2, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
-    // every 2.2 seconds the next fighter shows off: a cut, a shot, a flare of the staff, a glitch
-    const turn = Math.floor(t / 2.2) % 8, ft = (t % 2.2) / 0.62, show = !o.drop && !lk && LINE[turn] === sp.id && ft < 1 ? ft : 0;
-    const res = drawFighter(sp.id, sp.x, y, 2, { flip: sp.flip, t: t + i * 0.37, tint: lk ? '#07050b' : null, rim: lk && !secret ? '#2a2236' : null, wa: show ? flourishAngle(sp.id, show, sp.flip) : undefined });
-    if (show && res) flourishFx(sp, res, show, 2);
-    if (k < 1 && k > 0.85) glow(sp.x, sp.y, fighterColor(sp.id), 16, (1 - k) * 4);
-  }
   for (const e of embers) { const a = Math.max(0, 1 - e.t / e.life); ctx.globalAlpha = a; px(e.x, e.y, e.c); ctx.globalAlpha = 1; glow(e.x, e.y, e.c, 3, 0.3 * a); }
   if (o.dark > 0) { ctx.globalAlpha = Math.min(1, o.dark); rect(-SX, 0, FW, H, '#030106'); ctx.globalAlpha = 1; }
 }

@@ -1,16 +1,16 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=190';
-import { SPR, EVO_NAMES } from './sprites.js?v=190';
-import { A } from './audio.js?v=190';
-import { input, keyDown, keyHit } from './input.js?v=190';
-import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=190';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=190';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=190';
-import { BOSSES, bossFor, ORDER } from './bosses.js?v=190';
-import { byId } from './upgrades.js?v=190';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=190';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=190';
-import { WEAPON_ART } from './hero-rig.js?v=190';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=190';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=191';
+import { SPR, EVO_NAMES } from './sprites.js?v=191';
+import { A } from './audio.js?v=191';
+import { input, keyDown, keyHit } from './input.js?v=191';
+import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=191';
+import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=191';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=191';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=191';
+import { byId } from './upgrades.js?v=191';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=191';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=191';
+import { WEAPON_ART } from './hero-rig.js?v=191';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=191';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -524,6 +524,7 @@ export function addCombo(n) {
 
 // ---------- damage ----------
 export const pd = (x) => Math.max(1, Math.round(x * G.up.dmg));
+const FIGHTER_POWER = 1.1;
 
 export function sprFor(e) {
   const frames = e.type === 'boss' ? (e.boss === 'mirror' ? [heroSet().idle, ...heroSet().run] : SPR[e.boss]) : SPR[e.type];
@@ -557,6 +558,8 @@ export function damage(e, dmg, o) {
   if (o.src !== 'lava' && o.src !== 'wall') dmg *= RANK_POWER[G.rank] || 1;
   const basic = o.basic || (G.tagBasic && o.src === 'primary'), aw = awake();
   if (aw && (basic || o.src === 'ult')) dmg *= 1.3;
+  // every fighter hits a tenth harder (on top of the numbers in chars.js)
+  dmg *= FIGHTER_POWER;
   if (TEST_BUFF) dmg *= 6;
   dmg = Math.max(1, Math.round(dmg));
   e.calm = 0;
@@ -978,6 +981,8 @@ export function controls() {
   ask(['KeyQ', 'KeyU'], kit.q.cost, p.cdQ, 'Q');
   ask(['KeyE', 'KeyI'], kit.e.cost, p.cdE, 'E');
   if (keyHit('KeyR', 'KeyO') || input.thit.has('r')) { if (p.ult >= 100 && G.E.some(alive)) p.bufR = 0.25; else { G.deny.r = 0.35; A.deny(); } }
+  // inside the Wyrm there's no room to dash or cast: only your weapon works
+  if (G.swallow) { p.bufDash = p.bufQ = p.bufE = p.bufR = 0; }
 }
 
 // a skill wants aiming when its code reads the aim (a kit can say so outright with aim: true/false)
@@ -1010,6 +1015,18 @@ function updatePlayer(dt) {
     p.inv = Math.max(p.inv, 0.15); p.vx = p.vy = 0; p.state = 'move';
     if (p.k) p.k.firing = false;
     A.loop('beam', false);
+    return;
+  }
+  if (p.held > 0) {
+    // turned to stone by the Eclipse or stopped in time by the Clockwork: no moving and no fighting until it wears off
+    p.held -= dt; p.vx = p.vy = 0; p.moveIn = 0; p.atkHeld = false;
+    p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0;
+    if (p.state !== 'dead') p.state = 'move';
+    if (p.k) p.k.firing = false;
+    if (p.held <= 0) {
+      p.heldKind = null; A.wall(); addRing(p.x, p.y - 6, P.paper, 160, 0.2, 1);
+      for (let i = 0; i < 10; i++) part(p.x + rnd(-6, 6), p.y - rnd(0, 14), rnd(-40, 40), -rnd(10, 60), 0.5, '#9c98aa', { g: 200, drag: 1, s: 2 });
+    }
     return;
   }
   p.cdQ -= dt; p.cdE -= dt; p.ultLock -= dt;
@@ -1051,14 +1068,20 @@ function updatePlayer(dt) {
   let mx = (keyDown('KeyD', 'ArrowRight') ? 1 : 0) - (keyDown('KeyA', 'ArrowLeft') ? 1 : 0);
   let my = (keyDown('KeyS', 'ArrowDown') ? 1 : 0) - (keyDown('KeyW', 'ArrowUp') ? 1 : 0);
   if (!mx && !my && input.stick.id !== null) { mx = input.stick.dx; my = input.stick.dy; }
+  // the Mirror turned you around: left is right while it lasts
+  if (G.mirrorT > 0) mx = -mx;
   const ml = hyp(mx, my);
+  p.moveIn = ml;
   if (ml) { const n = Math.max(1, ml); mx /= n; my /= n; p.moveAng = Math.atan2(my, mx); }
   if (p.state !== 'dead' && p.state !== 'cine') {
     if (input.device === 'touch') touchAim(p, ml);
     else if (input.device === 'mouse') p.aim = Math.atan2(input.mouse.y + fx.cam.y - (p.y - 6), input.mouse.x + fx.cam.x - p.x);
     else if (ml) p.aim = p.moveAng;
   }
-  const speed = kit.stats.speed * p.slowMul, fr = G.map.friction;
+  // the Brood Mother's webs hold your feet (a dash still goes at full speed)
+  const webbed = G.webs?.some((w) => hyp(p.x - w.x, (p.y - w.y) * 1.4) < w.r);
+  const speed = kit.stats.speed * p.slowMul * (webbed ? 0.42 : 1), fr = G.map.friction;
+  if (webbed && ml && Math.random() < 0.15) part(p.x + rnd(-4, 4), p.y - rnd(0, 3), rnd(-10, 10), -rnd(5, 15), 0.4, '#d8d0e0', { drag: 2 });
 
   switch (p.state) {
     case 'move': {
@@ -1952,6 +1975,8 @@ export function update(dt, rdt) {
   sweep(G.sigils, (s) => s.t < s.life);
 
   G.pfx = true; updatePlayer(dt); G.pfx = false;
+  // the bosses' own tricks (a chain, webs, a decree, a stopwatch...) act on the fighter after they've moved
+  updateTricks(dt);
   const p = G.p;
 
   G.pfx = true; for (const a of G.allies) { a.t += dt; ALLY[a.type].update(a, dt); } G.pfx = false;
@@ -2477,7 +2502,7 @@ function drawHeldWeapon(p, set, flip, x, y, a) {
 }
 function drawPlayer() {
   const p = G.p, kit = G.kit;
-  if (p.state === 'dead' || p.state === 'cine') return;
+  if (p.state === 'dead' || p.state === 'cine' || p.hidden) return;
   // the i-frames blink, except for the first moment of a hit (the flinch should show)
   if (p.inv > 0 && p.hurtT < 0.12 && p.hurtT > -0.8 && p.state !== 'dash' && Math.floor(G.time * 22) % 2) return;
   // the body faces left or right only (mostly toward the player); the aim, the weapon, shots and cuts go all 360
@@ -2554,7 +2579,7 @@ function drawPlayer() {
   if (sheathed) drawWeaponAt(ctx, 'saya', !!set.evolved, hx, hy, flip ? 0.35 : Math.PI - 0.35, flip);
   else if (behind) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
   // a hit flashes the body white then red for an instant, then the flinch (eyes screwed shut) shows
-  const tintP = p.hurtT > 0.255 ? (p.hurtT > 0.28 ? P.paper : P.blood) : null;
+  const tintP = p.hurtT > 0.255 ? (p.hurtT > 0.28 ? P.paper : P.blood) : p.held > 0 ? (p.heldKind === 'stone' ? '#8c8a98' : '#d8b060') : null;
   if (ninja) {
     if (Math.floor(G.time * 16) !== Math.floor((G.time - 1 / 60) * 16)) G.ghosts.push({ x: p.x - Math.cos(p.moveAng) * 3, y: p.y, flip, t: 0, life: 0.16, c: '#ffb7d5', spr: fr });
   }
@@ -2869,6 +2894,7 @@ export function drawWorld() {
   if (G.map.deco === 'grid') { const sy = B.y0 + ((G.time * 40) % (B.y1 - B.y0)); rect(B.x0, sy, B.x1 - B.x0, 1, '#2f2a80'); }
 
   drawZones();
+  drawTricks();
   G.cine?.under?.();
   drawDeathUnder();
 

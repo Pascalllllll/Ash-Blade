@@ -1,11 +1,11 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas } from './gfx.js?v=190';
-import { A } from './audio.js?v=190';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=191';
+import { A } from './audio.js?v=191';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
-  spawnEnemy, scorch, atWall, sprFor, heroSet,
-} from './world.js?v=190';
-import { SPR } from './sprites.js?v=190';
-import { say, TALK, meetLines, noxLines } from './story.js?v=190';
+  spawnEnemy, scorch, atWall, sprFor, heroSet, damage, pd,
+} from './world.js?v=191';
+import { SPR } from './sprites.js?v=191';
+import { say, TALK, meetLines, noxLines } from './story.js?v=191';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'nox'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
@@ -29,6 +29,189 @@ function bigSlash(e, R, arc, col) {
   shake(0.35); A.heavySwing(); A.wall();
 }
 const introBars = (e) => e.state === 'intro';
+
+// ================================================================ each boss's own trick
+// Things no other boss does: the Warden's chain, the Brood Mother's webs, the King's decree, the Wyrm swallowing you,
+// the Herald's charged floor, the Mirror turning you around, the Eclipse's stare, the Clockwork's stopwatch. They live
+// on the world (G) rather than on the boss, so each plays out and ends cleanly whatever the boss does next, and goes
+// when its boss dies. updateTricks runs every frame after the fighter moves; drawTricks draws the ones on the floor.
+const RED_GOLD = '#ffd447';
+const BRASS_C = '#e8c070';
+const ZAP_CELL = 36;
+const WATCH_R = 28;
+const owned = (h) => h && h.e && !h.e.dead && !h.e.dying;
+// where the Warden's lantern hand is (the chain comes out of it), from the middle of his feet
+const lanternAt = (e) => [e.x - e.face * 8.7, e.y - 5 - (e.z || 0)];
+export function updateTricks(dt) {
+  const p = G.p, dead = p.state === 'dead';
+  if (G.mirrorT > 0) G.mirrorT = Math.max(0, G.mirrorT - dt);
+  // web globs in flight land as webs; webs fade away
+  if (G.globs) {
+    for (const g of G.globs) {
+      g.t += dt;
+      if (g.t >= g.dur && !g.done) { g.done = true; (G.webs ||= []).push({ x: g.x1, y: g.y1, r: 17 + rnd(0, 4), t: 0, life: 9 }); A.splat(); dust(g.x1, g.y1, 6, 40); }
+    }
+    G.globs = G.globs.filter((g) => !g.done);
+  }
+  if (G.webs) { for (const w of G.webs) w.t += dt; G.webs = G.webs.filter((w) => w.t < w.life); }
+  // the Warden's chain: you can't get further from him than its length, it reels you in, and three dashes snap it
+  const sh = G.shackle;
+  if (sh) {
+    const e = sh.e, dash = p.state === 'dash';
+    sh.t -= dt; sh.len = Math.max(26, sh.len - 22 * dt);
+    if (dash && !sh.wasDash && owned(sh)) {
+      sh.breaks++; A.wall(); shake(0.2);
+      sparks(p.x, p.y - 6, Math.atan2(e.y - p.y, e.x - p.x), 6, 1, P.paper, 160);
+      addText(p.x, p.y - 22, sh.breaks + ' / 3', P.paper);
+    }
+    sh.wasDash = dash;
+    if (sh.breaks >= 3) {
+      G.shackle = null; addText(p.x, p.y - 28, 'BROKE FREE', P.gold, 2); A.shieldHit(); A.boom(0.6);
+      for (let i = 0; i < 16; i++) { const a = rnd(TAU), v = rnd(60, 180); part(p.x, p.y - 6, Math.cos(a) * v, Math.sin(a) * v, rnd(0.3, 0.6), i % 2 ? '#8a8a9a' : P.paper, { drag: 3 }); }
+    } else if (sh.t <= 0 || !owned(sh) || dead) G.shackle = null;
+    else {
+      const d = hyp(p.x - e.x, p.y - e.y);
+      if (d > sh.len) { p.x = e.x + ((p.x - e.x) / d) * sh.len; p.y = e.y + ((p.y - e.y) / d) * sh.len; }
+    }
+  }
+  // the Wyrm has you in its jaws: held there until you cut your way out or it spits you out
+  const sw = G.swallow;
+  if (sw) {
+    if (!owned(sw) || dead) releaseSwallow(false, true);
+    else {
+      const e = sw.e;
+      sw.t -= dt;
+      p.x = e.x + e.face * 4; p.y = e.y + 1; p.vx = p.vy = 0; p.inv = Math.max(p.inv, 0.12); p.hidden = true;
+      if (sw.hits >= sw.need) releaseSwallow(true);
+      else if (sw.t <= 0) releaseSwallow(false);
+    }
+  }
+  // the King's decree: from the moment it's spoken, moving or dashing brings fire down on you
+  const dc = G.decree;
+  if (dc) {
+    dc.t -= dt;
+    if (dc.t <= 0 || !owned(dc) || dead) G.decree = null;
+    else if (p.moveIn > 0.25 || p.state === 'dash') {
+      G.decree = null;
+      G.strikes.push({ x: p.x, y: p.y, t: 0, delay: 0.35, R: 18, dmg: 2, friendly: false, kind: 'pillar', c: P.ember });
+      addText(p.x, p.y - 26, 'DEFIANCE', P.ember, 2); A.bossRoar(); shake(0.4);
+    }
+  }
+  // the Clockwork's stopwatch: still inside its dial when the hand comes round, and time stops for you
+  const w = G.watch;
+  if (w) {
+    const before = w.t;
+    w.t += dt;
+    if (Math.floor(before / (w.life / 12)) !== Math.floor(w.t / (w.life / 12))) A.click();
+    if (!owned(w) || dead) G.watch = null;
+    else if (w.t >= w.life) {
+      G.watch = null;
+      if (p.state !== 'dash' && hyp(p.x - w.x, (p.y - w.y) * 1.3) < w.r) stopTime(w.e);
+      else { addRing(w.x, w.y, BRASS_C, 160, 0.25, 1); A.zip(); }
+    }
+  }
+  // the Herald's charged floor: one color of the checkerboard charges, then strikes, then the other
+  const z = G.zap;
+  if (z) {
+    z.t += dt;
+    if (!owned(z) || dead) G.zap = null;
+    else {
+      if (z.t >= 0.7 && !z.fired) {
+        z.fired = true; A.zap(); shake(0.25);
+        const ci = Math.floor((p.x - B.x0) / ZAP_CELL), cj = Math.floor((p.y - B.y0) / ZAP_CELL);
+        if ((ci + cj) % 2 === z.par && p.state !== 'dash') tryHurt(2, p.x, p.y - 20);
+        for (let i = 0; i < 6; i++) { const x = rnd(B.x0, B.x1), y = rnd(B.y0, B.y1), cx = B.x0 + (Math.floor((x - B.x0) / ZAP_CELL) + 0.5) * ZAP_CELL, cy = B.y0 + (Math.floor((y - B.y0) / ZAP_CELL) + 0.5) * ZAP_CELL; if ((Math.floor((x - B.x0) / ZAP_CELL) + Math.floor((y - B.y0) / ZAP_CELL)) % 2 === z.par) G.bolts.push({ x0: cx + rnd(-10, 10), y0: cy - 40, x1: cx, y1: cy, t: 0, life: 0.18 }); }
+      }
+      if (z.t >= 1.05) { z.t = 0; z.fired = false; z.par ^= 1; if (++z.beat >= z.n) G.zap = null; }
+    }
+  }
+}
+// the Eclipse's stare and the Clockwork's stopwatch hold you in place: no moving, no fighting until it wears off
+function hold(kind, s) {
+  const p = G.p;
+  p.held = s; p.heldKind = kind; p.vx = p.vy = 0;
+  if (p.state !== 'dead') p.state = 'move';
+}
+function stopTime(e) {
+  const p = G.p;
+  hold('time', 1.2);
+  G.banner = { text: 'TIME STOP', sub: '', t: 0, life: 1.1, c: BRASS_C };
+  flash(BRASS_C, 0.18, false); A.click(); A.zip(); shake(0.4);
+  addRing(p.x, p.y - 6, BRASS_C, 220, 0.35, 2);
+  // twelve shots close in on you, slowly enough to dash out once time starts again
+  for (let i = 0; i < 12; i++) {
+    const a = (i * TAU) / 12, x = clamp(p.x + Math.cos(a) * 72, B.x0 + 4, B.x1 - 4), y = clamp(p.y - 6 + Math.sin(a) * 72, B.y0 + 4, B.y1 - 2);
+    fire(x, y, Math.atan2(p.y - 6 - y, p.x - x), 36, { c: BRASS_C, life: 3.4, noparry: i % 2 === 0 });
+  }
+}
+function releaseSwallow(cut, quiet) {
+  const sw = G.swallow, p = G.p;
+  G.swallow = null; p.hidden = false;
+  if (!sw) return;
+  const e = sw.e, a = rnd(TAU);
+  p.x = clamp(e.x + Math.cos(a) * 30, B.x0 + 6, B.x1 - 6); p.y = clamp(e.y + Math.sin(a) * 22, B.y0 + 6, B.y1 - 4);
+  if (quiet) return;
+  if (cut) {
+    // cut out of its throat: it reels, stunned, and you come out unhurt
+    p.inv = 0.8; e.state = 'stun'; e.t = 1.6; e.vx = e.vy = 0;
+    damage(e, pd(120), { dir: a, kb: 0, src: 'ult', crit: true });
+    G.banner = { text: 'CUT FREE', sub: '', t: 0, life: 1.2, c: P.gold };
+    flash(P.paper, 0.15, false); A.slice(); A.bossRoar(); shake(0.8); hitstop(0.1);
+    for (let i = 0; i < 40; i++) { const b = rnd(TAU), v = rnd(80, 240); part(e.x, e.y - 8, Math.cos(b) * v, Math.sin(b) * v, rnd(0.3, 0.7), i % 3 ? VOID : P.paper, { drag: 3, glow: i % 2 === 0 }); }
+  } else {
+    // spat out, hurt
+    p.inv = 0; tryHurt(2, e.x, e.y);
+    p.vx = Math.cos(a) * 220; p.vy = Math.sin(a) * 220;
+    addText(p.x, p.y - 24, 'SPAT OUT', VOID, 2); A.splat();
+    e.state = 'rec'; e.t = 0.6;
+  }
+}
+// the floor ones: webs, the charged floor, the stopwatch's dial, the King's circle
+export function drawTricks() {
+  const p = G.p, blink = Math.floor(G.time * 10) % 2;
+  for (const w of G.webs || []) {
+    const fade = Math.min(1, (w.life - w.t) / 1.5, w.t / 0.15);
+    ctx.globalAlpha = 0.55 * fade;
+    ring(w.x, w.y, w.r, 1, '#d8d0e0'); ring(w.x, w.y, w.r * 0.6, 1, '#b8b0c8');
+    for (let i = 0; i < 8; i++) { const a = (i * TAU) / 8 + w.x * 0.1; line(w.x, w.y, w.x + Math.cos(a) * w.r, w.y + Math.sin(a) * w.r * 0.7, '#cfc8dc'); }
+    ctx.globalAlpha = 1;
+  }
+  for (const g of G.globs || []) {
+    const k = Math.min(1, g.t / g.dur), x = g.x0 + (g.x1 - g.x0) * k, y = g.y0 + (g.y1 - g.y0) * k - Math.sin(k * Math.PI) * 40;
+    ctx.globalAlpha = 0.4; disc(g.x1, g.y1, 3 + k * 3, '#05030a'); ctx.globalAlpha = 1;
+    disc(x, y, 3, '#e8e0f0'); px(x - 1, y - 1, P.paper);
+  }
+  const z = G.zap;
+  if (z) {
+    const nx = Math.ceil((B.x1 - B.x0) / ZAP_CELL), ny = Math.ceil((B.y1 - B.y0) / ZAP_CELL), hot = z.fired && z.t < 0.85;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      if ((i + j) % 2 !== z.par) continue;
+      const x = B.x0 + i * ZAP_CELL, y = B.y0 + j * ZAP_CELL, w = Math.min(ZAP_CELL, B.x1 - x), h = Math.min(ZAP_CELL, B.y1 - y);
+      if (hot) { ctx.globalAlpha = 0.35; rect(x, y, w, h, '#62efff'); ctx.globalAlpha = 1; }
+      else if (!z.fired) {
+        ctx.globalAlpha = 0.06 + (z.t / 0.7) * 0.14 + (blink ? 0.05 : 0); rect(x, y, w, h, '#62efff'); ctx.globalAlpha = 1;
+        if (blink || z.t > 0.45) { rect(x, y, w, 1, '#62efff'); rect(x, y + h - 1, w, 1, '#62efff'); rect(x, y, 1, h, '#62efff'); rect(x + w - 1, y, 1, h, '#62efff'); }
+      }
+    }
+  }
+  const w = G.watch;
+  if (w) {
+    // a clock face on the floor round where you stood, its hand sweeping round
+    const k = w.t / w.life, a = -Math.PI / 2 + k * TAU;
+    ctx.globalAlpha = 0.35; ctx.fillStyle = checker(BRASS_C); ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.ellipse(w.x, w.y, w.r, w.r / 1.3, 0, -Math.PI / 2, a); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    for (let i = 0; i < 48; i++) { const b = (i * TAU) / 48; px(w.x + Math.cos(b) * w.r, w.y + (Math.sin(b) * w.r) / 1.3, i % 4 === 0 ? P.paper : BRASS_C); }
+    for (let i = 0; i < 12; i++) { const b = (i * TAU) / 12; line(w.x + Math.cos(b) * (w.r - 4), w.y + (Math.sin(b) * (w.r - 4)) / 1.3, w.x + Math.cos(b) * (w.r - 1), w.y + (Math.sin(b) * (w.r - 1)) / 1.3, BRASS_C); }
+    line(w.x, w.y, w.x + Math.cos(a) * (w.r - 2), w.y + (Math.sin(a) * (w.r - 2)) / 1.3, k > 0.75 && blink ? P.blood : P.paper, 2);
+    disc(w.x, w.y, 2, BRASS_C);
+  }
+  const dc = G.decree;
+  if (dc) {
+    // the one place the fire won't fall: where you knelt
+    for (let i = 0; i < 40; i++) { if ((i + Math.floor(G.time * 8)) % 2) continue; const b = (i * TAU) / 40; px(dc.x + Math.cos(b) * 30, dc.y + Math.sin(b) * 22, RED_GOLD); }
+    textO('KNEEL', p.x, p.y + 6, blink ? RED_GOLD : P.ember, 1, 'c');
+  }
+  if (p.held > 0 && p.heldKind === 'time') { for (let i = 0; i < 12; i++) { const b = (i * TAU) / 12 + G.time; px(p.x + Math.cos(b) * 12, p.y - 8 + Math.sin(b) * 12, BRASS_C); } }
+}
 
 export const BOSSES = {
   // ---------------------------------------------------------------- wave 5
@@ -59,9 +242,12 @@ export const BOSSES = {
             if (d < 72) opts.push('sweep', 'sweep', 'sweep');
             if (G.E.filter(alive).length < 5) opts.push('summon');
             opts.push('soulring');
+            if (!G.shackle) opts.push('shackle', e.phase === 2 ? 'shackle' : 'soulring');
             if (e.phase === 2) opts.push('dash', 'dash', 'jump', 'chains', 'chains');
-            const k = pick(e, opts);
-            if (k === 'soulring') { e.state = 'soulW'; e.t = 0.6; }
+            // chained to him, you get the sword
+            const k = G.shackle?.e === e && d < 64 ? 'sweep' : pick(e, opts);
+            if (k === 'shackle') { e.state = 'chainW'; e.t = 0.6; e.lock = ang; A.warn(); }
+            else if (k === 'soulring') { e.state = 'soulW'; e.t = 0.6; }
             else if (k === 'chains') { e.state = 'chainsW'; e.t = 0.6; A.warn(); }
             else             if (k === 'sweep') { e.state = 'sweepW'; e.t = e.phase === 2 ? 0.55 : 0.7; e.lock = ang; }
             else if (k === 'jump') { e.state = 'jump'; e.t = 0; e.jd = 0.8; e.jx0 = e.x; e.jy0 = e.y; e.jx = clamp(p.x, B.x0 + 20, B.x1 - 20); e.jy = clamp(p.y, B.y0 + 20, B.y1 - 10); A.dash(); dust(e.x, e.y, 14, 70); }
@@ -122,14 +308,41 @@ export const BOSSES = {
             e.state = 'rec'; e.t = 3; A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3, fn: () => A.loop('bossbeam', false) });
           }
           break;
+        case 'chainW': {
+          // he swings the chain from his lantern hand, then throws it where you are
+          e.t -= dt;
+          const [lx, ly] = lanternAt(e);
+          if (e.t > 0.15) { e.lock = Math.atan2(p.y - 6 - ly, p.x - lx); e.face = dx < 0 ? -1 : 1; }
+          if (e.t <= 0) { e.state = 'chain'; e.chain = { d: 0, a: e.lock, back: false }; A.dash(); }
+          break;
+        }
+        case 'chain': {
+          const c = e.chain, [lx, ly] = lanternAt(e);
+          c.d += (c.back ? -420 : 360) * dt;
+          const hx = lx + Math.cos(c.a) * c.d, hy = ly + Math.sin(c.a) * c.d;
+          if (!c.back && hyp(p.x - hx, p.y - 6 - hy) < 9) {
+            const r = tryHurt(1, hx, hy);
+            if (r === true && p.state !== 'dead') {
+              G.shackle = { e, t: 3.6, len: Math.max(40, hyp(p.x - e.x, p.y - e.y)), breaks: 0, wasDash: false };
+              G.banner = { text: 'SHACKLED', sub: 'DASH 3 TIMES TO BREAK THE CHAIN', t: 0, life: 1.6, c: P.hex };
+              A.shieldHit(); A.wall(); shake(0.4); hitstop(0.06);
+              e.chain = null; e.state = 'rec'; e.t = 0.35; break;
+            }
+            c.back = true;
+          }
+          if (!c.back && (c.d > 175 || hx < B.x0 || hx > B.x1 || hy < B.y0 - 10 || hy > B.y1)) c.back = true;
+          if (c.back && c.d <= 0) { e.chain = null; e.state = 'rec'; e.t = 0.5; }
+          break;
+        }
         case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.8) / rage; } break;
       }
-      e.tele = e.state === 'sweepW' || e.state === 'dashW';
+      e.tele = e.state === 'sweepW' || e.state === 'dashW' || e.state === 'chainW';
     },
     tele(e, blink) {
       if (e.state === 'sweepW') cone(e, 62, 2.7, blink, P.bloodD, '#3a0a18');
       if (e.state === 'dashW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x + cx * 14, e.y + cy * 14, e.x + cx * 165, e.y + cy * 165, blink ? P.blood : P.bloodD, 3); }
       if (e.state === 'jump') { const k = Math.min(1, e.t / e.jd); ring(e.jx, e.jy, 30 * (1 - k) + 6, 1, blink ? P.blood : P.paper); }
+      if (e.state === 'chainW') { const [lx, ly] = lanternAt(e); for (let i = 10; i < 175; i += 7) { if ((i / 7 + Math.floor(G.time * 12)) % 2 < 1) continue; px(lx + Math.cos(e.lock) * i, ly + Math.sin(e.lock) * i, blink ? P.blood : P.paper); } }
       if (e.state === 'intro' && e.z > 0) { ring(e.x, e.y, 6 + e.z / 12, 1, blink ? P.blood : P.paper); ring(e.x, e.y, 3, 1, P.blood); }
     },
     draw(e, x, y) {
@@ -138,6 +351,17 @@ export const BOSSES = {
       const a = e.state === 'sweepW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'dash' || e.state === 'dashW' ? e.lock : Math.PI / 2 + e.face * 0.5;
       line(hx, hy, hx + Math.cos(a) * 22, hy + Math.sin(a) * 22, P.dust, 2);
       line(hx, hy, hx + Math.cos(a) * 22, hy + Math.sin(a) * 22, P.bone);
+      // the chain: flying out of his lantern hand, or holding you
+      const [lx, ly] = lanternAt(e), sh = G.shackle?.e === e ? G.shackle : null;
+      let tx = null, ty = null, sag = 0;
+      if (e.chain) { tx = lx + Math.cos(e.chain.a) * e.chain.d; ty = ly + Math.sin(e.chain.a) * e.chain.d; }
+      else if (sh) { tx = G.p.x; ty = G.p.y - 6; sag = Math.max(0, sh.len - hyp(G.p.x - e.x, G.p.y - e.y)) * 0.4; }
+      if (tx !== null) {
+        const L = hyp(tx - lx, ty - ly), n = Math.max(2, Math.round(L / 3));
+        for (let i = 0; i <= n; i++) { const k = i / n, x = lx + (tx - lx) * k, y = ly + (ty - ly) * k + Math.sin(k * Math.PI) * sag; rect(x - 1, y - 1, 2, 2, i % 2 ? '#4a4a5a' : '#a8a8b8'); }
+        if (e.chain) { rect(tx - 2, ty - 2, 4, 4, '#a8a8b8'); px(tx - 1, ty - 1, P.paper); }
+        if (sh) { ring(G.p.x, G.p.y - 4, 6, 1, '#a8a8b8'); for (let i = 0; i < sh.breaks; i++) px(G.p.x - 2 + i * 2, G.p.y - 16, P.paper); }
+      }
     },
     bars: introBars,
   },
@@ -177,8 +401,10 @@ export const BOSSES = {
             if (d < 110) opts.push('lunge', 'lunge');
             if (G.E.filter((o) => o.type === 'larva' && !o.dead).length < 10) opts.push('swarm', 'swarm');
             if (e.phase === 2) opts.push('acidrain');
+            if ((G.webs?.length || 0) < 7) opts.push('webs', 'webs');
             const k = pick(e, opts);
-            if (k === 'swarm') { e.state = 'swarmW'; e.t = 0.8; e.laid = false; A.bossRoar(); }
+            if (k === 'webs') { e.state = 'webW'; e.t = 0.5; A.warn(); }
+            else if (k === 'swarm') { e.state = 'swarmW'; e.t = 0.8; e.laid = false; A.bossRoar(); }
             else if (k === 'acidrain') {
               for (let i = 0; i < 26; i++) G.strikes.push({ x: rnd(B.x0 + 10, B.x1 - 10), y: rnd(B.y0 + 10, B.y1 - 6), x0: e.x, y0: e.y - 14, t: -i * 0.07, delay: 0.8, R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor });
               A.splat(); phaseBanner('ACID RAIN', P.ichor); e.state = 'rec'; e.t = 2;
@@ -230,6 +456,19 @@ export const BOSSES = {
           e.vx = Math.cos(e.lock) * 290; e.vy = Math.sin(e.lock) * 290; e.t -= dt;
           if (!e.hitP && d < e.r + 7) { if (tryHurt(2, e.x, e.y) === true) e.hitP = true; }
           if (e.t <= 0 || atWall(e, Math.cos(e.lock), Math.sin(e.lock))) { e.state = 'rec'; e.t = 0.6; }
+          break;
+        case 'webW':
+          // she rears up and spits web over the floor round you: it holds your feet (dashing still gets you out)
+          e.t -= dt; e.face = dx < 0 ? -1 : 1;
+          if (e.t <= 0) {
+            const n = e.phase === 2 ? 6 : 4;
+            for (let i = 0; i < n; i++) {
+              const a = rnd(TAU), r = i < 2 ? rnd(0, 18) : rnd(30, 90);
+              (G.globs ||= []).push({ x0: e.x, y0: e.y - 12, x1: clamp(p.x + Math.cos(a) * r, B.x0 + 14, B.x1 - 14), y1: clamp(p.y + Math.sin(a) * r * 0.7, B.y0 + 12, B.y1 - 8), t: 0, dur: 0.55 + i * 0.07 });
+            }
+            A.splat(); A.shoot(); G.banner = { text: 'WEBS', sub: 'THEY HOLD YOUR FEET', t: 0, life: 1.1, c: '#d8d0e0' };
+            e.state = 'rec'; e.t = 0.7;
+          }
           break;
         case 'swarmW':
           e.t -= dt;
@@ -403,8 +642,13 @@ export const BOSSES = {
             opts.push('flare');
             if (e.knights !== e.phase && e.phase >= 2) opts.push('knights', 'knights');
             if (e.phase === 3) opts.push('thousand', 'meteors', 'thousand', 'crown', 'crown');
+            if (e.phase >= 2 && !G.decree) opts.push('decree', 'decree');
             const k = pick(e, opts);
-            if (k === 'flare') {
+            if (k === 'decree') {
+              // KNEEL: he raises his sword and commands you to be still; fire falls everywhere but where you stand
+              e.state = 'decreeW'; e.t = 0.9; e.lock = -Math.PI / 2;
+              G.banner = { text: 'KNEEL', sub: 'DO NOT MOVE', t: 0, life: 2.2, c: P.gold }; A.warn(); A.bossRoar();
+            } else if (k === 'flare') {
               for (let i = 0; i < 3; i++) G.quakes.push({ x: e.x, y: e.y, r: 0, delay: i * 0.35, max: 220, hitP: false, speed: 150, c: P.ember, c2: '#5a1420' });
               flash(P.ember, 0.1, false); A.boom(1.6); shake(0.6); e.state = 'rec'; e.t = 1.4; e.cd = 0;
             } else if (k === 'knights') {
@@ -426,6 +670,19 @@ export const BOSSES = {
           }
           break;
         }
+        case 'decreeW':
+          e.t -= dt; e.vx = e.vy = 0;
+          if (e.t <= 0) {
+            G.decree = { e, t: 2.6, x: p.x, y: p.y };
+            for (let i = 0; i < 18; i++) {
+              let x = 0, y = 0;
+              for (let j = 0; j < 12; j++) { x = rnd(B.x0 + 10, B.x1 - 10); y = rnd(B.y0 + 10, B.y1 - 6); if (hyp(x - p.x, (y - p.y) * 1.36) > 40) break; }
+              if (hyp(x - p.x, (y - p.y) * 1.36) <= 40) continue;
+              G.strikes.push({ x, y, t: -i * 0.1, delay: 0.95, R: 20, dmg: 2, friendly: false, kind: 'pillar', c: P.ember });
+            }
+            A.meteorFall(); shake(0.4); e.state = 'rec'; e.t = 2.6;
+          }
+          break;
         case 'blink':
           e.t -= dt;
           if (e.t <= 0) {
@@ -470,7 +727,7 @@ export const BOSSES = {
     },
     draw(e, x, y) {
       const hx = e.x + e.face * 18, hy = e.y - 30;
-      const a = e.state === 'kslashW' ? e.lock + Math.PI * 0.7 * e.face : Math.PI / 2 + e.face * 0.6;
+      const a = e.state === 'kslashW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'decreeW' || G.decree?.e === e ? -Math.PI / 2 + e.face * 0.12 : Math.PI / 2 + e.face * 0.6;
       line(hx, hy, hx + Math.cos(a) * 48, hy + Math.sin(a) * 48, '#c6380f', 5);
       line(hx, hy, hx + Math.cos(a) * 48, hy + Math.sin(a) * 48, P.ember3, 2);
       if (Math.random() < 0.8) part(hx + Math.cos(a) * rnd(4, 48), hy + Math.sin(a) * rnd(4, 48), 0, -rnd(20, 40), 0.3, P.ember, { glow: true });
@@ -526,13 +783,26 @@ Object.assign(BOSSES, {
           e.t -= dt; if (e.t > 0.4) walkTo(e, p.x, p.y, 165); dust(e.x, e.y, 2, 40);
           if (e.t <= 0) {
             e.under = false;
-            if (d < 26) tryHurt(2, e.x, e.y);
+            // right under you: it comes up with you in its jaws
+            if (d < 26 && !G.swallow && tryHurt(1, e.x, e.y) === true && p.state !== 'dead') {
+              G.swallow = { e, t: 2.6, hits: 0, need: 6 }; p.hidden = true; p.vx = p.vy = 0;
+              G.banner = { text: 'DEVOURED', sub: 'ATTACK TO CUT YOUR WAY OUT', t: 0, life: 1.6, c: VOID };
+              A.bossRoar(); A.boom(1.4); shake(0.9); scorch(e.x, e.y, 14);
+              e.state = 'devour'; e.t = 2.6; e.vx = e.vy = 0;
+              break;
+            }
             orbRing(e, e.phase === 2 ? 20 : 14, 70, undefined, { c: VOID, noparry: false });
             G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 90, hitP: false, c: VOID, c2: '#3a1a6a' });
             A.boom(1.5); A.bossRoar(); shake(0.8); scorch(e.x, e.y, 14);
             e.state = 'rec'; e.t = 0.7;
           }
           break;
+        case 'devour':
+          // it thrashes with you inside; updateTricks ends it
+          e.vx = e.vy = 0; if (Math.random() < 0.4) dust(e.x, e.y, 2, 50);
+          if (G.swallow?.e !== e && e.state === 'devour') { e.state = 'rec'; e.t = 0.5; }
+          break;
+        case 'stun': e.t -= dt; e.vx = e.vy = 0; if (Math.random() < 0.3) sparks(e.x + rnd(-8, 8), e.y - rnd(4, 14), rnd(TAU), 2, 1, P.paper, 80); if (e.t <= 0) { e.state = 'walk'; e.cd = 0.3; } break;
         case 'breathW': e.t -= dt; if (e.t > 0.15) e.lock = ang; if (e.t <= 0) { e.state = 'breath'; e.t = 1.1; e.fireT = 0; } break;
         case 'breath':
           e.t -= dt; e.fireT -= dt;
@@ -556,7 +826,17 @@ Object.assign(BOSSES, {
       else { for (let i = -8; i <= 8; i += 2) px(e.x + i, e.y - Math.round(Math.cos(i / 5) * 3), '#5a2f9c'); if (e.state === 'tunnel' && e.t < 0.4) ring(e.x, e.y, 26, 1, blink ? P.blood : P.paper); }
       if (e.state === 'breathW') cone(e, 90, 1.1, blink, '#2a0a40', '#14051f');
     },
-    draw(e, x, y) { glow(e.x, y + 4, VOID, 10, 0.4); },
+    // every hit you land from inside it counts toward cutting your way out
+    onHit(e) { if (G.swallow?.e === e) { G.swallow.hits++; A.slice(); for (let i = 0; i < 6; i++) part(e.x + rnd(-6, 6), e.y - rnd(4, 12), rnd(-60, 60), rnd(-80, -20), 0.4, i % 2 ? VOID : P.paper, { drag: 2 }); } },
+    draw(e, x, y) {
+      glow(e.x, y + 4, VOID, 10, 0.4);
+      const sw = G.swallow?.e === e ? G.swallow : null;
+      if (sw) {
+        // how close you are to cutting out
+        for (let i = 0; i < sw.need; i++) rect(e.x - sw.need * 2 + i * 4, y - 8, 3, 3, i < sw.hits ? P.gold : '#3a2060');
+        textO('ATTACK', e.x, y - 16, Math.floor(G.time * 8) % 2 ? P.paper : P.gold, 1, 'c');
+      }
+    },
     bars: introBars,
   },
 
@@ -588,8 +868,16 @@ Object.assign(BOSSES, {
           if (e.cd <= 0) {
             const opts = ['bolts', 'bolts', 'teleport', 'orbs'];
             if (e.phase === 2) opts.push('lances', 'lances', 'storm');
+            if (!G.zap) opts.push('floor', 'floor');
             const k = pick(e, opts);
-            if (k === 'bolts') {
+            if (k === 'floor') {
+              // the floor becomes a checkerboard of charge: the squares you stand on strike first, then the others,
+              // turn and turn about, five beats
+              const ci = Math.floor((p.x - B.x0) / ZAP_CELL), cj = Math.floor((p.y - B.y0) / ZAP_CELL);
+              G.zap = { e, t: -0.4, beat: 0, n: e.phase === 2 ? 6 : 5, par: (ci + cj) % 2, fired: false };
+              G.banner = { text: 'THE FLOOR IS CHARGED', sub: 'STEP OFF THE LIT SQUARES', t: 0, life: 1.4, c: '#62efff' };
+              A.zap(); A.warn(); e.state = 'rec'; e.t = (e.phase === 2 ? 6 : 5) * 1.05;
+            } else if (k === 'bolts') {
               for (let i = 0; i < (e.phase === 2 ? 12 : 8); i++) G.strikes.push({ x: clamp(p.x + rnd(-45, 45), B.x0 + 8, B.x1 - 8), y: clamp(p.y + rnd(-35, 35), B.y0 + 8, B.y1 - 4), t: -i * 0.12, delay: 0.7, R: 16, dmg: 2, friendly: false, kind: 'lightning', c: '#62efff' });
               A.warn(); e.state = 'rec'; e.t = 1;
             } else if (k === 'teleport') {
@@ -638,13 +926,28 @@ Object.assign(BOSSES, {
           if (d > 40) walkTo(e, p.x, p.y, e.speed * spd);
           e.face = dx < 0 ? -1 : 1; e.cd -= dt;
           if (e.cd <= 0) {
-            const k = pick(e, ['dash', 'dash', 'combo', 'combo', 'rift', 'volley']);
-            if (k === 'dash') { e.state = 'dashW'; e.t = 0.42; e.lock = ang; }
+            const k = pick(e, ['dash', 'dash', 'combo', 'combo', 'rift', 'volley', ...(G.mirrorT > 0 ? [] : e.phase === 2 ? ['swap', 'swap'] : ['swap'])]);
+            if (k === 'swap') { e.state = 'swapW'; e.t = 0.7; A.warn(); }
+            else if (k === 'dash') { e.state = 'dashW'; e.t = 0.42; e.lock = ang; }
             else if (k === 'combo') { e.state = 'slashW'; e.t = 0.32; e.combo = e.phase === 2 ? 4 : 3; e.lock = ang; }
             else if (k === 'rift') {
               for (let i = 0; i < (e.phase === 2 ? 3 : 2); i++) { const a = rnd(TAU); G.hlines.push({ x0: p.x - Math.cos(a) * 200, y0: p.y - 5 - Math.sin(a) * 200, x1: p.x + Math.cos(a) * 200, y1: p.y - 5 + Math.sin(a) * 200, t: -i * 0.15, pend: 0.65, done: false }); }
               A.rift(); A.warn(); e.state = 'rec'; e.t = 0.9;
             } else { for (let i = -2; i <= 2; i++) fire(e.x, e.y - 14, ang + i * 0.18, 120, { c: '#cfd8e0' }); A.shoot(); e.state = 'rec'; e.t = 0.5; }
+          }
+          break;
+        case 'swapW':
+          // the glass between you turns: it takes your place and you take its, and left becomes right
+          e.t -= dt; e.vx = e.vy = 0;
+          if (Math.random() < 0.5) part(e.x + rnd(-10, 10), e.y - rnd(0, 20), 0, -rnd(20, 50), 0.4, P.paper, { glow: true });
+          if (e.t <= 0) {
+            G.ghosts.push({ x: e.x, y: e.y, flip: e.face < 0, t: 0, life: 0.4, c: P.paper, spr: sprFor(e) });
+            const ox = e.x, oy = e.y; e.x = p.x; e.y = p.y; p.x = ox; p.y = oy; p.vx = p.vy = 0;
+            G.mirrorT = e.phase === 2 ? 3.6 : 3;
+            G.banner = { text: 'MIRRORED', sub: 'LEFT IS RIGHT', t: 0, life: 1.4, c: P.paper };
+            flash(P.paper, 0.2, false); A.ultRelease(); shake(0.5);
+            addRing(p.x, p.y - 6, P.paper, 240, 0.35, 2); addRing(e.x, e.y - 6, '#cfd8e0', 240, 0.35, 2);
+            e.state = 'rec'; e.t = 0.5;
           }
           break;
         case 'dashW': e.t -= dt; if (e.t > 0.12) e.lock = ang; if (e.t <= 0) { e.state = 'dash'; e.t = 0.28; e.hitP = false; A.dash(); } break;
@@ -669,6 +972,9 @@ Object.assign(BOSSES, {
     tele(e, blink) {
       if (e.state === 'slashW') cone(e, 38, 2.6, blink, P.bloodD, '#2a0a14');
       if (e.state === 'dashW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x, e.y, e.x + cx * 110, e.y + cy * 110, blink ? P.blood : P.bloodD, 2); }
+      if (e.state === 'swapW') { const p = G.p; for (const o of [e, p]) ring(o.x, o.y - 8, 14 - e.t * 10, 1, blink ? P.paper : '#8a8a9a'); }
+      // turned around: shards of glass circle you while it lasts
+      if (G.mirrorT > 0) { const p = G.p; for (let i = 0; i < 6; i++) { const a = G.time * 3 + (i * TAU) / 6, x = p.x + Math.cos(a) * 13, y = p.y - 8 + Math.sin(a) * 6; px(x, y, P.paper); px(x + 1, y + 1, '#8a9aaa'); } }
     },
     draw(e, x, y) {
       // (it's your own fighter's size, so its pixels are the same as yours)
@@ -701,10 +1007,14 @@ Object.assign(BOSSES, {
           walkTo(e, p.x, p.y - 40, e.speed);
           e.cd -= dt;
           if (e.cd <= 0) {
-            const opts = ['spiral', 'rings', 'beams', 'minions'];
-            if (e.phase === 2) opts.push('cross', 'spiral', 'rings');
+            const opts = ['spiral', 'rings', 'beams', 'minions', 'gaze'];
+            if (e.phase === 2) opts.push('cross', 'spiral', 'rings', 'gaze');
             const k = pick(e, opts);
-            if (k === 'spiral') { e.state = 'spiral'; e.t = 2.6; e.fireT = 0; e.sdir = Math.random() < 0.5 ? 1 : -1; }
+            if (k === 'gaze') {
+              // it stares: a cone of light that turns after you; stay in it too long and you turn to stone
+              e.state = 'gaze'; e.t = 3; e.ga = Math.atan2(p.y - (e.y - 13), p.x - e.x); G.stare = 0;
+              G.banner = { text: 'DO NOT MEET ITS GAZE', sub: '', t: 0, life: 1.4, c: P.gold }; A.warn();
+            } else if (k === 'spiral') { e.state = 'spiral'; e.t = 2.6; e.fireT = 0; e.sdir = Math.random() < 0.5 ? 1 : -1; }
             else if (k === 'rings') { for (let i = 0; i < 4; i++) G.timers.push({ t: i * 0.45, fn: () => { if (!e.dead && !e.dying) orbRing(e, 26, 70, rnd(TAU), { oy: 14, c: P.gold, noparry: i % 2 === 1 }); } }); e.state = 'rec'; e.t = 2; }
             else if (k === 'beams') {
               const off = rnd(TAU), dir = Math.random() < 0.5 ? 1 : -1;
@@ -720,6 +1030,25 @@ Object.assign(BOSSES, {
             }
           }
           break;
+        case 'gaze': {
+          e.t -= dt;
+          const ey = e.y - 13 - (e.z || 0), want = Math.atan2(p.y - 6 - ey, p.x - e.x), turn = (e.phase === 2 ? 1 : 0.78) * dt;
+          e.ga += clamp(angDiff(want, e.ga), -turn, turn);
+          const inCone = p.state !== 'dash' && p.state !== 'dead' && Math.abs(angDiff(want, e.ga)) < 0.3 && hyp(p.x - e.x, p.y - 6 - ey) < 270;
+          G.stare = inCone ? (G.stare || 0) + dt : Math.max(0, (G.stare || 0) - dt * 0.6);
+          if (G.stare >= 0.9) {
+            G.stare = 0;
+            if (tryHurt(1, e.x, ey) === true && p.state !== 'dead') {
+              hold('stone', 1.4);
+              G.banner = { text: 'TURNED TO STONE', sub: '', t: 0, life: 1.2, c: '#b8b4c4' };
+              A.boom(0.8); A.wall(); shake(0.4);
+              for (let i = 0; i < 14; i++) part(p.x + rnd(-6, 6), p.y - rnd(0, 16), rnd(-30, 30), -rnd(10, 50), 0.6, i % 2 ? '#8c8a98' : '#d8d4e0', { g: 200, drag: 1, s: 2 });
+            }
+            e.state = 'rec'; e.t = 0.9;
+          }
+          if (e.t <= 0) { e.state = 'rec'; e.t = 0.5; G.stare = 0; }
+          break;
+        }
         case 'spiral':
           e.t -= dt; e.fireT -= dt;
           if (e.fireT <= 0) { e.fireT = 0.07 / spd; for (let k = 0; k < 4; k++) fire(e.x, e.y - 14, e.spin + (k * TAU) / 4, 75, { c: P.gold, noparry: k % 2 === 0 }); e.spin += 0.22 * e.sdir; A.shoot(); }
@@ -728,11 +1057,22 @@ Object.assign(BOSSES, {
         case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
       }
     },
+    tele(e, blink) {
+      if (e.state !== 'gaze') return;
+      // the stare: a wedge of gold light out of the eye, and the stone creeping over you while you stand in it
+      const ey = e.y - 13 - (e.z || 0), p = G.p;
+      ctx.globalAlpha = 0.5; ctx.fillStyle = checker(blink ? '#ffd447' : '#c98a1a');
+      ctx.beginPath(); ctx.moveTo(e.x, ey); ctx.arc(e.x, ey, 270, e.ga - 0.3, e.ga + 0.3); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      line(e.x, ey, e.x + Math.cos(e.ga) * 270, ey + Math.sin(e.ga) * 270, '#fff0a0');
+      const k = Math.min(1, (G.stare || 0) / 0.9);
+      if (k > 0) for (let i = 0; i < 24; i++) { if (i / 24 > k) break; const a = -Math.PI / 2 + (i / 24) * TAU; px(p.x + Math.cos(a) * 10, p.y - 8 + Math.sin(a) * 12, k > 0.7 && blink ? P.paper : '#9c98aa'); }
+    },
     draw(e, x, y) {
       const cx = x + 14, cy = y + 14;
       ring(cx, cy, 16 + Math.sin(G.time * 6) * 1.5, 1, P.gold); glow(cx, cy, P.gold, 26, 0.35);
-      // the pupil looks at you
-      const a = Math.atan2(G.p.y - 6 - cy, G.p.x - cx);
+      // the pupil looks at you (while it stares, along its stare)
+      const a = e.state === 'gaze' ? e.ga : Math.atan2(G.p.y - 6 - cy, G.p.x - cx);
+      if (e.state === 'gaze') glow(cx, cy, '#fff0a0', 18, 0.5);
       rect(cx + Math.cos(a) * 3 - 1, cy + Math.sin(a) * 3 - 3, 3, 7, P.paper);
       if (e.open < 1) { const h = Math.round(13 * (1 - e.open)); rect(x + 2, cy - 11, 24, h, '#0a0610'); rect(x + 2, cy + 12 - h, 24, h, '#0a0610'); }
     },
@@ -756,7 +1096,7 @@ Object.assign(BOSSES, {
         // it ticks louder and louder, then appears with a chime
         e.t -= dt;
         if (Math.floor(e.t * 4) !== Math.floor((e.t + dt) * 4)) { A.click(); if (e.t < 2) shake(0.15); }
-        if (e.under && e.t < 1) { e.under = false; flash(BRASS, 0.2, true); A.bossRoar(); A.victory(); addRing(e.x, e.y - 15, BRASS, 360, 0.6, 3); addRing(e.x, e.y - 15, P.paper, 260, 0.4, 1); }
+        if (e.under && e.t < 1) { e.under = false; flash(BRASS, 0.2, true); A.bossRoar(); A.victory(); addRing(e.x, e.y - 28, BRASS, 360, 0.6, 3); addRing(e.x, e.y - 28, P.paper, 260, 0.4, 1); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
         return;
       }
@@ -768,24 +1108,30 @@ Object.assign(BOSSES, {
           if (e.cd <= 0) {
             const opts = ['hands', 'freeze', 'tick', 'freeze'];
             if (e.phase === 2) opts.push('alarm', 'alarm', 'rewind', 'hands');
+            if (!G.watch) opts.push('stopwatch', 'stopwatch');
             const k = pick(e, opts);
-            if (k === 'hands') {
+            if (k === 'stopwatch') {
+              // a clock face under your feet, its hand sweeping round: be off it when the hand gets back to twelve
+              G.watch = { e, x: p.x, y: p.y, r: WATCH_R, t: 0, life: e.phase === 2 ? 1.5 : 1.8 };
+              G.banner = { text: 'STOPWATCH', sub: 'GET OFF THE DIAL', t: 0, life: 1.2, c: BRASS };
+              A.click(); e.state = 'rec'; e.t = 1.2;
+            } else if (k === 'hands') {
               // the hour and minute hands sweep the arena as beams
               const a0 = rnd(TAU);
-              G.hbeams.push({ owner: e, oy: 15, x: e.x, y: e.y - 15, a: a0, rot: 0.5 * spd, w: 7, warn: 0.9, t: 0, life: 3.6, len: 0 });
-              G.hbeams.push({ owner: e, oy: 15, x: e.x, y: e.y - 15, a: a0 + Math.PI, rot: -1.1 * spd, w: 4, warn: 0.9, t: 0, life: 3.6, len: 0 });
-              if (e.phase === 2) G.hbeams.push({ owner: e, oy: 15, x: e.x, y: e.y - 15, a: a0 + Math.PI / 2, rot: 1.7, w: 3, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              G.hbeams.push({ owner: e, oy: 28, x: e.x, y: e.y - 28, a: a0, rot: 0.5 * spd, w: 7, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              G.hbeams.push({ owner: e, oy: 28, x: e.x, y: e.y - 28, a: a0 + Math.PI, rot: -1.1 * spd, w: 4, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              if (e.phase === 2) G.hbeams.push({ owner: e, oy: 28, x: e.x, y: e.y - 28, a: a0 + Math.PI / 2, rot: 1.7, w: 3, warn: 0.9, t: 0, life: 3.6, len: 0 });
               A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3.6, fn: () => A.loop('bossbeam', false) });
               e.state = 'rec'; e.t = 3.6;
             } else if (k === 'freeze') {
               // a ring of shots stops dead, then every one turns toward you
-              const shots = volley(() => orbRing(e, e.phase === 2 ? 30 : 22, 95, undefined, { oy: 15, c: BRASS, life: 5 }));
+              const shots = volley(() => orbRing(e, e.phase === 2 ? 30 : 22, 95, undefined, { oy: 28, c: BRASS, life: 5 }));
               G.timers.push({ t: 0.65, fn: () => { for (const s of shots) { s.vx = s.vy = 0; } A.click(); flash(BRASS, 0.08, false); G.banner = { text: 'TIME STOP', sub: '', t: 0, life: 0.8, c: BRASS }; } });
               G.timers.push({ t: 1.35, fn: () => { for (const s of shots) { if (s.dead) continue; const a = Math.atan2(G.p.y - 6 - s.y, G.p.x - s.x) + rnd(-0.08, 0.08); s.vx = Math.cos(a) * 150; s.vy = Math.sin(a) * 150; } A.zip(); } });
               e.state = 'rec'; e.t = 1.8;
             } else if (k === 'tick') {
               // tick, tock: rings with the gaps shifting each beat
-              for (let i = 0; i < 6; i++) G.timers.push({ t: i * 0.32, fn: () => { if (!e.dead && !e.dying) { orbRing(e, 18, 80, (i % 2 ? 0.5 : 0) + e.hand, { oy: 15, c: i % 2 ? P.paper : BRASS, noparry: i % 2 === 0 }); A.click(); } } });
+              for (let i = 0; i < 6; i++) G.timers.push({ t: i * 0.32, fn: () => { if (!e.dead && !e.dying) { orbRing(e, 18, 80, (i % 2 ? 0.5 : 0) + e.hand, { oy: 28, c: i % 2 ? P.paper : BRASS, noparry: i % 2 === 0 }); A.click(); } } });
               e.state = 'rec'; e.t = 2.1;
             } else if (k === 'alarm') {
               // twelve strikes go off around you like the hours on a dial
@@ -797,7 +1143,7 @@ Object.assign(BOSSES, {
               // rewinds to the far side of the arena and fires as it lands
               G.ghosts.push({ x: e.x, y: e.y, flip: false, t: 0, life: 0.5, c: BRASS, spr: sprFor(e) });
               e.x = clamp(AWc() - (p.x - AWc()), B.x0 + 30, B.x1 - 30); e.y = clamp(B.y0 + 40 + rnd(0, 40), B.y0 + 30, B.y1 - 30);
-              orbRing(e, 24, 85, undefined, { oy: 15, c: BRASS }); A.zip(); flash(BRASS, 0.1, false);
+              orbRing(e, 24, 85, undefined, { oy: 28, c: BRASS }); A.zip(); flash(BRASS, 0.1, false);
               e.state = 'rec'; e.t = 0.7;
             }
           }

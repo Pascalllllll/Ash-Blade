@@ -1,16 +1,16 @@
-import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=190';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=190';
-import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=190';
-import { SPR, icon } from './sprites.js?v=190';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=190';
-import { A } from './audio.js?v=190';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=190';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=190';
-import { CHARS } from './chars.js?v=190';
-import { BOSSES, bossFor } from './bosses.js?v=190';
-import { MAPS } from './maps.js?v=190';
-import { drawTalk } from './story.js?v=190';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=190';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=191';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=191';
+import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=191';
+import { SPR, icon } from './sprites.js?v=191';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=191';
+import { A } from './audio.js?v=191';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=191';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=191';
+import { CHARS } from './chars.js?v=191';
+import { BOSSES, bossFor } from './bosses.js?v=191';
+import { MAPS } from './maps.js?v=191';
+import { drawTalk } from './story.js?v=191';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=191';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -308,21 +308,20 @@ export function titleItems(save, go) {
   items.push({ label: 'SETTINGS', act: () => go('settings') });
   return items;
 }
-// the title menu sits under the logo, above the fighters' heads
+// the title menu sits under the logo
 export const TITLE_MENU = { w: 132, row: 13 };
 export const titleMenuX = () => (W - TITLE_MENU.w) / 2;
 export const titleMenuY = (n) => 66 - (n - 2) * 6;
 const LOGO_Y = 12;
 
 // ---------- title ----------
-// The scene from title-scene.js (the swallowed sun, the ruins, the eight fighters on the battlement), the logo with
-// a light running across it, and the menu under it: no panel, outlined words; the picked one is gold, with ember
-// arrows closing in on it and a soft glow behind it.
+// The scene from title-scene.js (the swallowed sun, the ruins, the empty battlement), the logo with a light running
+// across it, and the menu under it: no panel, outlined words; the picked one is gold, with ember arrows closing in on
+// it and a soft glow behind it.
 export function drawTitle(t, items) {
   const my = titleMenuY(items.length);
   const bline = best.score > 0 ? 'BEST ' + best.score + '   WAVE ' + best.wave + (best.won ? '   KING SLAIN' : '') : input.touch ? 'LEFT THUMB MOVES, RIGHT THUMB FIGHTS' : 'WASD MOVE   MOUSE AIM   CLICK ATTACK   SPACE DASH';
-  // every fighter stands there in color (the select screen shows what's locked); only the secret one is a shadow
-  drawScene(t, { locked: hidden, secret: hidden });
+  drawScene(t);
   drawLogo(LOGO, Math.round((W - LOGO.width) / 2), LOGO_Y, t);
   textO('THE KING SWALLOWED THE SUN', W / 2, LOGO_Y + LOGO.height + 1, P.dust, 1, 'c');
   items.forEach((it, i) => {
@@ -751,12 +750,11 @@ export function drawOver(t, isBest) {
 //   their name and attack sound (locked fighters show too, tagged LOCKED; only the secret one stays a
 //   lit silhouette),
 //   the eight stand side by side in slanted slices,
-//   a slash wipes them away and the logo slams down letter by letter over the running roster.
+//   a slash wipes them away and the logo slams down letter by letter over the empty battlement.
 const BEAT0 = 1.75, BEAT = 0.42, LINEUP = BEAT0 + 8 * BEAT, LOGO0 = LINEUP + 1.05;
 export const INTRO_LEN = LOGO0 + 2.25;
 const LETTER = (i) => LOGO0 + 0.12 + i * 0.07;
-// the fighters land on the battlement one after another (in its order, left to right)
-const LAND = (i) => LOGO0 + 0.3 + i * 0.09, ULT = LOGO0 + 1.4;
+const ULT = LOGO0 + 1.4;
 const STORY = [[0.5, 'THE ASHEN KING SWALLOWED THE SUN.'], [1.1, 'EIGHT STILL STAND.']];
 // a cue is [time, sound, phone buzz]; the beats play each fighter's own heavy attack as they land
 export const INTRO_CUES = [
@@ -768,11 +766,10 @@ export const INTRO_CUES = [
   ...OPTIONS.char.map((_, i) => [LINEUP + i * 0.05, () => A.wall()]),
   [LOGO0, () => { A.riftCut(); A.introLogo(); }, 'heavy'],
   ...Array.from({ length: 8 }, (_, i) => [LETTER(i) + 0.1, () => A.wall(), 'tap']),
-  ...Array.from({ length: 8 }, (_, i) => [LAND(i) + 0.3, () => A.boom(0.5)]),
   [ULT, () => A.ultRelease(), 'heavy'],
 ];
 // screen shake: [time, strength]
-const SHAKES = [[0.35, 4], ...STORY.map(([t]) => [t, 1.5]), ...OPTIONS.char.map((_, i) => [BEAT0 + i * BEAT + 0.12, 3]), [LINEUP + 0.35, 2], [LOGO0, 4], ...Array.from({ length: 8 }, (_, i) => [LAND(i) + 0.3, 1.5]), [ULT, 5]];
+const SHAKES = [[0.35, 4], ...STORY.map(([t]) => [t, 1.5]), ...OPTIONS.char.map((_, i) => [BEAT0 + i * BEAT + 0.12, 3]), [LINEUP + 0.35, 2], [LOGO0, 4], [ULT, 5]];
 // the select screen's portraits load while the press-to-begin gate waits; one still is painted per frame
 let held = 0;
 // The opening holds on its story lines until the fighters' sprites are in, so the cuts never show empty frames.
@@ -904,11 +901,11 @@ function drawLineup(t) {
   });
   if (t > 0.45) { ctx.globalAlpha = 0.75 * ease((t - 0.45) / 0.15); rect(-SX, H - 27, FW, 20, P.void); ctx.globalAlpha = 1; textO('HOLD THE PIT', W / 2, H - 20, P.paper, 2, 'c'); }
 }
-// the title scene builds up: the fighters drop onto the battlement one by one while the logo slams down letter by
-// letter, then a ring bursts off it. It ends on exactly the title screen, so the switch to the menu has no cut.
+// the title scene builds up: the logo slams down letter by letter over the empty battlement, then a ring bursts off
+// it. It ends on exactly the title screen, so the switch to the menu has no cut.
 function drawLogoPhase(t) {
   const lx = Math.round((W - LOGO.width) / 2), ly = LOGO_Y;
-  drawScene(t, { locked: hidden, secret: hidden, drop: (i) => Math.max(0, Math.min(1, (t - LAND(i)) / 0.3)) });
+  drawScene(t);
   for (let i = 0; i < 8; i++) {
     const k = (t - LETTER(i)) / 0.1;
     if (k <= 0) continue;
@@ -940,7 +937,7 @@ export function drawIntro(t) {
   ctx.save(); ctx.translate(ox, oy);
   if (t < BEAT0) {
     // the story, typed over the empty battlement under the black sun
-    drawScene(t, { locked, secret: hidden, drop: () => 0, dark: 0.45, sun: 0.7 });
+    drawScene(t, { dark: 0.45, sun: 0.7 });
     STORY.forEach(([s, line_], j) => {
       if (t < s) return;
       const n = Math.min(line_.length, Math.floor((t - s) * 60));

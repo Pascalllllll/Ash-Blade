@@ -8,8 +8,8 @@
 // Behind each one is a scene of their own: Kael's burning sun, Vega's striped desert sunset, Morrow's star chart and
 // rune ring, Rin's red moon and cherry branch, Rivet's turning gears, the King's torn banner behind Grom, Unit-7's
 // targeting screen, the Dev's falling code. Particles and flashes of each fighter's own go on top.
-import { ctx, SS, glow, rect, px, line, ring, disc } from './gfx.js?v=190';
-import { PORTRAIT_ART } from './portrait-art.js?v=190';
+import { ctx, SS, glow, rect, px, line, ring, disc } from './gfx.js?v=191';
+import { PORTRAIT_ART } from './portrait-art.js?v=191';
 
 export const PORTRAIT_SCALE = 2; // canvas pixels per art pixel on the select screen
 const TAU = Math.PI * 2;
@@ -22,7 +22,7 @@ export function loadPortraits() {
     const im = new Image();
     im.decoding = 'async';
     im.onload = () => { IMG[id] = im; };
-    im.src = new URL(`../art/sprites/portraits-hd/${PORTRAIT_ART[id].file}.png?v=190`, import.meta.url).href;
+    im.src = new URL(`../art/sprites/portraits-hd/${PORTRAIT_ART[id].file}.png?v=191`, import.meta.url).href;
   }
 }
 export const portraitReady = (id) => !!IMG[id];
@@ -281,25 +281,31 @@ function landFx(a, col) {
   for (let i = 0; i < 18; i++) { const b = rnd(Math.PI, TAU); spawn(fx + rnd(-30, 30), fy - 2, Math.cos(b) * rnd(20, 70), Math.sin(b) * rnd(14, 46), rnd(0.35, 0.7), Math.random() < 0.5 ? '#8a7a6a' : '#5a5060', { g: 120, drag: 1, s: 2 }); }
   for (let i = 0; i < 12; i++) { const b = rnd(TAU); spawn(fx, fy - 40, Math.cos(b) * rnd(40, 90), Math.sin(b) * rnd(40, 90), rnd(0.3, 0.6), i % 2 ? col : '#ffffff', { glow: true, drag: 3 }); }
 }
-// each fighter's own shadow: as wide as where their feet meet the floor, in pixels the size of theirs, a dark core
-// and a checkered rim. Morrow's shrinks as he floats up.
-export function drawPortraitShadow(id, t, x, y, S = PORTRAIT_SCALE, al = 1) {
-  const a = PORTRAIT_ART[id];
-  if (!a?.shadow) return;
-  const k = S / SS, f = frameAt(a, t), lift = a.float ? Math.sin((f / a.n) * TAU) * a.float : 0;
-  const x0 = snap(x - a.foot[0] * k), y0 = snap(y - a.foot[1] * k);
-  const cx = a.shadow[0], cy = a.foot[1] + 1, rx = (a.shadow[1] * 1.12 + 3) * (1 - lift * 0.07), ry = Math.max(3, rx * 0.13);
-  ctx.save();
+// a flat ellipse of shadow in art pixels: a solid middle and a checkered rim
+function shadowOval(x0, y0, k, cx, cy, rx, ry, al, aCore, aRim) {
   for (let j = -Math.ceil(ry); j <= Math.ceil(ry); j++) {
-    const w = rx * Math.sqrt(Math.max(0, 1 - (j * j) / (ry * ry))), wc = w * 0.72;
+    const w = rx * Math.sqrt(Math.max(0, 1 - (j * j) / (ry * ry))), wc = w - 2.5;
     if (w < 1) continue;
     for (let i = Math.round(-w); i < Math.round(w); i++) {
-      const core = Math.abs(i) < wc && Math.abs(j) < ry * 0.75;
+      const core = Math.abs(i) < wc && Math.abs(j) < ry - 1;
       if (!core && (i + j) % 2) continue;
-      ctx.globalAlpha = al * (core ? 0.5 : 0.32);
-      sq(x0, y0, k, cx + i, cy + j, 1, '#05020a');
+      ctx.globalAlpha = al * (core ? aCore : aRim);
+      sq(x0, y0, k, Math.round(cx) + i, Math.round(cy) + j, 1, '#05020a');
     }
   }
+}
+// each fighter's own shadow, measured from the picture (src/portrait-art.js): a soft oval on the floor that sits
+// behind the soles (from just above the higher foot to a little below the lower one, as a wide stance stands) and
+// shows round and between them, and a darker patch where each foot, wheel or tread touches the floor. Morrow's
+// pulls in and fades as he floats up.
+export function drawPortraitShadow(id, t, x, y, S = PORTRAIT_SCALE, al = 1) {
+  const a = PORTRAIT_ART[id];
+  if (!a?.shadow || a.shadow.length < 4) return;
+  const k = S / SS, f = frameAt(a, t), lift = a.float ? Math.sin((f / a.n) * TAU) * a.float : 0, sh = 1 - lift * 0.06;
+  const x0 = snap(x - a.foot[0] * k), y0 = snap(y - a.foot[1] * k), [cx, cy, rx, ry] = a.shadow;
+  ctx.save();
+  shadowOval(x0, y0, k, cx, cy, rx * sh, ry * sh, al, 0.5, 0.3);
+  for (const [c0, c1, sole] of a.contact || []) shadowOval(x0, y0, k, (c0 + c1) / 2, sole + 1, (c1 - c0) / 2 + 3, 2.5, al * (1 - Math.max(0, lift) * 0.2), 0.62, 0.34);
   ctx.restore();
 }
 function drawMarks(x0, y0, k, a) {
