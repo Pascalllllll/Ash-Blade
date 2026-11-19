@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, FW, SX, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=189';
-import { heroEntrance } from './entrances.js?v=189';
-import { SPR } from './sprites.js?v=189';
-import { A } from './audio.js?v=189';
-import { input } from './input.js?v=189';
-import { best } from './store.js?v=189';
+import { ctx, canvas, W, H, FW, SX, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=190';
+import { heroEntrance } from './entrances.js?v=190';
+import { SPR } from './sprites.js?v=190';
+import { A } from './audio.js?v=190';
+import { input } from './input.js?v=190';
+import { best } from './store.js?v=190';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=189';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=190';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)

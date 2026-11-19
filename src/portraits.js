@@ -8,8 +8,8 @@
 // Behind each one is a scene of their own: Kael's burning sun, Vega's striped desert sunset, Morrow's star chart and
 // rune ring, Rin's red moon and cherry branch, Rivet's turning gears, the King's torn banner behind Grom, Unit-7's
 // targeting screen, the Dev's falling code. Particles and flashes of each fighter's own go on top.
-import { ctx, SS, glow, rect, px, line, ring, disc } from './gfx.js?v=189';
-import { PORTRAIT_ART } from './portrait-art.js?v=189';
+import { ctx, SS, glow, rect, px, line, ring, disc } from './gfx.js?v=190';
+import { PORTRAIT_ART } from './portrait-art.js?v=190';
 
 export const PORTRAIT_SCALE = 2; // canvas pixels per art pixel on the select screen
 const TAU = Math.PI * 2;
@@ -22,7 +22,7 @@ export function loadPortraits() {
     const im = new Image();
     im.decoding = 'async';
     im.onload = () => { IMG[id] = im; };
-    im.src = new URL(`../art/sprites/portraits-hd/${PORTRAIT_ART[id].file}.png?v=189`, import.meta.url).href;
+    im.src = new URL(`../art/sprites/portraits-hd/${PORTRAIT_ART[id].file}.png?v=190`, import.meta.url).href;
   }
 }
 export const portraitReady = (id) => !!IMG[id];
@@ -59,6 +59,8 @@ function sq(x0, y0, k, x, y, s, c) {
 }
 const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const EMBER = ['#ff7a2a', '#ffb347', '#ffd447'];
+// the line of Unit-7's barrel on the picture: to the right and about 9 degrees down
+const AIM7 = [Math.cos(0.16), Math.sin(0.16)];
 // the backdrops are in game pixels round the point between the fighter's feet (x, y), sized for the select
 // screen's left panel
 const FX = {
@@ -204,7 +206,7 @@ const FX = {
     back(a, f, x0, y0, k, t) { const e = a.eye[f]; glow(x0 + e[0] * k, y0 + e[1] * k, '#ffb347', 16, 0.3 + Math.sin(t * 3) * 0.1); },
   },
   ROBOT: {
-    // its targeting screen: scan lines, a grid floor, data scrolling at the edge, and the reticle on the target
+    // its targeting screen: scan lines, a grid floor and data scrolling at the edge
     scene(x, y, t) {
       ctx.globalAlpha = 0.1; for (let yy = y - 180; yy < y; yy += 4) rect(x - 120, yy, 240, 1, '#62efff');
       ctx.globalAlpha = 0.3; for (let i = -8; i <= 8; i++) line(x + i * 8, y - 26, x + i * 26, y + 8, '#1a5a6a');
@@ -216,20 +218,32 @@ const FX = {
       // steam out of the vents on its head now and then
       const e = a.eye[f];
       for (let i = 0; i < n(1.5); i++) spawn(e[0] + rnd(-24, 24), e[1] - 34, rnd(-4, 4), rnd(-16, -8), rnd(0.8, 1.4), Math.random() < 0.5 ? '#c8c4d8' : '#8f8a9c', { sway: 4, s: 2 });
-      // frames 12 to 20: the cannon charges, light drawn in to the muzzle
+      // frames 12 to 20: the cannon charges, light drawn in to the bore (its tip is the middle of the bore)
       if (f < 12 || f > 20) return;
       const tip = a.tip[f];
       for (let i = 0; i < n(26); i++) { const b = rnd(0, TAU), r = rnd(14, 26); spawn(tip[0] + Math.cos(b) * r, tip[1] + Math.sin(b) * r, -Math.cos(b) * r * 2.6, -Math.sin(b) * r * 2.6, 0.38, Math.random() < 0.5 ? '#62efff' : '#ffffff', { glow: true }); }
     },
-    ev(a, f) { if (f === 21) { const tip = a.tip[f]; mark({ kind: 'beam', x: tip[0] + 4, y: tip[1], life: 0.3, c: '#62efff' }); shakeT = 0.15; for (let i = 0; i < 10; i++) spawn(tip[0], tip[1], rnd(-14, 6), rnd(-20, -6), rnd(0.6, 1.2), '#b9b4c8', { s: 2 }); } },
+    // frame 21: it fires. The cannon is drawn three-quarter on, its muzzle facing you and a little down, so the shot
+    // leaves the bore along the barrel and widens as it comes closer, with a flash in the muzzle and sparks ahead
+    ev(a, f) {
+      if (f !== 21) return;
+      const [bx, by] = a.tip[f], [dx, dy] = AIM7, b0 = Math.atan2(dy, dx);
+      mark({ kind: 'beam', x: bx, y: by, dx, dy, w0: 4.5, w1: 13, len: 60, life: 0.32, c: '#62efff' });
+      mark({ kind: 'star', x: bx, y: by, life: 0.18, c: '#e8ffff' });
+      shakeT = 0.15;
+      for (let i = 0; i < 14; i++) { const b = b0 + rnd(-0.7, 0.7), v = rnd(40, 110); spawn(bx, by, Math.cos(b) * v, Math.sin(b) * v, rnd(0.15, 0.35), Math.random() < 0.5 ? '#62efff' : '#ffffff', { glow: true, drag: 3 }); }
+      for (let i = 0; i < 10; i++) spawn(bx + rnd(-3, 3), by + rnd(-3, 3), dx * rnd(4, 14) + rnd(-4, 4), rnd(-20, -6), rnd(0.6, 1.2), '#b9b4c8', { s: 2 });
+    },
     back(a, f, x0, y0, k, t) {
       const tip = a.tip[f], c = f - 12;
       if (c >= 0 && c < 9) glow(x0 + tip[0] * k, y0 + tip[1] * k, '#62efff', 6 + c * 2.4, 0.35 + c * 0.055);
-      // the reticle out in front of the cannon, where it's aiming
-      const rx = x0 + (tip[0] + 6) * k + 26, ry = y0 + tip[1] * k, pulse = 0.55 + 0.3 * Math.sin(t * 5);
-      ctx.globalAlpha *= pulse; ring(rx, ry, 9, 1, '#ff3b3b');
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) line(rx + dx * 6, ry + dy * 6, rx + dx * 14, ry + dy * 14, '#ff3b3b');
-      px(rx, ry, '#ffffff');
+    },
+    // the charge growing inside the bore, a white heart in cyan
+    front(a, f, x0, y0, k, t) {
+      const c = f - 12;
+      if (c < 0 || c > 8) return;
+      const [bx, by] = a.tip[f], r = 1.2 + c * 0.45, R = Math.ceil(r);
+      for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) { const d = i * i + j * j; if (d <= r * r) sq(x0, y0, k, bx + i, by + j, 1, d <= r * r * 0.3 ? '#ffffff' : '#62efff'); }
     },
   },
   DEV: {
@@ -310,9 +324,19 @@ function drawMarks(x0, y0, k, a) {
       ctx.fillStyle = m.c; ctx.fillRect(x0 - 200, snap(y0 + (m.y - 1 + q) * k), 500, Math.max(1 / SS, snap((2 - 2 * q) * k)));
       glow(x0 + 80 * k, y0 + m.y * k, m.c2, 80, 0.4 * al);
     } else if (m.kind === 'beam') {
-      ctx.fillStyle = m.c; ctx.fillRect(snap(x0 + m.x * k), snap(y0 + (m.y - 5 + q * 3) * k), 400, Math.max(1 / SS, snap((10 - 7 * q) * k)));
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(snap(x0 + m.x * k), snap(y0 + (m.y - 1.5) * k), 400, Math.max(1 / SS, snap((3 - 2 * q) * k)));
-      glow(x0 + m.x * k, y0 + m.y * k, m.c, 30, 0.8 * al);
+      // Unit-7's shot, column by column along the barrel's line from just inside the bore: a soft edge, the beam and
+      // a white core, wider the closer it comes to you, thinner as it fades
+      const th = 1 - 0.65 * q, x1 = m.x + m.dx * m.len;
+      for (let x = Math.round(m.x - 4); x <= x1; x++) {
+        const s = (x - m.x) / m.dx, cy = m.y + m.dy * s, w = (m.w0 + (m.w1 - m.w0) * Math.max(0, s / m.len)) * th;
+        for (const [ww, c, aa] of [[w * 1.5, m.c, 0.35], [w, m.c, 1], [w * 0.4, '#ffffff', 1]]) {
+          const top = Math.round(cy - ww), h = Math.max(1, Math.round(cy + ww) - top);
+          ctx.globalAlpha = al * aa * base;
+          ctx.fillStyle = c; ctx.fillRect(snap(x0 + x * k), snap(y0 + top * k), Math.max(1 / SS, snap(k)), snap(h * k));
+        }
+      }
+      ctx.globalAlpha = al * base;
+      glow(x0 + (m.x + m.dx * 7) * k, y0 + (m.y + m.dy * 7) * k, m.c, 20, 0.5 * al);
     } else if (m.kind === 'glitch') {
       for (let i = 0; i < 6; i++) sq(x0, y0, k, Math.round(rnd(0, 120)), Math.round(rnd(20, a.h - 20)), Math.round(rnd(2, 4)), i % 2 ? '#39ff6a' : '#ff4fa8');
       for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#39ff6a' : '#ff4fa8'; ctx.fillRect(snap(x0 + rnd(0, 40) * k), snap(y0 + rnd(20, a.h - 20) * k), snap(rnd(40, 120) * k), snap(2 * k)); }
