@@ -274,7 +274,12 @@ export function drawBreath(s, x, y, flip, tint, off, split = 0.58) {
 // sprites move in canvas pixels (a third of a game pixel), so motion is three times finer and stays crisp
 export const snap = (v) => Math.round(v * SS) / SS;
 export function drawSprite(s, x, y, flip, tint) {
-  C.drawImage(tint ? s.tint(tint, flip) : flip ? s.f : s.n, snap(x), snap(y), s.w, s.h);
+  x = snap(x); y = snap(y);
+  if (s.sheet && !tint) {
+    if (flip) { C.save(); C.translate(x + s.w, y); C.scale(-1, 1); x = 0; y = 0; }
+    C.drawImage(s.sheet, s.u, s.v, Math.round(s.w * s.k), Math.round(s.h * s.k), x, y, s.w, s.h);
+    if (flip) C.restore();
+  } else C.drawImage(tint ? s.tint(tint, flip) : flip ? s.f : s.n, x, y, s.w, s.h);
 }
 
 // ---------- dithered additive glow ----------

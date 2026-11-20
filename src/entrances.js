@@ -1,5 +1,6 @@
 // The heroes' entrances: a cinematic of about three seconds as a run starts, a different one for each fighter, in a
-// letterbox and ending on their name card. An attack key, Enter, Space, Escape or a tap skips to the end.
+// letterbox and ending on their name card, as the fighter says its line (art/audio/entrances). An attack key, Enter,
+// Space, Escape or a tap skips to the end.
 //   Kael     falls out of a darkening sky as a meteor and lands in a burning crater, then sweeps his sword round.
 //   Vega     drops spinning from the sky firing all round at high noon, twirls her revolver, fires once at the sky.
 //   Morrow   draws a summoning circle, a pillar of violet light comes down, and he floats down inside it.
@@ -9,14 +10,14 @@
 //   Grom     the ground shakes, he falls from the sky hammer first and splits the floor with rock spikes.
 //   Unit-7   a countdown, an orbital beam, and the robot builds itself up row by row inside it and powers on.
 //   The Dev  a terminal compiles him, the window shuts off, and he renders in from coarse blocks to full detail.
-import { ctx, disc, ring, W } from './gfx.js?v=191';
-import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=191';
-import { A } from './audio.js?v=191';
-import { input, keyHit } from './input.js?v=191';
+import { ctx, disc, ring, W } from './gfx.js?v=199';
+import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=199';
+import { A } from './audio.js?v=199';
+import { input, keyHit } from './input.js?v=199';
 import {
   P, rnd, TAU, clamp, part, glow, line, rect, px, text, textO, ease, easeIn, at, between, frame, drawBody, drawHero, drawCoarse,
   handPos, eyePos, weaponLen, restAngle, makeCracks, drawCracks, stampCracks, drawLetterbox, drawNameCard, darken, floorRing,
-} from './scene-fx.js?v=191';
+} from './scene-fx.js?v=199';
 
 const SUB = { BLADE: 'THE BLADE', GUNNER: 'THE GUNNER', WIZARD: 'THE WIZARD', NINJA: 'THE SAMURAI', MECHANIC: 'THE MECHANIC', TANK: 'THE TANK', ROBOT: 'THE ROBOT', DEV: 'ROOT ACCESS' };
 const PETAL = ['#ffb7d5', '#ff8fb8', '#ffffff'];
@@ -55,6 +56,8 @@ export function heroEntrance(id) {
       k.t = Math.max(k.t, k.life - 0.45); k.prev = k.t;
     }
     if (!k.revealed && k.t >= S.revealAt) reveal();
+    // the fighter says its line as its name card comes up (also when the entrance is skipped)
+    if (!k.said && k.t >= (S.cardAt ?? S.revealAt)) { k.said = true; A.playVoice(id, 0, 'entrances'); }
     S.update(k, dt);
     if (k.t >= k.life) {
       G.cine = null; p.state = 'move'; p.inv = 0.6; p.sq = 0.26; p.sqv = 0;

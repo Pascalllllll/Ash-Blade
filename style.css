@@ -15,6 +15,7 @@ html, body {
   -webkit-touch-callout: none;
   overscroll-behavior: none;
   background: var(--void);
+  color: var(--bone);
   overflow: hidden;
 }
 

@@ -8,7 +8,8 @@ export const OPTIONS = {
   combat: ['HYPERDRIVE', 'PIT DIRGE', 'BLOODRUSH', 'NEON PULSE'],
   theme: ['EMBER', 'FROST', 'TOXIC', 'BLOOD MOON', 'ROYAL', 'NOIR'],
   particles: ['HIGH', 'LOW'],
-  map: ['PIT', 'FROST', 'FORGE', 'GRID', 'SHRINE'],
+  // the descent goes down a floor after every boss; the rest keep one floor for the whole run
+  map: ['DESCENT', 'PIT', 'NEST', 'FORGE', 'THRONE', 'VOID', 'FROST', 'GLASS', 'TEMPLE', 'GEARS', 'NIGHT', 'SHRINE', 'GRID'],
   diff: ['EASY', 'NORMAL', 'HARD', 'NIGHTMARE'],
   char: ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT', 'DEV'],
   vibe: ['OFF', 'LIGHT', 'MEDIUM', 'STRONG'],
@@ -22,13 +23,13 @@ const DEFAULTS = {
   master: 1, music: 0.6, sfx: 0.9, track: 'AUTO', combat: 'HYPERDRIVE',
   theme: 'EMBER', vibrancy: 1, bright: 1, contrast: 1, hue: 0, crt: false,
   shake: 0.25, flash: true, numbers: true, particles: 'HIGH',
-  map: 'PIT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC', res: 'AUTO',
+  map: 'DESCENT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC', res: 'AUTO',
   // TESTING, temporary: nothing can hurt you; runs start at a later wave
   god: false, testStart: 'OFF',
 };
 const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], bright: [0.6, 1.4], contrast: [0.6, 1.6], hue: [0, 345], shake: [0, 1] };
 
-export const settings = { ...DEFAULTS, ver: 4 };
+export const settings = { ...DEFAULTS, ver: 5 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
 // night: the longest the endless night has been held, in seconds
 export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0, night: 0 };
@@ -64,6 +65,8 @@ export function loadAll() {
     if (!(s.ver >= 3)) { settings.combat = 'HYPERDRIVE'; settings.track = 'AUTO'; }
     // settings saved before the gentler default move to 25% screen shake once
     if (!(s.ver >= 4)) settings.shake = DEFAULTS.shake;
+    // settings saved before the descent existed move to it once
+    if (!(s.ver >= 5)) settings.map = 'DESCENT';
   }
   const b = read(KEY_BEST);
   if (b) {

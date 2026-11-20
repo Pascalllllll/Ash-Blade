@@ -15,14 +15,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=191';
-import { SPR } from './sprites.js?v=191';
-import { input, keyHit } from './input.js?v=191';
-import { A } from './audio.js?v=191';
-import { G } from './world.js?v=191';
-import { CHARS } from './chars.js?v=191';
-import { drawFighter } from './title-scene.js?v=191';
-import { drawWeaponAt } from './hero-sprites.js?v=191';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=199';
+import { SPR } from './sprites.js?v=199';
+import { input, keyHit } from './input.js?v=199';
+import { A } from './audio.js?v=199';
+import { G } from './world.js?v=199';
+import { CHARS } from './chars.js?v=199';
+import { drawFighter } from './title-scene.js?v=199';
+import { drawWeaponAt } from './hero-sprites.js?v=199';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -275,7 +275,7 @@ function wrap(s, width) {
   if (cur) out.push(cur);
   return out;
 }
-const SMALL_W = 124, STORY_W = 232;
+const SMALL_W = 114, STORY_W = 232;
 // real time, so hit-stop and slow motion don't slow a voice down
 export function updateTalk(dt) {
   const k = G?.talk;
@@ -336,12 +336,12 @@ export function drawTalk() {
 function smallBox(k) {
   const [who, s] = k.q[k.i], col = colOf(who), name = nameOf(who);
   k.wrap ??= wrap(s, SMALL_W);
-  const lines = k.wrap, bw = Math.max(textW(name), ...lines.map((l) => textW(l))) + 9, bh = 10 + lines.length * 7;
+  const lines = k.wrap, bw = Math.max(textW(name), ...lines.map((l) => textW(l))) + 7, bh = 8 + lines.length * 6;
   const x = Math.round(W / 2 - bw / 2), y = 2 - Math.round((1 - ease(k.in)) * (bh + 4));
   rect(x - 1, y - 1, bw + 2, bh + 2, P.ink0); rect(x, y, bw, bh, '#0c0911'); rect(x, y, 2, bh, col);
-  text(name, x + 5, y + 2, col, 1);
+  text(name, x + 4, y + 1, col, 1);
   let n = Math.min(s.length, Math.floor(k.t * CPS));
-  lines.forEach((l, i) => { if (n > 0) text(l.slice(0, n), x + 5, y + 9 + i * 7, P.paper, 1); n -= l.length + 1; });
+  lines.forEach((l, i) => { if (n > 0) text(l.slice(0, n), x + 4, y + 8 + i * 6, P.paper, 1); n -= l.length + 1; });
 }
 // the story: a wide box along the bottom with the speaker's face; the screen dims a little while the fight waits
 function storyBox(k) {

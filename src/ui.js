@@ -1,16 +1,16 @@
-import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=191';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=191';
-import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=191';
-import { SPR, icon } from './sprites.js?v=191';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=191';
-import { A } from './audio.js?v=191';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=191';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=191';
-import { CHARS } from './chars.js?v=191';
-import { BOSSES, bossFor } from './bosses.js?v=191';
-import { MAPS } from './maps.js?v=191';
-import { drawTalk } from './story.js?v=191';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=191';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=199';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=199';
+import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=199';
+import { SPR, icon } from './sprites.js?v=199';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=199';
+import { A } from './audio.js?v=199';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=199';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=199';
+import { CHARS } from './chars.js?v=199';
+import { BOSSES, bossFor } from './bosses.js?v=199';
+import { MAPS } from './maps.js?v=199';
+import { drawTalk } from './story.js?v=199';
+import { rollUpgrades, UPGRADES } from './upgrades.js?v=199';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -150,6 +150,22 @@ function bossBar(b, y) {
 }
 const clockOf = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 
+function drawHealth(p) {
+  const hp = Math.min(p.maxHp, Math.max(0, p.hp));
+  const pulse = hp > 0 && hp <= 2 && Math.floor(G.time * 6) % 2;
+  if (p.maxHp <= 10) {
+    for (let i = 0; i < p.maxHp; i++) drawSprite(i < hp ? SPR.heart : SPR.heartE, 5 + i * 8, pulse && i < hp ? 4 : 5, false);
+    return;
+  }
+  drawSprite(hp ? SPR.heart : SPR.heartE, 5, pulse ? 4 : 5, false);
+  const x = 15, w = 48, fill = hp > 0 ? Math.max(1, Math.floor(w * hp / p.maxHp)) : 0;
+  rect(x - 1, 5, w + 2, 7, P.ink0);
+  rect(x, 6, w, 5, P.ink3);
+  rect(x, 6, fill, 5, P.blood);
+  rect(x, 6, fill, 1, P.ember3);
+  textO(hp + '/' + p.maxHp, x + w + 3, 6, pulse ? P.ember3 : P.paper);
+}
+
 export function drawHUD(menu) {
   const p = G.p, kit = G.kit;
   // a hero's entrance: no HUD yet, just its letterbox and name card
@@ -157,9 +173,8 @@ export function drawHUD(menu) {
   const lb = G.boss && !G.night && BOSSES[G.boss.boss].bars(G.boss);
   // the left corner (health, energy, the ultimate, the ability boxes) hugs the screen's left edge
   ctx.save(); ctx.translate(-SX, 0);
-  for (let i = 0; i < p.maxHp; i++) drawSprite(i < p.hp ? SPR.heart : SPR.heartE, 5 + (i % 12) * 8, 5 + Math.floor(i / 12) * 8 + (i < p.hp && p.hp <= 2 && Math.floor(G.time * 6) % 2 ? -1 : 0), false);
-  const oy = p.maxHp > 12 ? 8 : 0;
-  const ex = 6, ey = 15 + oy, ew = 64;
+  drawHealth(p);
+  const ex = 6, ey = 15, ew = 64;
   rect(ex - 1, ey - 1, ew + 2, 6, P.ink0); rect(ex, ey, ew, 4, P.ink2);
   const ef = Math.round((ew * p.energy) / 100);
   rect(ex, ey, ef, 4, P.volt2); rect(ex, ey, ef, 1, P.volt);
@@ -199,17 +214,17 @@ export function drawHUD(menu) {
 
   if (G.combo >= 2) {
     const rk = RANKS[G.rank], rc = C(rk.c), pop = G.rankPop > 0.5 ? 1 : 0;
-    textO(String(G.combo), W - 7, 32, P.paper, 3, 'r');
-    textO('HITS', W - 7, 49, P.dust, 1, 'r');
-    rect(W - 39, 56, 32, 1, P.ink0);
-    const cw = Math.round((32 * Math.max(0, G.comboT)) / 3);
-    rect(W - 7 - cw, 56, cw, 1, rc);
-    textO(rk.l, W - 7 + pop, 62 - pop * 2, rc, 4 + pop, 'r');
-    textO(rk.w, W - 7, 85 + pop * 3, rc, 1, 'r');
+    textO(String(G.combo), W - 26, 31, P.paper, 2, 'r');
+    textO('HITS', W - 7, 36, P.dust, 1, 'r');
+    rect(W - 33, 44, 26, 1, P.ink0);
+    const cw = Math.round((26 * Math.max(0, G.comboT)) / 3);
+    rect(W - 7 - cw, 44, cw, 1, rc);
+    textO(rk.l, W - 7, 49 - pop, rc, 2 + pop, 'r');
+    textO(rk.w, W - 7, 66, rc, 1, 'r');
     // the damage the rank adds (RANK_POWER), from A up
     const pw = Math.round(((RANK_POWER[G.rank] || 1) - 1) * 100);
-    if (pw > 0) textO('POWER +' + pw + '%', W - 7, 93 + pop * 3, Math.floor(G.time * 4) % 2 && G.rank >= 6 ? P.paper : rc, 1, 'r');
-    if (G.rank >= 4) glow(W - 20, 72, rc, 18, 0.18);
+    if (pw > 0) textO('POWER +' + pw + '%', W - 7, 73, Math.floor(G.time * 4) % 2 && G.rank >= 6 ? P.paper : rc, 1, 'r');
+    if (G.rank >= 4) glow(W - 16, 55, rc, 12, 0.18);
   }
   ctx.restore();
 
@@ -1051,8 +1066,10 @@ export function drawLockin(t, id) {
   // and pushes in slowly. Without the portrait (still loading) the 5x sprite does the same.
   const pic = portraitReady(id);
   if (pic) {
-    // three canvas pixels to an art pixel, the feet below the screen: a shot from the knees up
-    const k = ease((t - 0.06) / 0.28), S = PORTRAIT_SCALE + 1, x = -110 + (84 + 110) * k, y = H + 64;
+    // three canvas pixels to an art pixel, the feet below the screen: a shot from the knees up. Unit-7 is a squat
+    // machine (its picture is 161 art pixels tall, the others about 230), so it stands on the screen instead, its
+    // middle at the screen's middle, on the left like the rest.
+    const k = ease((t - 0.06) / 0.28), S = PORTRAIT_SCALE + 1, x = -110 + (84 + 110) * k, y = id === 'ROBOT' ? H / 2 + 81 : H + 64;
     glow(x, H / 2, col, 80, 0.3);
     if (k < 1) for (let g = 4; g >= 1; g--) drawPortrait(id, t, x - g * 18, y, S, { tint: col, alpha: 0.3 / g });
     drawPortrait(id, t, x, y, S);

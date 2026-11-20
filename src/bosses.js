@@ -1,11 +1,12 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=191';
-import { A } from './audio.js?v=191';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=199';
+import { A } from './audio.js?v=199';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor, heroSet, damage, pd,
-} from './world.js?v=191';
-import { SPR } from './sprites.js?v=191';
-import { say, TALK, meetLines, noxLines } from './story.js?v=191';
+} from './world.js?v=199';
+import { SPR } from './sprites.js?v=199';
+import { monsterFrame } from './monster-motion.js?v=199';
+import { say, TALK, meetLines, noxLines } from './story.js?v=199';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'nox'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
@@ -345,12 +346,14 @@ export const BOSSES = {
       if (e.state === 'chainW') { const [lx, ly] = lanternAt(e); for (let i = 10; i < 175; i += 7) { if ((i / 7 + Math.floor(G.time * 12)) % 2 < 1) continue; px(lx + Math.cos(e.lock) * i, ly + Math.sin(e.lock) * i, blink ? P.blood : P.paper); } }
       if (e.state === 'intro' && e.z > 0) { ring(e.x, e.y, 6 + e.z / 12, 1, blink ? P.blood : P.paper); ring(e.x, e.y, 3, 1, P.blood); }
     },
-    draw(e, x, y) {
+    drawBody(e, x, y) {
       glow(e.x, y + 8, P.hex, e.phase === 2 ? 16 : 10, e.phase === 2 ? 0.45 : 0.25);
       const hx = e.x + e.face * 11, hy = e.y - 18 - (e.z || 0);
       const a = e.state === 'sweepW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'dash' || e.state === 'dashW' ? e.lock : Math.PI / 2 + e.face * 0.5;
       line(hx, hy, hx + Math.cos(a) * 22, hy + Math.sin(a) * 22, P.dust, 2);
       line(hx, hy, hx + Math.cos(a) * 22, hy + Math.sin(a) * 22, P.bone);
+    },
+    draw(e, x, y) {
       // the chain: flying out of his lantern hand, or holding you
       const [lx, ly] = lanternAt(e), sh = G.shackle?.e === e ? G.shackle : null;
       let tx = null, ty = null, sag = 0;
@@ -492,7 +495,7 @@ export const BOSSES = {
       }
       if (e.state === 'lungeW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x + cx * 14, e.y + cy * 14, e.x + cx * 120, e.y + cy * 120, blink ? P.blood : P.bloodD, 3); }
     },
-    draw(e, x, y) { glow(e.x, y + 4, P.ichor, e.phase === 2 ? 14 : 9, 0.3); },
+    drawBody(e, x, y) { glow(e.x, y + 4, P.ichor, e.phase === 2 ? 14 : 9, 0.3); },
     bars: introBars,
   },
 
@@ -601,11 +604,13 @@ export const BOSSES = {
       if (e.state === 'punchW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x, e.y - 20, e.x + cx * 200, e.y - 20 + cy * 200, blink ? P.blood : P.bloodD, 3); }
       if (e.state === 'stompW') ring(e.x, e.y, 40 * (1 - e.t / 0.7) + 10, 1, blink ? P.blood : P.paper);
     },
-    draw(e, x, y) {
+    drawBody(e, x, y) {
       if (e.state === 'intro' && e.off) return;
       for (let i = 0; i < 10; i++) px(x + 7 + i, y + 3, Math.floor(G.time * 10 + i) % 4 ? '#ff4f4f' : P.paper);
       glow(e.x, y + 4, '#ff4f4f', 10, 0.4);
       glow(e.x, y + 10, '#ff7a2b', e.phase === 2 ? 12 : 7, 0.35);
+    },
+    draw(e, x, y) {
       if (e.shieldUp) { ring(e.x, e.y - 14, 20 + Math.sin(G.time * 10), 1, '#62efff'); glow(e.x, e.y - 14, '#62efff', 22, 0.25); }
       if (e.state === 'stun') for (let i = 0; i < 4; i++) { const a = G.time * 5 + (i * TAU) / 4; px(e.x + Math.cos(a) * 12, y - 4 + Math.sin(a) * 3, P.gold); }
     },
@@ -725,7 +730,7 @@ export const BOSSES = {
         glow(e.x, e.y - 20, P.ember, 30, 0.6);
       }
     },
-    draw(e, x, y) {
+    drawBody(e, x, y) {
       const hx = e.x + e.face * 18, hy = e.y - 30;
       const a = e.state === 'kslashW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'decreeW' || G.decree?.e === e ? -Math.PI / 2 + e.face * 0.12 : Math.PI / 2 + e.face * 0.6;
       line(hx, hy, hx + Math.cos(a) * 48, hy + Math.sin(a) * 48, '#c6380f', 5);
@@ -747,14 +752,10 @@ Object.assign(BOSSES, {
   // ---------------------------------------------------------------- wave 25
   wyrm: {
     name: 'VOID WYRM', short: 'VOID WYRM', sub: 'IT SWIMS THROUGH STONE', col: VOID, colD: '#3a1a6a', hp: 2000, r: 11, speed: 70, score: 16000, music: 'boss_wyrm',
-    init(e) { e.state = 'intro'; e.t = 2.2; e.under = true; e.trail = []; e.wob = 0; e.cdir = 1; },
+    init(e) { e.state = 'intro'; e.t = 2.2; e.under = true; e.trail = []; e.segments = []; e.wob = 0; e.cdir = 1; },
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
       e.superArmor = true; e.kx = e.ky = 0;
-      const last = e.trail[0];
-      if (!last || hyp(last.x - e.x, last.y - e.y) > 3) { e.trail.unshift({ x: e.x, y: e.y }); if (e.trail.length > 70) e.trail.pop(); }
-      // the body hurts to touch
-      if (!e.under) for (let i = 4; i < e.trail.length; i += 5) { const s = e.trail[i]; if (hyp(p.x - s.x, p.y - s.y) < 8) { tryHurt(2, s.x, s.y); break; } }
       if (e.state === 'intro') {
         e.t -= dt; dust(e.x, e.y, 1, 30);
         if (e.under && e.t < 1.2) { e.under = false; A.bossRoar(); A.boom(1.8); shake(0.9); orbRing(e, 14, 60, undefined, { c: VOID }); scorch(e.x, e.y, 18); addRing(e.x, e.y, VOID, 320, 0.5, 3); }
@@ -821,8 +822,30 @@ Object.assign(BOSSES, {
       }
       e.tele = e.state === 'breathW';
     },
+    afterMove(e) {
+      const step = 3.5, last = e.trail[0];
+      const distance = last ? hyp(e.x - last.x, e.y - last.y) : Infinity;
+      if (distance > 45) { e.trail = [{ x: e.x, y: e.y }]; e.segments.length = 0; return; }
+      const count = Math.floor(distance / step);
+      for (let i = 1; i <= count; i++) {
+        const k = i * step / distance;
+        e.trail.unshift({ x: last.x + (e.x - last.x) * k, y: last.y + (e.y - last.y) * k });
+      }
+      if (e.trail.length > 70) e.trail.length = 70;
+      const k = distance / step - count;
+      for (let i = 4, j = 0; i < e.trail.length; i += 5, j++) {
+        const a = e.trail[i], b = e.trail[i - 1], part = e.segments[j] ||= { x: 0, y: 0 };
+        part.x = a.x + (b.x - a.x) * k; part.y = a.y + (b.y - a.y) * k;
+      }
+      if (!e.under) for (const s of e.segments) {
+        if (hyp(G.p.x - s.x, G.p.y - s.y) < 8) { tryHurt(2, s.x, s.y); break; }
+      }
+    },
     tele(e, blink) {
-      if (!e.under) for (let i = e.trail.length - 1; i >= 4; i -= 5) { const s = e.trail[i], sp = SPR.wyrmSeg; drawSprite(sp, s.x - sp.w / 2, s.y - sp.h, false); }
+      if (!e.under) for (let i = e.segments.length - 1; i >= 0; i--) {
+        const s = e.segments[i], sp = monsterFrame('wyrmSeg', e.motion.phase - i * 0.11, SPR.wyrmSeg);
+        drawSprite(sp, s.x - sp.w / 2, s.y - sp.h, false);
+      }
       else { for (let i = -8; i <= 8; i += 2) px(e.x + i, e.y - Math.round(Math.cos(i / 5) * 3), '#5a2f9c'); if (e.state === 'tunnel' && e.t < 0.4) ring(e.x, e.y, 26, 1, blink ? P.blood : P.paper); }
       if (e.state === 'breathW') cone(e, 90, 1.1, blink, '#2a0a40', '#14051f');
     },
@@ -976,7 +999,7 @@ Object.assign(BOSSES, {
       // turned around: shards of glass circle you while it lasts
       if (G.mirrorT > 0) { const p = G.p; for (let i = 0; i < 6; i++) { const a = G.time * 3 + (i * TAU) / 6, x = p.x + Math.cos(a) * 13, y = p.y - 8 + Math.sin(a) * 6; px(x, y, P.paper); px(x + 1, y + 1, '#8a9aaa'); } }
     },
-    draw(e, x, y) {
+    drawBody(e, x, y) {
       // (it's your own fighter's size, so its pixels are the same as yours)
       const set = heroSet(), s = sprFor(e), ex = x + (e.face < 0 ? s.w - 1 - set.eye[0] : set.eye[0]), ey = y + set.eye[1];
       rect(ex, ey, 2, 2, P.paper); glow(ex, ey, P.paper, 5, 0.6);
@@ -1067,7 +1090,7 @@ Object.assign(BOSSES, {
       const k = Math.min(1, (G.stare || 0) / 0.9);
       if (k > 0) for (let i = 0; i < 24; i++) { if (i / 24 > k) break; const a = -Math.PI / 2 + (i / 24) * TAU; px(p.x + Math.cos(a) * 10, p.y - 8 + Math.sin(a) * 12, k > 0.7 && blink ? P.paper : '#9c98aa'); }
     },
-    draw(e, x, y) {
+    drawBody(e, x, y) {
       const cx = x + 14, cy = y + 14;
       ring(cx, cy, 16 + Math.sin(G.time * 6) * 1.5, 1, P.gold); glow(cx, cy, P.gold, 26, 0.35);
       // the pupil looks at you (while it stares, along its stare)
@@ -1152,7 +1175,7 @@ Object.assign(BOSSES, {
         case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
       }
     },
-    draw(e, x, y) {
+    drawBody(e, x, y) {
       // the hands, drawn live over the dial
       const cx = x + 15, cy = y + 15;
       line(cx, cy, cx + Math.cos(e.hand) * 8, cy + Math.sin(e.hand) * 8, '#3a2410', 2);
@@ -1246,7 +1269,7 @@ Object.assign(BOSSES, {
         case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.35, 0.7) / spd; } break;
       }
     },
-    draw(e, x, y, s) {
+    drawBody(e, x, y, s) {
       // two eyes burning in the hood, a crown of dead stars glittering over it (its design is drawn 2.4 times finer:
       // 1.6 game pixels to each unit of the design in tools/bosses_art.py)
       const u = 1.6, gx = (ax) => x + (e.face < 0 ? s.w - ax * u : ax * u);

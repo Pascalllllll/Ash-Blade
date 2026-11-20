@@ -1,5 +1,7 @@
-// All sound is synthesized with Web Audio: no files, no network.
+// Web Audio synthesizes the score and effects and mixes in the fighter's recorded ultimate line.
 let sfxRev = null, ac = null, master, sfx, mus, musDuck, crunch, nbuf, delayIn, delayNode, verbIn, padDuck, bassDuck, kickDist;
+let voiceBus, behindVoice, voiceAudible, voice = null, pausedVoice = null;
+const voiceClips = new Map();
 const layers = {};
 const loops = {};
 const last = {};
@@ -48,6 +50,71 @@ function duck(depth = 0.6, hold = 0.05, rel = 0.28) {
   const t = ac.currentTime, g = musDuck.gain;
   g.cancelScheduledValues(t); g.setValueAtTime(Math.min(1, g.value), t);
   g.linearRampToValueAtTime(depth, t + 0.008); g.setValueAtTime(depth, t + 0.008 + hold); g.linearRampToValueAtTime(1, t + 0.008 + hold + rel);
+}
+
+// a fighter's voice clips: art/audio/ultimates/<id>.mp3, the short call over its ultimate, and
+// art/audio/entrances/<id>.mp3, the line it says as its entrance ends on its name card
+function prepareVoice(id, kind = 'ultimates') {
+  if (!ac) return;
+  const key = kind + ':' + id;
+  if (!voiceClips.has(key)) {
+    // (bumped when a clip is recorded again, so browsers fetch the new one)
+    const version = kind === 'entrances' ? 1 : id === 'NINJA' ? 6 : 7;
+    const url = new URL(`../art/audio/${kind}/${id.toLowerCase()}.mp3?v=${version}`, import.meta.url);
+    const clip = fetch(url).then(response => {
+      if (!response.ok) throw new Error('Voice clip unavailable');
+      return response.arrayBuffer();
+    }).then(data => ac.decodeAudioData(data)).catch(() => { voiceClips.delete(key); return null; });
+    voiceClips.set(key, clip);
+  }
+  return voiceClips.get(key);
+}
+
+function stopVoice() {
+  const active = voice;
+  voice = pausedVoice = null;
+  if (active?.source) {
+    active.fade.gain.setTargetAtTime(0, ac.currentTime, 0.004);
+    active.source.stop(ac.currentTime + 0.025);
+    behindVoice.gain.setTargetAtTime(1, ac.currentTime, 0.08);
+  }
+}
+
+function playVoice(id, offset = 0, kind = 'ultimates') {
+  stopVoice();
+  if (!ac || !voiceAudible) return;
+  const take = { id, kind, offset, source: null }, requested = ac.currentTime;
+  voice = take;
+  prepareVoice(id, kind).then(clip => {
+    if (voice !== take) return;
+    if (!clip || offset + ac.currentTime - requested >= clip.duration) { voice = null; return; }
+    const source = ac.createBufferSource(), fade = ac.createGain();
+    source.buffer = clip;
+    source.connect(fade); fade.connect(voiceBus);
+    Object.assign(take, { source, fade, started: ac.currentTime });
+    // a voice plays over the fight (the ultimate itself, the end of the entrance), so the fight only dips enough for
+    // the words to come through
+    behindVoice.gain.setTargetAtTime(0.7, ac.currentTime, 0.018);
+    source.onended = () => {
+      source.disconnect(); fade.disconnect();
+      if (voice !== take) return;
+      voice = null;
+      behindVoice.gain.setTargetAtTime(1, ac.currentTime, 0.08);
+    };
+    source.start(0, offset);
+  });
+}
+
+function pauseVoice() {
+  if (!voice) return;
+  const { id, kind, offset, started } = voice;
+  const elapsed = started === undefined ? 0 : ac.currentTime - started;
+  stopVoice();
+  pausedVoice = { id, kind, offset: offset + elapsed };
+}
+
+function resumeVoice() {
+  if (pausedVoice) playVoice(pausedVoice.id, pausedVoice.offset, pausedVoice.kind);
 }
 // the minor pentatonic over D: reward sounds climb it, so a long chain always sounds like music
 const PENTA = [0, 3, 5, 7, 10];
@@ -553,6 +620,7 @@ function applyScene() {
 }
 
 export const A = {
+  prepareVoice, playVoice, stopVoice, pauseVoice, resumeVoice,
   get ready() { return !!ac; },
   init(s) {
     if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
@@ -568,9 +636,11 @@ export const A = {
     const air = ac.createBiquadFilter(); air.type = 'highshelf'; air.frequency.value = 9000; air.gain.value = 2;
     const lim = ac.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.06;
     master.connect(low); low.connect(air); air.connect(comp); comp.connect(lim); lim.connect(ac.destination);
-    sfx = ac.createGain(); sfx.connect(master);
+    behindVoice = ac.createGain(); behindVoice.connect(master);
+    voiceBus = ac.createGain(); voiceBus.connect(master);
+    sfx = ac.createGain(); sfx.connect(behindVoice);
     // the music runs through its own duck, which dips for an instant under every big hit so the hit punches through
-    mus = ac.createGain(); musDuck = ac.createGain(); mus.connect(musDuck); musDuck.connect(master);
+    mus = ac.createGain(); musDuck = ac.createGain(); mus.connect(musDuck); musDuck.connect(behindVoice);
     crunch = ac.createWaveShaper();
     const curve = new Float32Array(1024);
     for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; curve[i] = Math.tanh(x * 3.2); }
@@ -620,6 +690,8 @@ export const A = {
     master.gain.setTargetAtTime(s.master * 0.85, ac.currentTime, 0.05);
     mus.gain.setTargetAtTime(choice === 'OFF' ? 0 : s.music * 0.5, ac.currentTime, 0.05);
     sfx.gain.setTargetAtTime(s.sfx, ac.currentTime, 0.05);
+    voiceBus.gain.setTargetAtTime(s.sfx, ac.currentTime, 0.05);
+    voiceAudible = s.master > 0 && s.sfx > 0;
     applyScene();
   },
   scene(name) {

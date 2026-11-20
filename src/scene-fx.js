@@ -1,10 +1,10 @@
 // Shared tools for the heroes' entrances (entrances.js) and deaths (deaths.js): the hero drawn in any pose with the
 // weapon in hand, a body cut into pieces that fly, bounce and bleed, spurts and pools of blood, cracks in the floor,
 // and the entrance's letterbox and name card.
-import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, FW, SX, makeCanvas } from './gfx.js?v=191';
-import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=191';
-import { drawWeaponAt, REST } from './hero-sprites.js?v=191';
-import { WEAPON_ART } from './hero-rig.js?v=191';
+import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, FW, SX, makeCanvas } from './gfx.js?v=199';
+import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=199';
+import { drawWeaponAt, REST } from './hero-sprites.js?v=199';
+import { WEAPON_ART } from './hero-rig.js?v=199';
 
 const CW = 120, FX = 60, FY = 92;             // a hero cell's width, and where the feet are on it
 export const BLOOD = ['#c4243a', '#8a0f22', '#5a0612'];

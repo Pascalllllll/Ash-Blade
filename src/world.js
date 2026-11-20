@@ -1,16 +1,17 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, drawBreath, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=191';
-import { SPR, EVO_NAMES } from './sprites.js?v=191';
-import { A } from './audio.js?v=191';
-import { input, keyDown, keyHit } from './input.js?v=191';
-import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=191';
-import { AW, AH, B, TORCHES, MAPS, buildFloor } from './maps.js?v=191';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=191';
-import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=191';
-import { byId } from './upgrades.js?v=191';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=191';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=191';
-import { WEAPON_ART } from './hero-rig.js?v=191';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=191';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=199';
+import { SPR, EVO_NAMES } from './sprites.js?v=199';
+import { A } from './audio.js?v=199';
+import { input, keyDown, keyHit } from './input.js?v=199';
+import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=199';
+import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=199';
+import { CHARS, ALLY, swordAngle } from './chars.js?v=199';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=199';
+import { byId } from './upgrades.js?v=199';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=199';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=199';
+import { WEAPON_ART } from './hero-rig.js?v=199';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=199';
+import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=199';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -127,7 +128,8 @@ export const floor = makeCanvas(AW, AH);
 export const decal = makeCanvas(AW, AH);
 const dctx = decal.getContext('2d');
 let floorKey = null;
-export function showMap(key) { if (floorKey !== key) { buildFloor(floor, key); floorKey = key; } }
+// (the descent shows its first floor until a run is under way)
+export function showMap(key) { key = stageFor(key, 1); if (floorKey !== key) { buildFloor(floor, key); floorKey = key; } }
 
 // blood and scorch marks fade out over the time set in settings
 function fadeStains(dt) {
@@ -181,11 +183,18 @@ function makePlayer(kit, D) {
 export function newRun(charId, save) {
   dctx.clearRect(0, 0, AW, AH);
   const char = OPTIONS.char.includes(charId) ? charId : 'BLADE';
-  const mapKey = save ? save.map : settings.map, diffKey = save ? save.diff : settings.diff;
+  const arena = save ? save.map : settings.map, diffKey = save ? save.diff : settings.diff;
+  // TESTING, temporary: start at a later wave (past the King counts him as beaten; NIGHT is the endless night)
+  const at = save ? save.wave : { 'WAVE 20': 20, 'WAVE 45': 45, 'WAVE 50': 50, NIGHT: 51 }[settings.testStart] || 1;
+  // the arena chosen (the descent, or one floor for the whole run) and the floor the run starts on
+  const mapKey = stageFor(arena, at);
   const kit = CHARS[char], D = DIFF[diffKey];
+  A.stopVoice();
+  A.prepareVoice(char);
+  A.prepareVoice(char, 'entrances');
   showMap(mapKey);
   G = {
-    char, kit, mapKey, map: MAPS[mapKey], diffKey, D,
+    char, kit, arena, mapKey, map: MAPS[mapKey], diffKey, D, descend: 0,
     t: 0, time: 0, wave: 0, score: 0, kills: 0, maxCombo: 0, bestRank: 0, combo: 0, comboT: 0, rank: 0, rankPop: 0,
     p: makePlayer(kit, D),
     E: [], shots: [], parts: [], slashes: [], texts: [], bolts: [], rings: [], gibs: [], picks: [], sigils: [], ghosts: [],
@@ -197,7 +206,7 @@ export function newRun(charId, save) {
   };
   // timers and delayed cuts remember whether the fighter made them, so their effects take its awakened colors
   for (const arr of [G.timers, G.cuts, G.bolts, G.quakes, G.ghosts, G.booms, G.slashes]) arr.push = function (...a) { for (const o of a) { o.pfx = !!G.pfx; if (G.inCharge) o.chg = true; if (o.pfx && G.awPal && o.c) o.c = G.awPal[o.c] || o.c; } return Array.prototype.push.apply(this, a); };
-  for (const [x, y, r] of G.map.pools) G.zones.push({ type: 'lava', x, y, r, t: 0, life: Infinity });
+  for (const [x, y, r] of G.map.pools) G.zones.push({ type: 'lava', x, y, r, t: 0, life: Infinity, pool: true });
   fx.trauma = 0; fx.freeze = 0; fx.freezeCd = 0; fx.slowT = 0; fx.slowF = 1; fx.hurtVig = 0;
   if (save) {
     // re-apply every upgrade the save says was taken, then restore the exact numbers
@@ -208,8 +217,6 @@ export function newRun(charId, save) {
     if (G.kit.init) G.p.k = G.kit.init();
     startWave(save.wave);
   } else {
-    // TESTING, temporary: start at a later wave (past the King counts him as beaten; NIGHT is the endless night)
-    const at = { 'WAVE 20': 20, 'WAVE 45': 45, 'WAVE 50': 50, NIGHT: 51 }[settings.testStart] || 1;
     if (at > 20) G.won = true;
     startWave(at);
   }
@@ -221,7 +228,7 @@ export function newRun(charId, save) {
 export function snapshot() {
   const p = G.p;
   return {
-    v: 1, char: G.char, map: G.mapKey, diff: G.diffKey, wave: G.wave, score: G.score, kills: G.kills, maxCombo: G.maxCombo,
+    v: 1, char: G.char, map: G.arena, diff: G.diffKey, wave: G.wave, score: G.score, kills: G.kills, maxCombo: G.maxCombo,
     bestRank: G.bestRank, won: G.won, time: Math.round(G.time), hp: p.hp, maxHp: p.maxHp, energy: Math.round(p.energy),
     ult: Math.round(p.ult), dashMax: p.dashMax, taken: { ...G.taken },
     extra: { dmg: G.dmg, bosses: G.bosses, loot: G.loot, bestMulti: G.bestMulti, perfects: G.perfects },
@@ -243,8 +250,11 @@ export function startWave(n) {
   if (n >= 10) unlock('GUNNER');
   if (n >= 50) unlock('DEV');
   const boss = isBossWave(n);
+  // the descent: the wave after a boss is fought a floor further down, on a stage of its own (no twist on it)
+  const below = stageFor(G.arena, n), newFloor = below !== G.mapKey;
+  if (newFloor) enterStage(below);
   G.twist = null;
-  if (!boss && n >= 6 && Math.random() < 0.34) {
+  if (!boss && !newFloor && n >= 6 && Math.random() < 0.34) {
     const keys = Object.keys(TWISTS).filter((k) => k !== G.lastTwist);
     G.twist = G.lastTwist = keys[Math.floor(rnd(keys.length))];
   }
@@ -266,8 +276,20 @@ export function startWave(n) {
       if (G.twist === 'BLACKOUT') G.dark = 0.75;
       A.twist();
     }
+    if (newFloor) G.banner = { text: G.map.name, sub: 'DEPTH ' + (depthOf(n) + 1) + '   ' + G.map.desc, t: 0, life: 2.8, c: G.map.flame[1] };
   }
   A.waveStart(boss);
+}
+
+// down to the next floor: its own floor and walls, its torches, air and footing; the old floor's lava goes with it,
+// and the new one fades in out of black under its name
+function enterStage(key) {
+  G.mapKey = key; G.map = MAPS[key]; showMap(key);
+  G.zones = G.zones.filter((z) => !z.pool);
+  for (const [x, y, r] of G.map.pools) G.zones.push({ type: 'lava', x, y, r, t: 0, life: Infinity, pool: true });
+  G.amb.length = 0;
+  G.descend = 1;
+  A.rift();
 }
 
 // a talk never starts over the fighter's entrance: it waits for it to end
@@ -388,6 +410,10 @@ export function spawnEnemy(type, x, y, bossKey) {
   }
   e.r = d.r;
   e.maxHp = e.hp;
+  e.motion = startMonsterMotion(e);
+  const spriteId = e.boss || e.type;
+  if (spriteId !== 'mirror') loadMonsterSheet(spriteId, SPR[spriteId][0].h);
+  if (spriteId === 'wyrm') loadMonsterSheet('wyrmSeg', SPR.wyrmSeg.h);
   G.E.push(e);
   return e;
 }
@@ -527,11 +553,15 @@ export const pd = (x) => Math.max(1, Math.round(x * G.up.dmg));
 const FIGHTER_POWER = 1.1;
 
 export function sprFor(e) {
-  const frames = e.type === 'boss' ? (e.boss === 'mirror' ? [heroSet().idle, ...heroSet().run] : SPR[e.boss]) : SPR[e.type];
-  const speed = e.type === 'slime' ? 5 : e.type === 'slimelet' ? 9 : e.type === 'spitter' || e.type === 'shade' ? 4 : e.type === 'wisp' ? 4 : e.type === 'tick' || e.type === 'larva' || e.type === 'lootling' ? 14 : e.type === 'egg' ? 3 : 7;
-  const f = frames[Math.floor(e.anim * speed) % frames.length];
-  // everyone blinks now and then, each on their own clock
-  return f.blink && (e.anim * 0.8 + e.x * 0.013) % 3.3 < 0.14 ? f.blink : f;
+  const m = e.motion;
+  if (e.boss === 'mirror') {
+    const set = heroSet();
+    if (m.drive < 0.1) return set.idles[Math.floor(m.clock * 8) % set.idles.length];
+    const frames = m.drive > 0.8 ? set.run : set.walk;
+    return frames[Math.floor(m.phase * frames.length) % frames.length];
+  }
+  const id = e.boss || e.type;
+  return monsterFrame(id, m.phase, SPR[id], m.clock % 3.3 < 0.14);
 }
 
 export function damage(e, dmg, o) {
@@ -890,7 +920,7 @@ function die() {
   p.hp = 0; p.state = 'dead'; G.dead = true; G.deadT = 0;
   G.talk = null; G.lastWords = lastWords();
   shake(1); flash(P.blood, 0.25, true);
-  A.death(); A.scene('dead'); A.stopLoops();
+  A.stopVoice(); A.death(); A.scene('dead'); A.stopLoops();
   // whatever the fighter had going ends with them: Unit-7's beam and sky laser, Rin's flash cut, Grom's fortress,
   // shields and buffs (their kit stops updating and drawing from here on, so nothing is left hanging in the air)
   if (p.k) { p.k.firing = false; p.k.orb = 0; p.k.beam = null; p.k.stand = 0; }
@@ -958,7 +988,7 @@ export function explode(x, y, friendly, R0 = 34, dmg0 = 14) {
 // ---------- controls (every frame, even during hit-stop) ----------
 export function controls() {
   const p = G.p, m = input.mouse, kit = G.kit;
-  if (p.state === 'dead') return;
+  if (p.state === 'dead' || p.state === 'cine') return;
   for (const k of ['q', 'e', 'r']) input.aimable[k] = isAimed(kit[k]);
   if (bossLock()) { p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0; p.castAim = null; p.atkHeld = false; return; }
   if (input.cast) p.castAim = { ...input.cast, t: 0.4 };
@@ -989,12 +1019,28 @@ export function controls() {
 const aimedCache = new WeakMap();
 function isAimed(sk) {
   if (!sk) return false;
+  if (sk.target) return true;
   if (sk.aim !== undefined) return sk.aim;
   if (!aimedCache.has(sk)) aimedCache.set(sk, /\baim(Point)?\b|p\.aim/.test(String(sk.use)));
   return aimedCache.get(sk);
 }
 
 // ---------- player ----------
+function startUltimate(p, kit, up) {
+  const target = kit.r.target?.(p);
+  p.bufR = 0; p.ult = 0; p.ultLock = 2.5; p.castAim = null;
+  buzz('ult');
+  // the fighter shouts the move's name over the ultimate itself: no pause, it goes off at once
+  A.playVoice(kit.id);
+  kit.r.use(p, target);
+  setSpriteAction(p, 'ultimate');
+  if (awake()) { kit.awake.ult(p); p.ult = 30; }
+  if (up.evoUlt) {
+    p.ascend = 12; p.ascNova = 1; p.ult = Math.max(p.ult, 25);
+    p.inv = Math.max(p.inv, 2); p.evoFlash = 1;
+  }
+}
+
 function updatePlayer(dt) {
   const p = G.p, up = G.up, kit = G.kit;
   p.t += dt; p.atkT += dt;
@@ -1198,7 +1244,7 @@ function updatePlayer(dt) {
     const canAct = free || p.state === 'charge' || (p.state === 'attack' && p.atkT >= p.cancelAt);
     const canDash = p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
-    else if (p.bufR > 0 && canAct && p.ult >= 100) { p.bufR = 0; p.ult = 0; p.ultLock = 2.5; kit.r.use(p); setSpriteAction(p,'ultimate'); p.castAim = null; buzz('ult'); if (awake()) { G.kit.awake.ult(p); p.ult = 30; addText(p.x, p.y - 30, 'AWAKENED', P.gold); } if (up.evoUlt) { p.ascend = 12; p.ascNova = 1; p.ult = Math.max(p.ult, 25); p.inv = Math.max(p.inv, 2); p.evoFlash = 1; addText(p.x, p.y - 30, 'ASCENDED', P.gold, 2); flash(P.gold, 0.25, true); } }
+    else if (p.bufR > 0 && canAct && p.ult >= 100) { startUltimate(p, kit, up); return; }
     else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const fs = flashStrike(p); const okQ = kit.q.use(p) !== false; G.skillMult = 1; if (fs && okQ) flashFx(p); p.castAim = null; if (okQ) { setSpriteAction(p,'skill1'); p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); if (awake()) G.kit.awake.skill(p, 'q'); } }
     else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const fs = flashStrike(p); const okE = kit.e.use(p) !== false; G.skillMult = 1; if (fs && okE) flashFx(p); p.castAim = null; if (okE) { setSpriteAction(p,'skill2'); p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); if (awake()) G.kit.awake.skill(p, 'e'); } }
     else if (kit.melee) {
@@ -1319,8 +1365,8 @@ function startAttack() {
     // a second, wider arc trails the first
     const ninja = G.char === 'NINJA';
     if (shape !== 'slam') G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach + 9, arc: s.arc * 1.1, dir: p.swing.dir, t: -0.03, life: (s.heavy ? 0.24 : 0.19) + 0.08, th: Math.max(3, Math.round(s.th * (ninja ? 1.4 : 0.7))), col: ninja ? 'gold' : 'paper' });
-    // gold sparkles thrown off along Oni Rin's swing
-    if (ninja) for (let i = 0; i < 14; i++) { const b = p.atkAng + rnd(-s.arc / 2, s.arc / 2), r = p.swing.reach * rnd(0.6, 1.1); part(p.x + Math.cos(b) * r, p.y - 5 + Math.sin(b) * r, Math.cos(b) * rnd(30, 90), Math.sin(b) * rnd(30, 90), rnd(0.2, 0.45), Math.random() < 0.5 ? P.gold : P.paper, { drag: 4, glow: true }); }
+    // sparkles in her awakened color (lilac) thrown off along Oni Rin's swing
+    if (ninja) for (let i = 0; i < 14; i++) { const b = p.atkAng + rnd(-s.arc / 2, s.arc / 2), r = p.swing.reach * rnd(0.6, 1.1); part(p.x + Math.cos(b) * r, p.y - 5 + Math.sin(b) * r, Math.cos(b) * rnd(30, 90), Math.sin(b) * rnd(30, 90), rnd(0.2, 0.45), Math.random() < 0.5 ? G.kit.awake.pal.col : P.paper, { drag: 4, glow: true }); }
     G.kit.awake.swing?.(p, s, shape);
   }
   A.charAtk(G.char, !!s.heavy, p.step);
@@ -1912,6 +1958,7 @@ export function update(dt, rdt) {
   updateTalk(rdt);
   G.rankPop = Math.max(0, G.rankPop - rdt * 4);
   fx.hurtVig = Math.max(0, fx.hurtVig - rdt * 1.5);
+  G.descend = Math.max(0, G.descend - rdt / 1.1);
   for (const k in G.deny) G.deny[k] = Math.max(0, G.deny[k] - rdt);
   if (G.banner) { G.banner.t += rdt; if (G.banner.t > G.banner.life) G.banner = null; }
   if (G.mkShow) { G.mkShow.t += rdt; if (G.mkShow.t > 1.5) G.mkShow = null; }
@@ -1994,6 +2041,7 @@ export function update(dt, rdt) {
     }
     if (e.marked > 0) { e.marked -= dt; continue; }
     if (e.affix === 'REGEN' && (e.calm = (e.calm || 0) + dt) > 1.2 && e.hp < e.maxHp) { e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.06 * dt); if (Math.random() < dt * 8) part(e.x + rnd(-4, 4), e.y - rnd(2, 12), 0, -20, 0.4, AFFIX.REGEN.c, { glow: true, drag: 1 }); }
+    const fromX = e.x, fromY = e.y;
     updateEnemy(e, e.affix === 'FRENZIED' ? dt * 1.3 : dt);
     if (e.dead || e.dying) continue;
     const kd = Math.exp(-G.map.slide * dt);
@@ -2004,6 +2052,8 @@ export function update(dt, rdt) {
     if (e.x > B.x1 - e.r) { e.x = B.x1 - e.r; hitWall = hitWall || e.kx > 100; e.kx = -e.kx * 0.3; }
     if (e.y < B.y0 + e.r) { e.y = B.y0 + e.r; hitWall = hitWall || e.ky < -100; e.ky = -e.ky * 0.3; }
     if (e.y > B.y1 - 2) { e.y = B.y1 - 2; hitWall = hitWall || e.ky > 100; e.ky = -e.ky * 0.3; }
+    advanceMonsterMotion(e, dt, fromX, fromY);
+    if (e.boss) BOSSES[e.boss].afterMove?.(e);
     e.kx *= kd; e.ky *= kd;
     if (hitWall && fast && e.type !== 'boss') {
       dust(e.x, e.y, 10, 70); A.wall(); shake(0.2);
@@ -2316,6 +2366,14 @@ function updateAmbient(dt) {
     else if (kind === 'ash') G.amb.push({ x, y: c.y + H + 2, vx: rnd(-4, 4), vy: -rnd(8, 18), c: Math.random() < 0.3 ? '#ff6a2b' : '#6a5a5a', t: 0, life: 10 });
     else if (kind === 'data') G.amb.push({ x: Math.round(x / 8) * 8, y: c.y - 2, vx: 0, vy: rnd(30, 60), c: Math.random() < 0.5 ? '#62efff' : '#ff4fa8', t: 0, life: 4 });
     else if (kind === 'fireflies') G.amb.push({ x, y, vx: rnd(-8, 8), vy: rnd(-8, 8), c: Math.random() < 0.5 ? '#d8ff6a' : '#ffe08a', t: 0, life: rnd(3, 6), glow: true });
+    // the nest's spores rise; the void's motes drift up; the glass hall glints; dust shines in the temple; brass
+    // flecks fall in the clockworks; stars twinkle in the last night
+    else if (kind === 'spores') G.amb.push({ x, y: c.y + H + 2, vx: rnd(-3, 3), vy: -rnd(5, 12), c: Math.random() < 0.5 ? '#b5f23a' : '#6a8a3a', t: 0, life: 12, glow: Math.random() < 0.4 });
+    else if (kind === 'void') G.amb.push({ x, y, vx: rnd(-4, 4), vy: -rnd(4, 10), c: Math.random() < 0.5 ? '#b48cff' : '#5a3e8a', t: 0, life: rnd(3, 6), glow: true });
+    else if (kind === 'glints') G.amb.push({ x, y, vx: 0, vy: 0, c: Math.random() < 0.5 ? '#ffffff' : '#cfd8e0', t: 0, life: rnd(0.3, 0.8), glow: true });
+    else if (kind === 'motes') G.amb.push({ x, y, vx: rnd(-3, 3), vy: rnd(-4, 2), c: Math.random() < 0.5 ? '#ffd447' : '#c9a24a', t: 0, life: rnd(4, 7), glow: Math.random() < 0.5 });
+    else if (kind === 'brass') G.amb.push({ x, y: c.y - 2, vx: rnd(-4, 4), vy: rnd(10, 22), c: Math.random() < 0.5 ? '#9a7a3a' : '#c9a24a', t: 0, life: 10 });
+    else if (kind === 'stars') G.amb.push({ x, y, vx: 0, vy: 0, c: Math.random() < 0.3 ? '#ffffff' : '#8a84c0', t: 0, life: rnd(1, 2.5), glow: true });
     else G.amb.push({ x, y, vx: rnd(-3, 3), vy: rnd(-3, 1), c: '#3d3250', t: 0, life: rnd(3, 6) });
   }
   for (const a of G.amb) {
@@ -2368,6 +2426,7 @@ const SLASH_COLS = () => ({
   titan: [P.paper, '#ff3b3b', '#a0101e', '#2a0a10'],
   storm: [P.paper, '#c8ffff', P.volt, P.gold],
   fire: [P.paper, '#ffe08a', '#ff9a3c', '#c6380f'],
+  lilac: [P.paper, '#ffd6ec', '#c49aff', '#6a3aa8'],
 });
 export function drawSlash(s) {
   const L = s.life, age = s.t;
@@ -2653,52 +2712,10 @@ function drawAegis(p, hover) {
   }
 }
 
-// ---------- monster motion ----------
-// A pose for every frame, layered on the sprite frames: a bouncing step and lean when walking, idle sway,
-// a crouch and lean-back on wind-ups, a stretch on lunges and charges, a wobble when stunned,
-// and a manner of moving for each kind of monster.
-const WIND_UP = new Set(['windup', 'aim', 'sweepW', 'kslashW', 'slashW', 'dashW', 'fuse']);
-const LUNGE = new Set(['lunge', 'charge', 'strike', 'dash']);
-function enemyPose(e) {
-  const t = e.anim + e.x * 0.031 + e.y * 0.017; // each monster on its own clock
-  const v = hyp(e.vx || 0, e.vy || 0), mv = Math.min(1, v / Math.max(18, (e.speed || 40) * 0.5)), face = e.face < 0 ? -1 : 1;
-  let sx = 1, sy = 1, rot = 0, dy = 0, dx = 0;
-  // idle: breathing in and out, a slow sway
-  const idle = 1 - mv;
-  sx += Math.sin(t * 3.1) * 0.03 * idle; sy -= Math.sin(t * 3.1) * 0.045 * idle; rot += Math.sin(t * 1.7) * 0.03 * idle;
-  // walking: each step lifts and lands, the body leans into the motion
-  const pace = { tick: 18, larva: 16, lootling: 15, husk: 10, brute: 6, slimelet: 14 }[e.type] || 9;
-  if (mv > 0.05) {
-    const ph = t * pace, step = Math.abs(Math.sin(ph));
-    const lift = e.type === 'brute' ? 2.2 : e.type === 'lootling' ? 2.5 : e.type === 'tick' ? 1 : 1.6;
-    dy -= step * lift * mv;
-    sy += (step - 0.5) * 0.12 * mv; sx -= (step - 0.5) * 0.09 * mv;
-    rot += Math.sign(e.vx || face) * 0.08 * mv + Math.sin(ph) * (e.type === 'brute' ? 0.07 : 0.045) * mv;
-  }
-  // kinds with their own manner
-  if (e.type === 'slime' || e.type === 'slimelet') { const j = Math.sin(t * 7); sx += j * 0.07; sy -= j * 0.08; if ((e.z || 0) > 0.5) { sy += 0.18; sx -= 0.12; } }
-  if (e.type === 'larva') { sx += Math.sin(t * 14) * 0.12; rot += Math.sin(t * 9) * 0.1; }
-  if (e.type === 'wisp' || e.type === 'shade') { rot += Math.sin(t * 2.3) * 0.09; sx += Math.sin(t * 4.6) * 0.04; }
-  if (e.type === 'spitter') { rot += Math.sin(t * 1.9) * 0.08; sy += Math.sin(t * 3.8) * 0.04; }
-  if (e.type === 'egg') { const pulse = Math.sin(t * (5 + Math.max(0, 4 - (e.t || 4)) * 3)); sx += pulse * 0.06; sy -= pulse * 0.05; rot += Math.sin(t * 11) * 0.05 * Math.max(0, 1 - (e.t || 4) / 2); }
-  if (e.type === 'lootling') rot += Math.sin(t * 15) * 0.1 * mv;
-  // attacks: gather on the wind-up, stretch into the lunge
-  if (WIND_UP.has(e.state)) { sx += 0.1; sy -= 0.13; rot -= face * 0.12; dx += Math.sin(G.time * 60) * 0.6; }
-  if (LUNGE.has(e.state)) { sx += 0.18; sy -= 0.12; rot += face * 0.14; }
-  if (e.state === 'hurt') rot -= face * 0.22;
-  if (e.state === 'stun' || e.stunT > 0) rot += Math.sin(G.time * 18) * 0.16;
-  if (e.state === 'recover') { sy -= 0.06; sx += 0.04; }
-  if (e.frozen > 0) { sx = 1; sy = 1; rot = 0; dy = 0; dx = 0; }
-  return { sx, sy, rot, dy, dx };
-}
-
 export function drawEnemy(e) {
   if (e.under) return;
   const s = sprFor(e), sc = e.def.scale || 1;
-  let x = e.x - (s.w * sc) / 2, y = e.y - s.h * sc + 1 - (e.z || 0);
-  if (e.type === 'wisp') y -= 3 + Math.round(Math.sin(e.anim * 3) * 2);
-  if (e.shakeT > 0 && fx.freeze > 0) x += Math.random() < 0.5 ? -1 : 1;
-  if (e.marked > 0 || e.state === 'stun' || e.stunT > 0) x += Math.floor(G.time * 30) % 2 ? 1 : -1;
+  const feet = e.y + 1 - (e.z || 0), x = e.x - s.w * sc / 2, y = feet - s.h * sc;
   shadow(e.x, e.y, e.r + (e.type === 'boss' ? 2 : 0) - Math.min(4, (e.z || 0) / 10));
   let tint = null;
   const blink = Math.floor(G.time * 18) % 2;
@@ -2721,28 +2738,24 @@ export function drawEnemy(e) {
   }
   const ac = e.elite ? (e.affix ? AFFIX[e.affix].c : P.gold) : null;
   if (e.elite) {
-    if (sc > 1) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, x + ox, y + oy, e.face < 0, ac);
     glow(e.x, e.y - e.r, ac, 10, 0.25 + (e.affix === 'VOLATILE' ? Math.sin(G.time * 12) * 0.15 : 0));
     if (e.ward > 0) ring(e.x, e.y - e.r, e.r + 4, 1, Math.floor(G.time * 10) % 2 ? AFFIX.WARDED.c : P.paper);
   }
-  // breathing, and a crouch while winding up an attack
-  const crouch = e.state === 'windup' || e.state === 'aim' || e.state === 'sweepW' || e.state === 'kslashW' || e.state === 'slashW' || e.state === 'dashW';
-  const br = crouch ? 1 : Math.sin(e.anim * (e.type === 'boss' ? 2.2 : 3.4)) > 0.2 ? 1 : 0;
   if (e.type === 'shade') ctx.globalAlpha = e.state === 'vanish' ? Math.max(0.05, e.t / 0.3) : e.state === 'stalk' ? 0.55 : 1;
   else if (e.alpha !== undefined) ctx.globalAlpha = e.alpha;
-  if (sc > 1) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(sc, sc); drawBreath(s, 0, 0, e.face < 0, tint, br); ctx.restore(); }
-  else {
-    // the procedural pose: steps, sway, lean, crouch and stretch, plus the hit wobble, all around the feet
-    const ps = enemyPose(e);
-    let sx = ps.sx, sy = ps.sy, lean = 0;
-    if (e.sq > 0) { const k = e.sq, w = Math.cos((1 - k) * Math.PI * 2.5) * k; sx *= 1 + 0.3 * w; sy *= 1 - 0.26 * w; lean = Math.cos(e.sqDir || 0) * 2 * k; }
-    const ax = Math.round(e.x + lean + ps.dx), ay = Math.round(y + s.h + ps.dy), flip = e.face < 0;
-    ctx.save(); ctx.translate(ax, ay); if (ps.rot) ctx.rotate(ps.rot); ctx.scale(sx, sy);
-    const ox = -Math.round(s.w / 2);
-    if (ac) for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, ox + dx, -s.h + dy, flip, ac);
-    drawBreath(s, ox, -s.h, flip, tint, crouch ? 1 : 0);
-    ctx.restore();
+  const ps = monsterPose(e), flip = e.face < 0, ox = -s.w / 2;
+  ctx.save();
+  ctx.translate(snap(e.x + ps.dx), snap(feet + ps.dy));
+  ctx.rotate(ps.rot);
+  ctx.scale(sc * ps.sx, sc * ps.sy);
+  if (ac) for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, ox + dx, -s.h + dy, flip, ac);
+  drawSprite(s, ox, -s.h, flip, tint);
+  const body = e.boss && BOSSES[e.boss].drawBody;
+  if (body) {
+    ctx.translate(-e.x, -feet);
+    body(e, e.x + ox, feet - s.h, s);
   }
+  ctx.restore();
   ctx.globalAlpha = 1;
   if (e.type === 'wisp' && e.state === 'windup') glow(e.x, y + 4, P.hex, 6 + (0.55 - e.t) * 18, 0.6);
   if (e.type === 'egg') glow(e.x, e.y - 3, DEF.egg.col, 6 + Math.sin(G.time * 8) * 2, 0.3);
@@ -3061,9 +3074,11 @@ export function drawWorld() {
     textO(t.s, t.x + jit, t.y, t.c, t.sc + pop, 'c');
   }
 
-  if (G.cine) G.cine.draw(cx, cy);
+  G.cine?.draw?.(cx, cy);
   ctx.restore();
   if (G.dark > 0) drawDark();
+  // a new floor of the descent: black for a moment, then the floor fades in
+  if (G.descend > 0) fillScreen(P.void, Math.min(1, G.descend * 1.4));
 }
 
 // the final boss's last phase: everything outside a small circle around you goes dark

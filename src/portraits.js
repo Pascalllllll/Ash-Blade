@@ -8,8 +8,8 @@
 // Behind each one is a scene of their own: Kael's burning sun, Vega's striped desert sunset, Morrow's star chart and
 // rune ring, Rin's red moon and cherry branch, Rivet's turning gears, the King's torn banner behind Grom, Unit-7's
 // targeting screen, the Dev's falling code. Particles and flashes of each fighter's own go on top.
-import { ctx, SS, glow, rect, px, line, ring, disc } from './gfx.js?v=191';
-import { PORTRAIT_ART } from './portrait-art.js?v=191';
+import { ctx, SS, glow, rect, px, line, ring, disc } from './gfx.js?v=199';
+import { PORTRAIT_ART } from './portrait-art.js?v=199';
 
 export const PORTRAIT_SCALE = 2; // canvas pixels per art pixel on the select screen
 const TAU = Math.PI * 2;
@@ -22,7 +22,7 @@ export function loadPortraits() {
     const im = new Image();
     im.decoding = 'async';
     im.onload = () => { IMG[id] = im; };
-    im.src = new URL(`../art/sprites/portraits-hd/${PORTRAIT_ART[id].file}.png?v=191`, import.meta.url).href;
+    im.src = new URL(`../art/sprites/portraits-hd/${PORTRAIT_ART[id].file}.png?v=192`, import.meta.url).href;
   }
 }
 export const portraitReady = (id) => !!IMG[id];

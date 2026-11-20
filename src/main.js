@@ -1,16 +1,16 @@
-import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=191';
-import { input, keyHit, endFrame } from './input.js?v=191';
-import { A } from './audio.js?v=191';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=191';
-import { buildSprites } from './sprites.js?v=191';
-import { byId } from './upgrades.js?v=191';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=191';
+import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=199';
+import { input, keyHit, endFrame } from './input.js?v=199';
+import { A } from './audio.js?v=199';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=199';
+import { buildSprites } from './sprites.js?v=199';
+import { byId } from './upgrades.js?v=199';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=199';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=191';
-import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=191';
+} from './ui.js?v=199';
+import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=199';
 
 loadAll();
 applyTheme(settings.theme);
@@ -26,7 +26,12 @@ let lockId = null;
 let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
 let save = loadRun((id) => !!byId(id));
 
-function go(s) { scene = s; sceneT = 0; }
+function go(s) {
+  if (scene === 'play' && s === 'pause') A.pauseVoice();
+  else if (scene === 'pause' && s === 'play') A.resumeVoice();
+  else if (scene === 'play' || s === 'title') A.stopVoice();
+  scene = s; sceneT = 0;
+}
 function toTitle() { settingsFrom = 'title'; save = loadRun((id) => !!byId(id)); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
 function startRun(char, s) {
   A.init(settings); newRun(char, s); go('play'); }
@@ -81,8 +86,6 @@ function tick(now) {
   fx.ox += Math.round(fx.kx); fx.oy += Math.round(fx.ky);
   fx.flashT -= rdt;
   if (input.any || input.mouse.pressed) A.init(settings);
-  // (while the story is being told a tap reads on, so the phone controls step aside)
-  input.touchPlay = scene === 'play' && G && !G.dead && !G.cine && !storyTalk();
   // phones held upright: pause and let the overlay ask for landscape
   const portrait = input.touch && innerHeight > innerWidth;
   if (portrait && scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
@@ -114,7 +117,7 @@ function tick(now) {
     const r = updateSelect(rdt);
     if (r?.map || r?.diff) { const prev = { ...settings }; Object.assign(settings, r); applySettings(prev); }
     if (r?.back) toTitle();
-    else if (r?.start) { settings.char = r.start; saveSettings(); clearRun(); lockId = r.start; A.init(settings); go('lockin'); }
+    else if (r?.start) { settings.char = r.start; saveSettings(); clearRun(); lockId = r.start; A.init(settings); A.prepareVoice(lockId, 'entrances'); go('lockin'); }
     else drawSelect(sceneT);
     if (scene === 'play') drawWorld();
   } else if (scene === 'lockin') {
@@ -206,6 +209,8 @@ function tick(now) {
   if (scene === 'title' || scene === 'select' || scene === 'settings') { /* menus draw their own backdrop */ }
   screenFlash();
   cursor();
+  // Route the next tap to the scene this frame just displayed.
+  input.touchPlay = scene === 'play' && G && !G.dead && !G.cine && !storyTalk();
   endFrame();
   hdEnd();
   requestAnimationFrame(tick);

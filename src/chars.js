@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, FW, SX, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO, SS } from './gfx.js?v=191';
-import { heroEntrance } from './entrances.js?v=191';
-import { SPR } from './sprites.js?v=191';
-import { A } from './audio.js?v=191';
-import { input } from './input.js?v=191';
-import { best } from './store.js?v=191';
+import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=199';
+import { heroEntrance } from './entrances.js?v=199';
+import { SPR } from './sprites.js?v=199';
+import { A } from './audio.js?v=199';
+import { input } from './input.js?v=199';
+import { best } from './store.js?v=199';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=191';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=199';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -47,7 +47,6 @@ const nearest = (x, y, range, skip) => {
   for (const e of G.E) { if (!alive(e) || (skip && skip.has(e))) continue; const d = hyp(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } }
   return best;
 };
-function banner(text, c) { G.banner = { text, sub: '', t: 0, life: 1.3, c }; }
 function muzzle(x, y, a, c, n = 5) { for (let i = 0; i < n; i++) { const s = a + rnd(-0.4, 0.4), v = rnd(60, 180); part(x, y, Math.cos(s) * v, Math.sin(s) * v, rnd(0.05, 0.12), Math.random() < 0.5 ? P.paper : c, { drag: 10, glow: true, keep: true }); } }
 
 // ---------- charged attacks ----------
@@ -168,7 +167,7 @@ export const CHARS = {
         const targets = G.E.filter(alive).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y)).slice(0, 14);
         const u = { t: 0, phase: 'gather', cuts: [], i: 0, cutT: 0, ox: p.x, oy: p.y, n: Math.round(Math.max(12, targets.length + 6) * (G.up.evoUlt ? 1.7 : 1)) };
         p.state = 'cine'; p.vx = p.vy = 0;
-        A.ultStart(); shake(0.25); banner('THOUSAND CUTS', P.gold);
+        A.ultStart(); shake(0.25);
         G.cine = {
           update(dt) {
             u.t += dt;
@@ -190,18 +189,16 @@ export const CHARS = {
               if (u.i >= u.n) { u.phase = 'hold'; u.t = 0; ghost(p, P.paper); p.x = u.ox; p.y = u.oy; }
             } else if (u.phase === 'hold' && u.t > 0.6) {
               G.cine = null; p.state = 'move'; p.inv = 0.8;
-              const fade = { t: 0 };
               for (const c of u.cuts) for (let i = 0; i < 5; i++) { const k = rnd(-0.5, 0.5); part(c.x + Math.cos(c.a) * c.L * k, c.y + 5 + Math.sin(c.a) * c.L * k, rnd(-120, 120), rnd(-120, 120), rnd(0.2, 0.5), Math.random() < 0.5 ? P.paper : P.gold, { drag: 5, glow: true }); }
               for (const e of targets) if (alive(e)) damage(e, e.type === 'boss' ? Math.round(60 + e.maxHp * 0.06) : pd(40), { dir: rnd(TAU), kb: 240, src: 'ult', slice: true, crit: true });
               addRing(p.x, p.y - 6, P.gold, 380, 0.4, 3); addRing(p.x, p.y - 6, P.paper, 300, 0.3, 1);
               flash(P.paper, 0.35, true); shake(1); hitstop(0.14); A.ultRelease();
               G.slashes.push(...u.cuts.slice(0, 10).map((c) => ({ follow: false, x: c.x, y: c.y + 5, a: c.a, r: 18, arc: 1.2, dir: 1, t: 0, life: 0.25, th: 4, col: 'gold' })));
-              void fade;
             }
           },
           draw(cx, cy) {
             const a = (u.phase === 'gather' ? Math.min(1, u.t / 0.4) : 1) * 0.86;
-            ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(cx, cy, 320, 180); ctx.globalAlpha = 1;
+            ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(cx - SX, cy, FW, H); ctx.globalAlpha = 1;
             for (const e of G.E) if (!e.dead) { const s = sprFor(e); drawSprite(s, e.x - s.w / 2, e.y - s.h + 1, e.face < 0, P.bone); }
             { const a=(G.evo===true?SPR.evo:SPR.chars).BLADE;
               const frames=a.act?.ultimate;
@@ -299,7 +296,7 @@ export const CHARS = {
     },
     r: {
       name: 'LAST STAND', icon: 'gun', desc: 'FOUR SECONDS OF MINIGUN',
-      use(p) { p.k.stand = G.up.evoUlt ? 7 : 4; banner(G.up.evoUlt ? 'LAST STAND II' : 'LAST STAND', P.gold); A.reload(); shake(0.3); },
+      use(p) { p.k.stand = G.up.evoUlt ? 7 : 4; A.reload(); shake(0.3); },
     },
     drawWeapon(p, flip) {
       const [hx, hy] = hand(p, flip), a = p.aim, cx = Math.cos(a), cy = Math.sin(a);
@@ -404,7 +401,7 @@ export const CHARS = {
     },
     r: {
       name: 'STARFALL', icon: 'star', desc: 'METEORS RAIN ON EVERY FOE',
-      use(p) { p.k.star = G.up.evoUlt ? 4.4 : 2.6; p.k.starT = 0; banner(G.up.evoUlt ? 'STARFALL II' : 'STARFALL', P.ember2); A.ultStart(); flash('#b48cff', 0.15, false); },
+      use(p) { p.k.star = G.up.evoUlt ? 4.4 : 2.6; p.k.starT = 0; A.ultStart(); flash('#b48cff', 0.15, false); },
     },
     draw(p) {
       const k = p.k;
@@ -552,15 +549,13 @@ export const CHARS = {
         if (k.storm <= 0) { k.storm = 0; p.slowMul = 1; }
       }
     },
-    // R: Issen, the single flash. Time stops; she flickers from foe to foe in a chain of cuts, sheathes
-    // her sword, and every foe she passed bursts into petals.
     r: {
       name: 'ISSEN', icon: 'cross', desc: 'STOP TIME, A CHAIN OF CUTS',
       use(p) {
         const hops = G.up.evoUlt ? 16 : 11;
         const u = { t: 0, phase: 'draw', i: 0, hopT: 0, ox: p.x, oy: p.y, hit: new Set(), path: [] };
         p.state = 'cine'; p.vx = p.vy = 0;
-        A.ultStart(); shake(0.25); banner('ISSEN', '#ffb7d5');
+        A.ultStart(); shake(0.25);
         G.cine = {
           update(dt) {
             u.t += dt;
@@ -597,7 +592,7 @@ export const CHARS = {
             }
           },
           draw(cx, cy) {
-            ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a0a1a'; ctx.fillRect(cx, cy, 320, 180); ctx.globalAlpha = 1;
+            ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a0a1a'; ctx.fillRect(cx - SX, cy, FW, H); ctx.globalAlpha = 1;
             for (const [x0, y0, x1, y1] of u.path) { line(x0, y0 + 1, x1, y1 + 1, P.blood); line(x0, y0, x1, y1, P.paper); }
             // Rin's own front-facing Issen animation stays visible over the frozen battlefield.
             const set=(G.evo===true?SPR.evo:SPR.chars).NINJA;
@@ -732,12 +727,12 @@ export const CHARS = {
     },
     r: {
       name: 'IRON TITAN', icon: 'fist', desc: 'A MECH DROPS IN: PUNCHES AND MISSILES',
-      use(p) {
-        const [x, y] = aimPoint(p, 60);
+      target: (p) => aimPoint(p, 60),
+      use(p, [x, y] = this.target(p)) {
         const titan = (tx, z, face, cd) => ({ type: 'golem', x: tx, y, z, vz: -60, t: 0, life: G.up.evoUlt ? 30 : 18, cd, mcd: 1.2, pcd: 2.5, landed: false, face, anim: 0, step: 0 });
         G.allies.push(titan(x, 160, 1, 0.6));
         if (G.up.evoUlt) G.allies.push(titan(clamp(x + 34, B.x0 + 12, B.x1 - 12), 230, -1, 0.9));
-        banner('IRON TITAN', '#ff9a3c'); A.ultStart();
+        A.ultStart();
       },
     },
     drawWeapon(p, flip) {
@@ -859,7 +854,7 @@ export const CHARS = {
     },
     r: {
       name: 'FORTRESS', icon: 'shield', desc: '6S INVINCIBLE, REFLECT ALL',
-      use(p) { p.fortress = G.up.evoUlt ? 10 : 6; p.k.pulseT = 0; banner(G.up.evoUlt ? 'FORTRESS II' : 'FORTRESS', P.gold); A.shieldUp(); A.ultStart(); shake(0.4); },
+      use(p) { p.fortress = G.up.evoUlt ? 10 : 6; p.k.pulseT = 0; A.shieldUp(); A.ultStart(); shake(0.4); },
     },
     // Fortress: a pulsing glow round him while it lasts (his sheet has no shield, so none is drawn)
     draw(p) {
@@ -962,10 +957,10 @@ export const CHARS = {
     },
     r: {
       name: 'ORBITAL LASER', icon: 'eye', desc: 'A SKY BEAM FOLLOWS YOUR AIM',
-      use(p) {
-        const [x, y] = aimPoint(p, 100);
+      target: (p) => aimPoint(p, 100),
+      use(p, [x, y] = this.target(p)) {
         p.k.orb = G.up.evoUlt ? 7.5 : 4.5; p.k.ox = x; p.k.oy = y; p.k.otick = 0;
-        banner('ORBITAL LASER', P.volt); A.loop('orbital', true, 'orbital'); A.ultStart(); flash(P.volt, 0.15, false);
+        A.loop('orbital', true, 'orbital'); A.ultStart(); flash(P.volt, 0.15, false);
       },
     },
     drawWeapon(p, flip) {
@@ -1342,11 +1337,8 @@ const FLAIR = {
     if (Math.random() < dt * 10) part(p.x + rnd(-6, 6), p.y - rnd(0, 14), rnd(-5, 5), -rnd(10, 25), rnd(0.4, 0.8), Math.random() < 0.5 ? '#b48cff' : '#62efff', { drag: 1, glow: true });
   },
   NINJA(p, dt, moving) {
-    // awakened, a dark crimson aura smoulders up round her, with red sparks
-    if (G.evo === true) {
-      if (Math.random() < dt * 24) part(p.x + rnd(-7, 7), p.y - rnd(0, 4), rnd(-6, 6), -rnd(18, 42), rnd(0.5, 0.9), Math.random() < 0.55 ? '#4a0818' : '#a8102a', { drag: 1.5 });
-      if (Math.random() < dt * 7) part(p.x + rnd(-6, 6), p.y - rnd(4, 16), rnd(-10, 10), -rnd(20, 50), rnd(0.3, 0.6), '#ff3b5c', { glow: true, drag: 2 });
-    }
+    // awakened, a few lavender and pink sparkles (the colors of her bow and haori) drift up behind her, never over her
+    if (G.evo === true && Math.random() < dt * 8) part(behindX(p, 5) + rnd(-3, 3), p.y - rnd(4, 16), rnd(-5, 5), -rnd(12, 28), rnd(0.4, 0.8), Math.random() < 0.5 ? '#c49aff' : '#ffc4dc', { glow: true, drag: 1.5 });
     // sakura petals drift off her as she moves
     if (Math.random() < dt * (moving ? 22 : 4)) part(behindX(p, 4) + rnd(-2, 2), p.y - rnd(6, 14), (Math.cos(p.aim) < 0 ? 1 : -1) * rnd(10, 30), rnd(4, 14), rnd(0.5, 0.9), Math.random() < 0.6 ? '#ffb7d5' : '#ff8fb8', { drag: 2 });
     p.k.shadowT = (p.k.shadowT || 0) - dt;
@@ -1469,9 +1461,10 @@ const AWAKE = {
     ult: (p) => { for (const e of awNear(p.x, p.y, 300, 8)) awStrike(e.x, e.y, 24, 14); },
   },
   // Oni Rin: a petal cut opens on every enemy a beat after her blade; her powers cut a ring and parry every shot near;
-  // after Issen the blossom storm rises around her for free
+  // after Issen the blossom storm rises around her for free. Her effects take the colors of her awakened look (the
+  // owner's picture): lilac and pink with white.
   NINJA: {
-    pal: { col: P.gold, slash: 'gold', charge: 'gold', map: { '#ffb7d5': P.gold, '#ff8fc8': '#c9a24a', '#ff8fb8': '#ffe08a', [P.blood]: P.gold, [P.ember]: '#c9a24a', [P.ember2]: P.gold, [P.ember3]: '#fff2c0', '#e0223f': P.gold } },
+    pal: { col: '#c49aff', slash: 'lilac', charge: 'lilac', map: { '#ffb7d5': '#e6d2ff', '#ff8fc8': '#c49aff', '#ff8fb8': '#ffc4dc', [P.blood]: '#c49aff', [P.ember]: '#a25ad2', [P.ember2]: '#c49aff', [P.ember3]: '#f2e6ff', '#e0223f': '#a25ad2' } },
     hit: (e) => G.timers.push({ t: 0.2, fn: () => { if (alive(e)) { damage(e, pd(2), { dir: rnd(TAU), kb: 0, src: 'bolt', slice: true }); sparks(e.x, e.y - e.r, rnd(TAU), 4, 1, '#ffb7d5', 140); } } }),
     swing: (p, st) => { for (const d of st.heavy ? [-0.4, 0, 0.4] : [0]) shoot({ x: p.x + Math.cos(p.atkAng + d) * 8, y: p.y - 6, a: p.atkAng + d, sp: 340, dmg: pd(st.heavy ? 5 : 3), kb: 60, life: 0.3, kind: 'crescent', r: 7, pierce: 99, c: '#ffb7d5', ug: true, slice: true, trail: false }); },
     charge: (p, f) => { const x0 = p.x, y0 = p.y, a = p.aim;
