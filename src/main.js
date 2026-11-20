@@ -1,16 +1,16 @@
-import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=199';
-import { input, keyHit, endFrame } from './input.js?v=199';
-import { A } from './audio.js?v=199';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=199';
-import { buildSprites } from './sprites.js?v=199';
-import { byId } from './upgrades.js?v=199';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=199';
+import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=200';
+import { input, keyHit, endFrame } from './input.js?v=200';
+import { A } from './audio.js?v=200';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=200';
+import { buildSprites } from './sprites.js?v=200';
+import { byId } from './upgrades.js?v=200';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=200';
 import {
   drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=199';
-import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=199';
+} from './ui.js?v=200';
+import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=200';
 
 loadAll();
 applyTheme(settings.theme);

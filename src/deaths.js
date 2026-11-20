@@ -1,12 +1,12 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=199';
-import { A } from './audio.js?v=199';
-import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=199';
+import { ctx, P, rect, px, line, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=200';
+import { A } from './audio.js?v=200';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=200';
 import {
   BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
   stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
-} from './scene-fx.js?v=199';
+} from './scene-fx.js?v=200';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
@@ -432,7 +432,10 @@ const DEATHS = {
   // that gives is gone, everything above it drops onto what's below, and a band of gore squeezes out of the seam.
   TANK: {
     line: 'KNEEL BEFORE THE KING', col: '#8b98ab',
-    STEPS: [[0.42, [30, 31], 'knees'], [0.66, [29, 32], 'knees'], [1.02, [24, 25], 'spine'], [1.3, [19, 20, 21, 22, 23, 26, 27, 28], 'flat']],
+    // art rows of his 33-row sprite: the knees (28 to 30), the spine (22, 23), then everything between the helm (rows 0
+    // to 16) and the boots
+    STEPS: [[0.42, [28, 29], 'knees'], [0.66, [27, 30], 'knees'], [1.02, [22, 23], 'spine'], [1.3, [17, 18, 19, 20, 21, 24, 25, 26], 'flat']],
+    ROWS: 33, NECK: 17, HAND: 27, VISOR: 16,
     start(d) {
       Object.assign(d.s, { gone: new Set(), white: 0, jx: 0, cA: 0, slam: false, head: null, eye: 1, pump: 0, popped: false });
       A.powerUp(0.5);
@@ -447,7 +450,7 @@ const DEATHS = {
       if (!e) {
         const w = img.width, h = img.height, px_ = img.getContext('2d').getImageData(0, 0, w, h).data, top = bodyTop();
         e = [];
-        for (let r = 0; r < 35; r++) {
+        for (let r = 0; r < this.ROWS; r++) {
           const y = top + r * 2;
           let lo = -1, hi = -1;
           for (let x = 0; x < w; x++) if (y < h && px_[(y * w + x) * 4 + 3] > 0) { if (lo < 0) lo = x; hi = x; }
@@ -492,7 +495,7 @@ const DEATHS = {
         } else {
           // the haft snaps and the crown slams him down onto his boots
           s.slam = true;
-          const [hx, hy0] = handPos(d.x, d.y, { flip: d.flip }), hy = hy0 + (this.drop(d, 26) - rows.filter((r) => r > 26).length) * 2 / SS;
+          const [hx, hy0] = handPos(d.x, d.y, { flip: d.flip }), hy = hy0 + (this.drop(d, this.HAND) - rows.filter((r) => r > this.HAND).length) * 2 / SS;
           for (let i = 0; i < 6; i++) part(hx, d.y, rnd(-50, 50), rnd(-10, 10), rnd(0.6, 1), Math.random() < 0.5 ? '#6a4a32' : '#3a2618', { z: d.y - hy, vz: rnd(40, 100), g: 380, drag: 1.5 });
           dropWeapon(d, { from: [hx, hy], vz: 70, vx: d.f * 45, spin: d.f * 7, onLand: () => { A.wall(); shake(0.25); } });
           for (let i = 0; i < 10; i++) spurt(d.x + rnd(-5, 5), d.y, 3, (i * TAU) / 10 + rnd(-0.2, 0.2), 1.9, 10, BLOOD, 0.5);
@@ -506,16 +509,16 @@ const DEATHS = {
       }
       // blood runs out of the visor once the spine has gone
       if (t > 1.05 && t < 1.3 && Math.random() < 0.5) {
-        const e = heroSet().rig?.eye || [60, 50], ex = sideX(e[0]), ey = this.rowY(d, 15);
+        const e = heroSet().rig?.eye || [60, 50], ex = sideX(e[0]), ey = this.rowY(d, this.VISOR);
         part(ex + rnd(-1.5, 1.5), d.y, rnd(-4, 4), 0, 1.5, Math.random() < 0.6 ? '#c4243a' : '#8a0f22', { z: d.y - ey, vz: -rnd(5, 20), g: 300, drag: 1, blood: true });
       }
       // a beat after the slam the helm pops off the stump and rolls away
       if (at(d, 1.42)) {
         s.popped = true;
-        const neck = top + 38, pcs = placePieces(cutFrame(frame('idle', 0), d.flip, [[0, neck, CELL, neck + 1]], { min: 12 }), d.x, d.y);
+        const neck = top + this.NECK * 2, pcs = placePieces(cutFrame(frame('idle', 0), d.flip, [[0, neck, CELL, neck + 1]], { min: 12 }), d.x, d.y);
         const head = pcs.filter((b) => b.pc.cy < neck).sort((p, q) => q.pc.n - p.pc.n)[0];
         if (head) {
-          head.z -= this.drop(d, 18) * 2 / SS; head.held = false;
+          head.z -= this.drop(d, this.NECK - 1) * 2 / SS; head.held = false;
           head.vx = d.f * rnd(55, 75); head.vy = rnd(-8, 8); head.vz = rnd(70, 100); head.vr = d.f * rnd(9, 13); head.bleed = 1.6;
           d.pieces = [head]; s.head = head;
         }
@@ -552,10 +555,10 @@ const DEATHS = {
       if (!s.slam) {
         const k = clamp((t - 0.7) / 0.15, 0, 1), down = Math.PI / 2 + (d.flip ? 0.55 : -0.55), rest = restAngle(d.flip), wa = rest + (down - rest) * ease(k);
         const [hx, hy] = handPos(d.x, d.y, { flip: d.flip });
-        if (Math.sin(wa) < -0.35) drawWeapon(hx, hy + this.drop(d, 26) * 2 / SS, wa, d.flip);
-        this.body(d, img, top, x0, s.popped ? 19 : 0);
-        if (Math.sin(wa) >= -0.35) drawWeapon(hx, hy + this.drop(d, 26) * 2 / SS, wa, d.flip);
-      } else this.body(d, img, top, x0, s.popped ? 19 : 0);
+        if (Math.sin(wa) < -0.35) drawWeapon(hx, hy + this.drop(d, this.HAND) * 2 / SS, wa, d.flip);
+        this.body(d, img, top, x0, s.popped ? this.NECK : 0);
+        if (Math.sin(wa) >= -0.35) drawWeapon(hx, hy + this.drop(d, this.HAND) * 2 / SS, wa, d.flip);
+      } else this.body(d, img, top, x0, s.popped ? this.NECK : 0);
       // gore squeezes out of every seam: wider and thicker the more rows gave there
       for (const [a, b] of this.seams(d)) {
         const n = b - a + 1, y = this.rowY(d, b + 1), bulge = Math.ceil(n / 2), rowsG = Math.min(3, 1 + (n >> 1));
@@ -568,8 +571,11 @@ const DEATHS = {
         }
       }
       // the stump, once the helm is off
-      if (s.popped) { const y = this.rowY(d, 19) ; for (let cx = 44; cx <= 76; cx += 2) this.gore(x0 + cx / SS, y - 2 / SS - ((cx * 5) % 3 === 0 ? 2 / SS : 0), cx * 17 + 5); }
-      this.crown(d.x, (s.popped ? this.rowY(d, 19) : this.rowY(d, 0)) - 1 - 40 * (1 - ease(t / 0.35)), s.cA, t);
+      if (s.popped) {
+        const y = this.rowY(d, this.NECK), [lo, hi] = e[this.NECK] || [44, 76];
+        for (let cx = lo + 4; cx <= hi - 4; cx += 2) this.gore(x0 + cx / SS, y - 2 / SS - ((cx * 5) % 3 === 0 ? 2 / SS : 0), cx * 17 + 5);
+      }
+      this.crown(d.x, (s.popped ? this.rowY(d, this.NECK) : this.rowY(d, 0)) - 1 - 40 * (1 - ease(t / 0.35)), s.cA, t);
       drawPieces(d.pieces);
       // the visor light on the rolling helm goes out
       if (s.head && s.eye > 0) {
@@ -579,7 +585,7 @@ const DEATHS = {
     },
     // his body from art row `from` down, crushed: rows that gave are left out and everything above them drops
     body(d, img, top, x0, from) {
-      for (let r = 34; r >= from; r--) {
+      for (let r = this.ROWS - 1; r >= from; r--) {
         if (d.s.gone.has(r)) continue;
         const cy = top + r * 2;
         ctx.drawImage(img, 0, cy, CELL, 2, x0, d.y - 31 + (cy + 2 * this.drop(d, r)) / SS, CELL / SS, 2 / SS);

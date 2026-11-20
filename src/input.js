@@ -1,4 +1,4 @@
-import { canvas, W, H, FW, SX, onWidth } from './gfx.js?v=199';
+import { canvas, W, H, FW, SX, onWidth } from './gfx.js?v=200';
 
 // the movement stick sits in a fixed spot; any touch on the left side drives it from there
 // the movement stick sits near the screen's left edge (the stage can be narrower than the screen, see gfx.js)

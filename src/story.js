@@ -15,14 +15,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=199';
-import { SPR } from './sprites.js?v=199';
-import { input, keyHit } from './input.js?v=199';
-import { A } from './audio.js?v=199';
-import { G } from './world.js?v=199';
-import { CHARS } from './chars.js?v=199';
-import { drawFighter } from './title-scene.js?v=199';
-import { drawWeaponAt } from './hero-sprites.js?v=199';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=200';
+import { SPR } from './sprites.js?v=200';
+import { input, keyHit } from './input.js?v=200';
+import { A } from './audio.js?v=200';
+import { G } from './world.js?v=200';
+import { CHARS } from './chars.js?v=200';
+import { drawFighter } from './title-scene.js?v=200';
+import { drawWeaponAt } from './hero-sprites.js?v=200';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
