@@ -25,7 +25,15 @@ export function bindKey(id, code) {
 }
 export function resetKeys() { for (const id in ACTIONS) keys[id] = ACTIONS[id].slice(1); persistControls(); }
 export function resetLayout() { for (const id in layout) delete layout[id]; persistControls(); }
+const KEY_NAMES = {
+  BracketLeft: '[', BracketRight: ']', Minus: '-', Equal: '=', Slash: '/', Backslash: '\\', Semicolon: ';',
+  Comma: ',', Period: '.', Quote: "'", Backquote: 'GRAVE', PageUp: 'PG UP', PageDown: 'PG DN',
+  Backspace: 'BKSP', CapsLock: 'CAPS', Delete: 'DEL', Insert: 'INS', Control: 'CTRL',
+};
 export function keyLabel(id) {
   const code = keys[id]?.[0];
-  return code ? code.replace(/^Key|^Digit/, '').replace(/^Arrow/, '').replace(/^Numpad/, 'NUM').replace(/Left$|Right$/, x => code.startsWith('Arrow') ? x : '').toUpperCase() : '--';
+  if (!code) return '--';
+  const mod = /^(Shift|Control|Alt|Meta)(Left|Right)$/.exec(code);
+  if (mod) return (mod[2] === 'Left' ? 'L ' : 'R ') + (KEY_NAMES[mod[1]] || mod[1].toUpperCase());
+  return KEY_NAMES[code] || code.replace(/^(Key|Digit|Arrow)/, '').replace(/^Numpad/, 'NUM ').toUpperCase();
 }

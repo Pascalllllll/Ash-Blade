@@ -1,6 +1,6 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=200';
+import { ctx, P, rect, px, line, disc, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=200';
 import { A } from './audio.js?v=200';
 import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=200';
 import {

@@ -99,6 +99,16 @@ function goFull() {
 }
 const SKILL_GO = 12, SKILL_BACK = 9;
 function resetSkill() { Object.assign(input.skill, { id: null, key: null, dx: 0, dy: 0, active: false, was: false, cancel: false }); }
+export function releaseTouches() {
+  roles.clear();
+  for (const id in input.tb) input.tb[id] = false;
+  input.thit.clear();
+  input.cast = null;
+  Object.assign(input.stick, { id: null, dx: 0, dy: 0, x: STICK_X, y: STICK_Y });
+  Object.assign(input.aim, { id: null, dx: 0, dy: 0, active: false });
+  resetSkill();
+  if (editor.drag) dragEnd();
+}
 function startAim(id, x, y) { Object.assign(input.aim, { id, ox: x, oy: y, dx: 0, dy: 0, active: false }); }
 function moveStick(x, y) {
   const s = input.stick;
@@ -118,10 +128,11 @@ addEventListener('touchstart', (e) => {
     if (editor.active && editor.drag === null && dragStart(x,y)) { roles.set(t.identifier,'layout'); continue; }
     if (input.touchPlay) {
       const b = nearestBtn(x, y);
-      if (b && !(input.aimable[b.id] && input.skill.id === null)) {
+      if (b && !input.aimable[b.id]) {
         roles.set(t.identifier, b.id); input.tb[b.id] = true; input.thit.add(b.id);
         if (b.id === 'attack') startAim(t.identifier, b.x, b.y);
-      } else if (b && input.aimable[b.id] && input.skill.id === null) {
+      } else if (b) {
+        if (input.skill.id !== null) continue;
         roles.set(t.identifier, b.id); input.tb[b.id] = true;
         Object.assign(input.skill, { id: t.identifier, key: b.id, ox: b.x, oy: b.y, dx: 0, dy: 0, active: false, was: false, cancel: false });
       } else if ((Math.hypot(x-STICK_X,y-STICK_Y)<STICK_R*2.8 || (!layout.stick && x < FW*0.55-SX)) && input.stick.id === null) {
@@ -165,7 +176,10 @@ function touchEnd(e) {
     if (input.skill.id === t.identifier) {
       const k = input.skill;
       // a tap casts with auto-aim, a drag casts where it points, a drag back onto the button cancels
-      if (e.type === 'touchend' && !k.cancel && input.touchPlay) { input.thit.add(k.key); if (k.active) input.cast = { key: k.key, a: k.a, k: k.k }; }
+      if (e.type === 'touchend' && !k.cancel && input.touchPlay) {
+        input.thit.add(k.key);
+        input.cast = { key: k.key, a: k.active ? k.a : null, k: k.active ? k.k : 1 };
+      }
       resetSkill();
     }
     // release the button unless another finger still holds it (the attack button used to stay held forever)
@@ -189,6 +203,7 @@ addEventListener('keyup', (e) => input.down.delete(e.code));
 addEventListener('blur', () => {
   input.down.clear();
   input.mouse.down = input.mouse.rdown = false;
+  releaseTouches();
 });
 
 function toCanvas(e) {

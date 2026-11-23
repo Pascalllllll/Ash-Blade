@@ -1,7 +1,7 @@
 import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=200';
 import { resetKeys, resetLayout } from './bindings.js?v=200';
 import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=200';
-import { input, keyHit, endFrame, actionHit, placeButtons } from './input.js?v=200';
+import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=200';
 import { A } from './audio.js?v=200';
 import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=200';
 import { buildSprites } from './sprites.js?v=200';
@@ -26,17 +26,22 @@ addEventListener('touchstart', fit, { once: true });
 
 let lockId = null;
 let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
+const frameInterval = 1000 / 60;
+let nextFrame = last;
 const readSlot = practice => loadRun(id => !!byId(id), practice);
 let save = readSlot(false), practice = readSlot(true);
 const menuItems = () => titleItems(save, id => id, practice);
 let waveCheckpoint = null, inheritance = [];
 
 function go(s) {
+  if (scene === 'play' && s !== 'play') { input.touchPlay = false; releaseTouches(); }
   if (scene === 'play' && s === 'pause') A.pauseVoice();
   else if (scene === 'pause' && s === 'play') A.resumeVoice();
   else if (scene === 'play' || s === 'title') A.stopVoice();
   scene = s; sceneT = 0;
 }
+function pauseRun() { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
+function resumeRun() { go('play'); A.scene(G.night ? 'night' : G.boss ? 'boss_' + G.boss.boss : 'fight'); }
 function toTitle() { settingsFrom = 'title'; save = readSlot(false); practice = readSlot(true); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
 function startRun(char, s) {
   A.init(settings); newRun(char, s); waveCheckpoint = snapshot(); go('play'); }
@@ -97,21 +102,22 @@ addEventListener('popstate',() => {
   if (leaving || !input.touch) return;
   // The back gesture consumed our entry. Restore it before continuing inside the game.
   if (!history.state?.ashbladeGuard) history.pushState({ashbladeGuard:true,hasPrevious:priorPage},'');
-  if (scene==='play' && !G.dead && !G.cine) { pauseMenu.sel=0; go('pause'); A.stopLoops(); }
-  else if (scene==='pause') { go('play'); }
+  if (scene==='play' && !G.dead && !G.cine) pauseRun();
+  else if (scene==='pause') resumeRun();
   else if (scene==='controls') { closeControls(); go('settings'); }
+  else if (scene==='upgrade' && upg.detail) { upg.detail = false; }
   else if (scene==='settings') { if(settingsFrom==='pause') go('pause'); else toTitle(); }
   else if (scene==='title') { exitMenu.sel=0; go('leave'); }
   else if (['leave','ash','select','splash','lore','intro','over'].includes(scene)) toTitle();
 });
 const priorPage = history.state?.ashbladeGuard ? !!history.state.hasPrevious : history.length>1;
 
-addEventListener('blur', () => { if (scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); } });
+addEventListener('blur', () => { if (scene === 'play' && !G.dead) pauseRun(); });
 
 function tick(now) {
-  // capped at 60 fps: 90 and 120 Hz phones would otherwise update and draw twice as often for nothing,
-  // which costs battery and heat and makes them throttle
-  if (now - last < 1000 / 62) { requestAnimationFrame(tick); return; }
+  // Keep the fractional time between display refreshes on 75, 90 and 144 Hz screens.
+  if (now + 0.5 < nextFrame) { requestAnimationFrame(tick); return; }
+  nextFrame = (now - nextFrame >= frameInterval ? now : nextFrame) + frameInterval;
   // the step is capped so a long stall can't jump the game ahead, but high enough (down to about 12 fps) that a
   // slow device still runs at full speed instead of in slow motion
   const rdt = Math.max(0, Math.min(0.08, (now - last) / 1000));
@@ -196,7 +202,7 @@ function tick(now) {
   } else if (scene === 'play') {
     // the story is being told: the fight holds still until it has been read (Escape skips the rest of it)
     if (storyTalk() && !G.dead) { if (keyHit('Escape')) skipTalk(); update(0, rdt); }
-    else if (((keyHit('Escape') || actionHit('pause')) || input.thit.has('pause')) && !G.dead && !G.cine) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
+    else if ((keyHit('Escape') || actionHit('pause') || input.thit.has('pause')) && !G.dead && !G.cine) pauseRun();
     else {
       controls();
       update(rdt * ts, rdt);
@@ -227,12 +233,12 @@ function tick(now) {
   } else if (scene === 'pause') {
     const items = pauseItems((r) => r);
     const r = (keyHit('Escape') || actionHit('pause')) ? 'resume' : runMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
-    if (r === 'resume') { go('play'); A.scene(G.night ? 'night' : G.boss ? 'boss_' + G.boss.boss : 'fight'); }
+    if (r === 'resume') resumeRun();
     else if (r === 'settings') { settingsFrom = 'pause'; setm.tab = 0; setm.sel = 0; go('settings'); }
     else if (r === 'restart') { if (waveCheckpoint) startRun(G.char, waveCheckpoint); }
     else if (r === 'exit') {
       const s = G.night ? snapshot() : waveCheckpoint;
-      if (s && saveRun(s)) { if (G.night) bankStats(); toTitle(); }
+      if (s && saveRun(s)) { if (G.night) recordBest(G.won); toTitle(); }
       else { G.saveError = true; A.deny(); }
     }
     if (scene === 'pause' || scene === 'settings') { drawWorld(); vignette(); drawHUD(true); if (scene === 'pause') drawPause(items); }

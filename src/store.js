@@ -128,8 +128,9 @@ function readRun(key, isUpgrade) {
     wave: int(r.wave, 1, 9999), score: int(r.score, 0, Number.MAX_SAFE_INTEGER), kills: int(r.kills, 0, 1e8), maxCombo: int(r.maxCombo, 0, 1e7),
     bestRank: int(r.bestRank, 0, 6), time: int(r.time, 0, 1e7), hp: int(r.hp, 1, 99), maxHp: int(r.maxHp, 1, 99),
     energy: int(r.energy, 0, 100), ult: int(r.ult, 0, 100), dashMax: int(r.dashMax, 1, 12), won: r.won === true, taken: {},
-    tested: key === KEY_PRACTICE || r.tested === true, nox: r.nox === true || r.wave > 50,
-    awakened: r.awakened === true, phoenixUsed: r.phoenixUsed === true, nightTime: num(r.nightTime, 0, 1e7, 0), extra: {},
+    tested: key === KEY_PRACTICE || r.tested === true, nox: r.nox === true || (r.nox === undefined && r.wave > 50),
+    awakened: r.awakened === true, phoenixUsed: r.phoenixUsed === true, undyingUsed: r.undyingUsed === true,
+    nightTime: num(r.nightTime, 0, 1e7, 0), extra: {},
   };
   for (const k in out) if (out[k] === null) return null;
   if (out.hp > out.maxHp) return null;

@@ -15,7 +15,7 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, drawSprite } from './gfx.js?v=200';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=200';
 import { SPR } from './sprites.js?v=200';
 import { input, keyHit } from './input.js?v=200';
 import { A } from './audio.js?v=200';
@@ -265,16 +265,6 @@ export const talking = () => !!G?.talk;
 // the story is being told: the fight is paused for it
 export const storyTalk = () => !!G?.talk?.lore;
 export function skipTalk() { const k = G?.talk; if (!k) return; G.talk = null; k.done?.(); }
-function wrap(s, width) {
-  const out = [];
-  let cur = '';
-  for (const w of s.split(' ')) {
-    const next = cur ? cur + ' ' + w : w;
-    if (textW(next) > width && cur) { out.push(cur); cur = w; } else cur = next;
-  }
-  if (cur) out.push(cur);
-  return out;
-}
 const SMALL_W = 114, STORY_W = 232;
 // real time, so hit-stop and slow motion don't slow a voice down
 export function updateTalk(dt) {
@@ -335,7 +325,7 @@ export function drawTalk() {
 // small talk: a narrow box at the top middle, just the speaker's name and the line
 function smallBox(k) {
   const [who, s] = k.q[k.i], col = colOf(who), name = nameOf(who);
-  k.wrap ??= wrap(s, SMALL_W);
+  k.wrap ??= wrapText(s, SMALL_W);
   const lines = k.wrap, bw = Math.max(textW(name), ...lines.map((l) => textW(l))) + 7, bh = 8 + lines.length * 6;
   const x = Math.round(W / 2 - bw / 2), y = 2 - Math.round((1 - ease(k.in)) * (bh + 4));
   rect(x - 1, y - 1, bw + 2, bh + 2, P.ink0); rect(x, y, bw, bh, '#0c0911'); rect(x, y, 2, bh, col);
@@ -346,7 +336,7 @@ function smallBox(k) {
 // the story: a wide box along the bottom with the speaker's face; the screen dims a little while the fight waits
 function storyBox(k) {
   const [who, s] = k.q[k.i], col = colOf(who);
-  k.wrap ??= wrap(s, STORY_W);
+  k.wrap ??= wrapText(s, STORY_W);
   const e = ease(k.in), lines = k.wrap, bh = Math.max(38, 17 + lines.length * 8), bx = 16, bw = W - 32, by = H - bh - 6 + Math.round((1 - e) * (bh + 12));
   fillScreen('#05030a', 0.35 * e);
   rect(bx - 2, by - 2, bw + 4, bh + 4, P.ink0); rect(bx - 1, by - 1, bw + 2, bh + 2, col); rect(bx, by, bw, bh, '#0c0911');
@@ -672,7 +662,7 @@ const ENDING = [
       const line_ = LAST[G.char] || LAST.BLADE;
       textO(hero(), PX + 150, PY + 22, heroCol(), 2, 'c');
       let m = Math.floor(Math.max(0, t - 0.5) * 30);
-      wrap(line_, 96).forEach((l, i) => { if (m > 0) textO(l.slice(0, m), PX + 150, PY + 44 + i * 9, P.paper, 1, 'c', '#3a1420'); m -= l.length + 1; });
+      wrapText(line_, 96).forEach((l, i) => { if (m > 0) textO(l.slice(0, m), PX + 150, PY + 44 + i * 9, P.paper, 1, 'c', '#3a1420'); m -= l.length + 1; });
     },
   },
 ];

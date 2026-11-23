@@ -56,7 +56,8 @@ function makePattern(e) {
     h.read = dash > Math.max(cast, attack * 0.52) ? 'dash' : cast > attack * 0.48 && cast > 0 ? 'spell' : e.far > 0.56 ? 'range' : 'weapon';
     if (h.read === 'dash') {
       h.hint = 'IT MARKED YOUR LANDING';
-      h.end = pin(p.x + (p.dx || Math.cos(p.aim)) * 49, p.y + (p.dy || 0) * 49);
+      const a = p.dx || p.dy ? Math.atan2(p.dy, p.dx) : p.aim;
+      h.end = pin(p.x + Math.cos(a) * 49, p.y + Math.sin(a) * 49);
     } else if (h.read === 'range') {
       h.hint = 'IT TRACED YOUR FIRING LINE';
       h.end = pin(p.x + Math.cos(h.angle) * 85, p.y + Math.sin(h.angle) * 85);

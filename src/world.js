@@ -223,7 +223,11 @@ export function newRun(charId, save) {
     if (save.awakened) { G.evo = true; G.kit = awakenKit(G.kit); G.awPal = G.kit.awake?.pal.map || null; }
     G.phoenixUsed = !!save.phoenixUsed;
     startWave(save.wave);
-    if (G.night) G.night.t = save.nightTime || 0;
+    if (G.night) {
+      G.night.t = save.nightTime || 0;
+      if (G.nox) grantAllUpgrades(G);
+      G.undyingUsed = !!save.undyingUsed;
+    }
   } else {
     if (at > 20) G.won = true;
     startWave(at);
@@ -247,7 +251,8 @@ export function snapshot() {
     v: 1, char: G.char, map: G.arena, diff: G.diffKey, wave: G.wave, score: G.score, kills: G.kills, maxCombo: G.maxCombo,
     bestRank: G.bestRank, won: G.won, time: Math.round(G.time), hp: p.hp, maxHp: p.maxHp, energy: Math.round(p.energy),
     ult: Math.round(p.ult), dashMax: p.dashMax, taken: { ...G.taken },
-    tested: G.tested, nox: G.nox, awakened: G.evo === true, phoenixUsed: G.phoenixUsed, nightTime: G.night?.t || 0,
+    tested: G.tested, nox: G.nox, awakened: G.evo === true, phoenixUsed: G.phoenixUsed,
+    undyingUsed: G.undyingUsed, nightTime: G.night?.t || 0,
     extra: { dmg: G.dmg, bosses: G.bosses, loot: G.loot, bestMulti: G.bestMulti, perfects: G.perfects, debtKills: G.debtKills },
   };
 }
@@ -406,7 +411,7 @@ export function spawnEnemy(type, x, y, bossKey) {
     const key = bossKey || bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / ORDER.length);
     d = { r: bd.r, hp: bd.hp, kbRes: 0.97, col: bd.col, colD: bd.colD, score: bd.score, speed: bd.speed, energy: 0 };
     e.def = d; e.boss = key;
-    const health = G.night ? Math.max(5100, bd.hp) : bd.hp;
+    const health = G.night ? Math.max(BOSSES.nox.hp, bd.hp) : bd.hp;
     e.hp = Math.round(health * 1.5 * (1 + tier * 0.7) * G.D.hp * (1 + 0.12 * ef) * (1 + 0.34 * nightMinutes()));
     d.scale = bd.scale || 1; d.tint = bd.tint;
     e.speed = bd.speed * (1 + tier * 0.1);
@@ -573,6 +578,13 @@ export function addCombo(n) {
 
 // ---------- damage ----------
 export const pd = x => x * G.up.dmg;
+export function ignite(e, seconds, baseDps, power = G.power) {
+  if (!alive(e)) return;
+  const dps = power === 'environment' ? baseDps : pd(baseDps) * (power === 'spell' ? G.up.spell : 1);
+  if (e.burn > 0 && dps < e.burnDps) return;
+  e.burn = Math.max(e.burn, seconds);
+  e.burnDps = dps;
+}
 function withPower(kind, action) {
   const previous=G.power;
   G.power=kind;
@@ -648,7 +660,7 @@ export function damage(e, dmg, o) {
     if (p.ultLock <= 0 && !G.cine) p.ult = Math.min(100, p.ult + dmg * 0.25 * up.focus * G.kit.ultRate);
     p.energy = Math.min(100, p.energy + G.kit.energyHit);
     p.hitCount++;
-    if (up.ember && e.hp > 0) { e.burn = 2; e.burnDps = 2 * up.ember * (up.evoEmber ? 2 : 1); }
+    if (up.ember && e.hp > 0) ignite(e, 2, 2 * up.ember * (up.evoEmber ? 2 : 1), 'passive');
     if (up.static && p.hitCount % (up.evoStatic ? 4 : 8) === 0) {
       chainLightning(e, up.evoStatic ? 7 : 1 + up.static * 2, up.evoStatic ? 7 : 4);
       if (up.evoStatic) skyStrike(e.x, e.y, 26, 14);
@@ -1023,7 +1035,7 @@ export function controls() {
   if (p.state === 'dead' || p.state === 'cine') return;
   for (const k of ['q', 'e', 'r']) input.aimable[k] = previewable(G.char,k);
   if (bossLock()) { p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0; p.castAim = null; p.atkHeld = false; return; }
-  if (input.cast) p.castAim = { ...input.cast, t: 0.4 };
+  if (input.cast) p.castAim = { ...input.cast, a: input.cast.a ?? p.aim, t: 0.4 };
   if (actionHit('attack')) { p.bufAtk = 0.2; input.device = 'keys'; }
   if (m.pressed) p.bufAtk = 0.2;
   // holding attack: guns keep firing, blades wind up a charged attack instead of repeating the combo
@@ -1257,7 +1269,7 @@ function updatePlayer(dt) {
       if (!p.atkHeld) releaseCharge(p, f);
       break;
     }
-    case 'chg': if (!p.chg || p.chg.update(p, dt) === true) { p.state = 'move'; p.chg = null; } break;
+    case 'chg': if (!p.chg || withPower('weapon', () => p.chg.update(p, dt)) === true) { p.state = 'move'; p.chg = null; } break;
     case 'skill': if (withPower('spell', () => kit.skill(p, dt, mx, my)) === true) p.state = 'move'; break;
     case 'dead': p.vx *= Math.exp(-6 * dt); p.vy *= Math.exp(-6 * dt); break;
   }
@@ -1268,8 +1280,8 @@ function updatePlayer(dt) {
     const canDash = G.t >= (p.nextDash || 0) && p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
     else if (p.bufR > 0 && canAct && p.ult >= 100) { startUltimate(p, kit, up); return; }
-    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const fs = flashStrike(p); const okQ = withPower('spell', () => kit.q.use(p)) !== false; G.skillMult = 1; if (fs && okQ) flashFx(p); p.castAim = null; if (okQ) { rememberAction('spell'); setSpriteAction(p,'skill1'); p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); if (awake()) withPower('spell',()=>G.kit.awake.skill(p, 'q')); } }
-    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const fs = flashStrike(p); const okE = withPower('spell', () => kit.e.use(p)) !== false; G.skillMult = 1; if (fs && okE) flashFx(p); p.castAim = null; if (okE) { rememberAction('spell'); setSpriteAction(p,'skill2'); p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); if (awake()) withPower('spell',()=>G.kit.awake.skill(p, 'e')); } }
+    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) castSkill(p, 'q');
+    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) castSkill(p, 'e');
     else if (kit.melee) {
       // a fighter with a charged attack waits a moment on a fresh press: a tap swings when it's let go, a hold goes
       // straight into the charge without a swing first
@@ -1343,8 +1355,9 @@ function releaseCharge(p, f) {
   G.inCharge = true; p.sq = -0.26; p.sqv = 0;
   // Flash Strike on a charge: its hits (which may land a moment later, like Rin's delayed cuts) do bonus damage
   if (p.chgFlash) { p.chgFlash = false; p.chgFlashT = 1.2; flashFx(p); }
-  const act = G.kit.charge.release(p, f);
-  if (awake()?.charge) { G.kit.awake.charge(p, f); chargeBurst(p, f); }
+  rememberAction('weapon');
+  const act = withPower('weapon', () => G.kit.charge.release(p, f));
+  if (awake()?.charge) { withPower('weapon', () => G.kit.awake.charge(p, f)); chargeBurst(p, f); }
   G.inCharge = false;
   buzz(f >= 1 ? 'heavy' : 'hit');
   if (act) { p.state = 'chg'; p.chg = act; }
@@ -1578,12 +1591,29 @@ function flourishAngle(p, a, up) {
   return a;
 }
 
-// evolved powers cast a second time a moment later, for free
-function echo(ab) {
+function castSkill(p, key) {
+  const ab = G.kit[key], first = key === 'q';
+  p[first ? 'bufQ' : 'bufE'] = 0;
+  const angle = p.aim, target = ab.target?.(p), flashReady = flashStrike(p);
+  const cast = withPower('spell', () => ab.use(p, target));
+  G.skillMult = 1;
+  p.castAim = null;
+  if (cast === false) return;
+  if (flashReady) flashFx(p);
+  rememberAction('spell');
+  setSpriteAction(p, first ? 'skill1' : 'skill2');
+  p.energy -= ab.cost;
+  p[first ? 'cdQ' : 'cdE'] = ab.cd * G.up.cdMul;
+  if (G.up.evoSpell) echo(ab, target, angle);
+  if (awake()) withPower('spell', () => G.kit.awake.skill(p, key));
+}
+function echo(ab, target, angle) {
   for (const [t, label] of [[0.3, 'ECHO'], [0.6, 'ECHO X2']]) G.timers.push({ t, fn: () => {
     const p = G.p;
     if (p.state === 'dead' || G.cine) return;
-    withPower('spell', () => ab.use(p));
+    const currentAim = p.aim;
+    p.aim = angle;
+    try { withPower('spell', () => ab.use(p, target)); } finally { p.aim = currentAim; }
     addText(p.x, p.y - 24, label, P.gold); addRing(p.x, p.y - 6, P.gold, 200, 0.25, 2); ghost(p, P.gold);
   } });
 }
@@ -2092,7 +2122,7 @@ export function update(dt, rdt) {
     if (e.burn > 0) {
       e.burn -= dt; e.burnTick -= dt;
       if (Math.random() < dt * 20) part(e.x + rnd(-4, 4), e.y - rnd(2, 10), 0, -rnd(15, 40), 0.35, Math.random() < 0.5 ? P.ember : P.ember2, { drag: 1, glow: true });
-      if (e.burnTick <= 0) { e.burnTick = 0.4; damage(e, Math.max(1, Math.round(e.burnDps * 0.4)), { src: 'burn', dir: 0, kb: 0 }); }
+      if (e.burnTick <= 0) { e.burnTick = 0.4; damage(e, e.burnDps * 0.4, { src: 'burn', dir: 0, kb: 0 }); }
       if (e.dead || e.dying) continue;
     }
     if (e.marked > 0) { e.marked -= dt; continue; }
@@ -2238,7 +2268,7 @@ function updateShots(dt) {
           s.hit.add(e);
           const killed = damage(e, s.dmg, { power:s.power, dir: Math.atan2(s.vy, s.vx), kb: s.kb, src: s.kind === 'orb' ? 'orb' : 'primary', ug: s.ug, slice: s.slice, basic: s.basic });
           if (s.onHit) withPower(s.power,()=>s.onHit(e, killed));
-          if (!killed && s.poison) { e.burn = 3; e.burnDps = 3; }
+          if (!killed && s.poison) ignite(e, 3, 3, s.power);
           if (!killed && s.freeze && e.type !== 'boss') e.frozen = Math.max(e.frozen, s.freeze);
           sparks(s.x, s.y, Math.atan2(s.vy, s.vx), s.kind === 'bullet' ? 4 : 8, 0.7, s.c);
           if (s.kind === 'orb') A.hit(true, false); else if (s.ug) A.charHit(G.char, false, false, G.combo); else A.tick();
@@ -2271,7 +2301,9 @@ function updateHazards(dt) {
   for (const z of G.zones) {
     z.t += dt;
     if (z.type === 'lava' || z.type === 'burn') {
-      for (const e of G.E) if (alive(e) && e.type !== 'boss' && hyp(e.x - z.x, (e.y - z.y) * 1.2) < z.r) { e.burn = Math.max(e.burn, 1.5); e.burnDps = Math.max(e.burnDps, z.type === 'lava' ? 6 : 4); }
+      for (const e of G.E) if (alive(e) && e.type !== 'boss' && hyp(e.x - z.x, (e.y - z.y) * 1.2) < z.r) {
+        if (z.type === 'lava') ignite(e, 1.5, 6, 'environment'); else ignite(e, 1.5, 4);
+      }
       if (z.type === 'lava' && Math.random() < dt * 4) part(z.x + rnd(-z.r, z.r) * 0.7, z.y + rnd(-z.r, z.r) * 0.5, 0, -rnd(10, 30), rnd(0.4, 0.9), Math.random() < 0.5 ? P.ember : P.ember3, { drag: 1, glow: true });
       if (z.type === 'burn' && Math.random() < dt * 25) part(z.x + rnd(-z.r, z.r) * 0.8, z.y + rnd(-z.r, z.r) * 0.6, 0, -rnd(15, 40), 0.4, Math.random() < 0.5 ? P.ember : P.ember2, { drag: 1, glow: true });
     } else if (z.type === 'acid') {

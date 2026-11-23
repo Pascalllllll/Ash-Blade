@@ -5,7 +5,7 @@ import { A } from './audio.js?v=200';
 import { input } from './input.js?v=200';
 import { best } from './store.js?v=200';
 import {
-  G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, pd, shoot,
+  G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, ignite, pd, shoot,
   chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=200';
 
 // ---------- helpers ----------
@@ -26,6 +26,8 @@ function aimPoint(p, max, intent=p.castAim) {
   return [clamp(x,B.x0+6,B.x1-6),clamp(y,B.y0+6,B.y1-4)];
 }
 const blizzardRadius=()=>G.up.evoTwin?66:G.up.twin?52:40;
+const placedAt = range => (p, intent) => aimPoint(p, range, intent);
+const TURRET_RANGE = 150, COIL_RANGE = 75, TITAN_LANDING = 120, ORBITAL_RADIUS = 20;
 const stepTarget=(p,a,len)=>[
   clamp(p.x+Math.cos(a)*len,B.x0+p.r,B.x1-p.r),
   clamp(p.y+Math.sin(a)*len,B.y0+p.r,B.y1-2),
@@ -40,10 +42,11 @@ export function skillPreview(p,key,drag) {
   const area=skillAreas[G.char]?.[key]; if(area===undefined) return null;
   const a=drag.active?drag.a:p.aim, intent={a,k:drag.active?drag.k:1};
   if(typeof area==='number') return {x:p.x,y:p.y,r:area};
-  if(['blizzard','turret','coil','titan','orbital'].includes(area)) {
-    const range={blizzard:170,turret:55,coil:55,titan:60,orbital:100}[area];
-    const [x,y]=aimPoint(p,range,intent);
-    return {x,y,r:area==='blizzard'?blizzardRadius():area==='orbital'?20:area==='titan'?38:6};
+  const target = G.kit[key].target;
+  if (target) {
+    const [x, y] = target(p, intent);
+    const r = { blizzard: blizzardRadius(), turret: TURRET_RANGE, coil: COIL_RANGE, titan: TITAN_LANDING, orbital: ORBITAL_RADIUS }[area];
+    return { x, y, r };
   }
   if(area==='rift'||area==='bulldoze') {
     const [x,y]=stepTarget(p,a,area==='rift'?104:135);
@@ -367,7 +370,7 @@ export const CHARS = {
     bars: { power: 5, speed: 2, range: 4, tough: 1 },
     stats: { hp: 7, speed: 96 }, dash: { speed: 360, time: 0.12, cd: 0.5, charges: 1 }, ultRate: 1, energyHit: 1.5,
     primaryName: 'ARCANE BOLT',
-    init: () => ({ fireT: 0, star: 0, starT: 0, castT: 0, miss: 0, missT: 0, rune: 0, bliz: [] }),
+    init: () => ({ fireT: 0, star: 0, starT: 0, castT: 0, volleys: [], missT: 0, rune: 0, bliz: [] }),
     primary(p, dt, held) {
       const k = p.k;
       k.fireT -= dt; k.castT -= dt;
@@ -383,10 +386,11 @@ export const CHARS = {
       const k = p.k;
       k.rune -= dt;
       // the missile volley leaves the staff one at a time
-      if (k.miss > 0 && (k.missT -= dt) <= 0) {
-        k.missT = 0.07; k.miss--;
-        const flip = Math.cos(p.aim) < 0, tx = p.x + (flip ? -1 : 1) * 4 + (flip ? -0.25 : 0.25) * 14, ty = p.y - 4 - 10;
-        const a = p.aim + rnd(-1.1, 1.1);
+      if (k.volleys.length && (k.missT -= dt) <= 0) {
+        const volley = k.volleys[0], aim = volley.aim ?? p.aim;
+        if (--volley.remaining === 0) k.volleys.shift();
+        k.missT = 0.07;
+        const [tx, ty] = weaponTip(p, aim), a = aim + rnd(-1.1, 1.1);
         shoot({ x: tx, y: ty, a, sp: 190, power:'spell', dmg: pd(5), kb: 70, life: 1.8, kind: G.evo === true ? 'star' : 'arcane', r: 3, c: G.evo === true ? '#ffd447' : '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) } });
         sparks(tx, ty, a, 4, 0.5, '#b48cff', 120); A.zip();
       }
@@ -416,7 +420,8 @@ export const CHARS = {
     q: {
       name: 'ARCANE MISSILES', cost: 25, cd: 1.5, icon: 'orb', desc: 'A VOLLEY OF HOMING MISSILES',
       use(p) {
-        p.k.miss += G.up.evoTwin ? 12 : G.up.twin ? 8 : 5; p.k.missT = 0; p.k.castT = 0.5;
+        p.k.volleys.push({ remaining: G.up.evoTwin ? 12 : G.up.twin ? 8 : 5, aim: input.device === 'touch' ? p.aim : null });
+        p.k.missT = 0; p.k.castT = 0.5;
         addRing(p.x, p.y - 1, '#b48cff', 120, 0.3, 1); addRing(p.x, p.y - 1, P.paper, 80, 0.2, 1);
         p.k.rune = 0.5; A.magic(); A.sigil();
       },
@@ -425,8 +430,9 @@ export const CHARS = {
     // freezing whatever stands in it (frozen enemies take 50% more damage, and Frostbite shatters them).
     e: {
       name: 'BLIZZARD', cost: 40, cd: 5, icon: 'snow', desc: 'A FREEZING STORM WHERE YOU AIM',
-      use(p) {
-        const [x, y] = aimPoint(p, 170), R = blizzardRadius();
+      target: placedAt(170),
+      use(p, [x, y] = this.target(p)) {
+        const R = blizzardRadius();
         p.k.bliz.push({ x, y, R, t: 0, life: 3, tick: 0 });
         addRing(x, y - 2, P.volt, R * 5, 0.3, 2); addRing(x, y - 2, P.paper, R * 3, 0.25, 1);
         A.freeze(); p.k.castT = 0.4; shake(0.15);
@@ -521,7 +527,7 @@ export const CHARS = {
         const a = p.aim, [hx, hy] = weaponTip(p, a), L = beamLen(hx, hy, a, 320), x1 = hx + Math.cos(a) * L, y1 = hy + Math.sin(a) * L;
         for (const e of G.E) if (alive(e) && segDist(e.x, e.y - e.r, hx, hy, x1, y1) < e.r + 6) {
           damage(e, e.type === 'boss' ? pd(68) : pd(90), { dir: a, kb: 240, src: 'bolt', slice: true, crit: true, heavy: true });
-          if (G.up.venom && alive(e)) { e.burn = 3; e.burnDps = G.up.evoVenom ? 6 : 3; }
+          if (G.up.venom) ignite(e, 3, G.up.evoVenom ? 6 : 3, 'spell');
           sparks(e.x, e.y - e.r, a, 10, 0.5, '#ffb7d5', 260);
         }
         for (const s of G.shots) if (s.owner === 'enemy' && !s.dead && segDist(s.x, s.y, hx, hy, x1, y1) < s.r + 6) { s.dead = true; sparks(s.x, s.y, a, 4, 1, '#ffb7d5', 160); }
@@ -564,7 +570,7 @@ export const CHARS = {
         for (const e of G.E) if (alive(e) && !w.hit.has(e) && hyp(e.x - w.x, e.y - e.r - w.y) < e.r + 8) {
           w.hit.add(e);
           damage(e, pd(7), { dir: w.a, kb: 140, src: 'primary', ug: true, slice: true });
-          if (G.up.venom && alive(e)) { e.burn = 3; e.burnDps = G.up.evoVenom ? 6 : 3; }
+          if (G.up.venom) ignite(e, 3, G.up.evoVenom ? 6 : 3, 'weapon');
           sparks(e.x, e.y - e.r, w.a + Math.PI / 2, 5, 0.5, '#ffb7d5', 200);
         }
         for (const s of G.shots) if (canParry(s) && hyp(s.x - w.x, s.y - w.y) < s.r + 8) parry(s, w.a, true);
@@ -744,25 +750,25 @@ export const CHARS = {
     },
     q: {
       name: 'TURRET', cost: 30, cd: 1, icon: 'gear', desc: 'AUTO-GUN, LASTS 14S',
-      use(p) {
-        const turrets = G.allies.filter((a) => a.type === 'turret');
+      target: placedAt(55),
+      use(p, [x, y] = this.target(p)) {
+        const turrets = G.allies.filter((a) => a.type === 'turret' && !a.dead);
         if (turrets.length >= 2 + G.up.hands) turrets[0].dead = true;
-        const [x,y]=aimPoint(p,55);
         G.allies.push({ type: 'turret', x,y, t: 0, life: 14, fireT: 0.4, ang: p.aim });
         A.build(); dust(p.x, p.y, 8, 50);
       },
     },
     e: {
       name: 'TESLA COIL', cost: 40, cd: 5, icon: 'bolt', desc: 'ZAPS 3 FOES AT ONCE FOR 7S',
-      use(p) {
-        const [x,y]=aimPoint(p,55);
+      target: placedAt(55),
+      use(p, [x, y] = this.target(p)) {
         G.allies.push({ type: 'coil', x,y, t: 0, life: 7, zapT: 0.3 });
         A.build(); A.zap();
       },
     },
     r: {
       name: 'IRON TITAN', icon: 'fist', desc: 'A MECH DROPS IN: PUNCHES AND MISSILES',
-      target: (p) => aimPoint(p, 60),
+      target: placedAt(60),
       use(p, [x, y] = this.target(p)) {
         const titan = (tx, z, face, cd) => ({ type: 'golem', x: tx, y, z, vz: -60, t: 0, life: G.up.evoUlt ? 30 : 18, cd, mcd: 1.2, pcd: 2.5, landed: false, face, anim: 0, step: 0 });
         G.allies.push(titan(x, 160, 1, 0.6));
@@ -949,7 +955,7 @@ export const CHARS = {
         k.otick -= dt;
         if (k.otick <= 0) {
           k.otick = 0.08;
-          for (const e of G.E) if (alive(e) && hyp(e.x - k.ox, e.y - k.oy) < 20 + e.r) damage(e, pd(e.type === 'boss' ? 5 : 4), { dir: rnd(TAU), kb: 40, src: 'bolt' });
+          for (const e of G.E) if (alive(e) && hyp(e.x - k.ox, e.y - k.oy) < ORBITAL_RADIUS + e.r) damage(e, pd(e.type === 'boss' ? 5 : 4), { dir: rnd(TAU), kb: 40, src: 'bolt' });
           scorch(k.ox + rnd(-6, 6), k.oy + rnd(-4, 4), 4);
         }
         for (let i = 0; i < 3; i++) { const a = rnd(TAU), v = rnd(40, 160); part(k.ox, k.oy, Math.cos(a) * v, Math.sin(a) * v * 0.6, 0.3, Math.random() < 0.5 ? P.volt : P.paper, { drag: 5, glow: true }); }
@@ -992,7 +998,7 @@ export const CHARS = {
     },
     r: {
       name: 'ORBITAL LASER', icon: 'eye', desc: 'A SKY BEAM FOLLOWS YOUR AIM',
-      target: (p) => aimPoint(p, 100),
+      target: placedAt(100),
       use(p, [x, y] = this.target(p)) {
         p.k.orb = G.up.evoUlt ? 7.5 : 4.5; p.k.ox = x; p.k.oy = y; p.k.otick = 0;
         A.loop('orbital', true, 'orbital'); A.ultStart(); flash(P.volt, 0.15, false);
@@ -1034,7 +1040,7 @@ export const ALLY = {
   turret: {
     update(a, dt) {
       a.fireT -= dt;
-      const e = nearest(a.x, a.y, 150);
+      const e = nearest(a.x, a.y, TURRET_RANGE);
       if (e) a.ang = Math.atan2(e.y - e.r - (a.y - 6), e.x - a.x);
       if (e && a.fireT <= 0 && a.t > 0.3) {
         a.fireT = 0.32 / (1 + 0.4 * G.up.overclock);
@@ -1058,7 +1064,7 @@ export const ALLY = {
         a.zapT = 0.5 / (1 + 0.4 * G.up.overclock);
         const hit = new Set();
         for (let i = 0; i < 3; i++) {
-          const e = nearest(a.x, a.y, 75, hit);
+          const e = nearest(a.x, a.y, COIL_RANGE, hit);
           if (!e) break;
           hit.add(e);
           G.bolts.push({ x0: a.x, y0: a.y - 10, x1: e.x, y1: e.y - e.r, t: 0, life: 0.2 });
@@ -1087,7 +1093,7 @@ export const ALLY = {
         if (a.z < 90) flames(3, 6);
         if (a.z <= 0) {
           a.landed = true;
-          G.quakes.push({ x: a.x, y: a.y, r: 0, delay: 0, max: 120, friendly: true, hit: new Set(), dmg: 20, speed: 240 });
+          G.quakes.push({ x: a.x, y: a.y, r: 0, delay: 0, max: TITAN_LANDING, friendly: true, hit: new Set(), dmg: 20, speed: 240 });
           shake(0.9); A.boom(1.8); dust(a.x, a.y, 34, 150); scorch(a.x, a.y, 16); hitstop(0.07);
           addRing(a.x, a.y - 4, '#ff9a3c', 300, 0.35, 3);
         }
@@ -1169,18 +1175,28 @@ const devVer = () => Math.min(99, 1 + Math.floor(G.kills / 20));
 const devScale = () => 0.8 + 0.035 * (G.wave - 1) + 0.015 * (devVer() - 1) + (G.wave > 20 ? 0.045 * Math.pow(G.wave - 20, 1.35) : 0);
 // bugs needed to crash a foe: 5 early, 4 from wave 15, 3 from wave 30
 const crashAt = () => (G.wave >= 30 ? 3 : G.wave >= 15 ? 4 : 5);
-function bugHit(e, n = 1) {
-  if (e.dead || e.dying) return;
+function bugHit(e, n = 1, chain) {
+  if (!alive(e) || e.state === 'intro' || e.state === 'awakening' || chain?.has(e)) return;
   e.bugs = (e.bugs || 0) + n;
-  if (e.bugs >= Math.max(2, crashAt() - G.up.overflow)) {
+  const threshold = crashAt() - G.up.overflow;
+  if (e.bugs >= Math.max(2, threshold)) {
     e.bugs = 0;
     glitch(e.x, e.y - e.r, 22, 16, 0.35, 14);
     addText(e.x, e.y - e.r * 2 - 14, 'CRASHED', GREEN);
     A.zip(); A.hit(true, false); shake(0.2);
     for (let i = 0; i < 10; i++) { const a = rnd(TAU), v = rnd(60, 200); part(e.x, e.y - e.r, Math.cos(a) * v, Math.sin(a) * v, 0.3, Math.random() < 0.5 ? GREEN : P.paper, { drag: 6, glow: true }); }
     const ex = e.x, ey = e.y;
-    damage(e, pd(12), { dir: rnd(TAU), kb: 140, src: 'bolt', slice: true });
-    if (G.up.fork) G.timers.push({ t: 0.1, fn: () => { for (const o of G.E) if (alive(o) && o !== e && hyp(o.x - ex, o.y - ey) < 50) { G.bolts.push({ x0: ex, y0: ey - 6, x1: o.x, y1: o.y - o.r, t: 0, life: 0.2, c1: P.paper, c2: GREEN, c3: '#1a6a2a' }); bugHit(o, 2); } } });
+    damage(e, pd(12 * (1 + 0.25 * Math.max(0, 2 - threshold))), { dir: rnd(TAU), kb: 140, src: 'bolt', slice: true });
+    if (G.up.fork) {
+      const crashed = chain || new Set();
+      crashed.add(e);
+      G.timers.push({ t: 0.1, fn: () => {
+        for (const o of G.E) if (alive(o) && !crashed.has(o) && hyp(o.x - ex, o.y - ey) < 50) {
+          G.bolts.push({ x0: ex, y0: ey - 6, x1: o.x, y1: o.y - o.r, t: 0, life: 0.2, c1: P.paper, c2: GREEN, c3: '#1a6a2a' });
+          bugHit(o, 2, crashed);
+        }
+      } });
+    }
   }
 }
 CHARS.DEV = {
@@ -1463,13 +1479,12 @@ const awBurst = (p, R, dmg, col, o = {}) => {
   shake(0.25);
 };
 const awStrike = (x, y, R, dmg) => G.strikes.push({ x, y, t: 0, delay: 0.15, R, dmg, friendly: true, kind: 'lightning', c: P.volt });
-const awBurn = (e, t, dps) => { if (alive(e)) { e.burn = Math.max(e.burn || 0, t); e.burnDps = Math.max(e.burnDps || 0, dps); } };
 const awStun = (e, t) => { if (alive(e) && e.type !== 'boss') e.stunT = Math.max(e.stunT || 0, t); };
 const AWAKE = {
   // Ashen Kael: every cut sets enemies alight; his powers throw a ring of fire; Thousand Cuts leaves the screen burning
   BLADE: {
     pal: { col: P.gold, slash: 'gold', charge: 'whitefire', map: { [P.ember]: P.gold, [P.ember2]: '#fff2c0', [P.ember3]: P.paper, '#ffb04a': P.gold, [P.gold]: '#fff2c0', [P.gold2]: P.gold } },
-    hit: (e) => awBurn(e, 2.5, 4),
+    hit: (e) => ignite(e, 2.5, 4),
     swing: (p, st) => shoot({ x: p.x + Math.cos(p.atkAng) * 10, y: p.y - 6, a: p.atkAng, sp: 300, dmg: pd(st.heavy ? 6 : 3), kb: 80, life: st.heavy ? 0.45 : 0.3, kind: 'crescent', r: st.heavy ? 6 : 4, pierce: 99, c: P.ember, ug: true, slice: true, trail: false }),
     charge: (p, f) => {
       const a = p.aim;
@@ -1478,8 +1493,8 @@ const AWAKE = {
       const n = 3 + Math.round(4 * f);
       for (let i = 1; i <= n; i++) G.booms.push({ x: clamp(p.x + Math.cos(a) * i * 24, B.x0 + 6, B.x1 - 6), y: clamp(p.y + Math.sin(a) * i * 24, B.y0 + 6, B.y1 - 4), t: 0.05 + i * 0.05, friendly: true, R: 22, dmg: Math.round(8 + 10 * f) });
     },
-    skill: (p) => awBurst(p, 48, pd(6), P.ember, { each: (e) => awBurn(e, 3, 5) }),
-    ult: (p) => { for (const e of awNear(p.x, p.y, 400)) awBurn(e, 4, 7); addRing(p.x, p.y - 6, P.ember, 400, 0.5, 3); },
+    skill: (p) => awBurst(p, 48, pd(6), P.ember, { each: (e) => ignite(e, 3, 5) }),
+    ult: (p) => { for (const e of awNear(p.x, p.y, 400)) ignite(e, 4, 7); addRing(p.x, p.y - 6, P.ember, 400, 0.5, 3); },
   },
   // Deadeye Vega: shots ricochet to the next enemy; her powers fire a fan of gold rounds; Last Stand opens with a volley at everything near
   GUNNER: {
@@ -1547,7 +1562,7 @@ const AWAKE = {
   // Unit-7 Omega: the laser scorches what it touches; its powers launch homing mini-rockets; the Orbital Laser comes with a rocket barrage
   ROBOT: {
     pal: { col: '#ff2a3a', slash: 'blood', map: { [P.volt]: '#ff2a3a', [P.volt2]: '#7a0a14', '#62efff': P.gold, [P.ember2]: P.gold, '#c8ffff': '#fff2c0' } },
-    hit: (e) => awBurn(e, 1.5, 3),
+    hit: (e) => ignite(e, 1.5, 3),
     skill: (p) => { for (let i = 0; i < 3; i++) shoot({ x: p.x, y: p.y - 10, a: p.aim + (i - 1) * 0.5, sp: 170, dmg: pd(3), kb: 60, life: 1.8, kind: 'rocket', homing: 5, splash: { R: 18, dmg: pd(4) }, c: P.ember2, ug: false }); A.rocket(); },
     ult: (p) => { for (let i = 0; i < 8; i++) shoot({ x: p.x, y: p.y - 10, a: (i * TAU) / 8, sp: 170, dmg: pd(4), kb: 80, life: 2, kind: 'rocket', homing: 5, splash: { R: 22, dmg: pd(6) }, c: P.ember2, ug: false }); A.rocket(); },
   },

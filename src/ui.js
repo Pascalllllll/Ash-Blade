@@ -1,5 +1,5 @@
-import { keyLabel } from './bindings.js?v=200';
-import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=200';
+import { keys, keyLabel } from './bindings.js?v=200';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=200';
 import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=200';
 import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=200';
 import { SPR, icon } from './sprites.js?v=200';
@@ -11,7 +11,7 @@ import { CHARS, skillPreview } from './chars.js?v=200';
 import { BOSSES, bossFor } from './bosses.js?v=200';
 import { MAPS } from './maps.js?v=200';
 import { drawTalk } from './story.js?v=200';
-import { rollUpgrades, UPGRADES } from './upgrades.js?v=200';
+import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=200';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -98,15 +98,15 @@ export function drawMenu(m, items, x, y, w, rowH = 11) {
 }
 
 // ---------- HUD ----------
-function abilityBox(x, y, key, ready, frac, deny, ic, col) {
+function abilityBox(x, y, w, key, ready, frac, deny, ic, col) {
   x += deny > 0 ? (Math.floor(deny * 40) % 2 ? 1 : -1) : 0;
-  rect(x - 1, y - 1, 18, 18, P.ink0);
-  rect(x, y, 16, 16, ready ? P.ink3 : P.ink1);
-  if (!ready) rect(x, y + 16 - Math.round(16 * Math.min(1, frac)), 16, Math.round(16 * Math.min(1, frac)), P.ink2);
-  drawSprite(icon(ic, ready ? col : P.stone2), x + 3, y + 2, false);
-  rect(x, y, 16, 1, ready ? P.stone2 : P.ink2);
-  textO(key, x + 13, y + 12, ready ? P.paper : P.dust);
-  if (deny > 0) { rect(x - 1, y - 1, 18, 1, P.blood); rect(x - 1, y + 16, 18, 1, P.blood); }
+  rect(x - 1, y - 1, w + 2, 18, P.ink0);
+  rect(x, y, w, 16, ready ? P.ink3 : P.ink1);
+  if (!ready) rect(x, y + 16 - Math.round(16 * Math.min(1, frac)), w, Math.round(16 * Math.min(1, frac)), P.ink2);
+  drawSprite(icon(ic, ready ? col : P.stone2), x + Math.floor((w - 9) / 2), y + 2, false);
+  rect(x, y, w, 1, ready ? P.stone2 : P.ink2);
+  textO(key, x + w / 2, y + 12, ready ? P.paper : P.dust, 1, 'c');
+  if (deny > 0) { rect(x - 1, y - 1, w + 2, 1, P.blood); rect(x - 1, y + 16, w + 2, 1, P.blood); }
 }
 
 function drawUnlock(un) {
@@ -140,12 +140,14 @@ const clockOf = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).pad
 function drawHealth(p) {
   const hp = Math.min(p.maxHp, Math.max(0, p.hp));
   const pulse = hp > 0 && hp <= 2 && Math.floor(G.time * 6) % 2;
-  const columns = 10;
+  const columns = Math.max(10, Math.ceil(p.maxHp / 3)), pitch = Math.min(8, Math.floor(120 / columns));
+  ctx.save(); ctx.translate(5, 4); ctx.scale(pitch / 8, pitch / 8);
   for (let i = 0; i < p.maxHp; i++) {
-    const y = 4 + Math.floor(i / columns) * 8;
-    drawSprite(i < hp ? SPR.heart : SPR.heartE, 5 + (i % columns) * 8, y - (pulse && i < hp ? 1 : 0), false);
+    const y = Math.floor(i / columns) * 8 - (pulse && i < hp ? 1 : 0);
+    drawSprite(i < hp ? SPR.heart : SPR.heartE, (i % columns) * 8, y, false);
   }
-  return 6 + Math.ceil(p.maxHp / columns) * 8;
+  ctx.restore();
+  return 6 + Math.ceil(p.maxHp / columns) * pitch;
 }
 
 export function drawHUD(menu) {
@@ -169,11 +171,12 @@ export function drawHUD(menu) {
   if (p.dashMax > 1) for (let i = 0; i < p.dashMax; i++) rect(ex + ew + 4, ey + i * 4, 3, 3, i < p.charges ? kit.color() : P.ink3);
   kit.hud?.(p, ex, uy + (full ? 12 : 5));
 
-  const by = H - 21;
   if (!input.touch) {
-    abilityBox(6, by, keyLabel('q'), p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), G.deny.q, kit.q.icon, kit.color());
-    abilityBox(26, by, keyLabel('e'), p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), G.deny.e, kit.e.icon, kit.color());
-    abilityBox(46, by, keyLabel('r'), full, p.ult / 100, G.deny.r, kit.r.icon, P.gold);
+    const labels = ['q', 'e', 'r'].map(keyLabel), [qw, ew, rw] = labels.map(s => Math.max(16, textW(s) + 2));
+    const by = H - 21 - (G.boss && qw + ew + rw + 14 > 70 + SX ? (G.night ? 35 : 18) : 0);
+    abilityBox(6, by, qw, labels[0], p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), G.deny.q, kit.q.icon, kit.color());
+    abilityBox(10 + qw, by, ew, labels[1], p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), G.deny.e, kit.e.icon, kit.color());
+    abilityBox(14 + qw + ew, by, rw, labels[2], full, p.ult / 100, G.deny.r, kit.r.icon, P.gold);
   }
   ctx.restore();
   // the phone controls place themselves against the screen edges (see input.js)
@@ -525,7 +528,7 @@ export function drawSelect(t) {
   } else {
     text(k.lore[0], 154, 70, P.bone); text(k.lore[1], 154, 77, P.bone);
     drawBars([['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]], col, t, id === 'DEV');
-    const ab = [['CLICK', k.primaryName], ...(k.charge ? [['HOLD', k.charge.name]] : []), [input.touch?'Q':keyLabel('q'), k.q.name + ' ' + k.q.cost], [input.touch?'E':keyLabel('e'), k.e.name + ' ' + k.e.cost], [input.touch?'R':keyLabel('r'), k.r.name]];
+    const ab = [[input.touch ? 'TAP' : keyLabel('attack'), k.primaryName], ...(k.charge ? [['HOLD', k.charge.name]] : []), [input.touch?'Q':keyLabel('q'), k.q.name + ' ' + k.q.cost], [input.touch?'E':keyLabel('e'), k.e.name + ' ' + k.e.cost], [input.touch?'R':keyLabel('r'), k.r.name]];
     ab.forEach(([key, name], i) => { const y = 101 + i * 7; text(key, 174, y, P.ember2, 1, 'r'); text(name, 178, y, P.paper); });
   }
   if (sel.row === 1) { rect(152, DIFF_Y - 3, 164, 11, P.ink3); rect(152, DIFF_Y - 3, 2, 11, P.ember); }
@@ -582,7 +585,7 @@ export function settingsItems(ctxInfo) {
     { label: 'DIFFICULTY', value: () => settings.diff, adjust: stepList('diff') },
     { label: 'BLOOD STAINS', value: () => settings.blood, adjust: stepList('blood') },
     { label: 'VIBRATION', value: () => (canVibrate ? settings.vibe : settings.vibe + ' (NOT ON THIS DEVICE)'), adjust: (d) => { stepList('vibe')(d); buzz('heavy'); } },
-    { label: 'CUSTOMIZE CONTROLS', act: () => 'controls' },
+    { label: 'CUSTOMIZE CONTROLS', value: () => { const n = Object.values(keys).filter(k => !k.length).length; return n ? n + ' UNASSIGNED' : ''; }, act: () => 'controls' },
     { label: 'RESET ALL SETTINGS', act: () => 'reset' },
     { label: 'ERASE SAVED RUN', act: () => 'erase', dimmed: !ctxInfo.hasSave },
     { label: 'BACK', act: () => 'back' },
@@ -618,19 +621,73 @@ export function drawSettings(t, items, inRun) {
 }
 
 // ---------- upgrade pick ----------
-export const upg = { opts: [], sel: 0, t: 0 };
-export function openUpgrade() { upg.opts = rollUpgrades(G.taken, G.char, isBossWave(G.wave)); upg.sel = 0; upg.t = 0; }
-const CW = 94, CH = 92, CG = 8, CY = 52;
+export const upg = { opts: [], cards: [], sel: 0, detail: false, t: 0 };
+const CW = 94, CH = 100, CG = 8, CY = 48;
 const cardX = (i) => Math.round((W - (CW * 3 + CG * 2)) / 2 + i * (CW + CG));
+const upgradeName = (u) => typeof u.name === 'function' ? u.name(G.kit) : u.name;
+function describeUpgrade(u) {
+  const name = upgradeName(u), level = G.taken[u.id] || 0;
+  const p = { ...G.p }, up = { ...G.up };
+  u.f(up, p);
+  let change = '';
+  if (p.maxHp !== G.p.maxHp) change = 'MAX HEALTH  ' + G.p.maxHp + ' > ' + p.maxHp;
+  else if (u.id === 'mend') change = 'HEALTH  ' + G.p.hp + ' > ' + p.hp;
+  else if (p.dashMax !== G.p.dashMax) change = 'DASH CHARGES  ' + G.p.dashMax + ' > ' + p.dashMax;
+  else {
+    const stats = { dmg:'ALL DAMAGE', wpn:'WEAPON DAMAGE', spell:'SKILL DAMAGE', spd:'ATTACK SPEED', reach:'MELEE REACH',
+      focus:'ULTIMATE GAIN', dashMul:'DASH RECHARGE TIME', regen:'ENERGY RECOVERY', shrap:'BLAST RADIUS' };
+    for (const [key, label] of Object.entries(stats)) if (up[key] !== G.up[key]) {
+      change = label + '  ' + pct(G.up[key]) + ' > ' + pct(up[key]); break;
+    }
+  }
+  const evo = UPG_EVO[u.id];
+  const family = u.req ? 'EVOLVED FROM ' + upgradeName(byId(u.req)) : evo ? 'AT MAX RANK  ' + upgradeName(byId(evo)) : '';
+  return { name, title: wrapText(name, CW - 6), summary: wrapText(u.d.filter(Boolean).join(' '), CW - 6),
+    description: wrapText(u.detail, 244), change, family, rank: u.id === 'mend' ? 'ONE USE' : 'RANK ' + (level + 1) + ' / ' + u.max };
+}
+export function openUpgrade() {
+  upg.opts = rollUpgrades(G.taken, G.char, isBossWave(G.wave));
+  upg.cards = upg.opts.map(describeUpgrade);
+  upg.sel = 0; upg.detail = false; upg.t = 0;
+}
 export function updateUpgrade(rdt) {
   upg.t += rdt;
   if (upg.t < 0.6) return -1;
-  for (let i = 0; i < 3; i++) if (keyHit('Digit' + (i + 1), 'Numpad' + (i + 1))) return i;
+  if (keyHit('Tab')) { upg.detail = !upg.detail; A.ui(); return -1; }
   if (keyHit('ArrowLeft', 'KeyA')) { upg.sel = (upg.sel + 2) % 3; A.ui(); }
   if (keyHit('ArrowRight', 'KeyD')) { upg.sel = (upg.sel + 1) % 3; A.ui(); }
-  for (let i = 0; i < 3; i++) if (inBox(cardX(i), CY, CW, CH)) { if (input.mouse.moved && upg.sel !== i) { upg.sel = i; A.ui(); } if (input.mouse.pressed) return i; }
+  if (upg.detail) {
+    if (keyHit('Escape') || (input.mouse.pressed && inBox(32, 132, 100, 20))) { upg.detail = false; A.ui(); }
+    else if (keyHit('Enter', 'Space') || (input.mouse.pressed && inBox(174, 132, 114, 20))) return upg.sel;
+    return -1;
+  }
+  for (let i = 0; i < 3; i++) {
+    if (keyHit('Digit' + (i + 1), 'Numpad' + (i + 1))) return i;
+    const y = i === upg.sel ? CY - 3 : CY, x = cardX(i);
+    if (!inBox(x, y, CW, CH)) continue;
+    if (input.mouse.moved || input.mouse.pressed) upg.sel = i;
+    if (input.mouse.pressed) {
+      if (inBox(x + CW - 27, y + CH - 19, 27, 19)) { upg.detail = true; A.ui(); return -1; }
+      return i;
+    }
+  }
   if (keyHit('Enter', 'Space')) return upg.sel;
   return -1;
+}
+function drawUpgradeDetail() {
+  const o = upg.opts[upg.sel], card = upg.cards[upg.sel], col = C(o.c);
+  rect(25, 25, 270, 131, P.ink0); rect(27, 27, 266, 127, P.ink1);
+  rect(27, 27, 266, 2, col);
+  ctx.save(); ctx.translate(38, 38); ctx.scale(2, 2); drawSprite(icon(o.icon, col), 0, 0, false); ctx.restore();
+  text(o.relic ? 'RELIC' : o.req ? 'EVOLUTION' : G.kit.hero, 64, 37, P.dust);
+  text(card.rank, 282, 37, P.dust, 1, 'r');
+  text(card.name, 64, 48, col, 2);
+  rect(37, 63, 246, 1, P.ink3);
+  card.description.forEach((s, i) => text(s, 38, 72 + i * 10, P.paper));
+  if (card.change) text(card.change, 38, 106, col);
+  if (card.family) text(card.family, 38, 118, P.dust);
+  rect(32, 132, 100, 20, P.ink2); text('BACK', 82, 140, P.bone, 1, 'c');
+  rect(174, 132, 114, 20, col); text('TAKE UPGRADE', 231, 140, P.ink0, 1, 'c');
 }
 export function drawUpgrade() {
   dim(0.78);
@@ -643,20 +700,24 @@ export function drawUpgrade() {
     const x = cardX(i), y = Math.round(CY + (1 - k) * -120) - (on ? 3 : 0);
     rect(x - 1, y - 1, CW + 2, CH + 2, on ? oc : P.ink0); rect(x, y, CW, CH, P.ink1);
     rect(x, y, CW, 1, on ? P.paper : P.ink3);
-    const nm = typeof o.name === 'function' ? o.name(G.kit) : o.name;
+    const card = upg.cards[i];
     if (o.relic) { rect(x, y, CW, CH, '#1a0d1f'); const gl = Math.floor(G.time * 6) % 2; rect(x - 1, y - 1, CW + 2, 1, gl ? '#ff4fa8' : P.gold); rect(x - 1, y + CH, CW + 2, 1, gl ? P.gold : '#ff4fa8'); rect(x + 2, y + 3, CW - 4, 7, '#ff4fa8'); text('RELIC', x + CW / 2, y + 4, P.ink0, 1, 'c'); }
     else if (o.req) { rect(x, y, CW, CH, '#1d1608'); const gl = Math.floor(G.time * 8) % 2; rect(x - 1, y - 1, CW + 2, 1, gl ? P.gold : P.ember3); rect(x - 1, y + CH, CW + 2, 1, gl ? P.ember3 : P.gold); rect(x + 2, y + 3, CW - 4, 7, P.gold); text('EVOLUTION', x + CW / 2, y + 4, P.ink0, 1, 'c'); }
     else if (o.only && o.only.length === 1) { rect(x + CW - 30, y + 3, 27, 7, P.ink3); text('UNIQUE', x + CW - 16, y + 4, P.gold, 1, 'c'); }
     ctx.save(); ctx.translate(x + CW / 2 - 9, y + 10); ctx.scale(2, 2); drawSprite(icon(o.icon, oc), 0, 0, false); ctx.restore();
     if (on) glow(x + CW / 2, y + 19, oc, 16, 0.3);
-    text(nm, x + CW / 2, y + 36, oc, 1, 'c');
-    rect(x + 10, y + 44, CW - 20, 1, P.ink3);
-    text(o.d[0], x + CW / 2, y + 50, P.bone, 1, 'c'); text(o.d[1], x + CW / 2, y + 58, P.bone, 1, 'c');
-    const lv = G.taken[o.id] || 0;
-    if (o.max > 1 && o.max < 99) text('LV ' + (lv + 1) + '/' + o.max + (lv + 1 === o.max && UPG_EVO[o.id] ? '  EVOLVES' : ''), x + CW / 2, y + 70, lv + 1 === o.max && UPG_EVO[o.id] ? P.gold : P.dust, 1, 'c');
-    textO(String(i + 1), x + CW / 2, y + CH - 9, on ? P.paper : P.stone2, 1, 'c');
+    card.title.forEach((s, j) => text(s, x + CW / 2, y + 34 + j * 7, oc, 1, 'c'));
+    rect(x + 10, y + 49, CW - 20, 1, P.ink3);
+    card.summary.forEach((s, j) => text(s, x + CW / 2, y + 54 + j * 8, P.bone, 1, 'c'));
+    text(card.rank, x + 6, y + CH - 12, P.dust);
+    rect(x + CW - 25, y + CH - 18, 23, 16, P.ink3);
+    text('INFO', x + CW - 14, y + CH - 12, P.paper, 1, 'c');
   }
-  if (upg.t > 0.6) textO('1 2 3 / ARROWS + ENTER / CLICK', W / 2, H - 18, P.dust, 1, 'c');
+  if (upg.detail) { dim(0.8); drawUpgradeDetail(); }
+  if (upg.t > 0.6) {
+    const hint = upg.detail ? 'ARROWS COMPARE   TAB BACK   ENTER TAKE' : '1 2 3 TAKE   ARROWS SELECT   TAB INFO';
+    textO(input.touch ? (upg.detail ? '' : 'TAP A CARD TO TAKE IT OR TAP INFO') : hint, W / 2, H - 17, P.dust, 1, 'c');
+  }
 }
 
 export function drawInheritance(t, granted) {
@@ -998,9 +1059,12 @@ function drawTouch(p, kit, full) {
     if (sk.cancel) textO('CANCEL', b.x - b.r - 4, b.y - 3, P.blood, 1, 'r');
     else textO('BACK TO CANCEL', W + SX - 4, 60, P.dust, 1, 'r');
   }
+  const recovery = Math.max(0, (p.nextDash || 0) - G.t);
+  const dashFill = p.charges ? 1 : 1 - p.dashCd / (kit.dash.cd * G.up.dashMul);
+  const recoveryFill = recovery ? 1 - recovery / (kit.dash.time + kit.dash.recovery) : 1;
   const state = {
     attack: [true, 1, PRIMARY_ICON[G.char], kit.color()],
-    dash: [p.charges > 0, p.charges > 0 ? 1 : 1 - p.dashCd / kit.dash.cd, 'dash', P.paper],
+    dash: [p.charges > 0 && recovery === 0, Math.min(dashFill, recoveryFill), 'dash', P.paper],
     q: [p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), kit.q.icon, kit.color()],
     e: [p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), kit.e.icon, kit.color()],
     r: [full, p.ult / 100, kit.r.icon, P.gold],
