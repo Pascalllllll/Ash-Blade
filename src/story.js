@@ -44,11 +44,11 @@ export const TALK = {
   start: [[KING, 'ANOTHER MOTH FLIES INTO MY PIT. BURN SLOWLY, LITTLE ONE.']],
   // between his bosses he tells you who he was, a piece at a time; a voice in the ash tells you the rest
   w3: [[KING, 'THEY CALLED ME THE SUN KING ONCE. MY PEOPLE SANG MY NAME AT DAWN.']],
-  w6: [[ASH, 'PLEASE... WE WERE HIS PEOPLE ONCE. WE DID NOT CHOOSE THIS.']],
+  w6: [[ASH, 'I KEPT THE BAKERY ON MILL STREET. AT FIRST LIGHT, MY GIRL DREW A SUN IN THE FLOUR.']],
   w8: [[KING, 'THE SUN WAS DYING, LITTLE ONE. I SAVED IT THE ONLY WAY I COULD. INSIDE ME.']],
-  w11: [[ASH, 'HE WAS KIND, ONCE. HE WAS JUST SO AFRAID OF THE DARK.']],
+  w11: [[ASH, 'WHEN THE OVENS WENT COLD, I TOOK HER HAND. NOW I HAVE NO HANDS. HAVE YOU SEEN HER LITTLE SUN?']],
   w13: [[KING, 'MY PEOPLE ARE STILL HERE, YOU KNOW. YOU HAVE BEEN CUTTING THEM DOWN ALL NIGHT.']],
-  w16: [[ASH, 'WHEN YOU REACH HIM, SET THE SUN FREE. AND US WITH IT.']],
+  w16: [[ASH, 'THERE. ON YOUR SLEEVE. SHE STILL DRAWS IT WITH ONE FINGER. CARRY US BOTH TO MORNING.']],
   w18: [[KING, 'TWO MORE NIGHTS. THEN THE LAST FIRE COMES FOR YOU HIMSELF.']],
   // when it goes badly for you, or too well (the King's words, or the dark's below the pit)
   lowHp: [[KING, 'I CAN SMELL THE ASH ON YOU ALREADY.']],
@@ -1051,7 +1051,27 @@ const NIGHTFALL = [
 ];
 
 // ---------- the player: a page at a time ----------
-const STORIES = { lore: LORE, ending: ENDING, home: HOME, deeper: DEEPER, fall: FALL, nightfall: NIGHTFALL };
+// The flour sun appears on a worktable, on an empty street, then in the fighter's hand.
+const ASH_BOOK = [
+  ['MILL STREET', 'MY GIRL DREW A SUN IN THE FLOUR EACH MORNING.', 'I SAVED THAT CORNER OF THE TABLE FOR LAST.'],
+  ['THE BLACK OVEN', 'THE DAY THE KING SWALLOWED THE SUN,', 'THE LOAVES STAYED WHITE. OUR HANDS TURNED GREY.'],
+  ['THE PIT', 'DOWN HERE A THOUSAND VOICES CALL FOR LIGHT.', 'I KNOW HERS BY THE CIRCLE SHE DRAWS IN ASH.'],
+  ['THE LAST GIFT', 'IF YOUR SLEEVE IS DUSTY, LET IT BE.', 'WHEN YOU SEE MORNING, OPEN YOUR HAND.'],
+].map(([title,...cap],i)=>({
+  cap, draw(t) {
+    const cx=PX+PW/2,base=PY+PH-18;
+    sky(PX,PY,PW,PH,i===3?['#342433','#6d4640','#c37a50']:['#151120','#352635','#573a37']);
+    for(let j=0;j<7;j++){const x=PX+j*41-5,h=27+hash(j)*24;rect(x,base-h,30,h,'#241d29');rect(x+5,base-h+9,6,8,i===0||i===3?'#e7a863':'#4e3c48');}
+    rect(PX,base,PW,18,'#372934');
+    if(i<2) {rect(cx-49,base-20,98,6,'#875b46');rect(cx-44,base-14,5,14,'#4b3436');rect(cx+39,base-14,5,14,'#4b3436');}
+    const x=cx,y=i<2?base-29:base-18, c=i===3?P.ember3:'#e3c8ab';
+    for(let j=0;j<50;j++){const a=j/49*TAU, visible=Math.min(1,t*0.55);if(j/50>visible)break;px(x+Math.cos(a)*12,y+Math.sin(a)*7,c);}
+    for(let j=0;j<8;j++){const a=j*TAU/8;line(x+Math.cos(a)*15,y+Math.sin(a)*9,x+Math.cos(a)*19,y+Math.sin(a)*12,c);}
+    for(let j=0;j<28;j++){const u=(t*0.13+hash(j))%1;px(x+(hash(j+44)-0.5)*78+Math.sin(u*6+j)*4,base-u*45,i===3?P.gold:P.dust);}
+    textO(title,PX+8,PY+7,P.bone);
+  },
+}));
+const STORIES = { ash: ASH_BOOK, lore: LORE, ending: ENDING, home: HOME, deeper: DEEPER, fall: FALL, nightfall: NIGHTFALL };
 export const story = { name: null, pages: LORE, i: 0, t: 0, cued: -1, typed: 0, cap: null };
 export function playStory(name) { Object.assign(story, { name, pages: STORIES[name], i: 0, t: 0, cued: -1, typed: 0, cap: null }); }
 const capOf = (p) => (typeof p.cap === 'function' ? p.cap() : p.cap);

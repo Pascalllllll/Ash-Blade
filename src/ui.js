@@ -1,3 +1,4 @@
+import { keyLabel } from './bindings.js?v=200';
 import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=200';
 import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=200';
 import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=200';
@@ -6,7 +7,7 @@ import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js
 import { A } from './audio.js?v=200';
 import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=200';
 import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=200';
-import { CHARS } from './chars.js?v=200';
+import { CHARS, skillPreview } from './chars.js?v=200';
 import { BOSSES, bossFor } from './bosses.js?v=200';
 import { MAPS } from './maps.js?v=200';
 import { drawTalk } from './story.js?v=200';
@@ -109,42 +110,28 @@ function abilityBox(x, y, key, ready, frac, deny, ic, col) {
 }
 
 function drawUnlock(un) {
-  const ch = CHARS[un.id], set = SPR.chars[un.id], s = set.idles[Math.floor(un.t * 7) % set.idles.length];
-  const inK = back(un.t / 0.4), out = un.t > 4 ? ease((un.t - 4) / 0.4) : 0;
-  // (lower down while someone is talking at the top)
-  const cw = 178, chh = 62, x = Math.round(W / 2 - cw / 2), y = Math.round((G.talk ? 46 : 34) - (1 - inK) * 40 - out * 70);
-  const blink = Math.floor(un.t * 6) % 2, col = ch.color();
-  // the card: dark, gold rims, a slanted color band behind the fighter, rays turning behind them
-  rect(x - 1, y - 1, cw + 2, chh + 2, P.ink0); rect(x, y, cw, chh, '#0c0911');
-  ctx.save(); ctx.beginPath(); ctx.rect(x, y, 68, chh); ctx.clip();
-  ctx.globalAlpha = 0.22; for (let i = 0; i < 10; i++) { const a = un.t * 0.8 + (i * Math.PI) / 5; line(x + 34, y + 40, x + 34 + Math.cos(a) * 70, y + 40 + Math.sin(a) * 70, i % 2 ? P.gold : col, 3); } ctx.globalAlpha = 1;
-  glow(x + 34, y + 38, col, 30, 0.35);
+  const ch = CHARS[un.id], col = ch.color();
+  const sprite = SPR.chars[un.id].idles[Math.floor(un.t * 8) % 16];
+  const w = 88, h = 18, slide = Math.max(1 - un.t * 5, (un.t - 2.2) * 4, 0);
+  const x = Math.round(W + SX - w - 4 + slide * (w + 5)), y = G.combo > 1 ? 85 : 32;
+  rect(x, y, w, h, P.ink1); rect(x, y, 2, h, col);
+  ctx.save(); ctx.beginPath(); ctx.rect(x + 3, y + 1, 19, 16); ctx.clip();
+  drawSprite(sprite, x - 6, y - (SPR.chars[un.id].rig.top / 3) + 2, false);
   ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.rect(x, y, cw, chh); ctx.clip();
-  // the whole fighter, feet on the card's floor, twice the size they are in the arena
-  // (a hero's feet are on row 92 of its 96-row cell, a third of that in game pixels)
-  const sc = 2, fx0 = x + 34 - (s.w * sc) / 2, fy0 = y + chh - 3 - Math.round((92 / 3) * sc);
-  ctx.drawImage(s.n, Math.round(fx0), Math.round(fy0), s.w * sc, s.h * sc);
-  if (un.t < 0.5) { ctx.globalAlpha = 1 - un.t / 0.5; ctx.drawImage(s.tint('#ffffff', false), Math.round(fx0), Math.round(fy0), s.w * sc, s.h * sc); ctx.globalAlpha = 1; }
-  ctx.restore();
-  rect(x, y, cw, 1, P.gold); rect(x, y + chh - 1, cw, 1, P.gold); rect(x + 68, y + 6, 1, chh - 12, P.ink3);
-  textO('NEW FIGHTER', x + 74, y + 8, blink ? P.gold : P.paper, 2);
-  textO('UNLOCKED', x + 74, y + 22, P.gold, 1);
-  textO(ch.hero, x + 74, y + 34, col, 1);
-  text(ch.name, x + 74, y + 42, P.bone, 1);
-  text('PICK THEM ON THE MENU', x + 74, y + 52, P.stone2, 1);
+  text('FIGHTER UNLOCKED', x + 23, y + 3, P.dust);
+  text(ch.hero, x + 23, y + 10, col);
 }
 
 function bossBar(b, y) {
   const bd = BOSSES[b.boss], w = 180, x = (W - w) / 2;
-  textO(bd.name + (b.phase > 1 ? '  ' + 'I'.repeat(b.phase) : ''), W / 2, y - 8, b.phase > 1 ? bd.col : P.bone, 1, 'c');
+  textO((b.awakened ? 'NOX UNBOUND' : bd.name) + (!b.awakened && b.phase > 1 ? '  ' + 'I'.repeat(b.phase) : ''), W / 2, y - 8, b.phase > 1 ? bd.col : P.bone, 1, 'c');
   rect(x - 1, y - 1, w + 2, 5, P.ink0); rect(x, y, w, 3, P.ink2);
   b.chip = b.chip === undefined ? b.hp : Math.max(b.hp, b.chip - (b.maxHp * 0.25) / 60);
   rect(x, y, Math.round((w * Math.max(0, b.chip)) / b.maxHp), 3, P.paper);
   rect(x, y, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 3, bd.col);
   if (b.shieldUp) rect(x, y - 1, Math.round((w * Math.max(0, b.hp)) / b.maxHp), 1, '#62efff');
   // phase marks where the boss changes, an enrage countdown, then the enraged tag
-  for (const m of bd.marks || (bd.final ? [0.33, 0.66] : [0.5])) rect(x + Math.round(w * m), y - 1, 1, 5, P.ink0);
+  for (const m of b.awakened ? [] : bd.marks || (bd.final ? [0.33, 0.66] : [0.5])) rect(x + Math.round(w * m), y - 1, 1, 5, P.ink0);
   if (b.enraged) textO('ENRAGED', x + w, y - 8, Math.floor(G.time * 6) % 2 ? P.blood : P.paper, 1, 'r');
   else if ((b.fightT || 0) > 45) textO('ENRAGE IN ' + Math.ceil(60 - b.fightT), x + w, y - 8, P.ember3, 1, 'r');
 }
@@ -153,17 +140,12 @@ const clockOf = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).pad
 function drawHealth(p) {
   const hp = Math.min(p.maxHp, Math.max(0, p.hp));
   const pulse = hp > 0 && hp <= 2 && Math.floor(G.time * 6) % 2;
-  if (p.maxHp <= 10) {
-    for (let i = 0; i < p.maxHp; i++) drawSprite(i < hp ? SPR.heart : SPR.heartE, 5 + i * 8, pulse && i < hp ? 4 : 5, false);
-    return;
+  const columns = 10;
+  for (let i = 0; i < p.maxHp; i++) {
+    const y = 4 + Math.floor(i / columns) * 8;
+    drawSprite(i < hp ? SPR.heart : SPR.heartE, 5 + (i % columns) * 8, y - (pulse && i < hp ? 1 : 0), false);
   }
-  drawSprite(hp ? SPR.heart : SPR.heartE, 5, pulse ? 4 : 5, false);
-  const x = 15, w = 48, fill = hp > 0 ? Math.max(1, Math.floor(w * hp / p.maxHp)) : 0;
-  rect(x - 1, 5, w + 2, 7, P.ink0);
-  rect(x, 6, w, 5, P.ink3);
-  rect(x, 6, fill, 5, P.blood);
-  rect(x, 6, fill, 1, P.ember3);
-  textO(hp + '/' + p.maxHp, x + w + 3, 6, pulse ? P.ember3 : P.paper);
+  return 6 + Math.ceil(p.maxHp / columns) * 8;
 }
 
 export function drawHUD(menu) {
@@ -173,8 +155,7 @@ export function drawHUD(menu) {
   const lb = G.boss && !G.night && BOSSES[G.boss.boss].bars(G.boss);
   // the left corner (health, energy, the ultimate, the ability boxes) hugs the screen's left edge
   ctx.save(); ctx.translate(-SX, 0);
-  drawHealth(p);
-  const ex = 6, ey = 15, ew = 64;
+  const ex = 6, ey = drawHealth(p), ew = 64;
   rect(ex - 1, ey - 1, ew + 2, 6, P.ink0); rect(ex, ey, ew, 4, P.ink2);
   const ef = Math.round((ew * p.energy) / 100);
   rect(ex, ey, ef, 4, P.volt2); rect(ex, ey, ef, 1, P.volt);
@@ -184,15 +165,15 @@ export function drawHUD(menu) {
   const uy = ey + 8, full = p.ult >= 100, blink = Math.floor(G.time * 6) % 2;
   rect(ex - 1, uy - 1, ew + 2, 4, P.ink0); rect(ex, uy, ew, 2, P.ink2);
   rect(ex, uy, Math.round((ew * p.ult) / 100), 2, full ? (blink ? P.gold : P.paper) : P.gold2);
-  if (full) { textO('R  ' + kit.r.name, ex, uy + 5, blink ? P.gold : P.ember3); glow(ex + ew, uy + 1, P.gold, 8, 0.5); }
+  if (full) { textO((input.touch ? 'R' : keyLabel('r')) + '  ' + kit.r.name, ex, uy + 5, blink ? P.gold : P.ember3); glow(ex + ew, uy + 1, P.gold, 8, 0.5); }
   if (p.dashMax > 1) for (let i = 0; i < p.dashMax; i++) rect(ex + ew + 4, ey + i * 4, 3, 3, i < p.charges ? kit.color() : P.ink3);
   kit.hud?.(p, ex, uy + (full ? 12 : 5));
 
   const by = H - 21;
   if (!input.touch) {
-    abilityBox(6, by, 'Q', p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), G.deny.q, kit.q.icon, kit.color());
-    abilityBox(26, by, 'E', p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), G.deny.e, kit.e.icon, kit.color());
-    abilityBox(46, by, 'R', full, p.ult / 100, G.deny.r, kit.r.icon, P.gold);
+    abilityBox(6, by, keyLabel('q'), p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), G.deny.q, kit.q.icon, kit.color());
+    abilityBox(26, by, keyLabel('e'), p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), G.deny.e, kit.e.icon, kit.color());
+    abilityBox(46, by, keyLabel('r'), full, p.ult / 100, G.deny.r, kit.r.icon, P.gold);
   }
   ctx.restore();
   // the phone controls place themselves against the screen edges (see input.js)
@@ -200,17 +181,17 @@ export function drawHUD(menu) {
 
   if (TEST_BUFF) textO('TEST BUFF ON', W / 2, 4, Math.floor(G.time * 2) % 2 ? P.gold : P.paper, 1, 'c');
   // TESTING, temporary: say so while god mode or a test start is on
-  if (testing() && !G.talk) textO(settings.god ? 'GOD MODE' : 'TEST RUN', W / 2, 4, P.gold, 1, 'c');
+  if (G.tested && !G.talk) textO(settings.god ? 'GOD MODE' : 'TEST RUN', W / 2, 4, P.gold, 1, 'c');
   // score and high score, against the screen's right edge
   ctx.save(); ctx.translate(SX, 0);
-  const hi = Math.max(best.score, G.startBest ?? best.score), beat = G.score > hi && hi > 0;
+  const hi = Math.max(best.score, G.startBest ?? best.score), beat = !G.tested && G.score > hi && hi > 0;
   // (on a phone the menu button sits in the very corner, so the numbers make room for it)
   const rx = input.touch ? W - 30 : W - 6, waveTxt = G.night ? 'NIGHT ' + clockOf(G.night.t) : 'WAVE ' + G.wave;
   textO(waveTxt, rx, 4, G.night ? '#b48cff' : P.bone, 1, 'r');
   // the wave twist, tagged next to the wave number
   if (G.twist) { const tw = TWISTS[G.twist]; textO(tw.name, rx - 6 - waveTxt.length * 4, 4, Math.floor(G.time * 2) % 2 ? tw.c : P.paper, 1, 'r'); }
   textO('SCORE ' + String(G.score).padStart(7, '0'), rx, 12, P.paper, 1, 'r');
-  textO((beat ? 'NEW BEST ' : 'BEST ') + String(Math.max(hi, G.score)).padStart(7, '0'), rx, 20, beat && Math.floor(G.time * 4) % 2 ? P.paper : P.gold, 1, 'r');
+  textO((beat ? 'NEW BEST ' : 'BEST ') + String((G.tested ? hi : Math.max(hi, G.score))).padStart(7, '0'), rx, 20, beat && Math.floor(G.time * 4) % 2 ? P.paper : P.gold, 1, 'r');
 
   if (G.combo >= 2) {
     const rk = RANKS[G.rank], rc = C(rk.c), pop = G.rankPop > 0.5 ? 1 : 0;
@@ -248,9 +229,7 @@ export function drawHUD(menu) {
   // with the whole fighter standing in it, twice their size
   const un = G.unlocks[0];
   if (un && !G.talk?.lore) {
-    un.t += 1 / 60;
-    if (un.t > 4.4) G.unlocks.shift();
-    else drawUnlock(un);
+    drawUnlock(un);
   }
   // arrow on the screen edge pointing at an off-screen boss
   if (b && !b.dead && !lb) {
@@ -316,17 +295,19 @@ export function drawBackdrop(t, darken = 0.6) {
 }
 
 export const titleMenu = { sel: 0 };
-export function titleItems(save, go) {
+export function titleItems(save, go, practice) {
   const items = [];
   if (save) items.push({ label: 'CONTINUE', value: () => CHARS[save.char].name + '  WAVE ' + save.wave, act: () => go('continue') });
+  if (practice) items.push({ label: save ? 'PRACTICE' : 'CONTINUE PRACTICE', value: () => CHARS[practice.char].name + '  WAVE ' + practice.wave, act: () => go('practice') });
   items.push({ label: 'PLAY', act: () => go('select') });
+  items.push({ label: 'ASH STORY', act: () => go('ash') });
   items.push({ label: 'SETTINGS', act: () => go('settings') });
   return items;
 }
 // the title menu sits under the logo
 export const TITLE_MENU = { w: 132, row: 13 };
 export const titleMenuX = () => (W - TITLE_MENU.w) / 2;
-export const titleMenuY = (n) => 66 - (n - 2) * 6;
+export const titleMenuY = (n) => 68 - Math.max(0,n - 3) * 2;
 const LOGO_Y = 12;
 
 // ---------- title ----------
@@ -335,7 +316,7 @@ const LOGO_Y = 12;
 // it and a soft glow behind it.
 export function drawTitle(t, items) {
   const my = titleMenuY(items.length);
-  const bline = best.score > 0 ? 'BEST ' + best.score + '   WAVE ' + best.wave + (best.won ? '   KING SLAIN' : '') : input.touch ? 'LEFT THUMB MOVES, RIGHT THUMB FIGHTS' : 'WASD MOVE   MOUSE AIM   CLICK ATTACK   SPACE DASH';
+  const bline = best.score > 0 ? 'BEST ' + best.score + '   WAVE ' + best.wave + (best.won ? '   KING SLAIN' : '') : input.touch ? 'LEFT THUMB MOVES, RIGHT THUMB FIGHTS' : 'MOUSE AIM   CLICK ATTACK   '+keyLabel('dash')+' DASH';
   drawScene(t);
   drawLogo(LOGO, Math.round((W - LOGO.width) / 2), LOGO_Y, t);
   textO('THE KING SWALLOWED THE SUN', W / 2, LOGO_Y + LOGO.height + 1, P.dust, 1, 'c');
@@ -367,7 +348,7 @@ const cycle = (list, cur, dir) => list[(list.indexOf(cur) + dir + list.length) %
 // roster tiles: 4 x 2, each a parallelogram leaning right by SLANT pixels
 const TW = 38, TH = 26, TG = 3, SLANT = 4, TX0 = 154, TY0 = 10;
 const tilePos = (i) => [TX0 + (i % 4) * (TW + TG), TY0 + Math.floor(i / 4) * (TH + TG)];
-const ROW_Y = { 1: 138, 2: 147 }, START_Y = 157, START_W = 100, START_H = 14, PANEL_C = 236;
+const DIFF_Y = 146, START_Y = 157, START_W = 100, START_H = 14, PANEL_C = 236;
 export function updateSelect(dt) {
   sel.t += dt;
   loadPortraits();
@@ -378,14 +359,13 @@ export function updateSelect(dt) {
     A.ui();
     if (sel.row === 0 && down && sel.i < 4) sel.i += 4;
     else if (sel.row === 0 && up && sel.i >= 4) sel.i -= 4;
-    else sel.row = (sel.row + (down ? 1 : 3)) % 4;
+    else sel.row = (sel.row + (down ? 1 : 2)) % 3;
   }
   const lr = keyHit('ArrowLeft', 'KeyA') ? -1 : keyHit('ArrowRight', 'KeyD') ? 1 : 0;
   if (lr) {
     A.ui();
     if (sel.row === 0) sel.i = (sel.i + lr + ids.length) % ids.length;
-    else if (sel.row === 1) return { map: cycle(OPTIONS.map, settings.map, lr) };
-    else if (sel.row === 2) return { diff: cycle(OPTIONS.diff, settings.diff, lr) };
+    else if (sel.row === 1) return { diff: cycle(OPTIONS.diff, settings.diff, lr) };
   }
   for (let i = 0; i < ids.length; i++) {
     const [x, y] = tilePos(i);
@@ -393,14 +373,12 @@ export function updateSelect(dt) {
     if (input.mouse.moved && sel.i !== i) { sel.i = i; sel.row = 0; A.ui(); }
     if (input.mouse.pressed) { sel.i = i; sel.row = 0; A.ui(); }
   }
-  for (const row of [1, 2]) {
-    const y = ROW_Y[row], key = row === 1 ? 'map' : 'diff';
-    if (!inBox(152, y - 2, 164, 9)) continue;
-    if (input.mouse.moved) sel.row = row;
-    if (input.mouse.pressed) { A.ui(); return { [key]: cycle(OPTIONS[key], settings[key], input.mouse.x > PANEL_C ? 1 : -1) }; }
+  if (inBox(152, DIFF_Y - 3, 164, 11)) {
+    if (input.mouse.moved) sel.row = 1;
+    if (input.mouse.pressed) { A.ui(); return { diff: cycle(OPTIONS.diff, settings.diff, input.mouse.x > PANEL_C ? 1 : -1) }; }
   }
   const go = () => { if (locked(ids[sel.i])) { A.deny(); return null; } return { start: ids[sel.i] }; };
-  if (inBox(PANEL_C - START_W / 2, START_Y - 1, START_W, START_H + 2)) { if (input.mouse.moved) sel.row = 3; if (input.mouse.pressed) return go(); }
+  if (inBox(PANEL_C - START_W / 2, START_Y - 1, START_W, START_H + 2)) { if (input.mouse.moved) sel.row = 2; if (input.mouse.pressed) return go(); }
   if (keyHit('Enter', 'Space') && sel.t > 0.2) return go();
   if (keyHit('Escape') || (input.touch && input.mouse.pressed && input.mouse.x < 46 && input.mouse.y < 18)) return { back: true };
   return null;
@@ -429,9 +407,7 @@ function drawBars(bars, col, t, glitch) {
   });
 }
 // one parallelogram tile path
-// a fighter's honor: 1 once they have cleared wave 25 (best wave 26 or more), 2 once they have cleared wave 50
-const honor = (id) => { const r = best.chars[id]; return !r ? 0 : r.wave >= 51 ? 2 : r.wave >= 26 ? 1 : 0; };
-// a point on a tile's border, f from 0 to 1 going round it clockwise from the top-left corner
+const honor = (id) => best.chars[id]?.nox ? 2 : best.chars[id]?.won ? 1 : 0;
 function tileEdge(x, y, f) {
   const P4 = [[x + SLANT, y], [x + TW + SLANT, y], [x + TW, y + TH], [x, y + TH]], L = [TW, Math.hypot(SLANT, TH), TW, Math.hypot(SLANT, TH)], tot = L[0] + L[1] + L[2] + L[3];
   let d = (((f % 1) + 1) % 1) * tot;
@@ -518,17 +494,7 @@ export function drawSelect(t) {
   textO(secret ? '???' : k.hero, 8, ny, col, 2);
   text(secret ? 'A SECRET FIGHTER' : k.name, 8, ny + 13, lk ? P.stone2 : P.bone);
   const rec = best.chars[id];
-  if (rec && !lk) text('BEST WAVE ' + rec.wave + (rec.won ? '  KING SLAIN' : ''), 8, ny + 20, P.gold);
-  // the honor badge: silver for clearing wave 25, gold for clearing wave 50
-  const hon = lk ? 0 : honor(id);
-  if (hon) {
-    const label = hon === 2 ? 'WAVE 50 LEGEND' : 'WAVE 25 VETERAN', c1 = hon === 2 ? P.gold : '#dfe6f0', c2 = hon === 2 ? P.gold2 : '#8a96a8';
-    const bw = label.length * 4 + 9, sh = Math.floor(t * 3) % (bw + 20);
-    rect(7, ny + 28, bw, 9, c2); rect(8, ny + 29, bw - 2, 7, P.ink0);
-    rect(10, ny + 31, 3, 3, c1); px(11, ny + 30, c1); px(11, ny + 34, c1); px(9, ny + 32, c1); px(13, ny + 32, c1);
-    textO(label, 16, ny + 30, c1);
-    if (sh < bw) rect(7 + sh, ny + 28, 1, 9, P.paper);
-  }
+  if (rec && !lk) text(rec.nox ? 'ENDLESS  ' + clockOf(rec.night || 0) : 'BEST WAVE ' + rec.wave, 8, ny + 20, P.bone);
   target(null);
   h.drawImage(NAME, 0, 0);
   // roster
@@ -549,8 +515,6 @@ export function drawSelect(t) {
     tilePath(x, y); ctx.lineWidth = 1; ctx.strokeStyle = on ? ch.color() : P.ink3; ctx.stroke();
     if (!tlk && honor(cid)) honorFrame(x, y, honor(cid), t, i);
     if (tlk) { const lx = x + TW / 2 - 2, ly = y + 12; ring(lx + 4, ly, 3, 1, P.dust); rect(lx, ly, 9, 7, P.stone2); rect(lx + 4, ly + 2, 1, 3, P.ink0); }
-    const r = best.chars[cid];
-    if (r && r.won) px(x + TW + SLANT - 5, y + 3, P.gold);
     if (on) { const mx = x + TW / 2 + SLANT, my = y - 1 + (Math.floor(t * 4) % 2); for (let j = 0; j < 3; j++) rect(mx - j, my - 3 + j, 1 + j * 2, 1, ch.color()); }
   });
   if (lk) {
@@ -561,16 +525,13 @@ export function drawSelect(t) {
   } else {
     text(k.lore[0], 154, 70, P.bone); text(k.lore[1], 154, 77, P.bone);
     drawBars([['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]], col, t, id === 'DEV');
-    const ab = [['CLICK', k.primaryName], ...(k.charge ? [['HOLD', k.charge.name]] : []), ['Q', k.q.name + ' ' + k.q.cost], ['E', k.e.name + ' ' + k.e.cost], ['R', k.r.name]];
+    const ab = [['CLICK', k.primaryName], ...(k.charge ? [['HOLD', k.charge.name]] : []), [input.touch?'Q':keyLabel('q'), k.q.name + ' ' + k.q.cost], [input.touch?'E':keyLabel('e'), k.e.name + ' ' + k.e.cost], [input.touch?'R':keyLabel('r'), k.r.name]];
     ab.forEach(([key, name], i) => { const y = 101 + i * 7; text(key, 174, y, P.ember2, 1, 'r'); text(name, 178, y, P.paper); });
   }
-  for (const [row, label, val] of [[1, 'ARENA', MAPS[settings.map].name], [2, 'DIFFICULTY', settings.diff]]) {
-    const on = sel.row === row, y = ROW_Y[row];
-    if (on) { rect(152, y - 2, 164, 9, P.ink3); rect(152, y - 2, 2, 9, P.ember); }
-    text(label, 158, y, on ? P.paper : P.dust);
-    text((on ? '< ' : '') + val + (on ? ' >' : ''), 312, y, on ? P.ember2 : P.bone, 1, 'r');
-  }
-  const on = sel.row === 3, pulse = Math.floor(t * 3) % 2;
+  if (sel.row === 1) { rect(152, DIFF_Y - 3, 164, 11, P.ink3); rect(152, DIFF_Y - 3, 2, 11, P.ember); }
+  text('DIFFICULTY', 158, DIFF_Y, sel.row === 1 ? P.paper : P.dust);
+  text('< ' + settings.diff + ' >', 312, DIFF_Y, P.ember2, 1, 'r');
+  const on = sel.row === 2, pulse = Math.floor(t * 3) % 2;
   rect(PANEL_C - START_W / 2 - 1, START_Y - 1, START_W + 2, START_H + 2, P.ink0); rect(PANEL_C - START_W / 2, START_Y, START_W, START_H, on ? col : P.ink3);
   textO('START', PANEL_C, START_Y + 5, on && pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
   if (input.touch) { rect(3, 2, 34, 11, P.ink0); rect(4, 3, 32, 9, P.ink2); text('< BACK', 7, 5, P.paper); } else text('ENTER START   ESC BACK', PANEL_C, 174, P.stone2, 1, 'c');
@@ -596,11 +557,9 @@ export function settingsItems(ctxInfo) {
   ];
   if (setm.tab === 1) return [
     { label: 'RESOLUTION', value: () => (settings.res === 'AUTO' ? 'AUTO (FILL)' : settings.res === 'SHARP' ? 'SHARP (WHOLE ZOOM)' : settings.res.replace('X', ' X ')), adjust: stepList('res') },
-    { label: 'COLOR THEME', value: () => settings.theme, adjust: stepList('theme') },
     { label: 'VIBRANCY', value: () => pct(settings.vibrancy), adjust: stepNum('vibrancy', 0.1, 0, 2) },
     { label: 'BRIGHTNESS', value: () => pct(settings.bright), adjust: stepNum('bright', 0.05, 0.6, 1.4) },
     { label: 'CONTRAST', value: () => pct(settings.contrast), adjust: stepNum('contrast', 0.05, 0.6, 1.6) },
-    { label: 'HUE SHIFT', value: () => settings.hue + ' DEG', adjust: (d) => { settings.hue = (settings.hue + d * 15 + 360) % 360; } },
     { label: 'BACK', act: () => 'back' },
   ];
   if (setm.tab === 2) return [
@@ -613,14 +572,17 @@ export function settingsItems(ctxInfo) {
   ];
   if (setm.tab === 4) return [
     { label: 'GOD MODE', value: () => (settings.god ? 'ON' : 'OFF'), adjust: toggle('god') },
+    { label: 'ALL UPGRADES', value: () => settings.testBuffs ? 'ON' : 'OFF', adjust: toggle('testBuffs') },
+    { label: 'FULL ENERGY AND POWERS', value: () => settings.testCharge ? 'ON' : 'OFF', adjust: toggle('testCharge') },
+    { label: 'PLAY ANY FIGHTER', value: () => settings.testRoster ? 'ON' : 'OFF', adjust: toggle('testRoster') },
     { label: 'START NEW RUNS AT', value: () => (settings.testStart === 'NIGHT' ? 'THE ENDLESS NIGHT' : settings.testStart === 'WAVE 50' ? 'WAVE 50 (NOX)' : settings.testStart === 'WAVE 20' ? 'WAVE 20 (THE KING)' : settings.testStart), adjust: stepList('testStart') },
     { label: 'BACK', act: () => 'back' },
   ];
   return [
-    { label: 'ARENA', value: () => MAPS[settings.map].name, adjust: stepList('map') },
     { label: 'DIFFICULTY', value: () => settings.diff, adjust: stepList('diff') },
     { label: 'BLOOD STAINS', value: () => settings.blood, adjust: stepList('blood') },
     { label: 'VIBRATION', value: () => (canVibrate ? settings.vibe : settings.vibe + ' (NOT ON THIS DEVICE)'), adjust: (d) => { stepList('vibe')(d); buzz('heavy'); } },
+    { label: 'CUSTOMIZE CONTROLS', act: () => 'controls' },
     { label: 'RESET ALL SETTINGS', act: () => 'reset' },
     { label: 'ERASE SAVED RUN', act: () => 'erase', dimmed: !ctxInfo.hasSave },
     { label: 'BACK', act: () => 'back' },
@@ -647,10 +609,10 @@ export function drawSettings(t, items, inRun) {
   drawMenu(setm, items, 40, 38, 240, SET_ROW);
   // the color theme and filters, on the fighters themselves
   if (setm.tab === 1) roster().forEach((id, i) => { const set = SPR.chars[id], s = set.idles[Math.floor(t * 7 + i * 3) % set.idles.length]; ctx.drawImage(s.n, Math.round(56 + i * 30 - s.w / 2), Math.round(164 - 92 / 3), s.w, s.h); });
-  if (setm.tab === 3 && inRun) text('ARENA AND DIFFICULTY APPLY TO YOUR NEXT RUN', W / 2, 142, P.stone2, 1, 'c');
+  if (setm.tab === 3 && inRun) text('DIFFICULTY APPLIES TO YOUR NEXT RUN', W / 2, 142, P.stone2, 1, 'c');
   if (setm.tab === 4) {
-    text("FOR TESTING ONLY. WHILE EITHER IS ON, RUNS DON'T SAVE", W / 2, 92, P.stone2, 1, 'c');
-    text('SCORES, RECORDS OR UNLOCKS. START AT APPLIES TO NEW RUNS.', W / 2, 100, P.stone2, 1, 'c');
+    text("USING A CHEAT MAKES THIS A PRACTICE RUN.", W / 2, 135, P.stone2, 1, 'c');
+    text('RECORDS AND UNLOCKS REQUIRE A CLEAN RUN.', W / 2, 144, P.stone2, 1, 'c');
   }
   text(input.touch ? 'TAP A TAB, TAP LEFT OR RIGHT SIDE OF A ROW TO CHANGE IT' : 'Q / E SWITCH TABS   ARROWS CHANGE   ESC BACK', W / 2, 170, P.stone2, 1, 'c');
 }
@@ -697,6 +659,24 @@ export function drawUpgrade() {
   if (upg.t > 0.6) textO('1 2 3 / ARROWS + ENTER / CLICK', W / 2, H - 18, P.dust, 1, 'c');
 }
 
+export function drawInheritance(t, granted) {
+  const cx = G.p.x - fx.cam.x, cy = G.p.y - fx.cam.y - 10;
+  dim(0.36);
+  const items = granted.length ? granted : UPGRADES.filter(u => !u.only || u.only.includes(G.char));
+  for (let i = 0; i < 16; i++) {
+    const k = Math.max(0, Math.min(1, (t - i * 0.10) / 1.05));
+    if (k === 0 || k === 1) continue;
+    const a = i * 2.4 + k * 0.85, r = (1 - k * k) * 88, u = items[Math.floor(i * items.length / 16)];
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.64;
+    line(x, y, x + Math.cos(a - 0.4) * 6, y + Math.sin(a - 0.4) * 4, C(u.c));
+    drawSprite(icon(u.icon, C(u.c)), x - 4, y - 4, false);
+  }
+  if (t > 1.2) { const k = Math.min(1, (t - 1.2) / 1.5); ctx.globalAlpha = 1 - k; ring(cx, cy, 8 + k * 49, 2, P.gold); ctx.globalAlpha = 1; }
+  textO('THE ASH REMEMBERS', W / 2, 20, P.gold, 2, 'c');
+  textO('EVERY GIFT IT CARRIED IS YOURS.', W / 2, 40, P.bone, 1, 'c');
+  if (t > 1.45) textO('ALL UPGRADES AND RELICS OBTAINED', W / 2, H - 24, P.paper, 1, 'c');
+}
+
 // ---------- pause ----------
 export const pauseMenu = { sel: 0 };
 export const PAUSE_ROW = 16;
@@ -713,7 +693,7 @@ export function drawPause(items) {
   textO('PAUSED', W / 2, 22, P.paper, 3, 'c');
   text(G.kit.name + '   WAVE ' + G.wave + '   ' + MAPS[G.mapKey].name + '   ' + G.diffKey, W / 2, 46, P.dust, 1, 'c');
   drawMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
-  text('YOUR RUN SAVES AT THE START OF EVERY WAVE', W / 2, 150, P.stone2, 1, 'c');
+  text(G.saveError ? 'SAVE FAILED. CHECK BROWSER STORAGE AND RETRY.' : G.night ? 'SAVE KEEPS YOUR ENDLESS TIME AND BUILD' : 'CONTINUE RESTARTS THIS WAVE FROM ITS CHECKPOINT', W / 2, 150, G.saveError ? P.ember3 : P.stone2, 1, 'c');
   if (!input.touch) text('ESC TO RESUME', W / 2, 162, P.stone2, 1, 'c');
 }
 
@@ -724,7 +704,7 @@ function stats(y0, t) {
   const rows = [
     ['SCORE', G.score], ['TIME', clock],
     ['KILLS', G.kills], ['BOSSES SLAIN', G.bosses],
-    ['DAMAGE DEALT', G.dmg], ['BEST MULTI', G.bestMulti >= 2 ? multiName(G.bestMulti) : '-'],
+    ['DAMAGE DEALT', Math.round(G.dmg)], ['BEST MULTI', G.bestMulti >= 2 ? multiName(G.bestMulti) : '-'],
     ['LONGEST COMBO', G.maxCombo], ['PERFECT DODGES', G.perfects],
     ['TOP RANK', RANKS[G.bestRank].l + '  ' + RANKS[G.bestRank].w], ['LOOTLINGS', G.loot],
   ];
@@ -999,13 +979,21 @@ function drawTouch(p, kit, full) {
   }
   // aimed skill held: a line and a landing ring out of the fighter, red while it will cancel
   const sk = input.skill;
-  if (sk.id !== null && sk.was) {
-    const px0 = p.x - fx.cam.x - fx.ox, py0 = p.y - 6 - fx.cam.y - fx.oy, ca = Math.cos(sk.a), sa = Math.sin(sk.a);
-    const col = sk.cancel ? P.blood : sk.key === 'r' ? P.gold : kit.color(), L = 18 + sk.k * 70;
-    ctx.globalAlpha = sk.cancel ? 0.35 : 0.85;
-    for (let i = 8; i < L; i += 5) line(px0 + ca * i, py0 + sa * i, px0 + ca * (i + 3), py0 + sa * (i + 3), col);
-    ring(px0 + ca * L, py0 + sa * L, 5, 1, col); px(px0 + ca * L, py0 + sa * L, col);
-    ctx.globalAlpha = 1;
+  if (sk.id !== null) {
+    const g=skillPreview(p,sk.key,sk), col=sk.cancel?P.blood:sk.key==='r'?P.gold:kit.color();
+    if (g) {
+      ctx.save(); ctx.translate(-Math.round(fx.cam.x+fx.ox),-Math.round(fx.cam.y+fx.oy));
+      ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=1; ctx.beginPath();
+      if (g.r) ctx.arc(g.x,g.y,g.r,0,Math.PI*2);
+      else if (g.spread) { ctx.moveTo(g.x0,g.y0); ctx.arc(g.x0,g.y0,g.length,g.a-g.spread,g.a+g.spread); ctx.closePath(); }
+      else {
+        const a=Math.atan2(g.y-g.y0,g.x-g.x0),nx=-Math.sin(a)*g.width,ny=Math.cos(a)*g.width;
+        ctx.moveTo(g.x0+nx,g.y0+ny); ctx.lineTo(g.x+nx,g.y+ny); ctx.lineTo(g.x-nx,g.y-ny); ctx.lineTo(g.x0-nx,g.y0-ny); ctx.closePath();
+      }
+      ctx.globalAlpha=sk.cancel?0.04:0.15; ctx.fill(); ctx.globalAlpha=0.83; ctx.stroke();
+      if(g.r){ line(g.x-3,g.y,g.x+3,g.y,col); line(g.x,g.y-3,g.x,g.y+3,col); }
+      ctx.restore();
+    }
     const b = TOUCH_BTNS.find((t) => t.id === sk.key);
     if (sk.cancel) textO('CANCEL', b.x - b.r - 4, b.y - 3, P.blood, 1, 'r');
     else textO('BACK TO CANCEL', W + SX - 4, 60, P.dust, 1, 'r');
@@ -1114,4 +1102,9 @@ export function drawLockin(t, id) {
     ctx.globalAlpha = a; rect(-SX, 0, FW, H, P.paper); ctx.globalAlpha = 1;
     if (pic) { const h = hdCtx(); h.globalAlpha = a; h.fillStyle = P.paper; h.fillRect(-SX, 0, FW, H); h.globalAlpha = 1; }
   }
+}
+
+export function drawLeave(menu,items) {
+  drawBackdrop(0,0.85); textO('LEAVE ASHBLADE?', W/2,44,P.ember2,2,'c');
+  drawMenu(menu,items,90,76,140,19);
 }

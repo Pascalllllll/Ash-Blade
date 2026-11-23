@@ -1193,11 +1193,11 @@ Object.assign(BOSSES, {
   // breathes in and drags you toward it while night pours out in a spiral. At two thirds the night falls (the arena goes
   // dark round you); at one third it becomes the last night: faster, and eyes open round the arena and stare beams.
   nox: {
-    name: 'NOX', short: 'NOX', sub: 'THE LAST NIGHT', col: NOXC, colD: '#14082a', hp: 6200, r: 22, speed: 40, score: 100000, music: 'boss_nox', end: true,
+    name: 'NOX', short: 'NOX', sub: 'THE LAST NIGHT', col: NOXC, colD: '#14082a', hp: 7100, r: 22, speed: 40, score: 100000, music: 'boss_nox', end: true,
     death: 'THE NIGHT BREAKS', marks: [0.33, 0.66],
     init(e) { e.state = 'intro'; e.t = 3.2; e.alpha = 0; e.y = Math.max(e.y, B.y0 + 92); },
     update(e, dt, d, ang, dx) {
-      const p = G.p, spd = e.phase === 3 ? 1.45 : e.phase === 2 ? 1.2 : 1;
+      const p = G.p, spd = e.awakened ? 1.6 : e.phase === 3 ? 1.45 : e.phase === 2 ? 1.2 : 1;
       e.superArmor = true; e.kx = e.ky = 0; e.z = 6 + Math.sin(e.anim * 1.6) * 3;
       // night drips off it
       if (Math.random() < dt * 8) part(e.x + rnd(-20, 20), e.y - rnd(10, 60), rnd(-6, 6), rnd(10, 30), rnd(0.6, 1.2), Math.random() < 0.6 ? '#2a1450' : NOXC, { drag: 0.5 });
@@ -1226,15 +1226,15 @@ Object.assign(BOSSES, {
           if (e.cd > 0) break;
           const opts = ['stars', 'reach', 'ring', 'shades'];
           if (e.phase >= 2) opts.push('pull', 'reach', 'stars');
-          if (e.phase === 3) opts.push('eyes', 'eyes');
+          if (e.phase >= 3) opts.push('eyes', 'eyes');
           const k = pick(e, opts);
           if (k === 'stars') {
             // dead stars fall out of the dark: on you first, then all round you
-            for (let i = 0; i < (e.phase >= 2 ? 14 : 10); i++) { const onYou = i < 2; G.strikes.push({ x: clamp(p.x + (onYou ? 0 : rnd(-100, 100)), B.x0 + 8, B.x1 - 8), y: clamp(p.y + (onYou ? 0 : rnd(-70, 70)), B.y0 + 8, B.y1 - 4), t: -i * 0.12, delay: 0.9, R: 20, dmg: 2, friendly: false, kind: 'meteor', c: NOXC }); }
+            for (let i = 0; i < (e.phase >= 2 ? 14 : 10); i++) { const onYou = i < 2; G.strikes.push({ x: clamp(p.x + (onYou ? 0 : rnd(-100, 100)), B.x0 + 8, B.x1 - 8), y: clamp(p.y + (onYou ? 0 : rnd(-70, 70)), B.y0 + 8, B.y1 - 4), t: -i * 0.12, delay: 0.9, R: 20, dmg: e.awakened ? 6 : 4, friendly: false, kind: 'meteor', c: NOXC }); }
             G.banner = { text: 'DEAD STARS', sub: '', t: 0, life: 1, c: NOXC }; A.meteorFall(); e.state = 'rec'; e.t = 1.5;
           } else if (k === 'reach') {
             // the dark reaches across the arena in lines: dash through them
-            for (let i = 0; i < (e.phase >= 2 ? 7 : 5); i++) { const a = rnd(TAU), cx = p.x + (i < 2 ? 0 : rnd(-80, 80)), cy = p.y - 5 + (i < 2 ? 0 : rnd(-55, 55)); G.hlines.push({ x0: cx - Math.cos(a) * 160, y0: cy - Math.sin(a) * 160, x1: cx + Math.cos(a) * 160, y1: cy + Math.sin(a) * 160, t: -i * 0.12, pend: 0.95, done: false, c: NOXC, c0: '#2a0e4a' }); }
+            for (let i = 0; i < (e.phase >= 2 ? 7 : 5); i++) { const a = rnd(TAU), cx = p.x + (i < 2 ? 0 : rnd(-80, 80)), cy = p.y - 5 + (i < 2 ? 0 : rnd(-55, 55)); G.hlines.push({ x0: cx - Math.cos(a) * 160, y0: cy - Math.sin(a) * 160, x1: cx + Math.cos(a) * 160, y1: cy + Math.sin(a) * 160, t: -i * 0.12, pend: 0.95, dmg: e.awakened ? 5 : 3, done: false, c: NOXC, c0: '#2a0e4a' }); }
             G.banner = { text: 'THE DARK REACHES', sub: 'DASH THROUGH IT', t: 0, life: 1.2, c: NOXC }; A.warn(); A.rift(); e.state = 'rec'; e.t = 1.6;
           } else if (k === 'ring') {
             // rings of night, each with a gap to slip through
@@ -1272,7 +1272,8 @@ Object.assign(BOSSES, {
     drawBody(e, x, y, s) {
       // two eyes burning in the hood, a crown of dead stars glittering over it (its design is drawn 2.4 times finer:
       // 1.6 game pixels to each unit of the design in tools/bosses_art.py)
-      const u = 1.6, gx = (ax) => x + (e.face < 0 ? s.w - ax * u : ax * u);
+      if (e.awakened) { glow(e.x, y + s.h * 0.50, '#ffaa7b', 12 + Math.sin(G.t*4)*2, 0.62); return; }
+      const u = 1.8, gx = (ax) => x + (e.face < 0 ? s.w - ax * u : ax * u);
       glow(gx(18.5), y + 13 * u, NOXC, 5 + Math.sin(G.time * 6), 0.6); glow(gx(25.5), y + 13 * u, NOXC, 5, 0.5);
       for (let i = 0; i < 3; i++) { const a = G.time * 0.8 + (i * TAU) / 3; px(gx(22 + Math.cos(a) * 9), y + (8 + Math.sin(a) * 3) * u, '#ece8f4'); }
       if (e.state === 'pull') { ctx.globalAlpha = 0.3; ring(x + s.w / 2, y + 26 * u, 30 + (G.time * 60) % 40, 1, NOXC); ctx.globalAlpha = 1; }

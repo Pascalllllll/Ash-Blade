@@ -431,7 +431,7 @@ const DEATHS = {
   // The crushing is done in whole art rows of his sprite (helm 0-18, chest 19-28, legs 29-32, boots 33-34): a row
   // that gives is gone, everything above it drops onto what's below, and a band of gore squeezes out of the seam.
   TANK: {
-    line: 'KNEEL BEFORE THE KING', col: '#8b98ab',
+    line: 'THE PIT CLOSES ITS FIST', col: '#8b98ab',
     // art rows of his 33-row sprite: the knees (28 to 30), the spine (22, 23), then everything between the helm (rows 0
     // to 16) and the boots
     STEPS: [[0.42, [28, 29], 'knees'], [0.66, [27, 30], 'knees'], [1.02, [22, 23], 'spine'], [1.3, [17, 18, 19, 20, 21, 24, 25, 26], 'flat']],
@@ -493,7 +493,7 @@ const DEATHS = {
           sparks(d.x, d.y - lift, -Math.PI / 2, 10, 1, P.ember3, 140);
           A.gore(0.9); A.wall(); A.crack(); shake(0.5); kick(Math.PI / 2, 3);
         } else {
-          // the haft snaps and the crown slams him down onto his boots
+          // the haft snaps and the hand closes around his armor
           s.slam = true;
           const [hx, hy0] = handPos(d.x, d.y, { flip: d.flip }), hy = hy0 + (this.drop(d, this.HAND) - rows.filter((r) => r > this.HAND).length) * 2 / SS;
           for (let i = 0; i < 6; i++) part(hx, d.y, rnd(-50, 50), rnd(-10, 10), rnd(0.6, 1), Math.random() < 0.5 ? '#6a4a32' : '#3a2618', { z: d.y - hy, vz: rnd(40, 100), g: 380, drag: 1.5 });
@@ -534,23 +534,35 @@ const DEATHS = {
       if (s.head?.rest) s.eye = Math.max(0, s.eye - dt * 0.8);
       stepPieces(d.pieces, dt, { onBounce: (b) => { A.click(); splat(b.x, b.y, 3, P.blood, P.bloodD); }, onRest: (b) => poolUnder(d, b, 5) });
     },
-    // the King's crown: black iron spikes on an iron band, a gold rim, embers flickering between the spikes
-    crown(x, y, a, t) {
-      if (a <= 0) return;
-      ctx.globalAlpha = a;
-      glow(x, y - 3, P.ember, 16, 0.35 * a);
-      const X = Math.round(x) - 8, Y = Math.round(y);
-      rect(X, Y - 3, 17, 1, '#2a2230'); rect(X, Y - 2, 17, 2, '#120e16'); rect(X, Y, 17, 1, '#ffd447');
-      for (let i = 0; i < 5; i++) {
-        const sx = X + 1 + i * 4, h = i === 2 ? 5 : i % 2 ? 4 : 3;
-        rect(sx, Y - 3 - h, 2, h, '#120e16'); px(sx, Y - 3 - h, '#ffd447');
-        if (i < 4) { const fl = (Math.floor(t * 12) + i) % 2; px(sx + 2, Y - 5 - fl, P.ember3); px(sx + 2, Y - 4, P.ember); }
+    hand(d, front) {
+      const rise=ease(clamp(d.t/0.43,0,1)), sink=ease(clamp((d.t-1.58)/0.68,0,1));
+      if (sink>=1) return;
+      const close=ease(clamp((d.t-0.38)/0.96,0,1));
+      const x=d.x,y=d.y+31*(1-rise)+34*sink;
+      const rock='#534353', bevel='#978383', dark='#291e2a';
+      ctx.save(); ctx.beginPath(); ctx.rect(d.x-29,d.y-47,58,49); ctx.clip();
+      if (!front) {
+        rect(x-6,y-11,14,29,dark); rect(x-4,y-11,9,29,rock);
+        disc(x,y-13,14,dark); disc(x-1,y-14,11,rock);
+        line(x-5,y-4,x-2,y+7,P.ember);
       }
-      ctx.globalAlpha = 1;
+      for (let i=0;i<(front?1:4);i++) {
+        const side=front?-1:1, base=front?x-9:x-9+i*6;
+        const bx=base+side*(front?11:(i-1)*3)*(1-close);
+        const joint=y-18-(front?0:5+Math.sin(i)*3)+8*close;
+        const tip=bx-side*(front?-6:3+9*close);
+        const ty=joint-(front?7:12)*(1-close)+9*close;
+        const ry=front?y-7:y-14;
+        line(base,ry,bx,joint,dark,7); line(bx,joint,tip,ty,dark,6);
+        line(base-1,ry-1,bx-1,joint-1,rock,5); line(bx-1,joint-1,tip,ty-1,rock,4);
+        line(bx-2,joint-2,tip-1,ty-2,bevel,1); px(bx,joint+1,P.ember);
+      }
+      ctx.restore();
     },
     draw(d) {
       const t = d.t, s = d.s, fr = frame('idle', 0), img = s.white > 0 ? fr.tint('#ff3b3b', d.flip) : d.flip ? fr.f : fr.n;
       const top = bodyTop(), x0 = snap(d.x - 20 + Math.round(s.jx * 3) / 3), e = this.edges(d.flip ? fr.f : fr.n);
+      this.hand(d,false);
       // the hammer: at rest, then planted head down beside him once his knees go
       if (!s.slam) {
         const k = clamp((t - 0.7) / 0.15, 0, 1), down = Math.PI / 2 + (d.flip ? 0.55 : -0.55), rest = restAngle(d.flip), wa = rest + (down - rest) * ease(k);
@@ -575,7 +587,7 @@ const DEATHS = {
         const y = this.rowY(d, this.NECK), [lo, hi] = e[this.NECK] || [44, 76];
         for (let cx = lo + 4; cx <= hi - 4; cx += 2) this.gore(x0 + cx / SS, y - 2 / SS - ((cx * 5) % 3 === 0 ? 2 / SS : 0), cx * 17 + 5);
       }
-      this.crown(d.x, (s.popped ? this.rowY(d, this.NECK) : this.rowY(d, 0)) - 1 - 40 * (1 - ease(t / 0.35)), s.cA, t);
+      this.hand(d,true);
       drawPieces(d.pieces);
       // the visor light on the rolling helm goes out
       if (s.head && s.eye > 0) {

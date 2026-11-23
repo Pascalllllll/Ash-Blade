@@ -85,7 +85,7 @@ const SCRIPTS = {
   BLADE: {
     life: 3.0, revealAt: 1.15,
     start(k) { k.s.cr = makeCracks(k.x, k.y, 10, 40); k.s.pil = Array.from({ length: 9 }, (_, i) => ({ a: (i / 9) * TAU + rnd(-0.2, 0.2), r: rnd(18, 30), d: rnd(0, 0.15), h: rnd(16, 30) })); },
-    met(k) { const f = easeIn((k.t - 0.45) / 0.7); return [k.x - 120 * (1 - f), k.y - 6 * (1 - f), 210 * (1 - f)]; },
+    met(k) { const f = easeIn((k.t - 0.45) / 0.7); return [k.x - 54 * (1 - f), k.y - 6 * (1 - f), 210 * (1 - f)]; },
     update(k, dt) {
       const { x, y } = k, t = k.t;
       if (at(k, 0.02)) A.powerUp(1.1);
@@ -95,7 +95,7 @@ const SCRIPTS = {
         if (t > 0.25 && Math.random() < dt * 10) shake(0.04 + t * 0.07);
         if (t >= 0.45) {
           const [mx, my, mz] = this.met(k);
-          for (let i = 0; i < 4; i++) part(mx + rnd(-3, 3), my, rnd(-80, -30), rnd(-8, 8), rnd(0.25, 0.5), [P.ember, P.ember2, P.ember3, P.paper][i], { z: mz + rnd(-4, 4), vz: rnd(10, 70), glow: true, drag: 3, keep: true });
+          for (let i = 0; i < 4; i++) part(mx + rnd(-3, 3), my, rnd(-22, -9), rnd(-4, 2), rnd(0.25, 0.5), [P.ember, P.ember2, P.ember3, P.paper][i], { z: mz + rnd(-4, 4), vz: rnd(50, 95), glow: true, drag: 3, keep: true });
           if (Math.random() < dt * 30) part(mx, my, rnd(-30, 0), 0, rnd(0.6, 1), '#3a3040', { z: mz, vz: rnd(0, 30), drag: 1.5 });
         }
         return;
@@ -127,7 +127,7 @@ const SCRIPTS = {
         if (t >= 0.45) {
           const [mx, my, mz] = this.met(k);
           shadow(x, y, 2 + (1 - mz / 210) * 8);
-          line(mx, my - mz, mx - 40, my - mz - 22, P.ember2, 5); line(mx, my - mz, mx - 30, my - mz - 16, P.ember3, 3);
+          line(mx, my - mz, mx - 12, my - mz - 48, P.ember2, 5); line(mx, my - mz, mx - 8, my - mz - 32, P.ember3, 3);
           glow(mx, my - mz, P.ember, 24, 0.8);
           drawBody(frame('death', 2), mx, my, { z: mz - 7, rot: t * 16, pivot: [0, -8], tint: Math.floor(t * 20) % 2 ? P.ember3 : P.ember });
           glow(mx, my - mz, P.ember3, 12, 0.9);

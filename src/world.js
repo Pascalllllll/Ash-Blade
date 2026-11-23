@@ -1,17 +1,19 @@
 import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=200';
 import { SPR, EVO_NAMES } from './sprites.js?v=200';
 import { A } from './audio.js?v=200';
-import { input, keyDown, keyHit } from './input.js?v=200';
-import { settings, OPTIONS, best, saveBest, TEST_BUFF } from './store.js?v=200';
+import { input, actionDown, actionHit } from './input.js?v=200';
+import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF } from './store.js?v=200';
 import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=200';
-import { CHARS, ALLY, swordAngle } from './chars.js?v=200';
+import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=200';
 import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=200';
-import { byId } from './upgrades.js?v=200';
+import { byId, grantAllUpgrades } from './upgrades.js?v=200';
 import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=200';
 import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=200';
 import { WEAPON_ART } from './hero-rig.js?v=200';
 import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=200';
 import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=200';
+import { drawBossArrival } from './boss-arrivals.js?v=200';
+import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=200';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -57,6 +59,8 @@ export const DEF = {
   lootling: { r: 5, hp: 20, kbRes: 0.3, col: '#ffd447', colD: '#8a5a00', score: 800, speed: 74, energy: 0 },
   archer: { r: 5, hp: 8, kbRes: 0, col: '#c8a070', colD: '#5a3a20', score: 200, speed: 38, energy: 2 },
   priest: { r: 5, hp: 11, kbRes: 0.1, col: '#7dff9a', colD: '#2a6a3a', score: 300, speed: 32, energy: 3 },
+  bellwraith: { r: 7, hp: 34, kbRes: 0.48, col: '#e5ae74', colD: '#644253', score: 480, speed: 36, energy: 5 },
+  glasswing: { r: 6, hp: 21, kbRes: 0.18, col: '#9bdedb', colD: '#43446b', score: 375, speed: 61, energy: 4 },
 };
 // ---------- wave twists: from wave 6, about one normal wave in three gets a rule change ----------
 export const TWISTS = {
@@ -183,9 +187,9 @@ function makePlayer(kit, D) {
 export function newRun(charId, save) {
   dctx.clearRect(0, 0, AW, AH);
   const char = OPTIONS.char.includes(charId) ? charId : 'BLADE';
-  const arena = save ? save.map : settings.map, diffKey = save ? save.diff : settings.diff;
+  const arena = 'DESCENT', diffKey = save ? save.diff : settings.diff;
   // TESTING, temporary: start at a later wave (past the King counts him as beaten; NIGHT is the endless night)
-  const at = save ? save.wave : { 'WAVE 20': 20, 'WAVE 45': 45, 'WAVE 50': 50, NIGHT: 51 }[settings.testStart] || 1;
+  const at = save ? save.wave : settings.testStart === 'NIGHT' ? 51 : Number(settings.testStart.split(' ')[1]) || 1;
   // the arena chosen (the descent, or one floor for the whole run) and the floor the run starts on
   const mapKey = stageFor(arena, at);
   const kit = CHARS[char], D = DIFF[diffKey];
@@ -202,10 +206,11 @@ export function newRun(charId, save) {
     queue: [], spawnCd: 0, phase: 'intro', phaseT: 2, banner: null, dark: 0,
     up: { wpn: 1, overflow: 0, spell: 1, crit: 0, magnet: 0, thorns: 0, orbit: 0, dashMul: 1, cdMul: 1, evoWpn: 0, evoSpell: 0, evoUlt: 0, evoHeart: 0, evoSwift: 0, evoStatic: 0, evoEmber: 0, evoOrbit: 0, dmg: 1, spd: 1, reach: 1, regen: 1, static: 0, ember: 0, phantom: 0, mirror: 0, debt: 0, shrap: 1, exec: 0, focus: 1, echo: 0, storm: 0, mag: 0, pierce: 0, frost: 0, twin: 0, venom: 0, overclock: 0, hands: 0, after: 0, coolant: 0, cluster: 0, phoenix: 0, rage: 0, crown: 0, midas: 0, reaper: 0 },
     taken: {}, cine: null, boss: null, dead: false, deadT: 0, wantUpgrade: false, victory: false, won: false,
+    tested: !!save?.tested || testing(), nox: !!save?.nox, saveError: false,
     phoenixUsed: false, pickChain: 0, pickChainT: 0, debtKills: 0, corpses: [], twist: null, lastTwist: null, mk: 0, mkT: 0, mkShow: null, bestMulti: 0, dmg: 0, bosses: 0, loot: 0, deny: { q: 0, e: 0, r: 0 }, startBest: best.score,
   };
   // timers and delayed cuts remember whether the fighter made them, so their effects take its awakened colors
-  for (const arr of [G.timers, G.cuts, G.bolts, G.quakes, G.ghosts, G.booms, G.slashes]) arr.push = function (...a) { for (const o of a) { o.pfx = !!G.pfx; if (G.inCharge) o.chg = true; if (o.pfx && G.awPal && o.c) o.c = G.awPal[o.c] || o.c; } return Array.prototype.push.apply(this, a); };
+  for (const arr of [G.timers, G.cuts, G.bolts, G.quakes, G.ghosts, G.booms, G.slashes, G.strikes, G.allies]) arr.push = function (...a) { for (const o of a) { o.power ??= G.power; o.pfx = !!G.pfx; if (G.inCharge) o.chg = true; if (o.pfx && G.awPal && o.c) o.c = G.awPal[o.c] || o.c; } return Array.prototype.push.apply(this, a); };
   for (const [x, y, r] of G.map.pools) G.zones.push({ type: 'lava', x, y, r, t: 0, life: Infinity, pool: true });
   fx.trauma = 0; fx.freeze = 0; fx.freezeCd = 0; fx.slowT = 0; fx.slowF = 1; fx.hurtVig = 0;
   if (save) {
@@ -215,13 +220,24 @@ export function newRun(charId, save) {
     Object.assign(G, { score: save.score, kills: save.kills, maxCombo: save.maxCombo, bestRank: save.bestRank, won: save.won, time: save.time }, save.extra || {});
     Object.assign(G.p, { hp: save.hp, maxHp: save.maxHp, energy: save.energy, ult: save.ult, dashMax: save.dashMax, charges: save.dashMax });
     if (G.kit.init) G.p.k = G.kit.init();
+    if (save.awakened) { G.evo = true; G.kit = awakenKit(G.kit); G.awPal = G.kit.awake?.pal.map || null; }
+    G.phoenixUsed = !!save.phoenixUsed;
     startWave(save.wave);
+    if (G.night) G.night.t = save.nightTime || 0;
   } else {
     if (at > 20) G.won = true;
     startWave(at);
   }
+  applyPractice();
   G.cine = G.kit.entrance();
   fx.cam.x = clamp(G.p.x - W / 2, SX, AW - W - SX); fx.cam.y = clamp(G.p.y - H / 2, 0, AH - H);
+}
+
+export function applyPractice() {
+  if (!G || !testing()) return;
+  G.tested = true;
+  if (settings.testBuffs) grantAllUpgrades(G);
+  if (settings.testCharge) { G.p.energy = G.p.ult = 100; G.p.cdQ = G.p.cdE = 0; }
 }
 
 // checkpoint taken at the start of each wave
@@ -231,13 +247,15 @@ export function snapshot() {
     v: 1, char: G.char, map: G.arena, diff: G.diffKey, wave: G.wave, score: G.score, kills: G.kills, maxCombo: G.maxCombo,
     bestRank: G.bestRank, won: G.won, time: Math.round(G.time), hp: p.hp, maxHp: p.maxHp, energy: Math.round(p.energy),
     ult: Math.round(p.ult), dashMax: p.dashMax, taken: { ...G.taken },
-    extra: { dmg: G.dmg, bosses: G.bosses, loot: G.loot, bestMulti: G.bestMulti, perfects: G.perfects },
+    tested: G.tested, nox: G.nox, awakened: G.evo === true, phoenixUsed: G.phoenixUsed, nightTime: G.night?.t || 0,
+    extra: { dmg: G.dmg, bosses: G.bosses, loot: G.loot, bestMulti: G.bestMulti, perfects: G.perfects, debtKills: G.debtKills },
   };
 }
 
 export const isBossWave = (n) => n % 5 === 0;
 
 export function startWave(n) {
+  G.sunrise = null;
   if (n > 1) sweepStains();
   // after Nox (wave 50) there are no more waves: the endless night
   if (n > 50) { startNight(); return; }
@@ -303,7 +321,7 @@ function sayAfterEntrance(lines, o) {
 // bosses climb back out of the dark one at a time, after five minutes two at a time; everything gets tougher the longer
 // it lasts, until the fighter falls. G.night.t: the seconds survived.
 const NIGHT_BOSSES = ['warden', 'brood', 'colossus', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock'];
-const NIGHT_MONSTERS = [['husk', 3], ['wisp', 2], ['tick', 2], ['slime', 2], ['brute', 2], ['spitter', 2], ['archer', 2], ['priest', 1], ['shade', 2]];
+const NIGHT_MONSTERS = [['husk', 3], ['wisp', 2], ['tick', 2], ['slime', 2], ['brute', 2], ['spitter', 2], ['archer', 2], ['priest', 1], ['shade', 2], ['bellwraith', 2], ['glasswing', 3]];
 export const nightMinutes = () => (G?.night ? G.night.t / 60 : 0);
 export function startNight() {
   G.wave = 51; G.phase = 'night'; G.phaseT = 0; G.queue = []; G.twist = null; G.dark = 0;
@@ -358,6 +376,8 @@ function buildQueue(n) {
   if (n >= 4) pool.push(['archer', 2, 2]);
   if (n >= 6) pool.push(['priest', 3, 1.5]);
   if (n >= 8) pool.push(['shade', 3, 2]);
+  if (n > 20) pool.push(['bellwraith', 6, 2.7]);
+  if (n >= 26) pool.push(['glasswing', 4, 3]);
   const total = pool.reduce((s, x) => s + x[2], 0);
   while (budget > 0) {
     let k = rnd(total), pick = pool[0];
@@ -386,12 +406,14 @@ export function spawnEnemy(type, x, y, bossKey) {
     const key = bossKey || bossFor(G.wave), bd = BOSSES[key], tier = Math.floor((G.wave / 5 - 1) / ORDER.length);
     d = { r: bd.r, hp: bd.hp, kbRes: 0.97, col: bd.col, colD: bd.colD, score: bd.score, speed: bd.speed, energy: 0 };
     e.def = d; e.boss = key;
-    e.hp = Math.round(bd.hp * 1.5 * (1 + tier * 0.7) * G.D.hp * (1 + 0.12 * ef) * (1 + 0.25 * nightMinutes()));
+    const health = G.night ? Math.max(5100, bd.hp) : bd.hp;
+    e.hp = Math.round(health * 1.5 * (1 + tier * 0.7) * G.D.hp * (1 + 0.12 * ef) * (1 + 0.34 * nightMinutes()));
     d.scale = bd.scale || 1; d.tint = bd.tint;
     e.speed = bd.speed * (1 + tier * 0.1);
     e.phase = 1; e.last = ''; e.cd = 1;
     G.boss = e; G.bossClean = true;
     bd.init?.(e);
+    if (key === 'nox') loadMonsterSheet('noxAwake', SPR.noxAwake[0].h);
   } else {
     e.hp = Math.round(d.hp * sc * (1 + 0.3 * nightMinutes()));
     e.speed = d.speed * (1 + Math.min(0.45, (G.wave - 1) * 0.03)) * G.D.spd * Math.min(1.35, 1 + 0.012 * ef) * (1 + Math.min(0.25, 0.02 * nightMinutes()));
@@ -505,13 +527,14 @@ export function evolveFx(name, id) {
 }
 // fighters unlock mid-run the moment their mission is done
 export function unlock(id) {
-  if (best.unlocked.includes(id)) return;
+  if (G.tested || testing() || best.unlocked.includes(id)) return;
   best.unlocked.push(id); saveBest();
   G.unlocks.push({ id, t: 0 });
-  A.victory(); buzz('boss'); flash(P.gold, 0.2, false);
+  A.select(); buzz('tap');
 }
 // lifetime stats are banked into storage at each checkpoint and at the end of a run
 export function bankStats() {
+  if (G.tested || testing()) return;
   best.kills += G.kills - G.killsBanked; G.killsBanked = G.kills;
   best.combo = Math.max(best.combo, G.maxCombo);
   best.perfects = Math.max(best.perfects, G.perfects);
@@ -549,7 +572,12 @@ export function addCombo(n) {
 }
 
 // ---------- damage ----------
-export const pd = (x) => Math.max(1, Math.round(x * G.up.dmg));
+export const pd = x => x * G.up.dmg;
+function withPower(kind, action) {
+  const previous=G.power;
+  G.power=kind;
+  try { return action(); } finally { G.power=previous; }
+}
 const FIGHTER_POWER = 1.1;
 
 export function sprFor(e) {
@@ -560,21 +588,22 @@ export function sprFor(e) {
     const frames = m.drive > 0.8 ? set.run : set.walk;
     return frames[Math.floor(m.phase * frames.length) % frames.length];
   }
-  const id = e.boss || e.type;
+  const id = e.awakened && e.boss === 'nox' ? 'noxAwake' : e.boss || e.type;
   return monsterFrame(id, m.phase, SPR[id], m.clock % 3.3 < 0.14);
 }
 
 export function damage(e, dmg, o) {
-  if (e.dead || e.dying || e.under) return false;
+  if (e.dead || e.dying || e.under || e.state === 'awakening' || (e.boss && (e.state === 'spawn' || e.state === 'intro'))) return false;
   const up = G.up, p = G.p;
   if (e.boss) BOSSES[e.boss].onHit?.(e, o);
   if (e.frozen > 0) dmg *= up.evoFrost ? 2 : 1.5;
-  const melee = o.ug, spell = !o.ug && o.src !== 'burn' && o.src !== 'lava' && o.src !== 'wall';
+  const kind = o.power || G.power || ((o.ug || o.basic) ? 'weapon' : 'other');
+  const melee = kind === 'weapon';
   if (melee) dmg *= up.wpn;
-  if (spell) dmg *= up.spell;
+  if (kind === 'spell') dmg *= up.spell;
   if (p.ascend > 0 && o.src !== 'lava') dmg *= 2;
   if (G.kit.dmgScale && o.src !== 'lava' && o.src !== 'wall') dmg *= G.kit.dmgScale();
-  if (melee && !o.crit && Math.random() < up.crit) { dmg *= up.evoCrit ? 3 : 2; o.crit = true; }
+  if (melee && !o.crit && !o.rolledCrit && Math.random() < up.crit) { dmg *= up.evoCrit ? 3 : 2; o.crit = true; }
   // the first hit after a perfect dodge is a counter: triple damage and a shockwave
   if (o.ug && p.counter > 0) {
     dmg *= 3; o.crit = true;
@@ -591,7 +620,7 @@ export function damage(e, dmg, o) {
   // every fighter hits a tenth harder (on top of the numbers in chars.js)
   dmg *= FIGHTER_POWER;
   if (TEST_BUFF) dmg *= 6;
-  dmg = Math.max(1, Math.round(dmg));
+  dmg = Math.max(0, dmg);
   e.calm = 0;
   if (e.affix) e.tagT = 1.2;
   if (e.type === 'priest' && e.state === 'chant' && o.src !== 'burn') { e.heal = null; e.state = 'tend'; e.cd = 1.6; addText(e.x, e.y - 22, 'INTERRUPTED', P.paper); A.deny(); }
@@ -612,8 +641,8 @@ export function damage(e, dmg, o) {
   if (!e.superArmor && o.src !== 'burn' && o.src !== 'lava' && (e.type === 'husk' || e.type === 'wisp' || e.type === 'tick')) {
     if (e.state !== 'fuse' && e.state !== 'spawn') { e.state = 'hurt'; e.t = 0.22; e.hitP = false; }
   }
-  if (o.src !== 'burn' && o.src !== 'lava') bleed(e.x, e.y, o.dir ?? rnd(TAU), Math.min(14, 3 + dmg), e.def.col, e.def.colD, o.kb ? 1 : 0.5);
-  addText(e.x + rnd(-3, 3), e.y - e.r * 2 - 6, String(dmg), o.crit ? P.gold : o.src === 'bolt' || o.src === 'orb' ? P.volt : o.src === 'burn' || o.src === 'lava' ? P.ember : P.paper, o.crit ? 2 : 1, true);
+  if (e.boss !== 'nox' && o.src !== 'burn' && o.src !== 'lava') bleed(e.x, e.y, o.dir ?? rnd(TAU), Math.min(14, 3 + dmg), e.def.col, e.def.colD, o.kb ? 1 : 0.5);
+  addText(e.x + rnd(-3, 3), e.y - e.r * 2 - 6, String(Math.max(1,Math.round(dmg))), o.crit ? P.gold : o.src === 'bolt' || o.src === 'orb' ? P.volt : o.src === 'burn' || o.src === 'lava' ? P.ember : P.paper, o.crit ? 2 : 1, true);
   if (o.src !== 'burn' && o.src !== 'lava') addCombo(1);
   if (o.ug) {
     if (p.ultLock <= 0 && !G.cine) p.ult = Math.min(100, p.ult + dmg * 0.25 * up.focus * G.kit.ultRate);
@@ -627,7 +656,8 @@ export function damage(e, dmg, o) {
     if (up.evoWpn && (o.crit || Math.random() < 0.4)) spirits(e.x, e.y - e.r - 4, o.crit ? 3 : 1);
   }
   if (aw && basic && Math.abs(G.time - (e.awT ?? -9)) > 0.15) { e.awT = G.time; aw.hit(e, o); }
-  if (e.hp <= 0) { kill(e, o); return true; }
+  if (e.dead || e.dying) return true;
+  if (e.hp <= 0) { kill(e, o); return e.state !== 'awakening'; }
   return false;
 }
 
@@ -845,6 +875,7 @@ export function tryHurt(dmg, sx, sy) {
     if (p.shield <= 0) G.kit.onShieldBreak?.(p);
     return 'blocked';
   }
+  if (G.night) dmg = Math.ceil(dmg * (1.4 + nightMinutes() * 0.14));
   dmg += G.D.dmg + (G.twist === 'GLASS' ? 1 : 0);
   G.bossClean = false;
   if (G.up.thorns) {
@@ -907,7 +938,7 @@ function perfectDodge() {
   if (++G.perfects >= 25) unlock('NINJA');
   slowmo(0.6, 0.3);
   p.energy = Math.min(100, p.energy + 12);
-  p.inv = Math.max(p.inv, 0.45);
+  p.inv = Math.max(p.inv, G.char === 'BLADE' ? 0.18 : 0.45);
   p.counter = 2.5; p.counterHit = false;
   addText(p.x, p.y - 24, 'PERFECT  COUNTER READY', P.volt, 1);
   addRing(p.x, p.y - 6, P.volt, 220, 0.35, 2);
@@ -936,7 +967,7 @@ function die() {
 // ---------- projectiles ----------
 export function shoot(o) {
   const s = {
-    owner: 'player', x: o.x, y: o.y, vx: Math.cos(o.a) * o.sp, vy: Math.sin(o.a) * o.sp, r: o.r ?? 2, dmg: o.dmg, kb: o.kb ?? 60,
+    power: o.power || G.power || (G.tagBasic ? 'weapon' : undefined), owner: 'player', x: o.x, y: o.y, vx: Math.cos(o.a) * o.sp, vy: Math.sin(o.a) * o.sp, r: o.r ?? 2, dmg: o.dmg, kb: o.kb ?? 60,
     life: o.life ?? 1, t: 0, kind: o.kind ?? 'bullet', c: o.c ?? P.gold, pierce: o.pierce ?? 0, bounce: o.bounce ?? 0,
     homing: o.homing ?? 0, splash: o.splash, hit: new Set(), ug: o.ug ?? true, slice: o.slice ?? false, poison: o.poison, freeze: o.freeze,
     spin: 0, trail: o.trail ?? true, onHit: o.onHit, basic: !!G.tagBasic,
@@ -946,7 +977,7 @@ export function shoot(o) {
   return s;
 }
 export function fire(x, y, a, sp, o = {}) {
-  G.shots.push({ owner: 'enemy', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: o.r ?? 3, life: o.life ?? 6, dmg: o.dmg ?? 1, t: 0, c: o.c ?? (o.noparry ? P.blood : P.hex), noparry: !!o.noparry, accel: o.accel ?? 0, trail: !o.arrow, ret: o.ret, retT: o.retT, fist: o.fist, arrow: o.arrow });
+  G.shots.push({ owner: 'enemy', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: o.r ?? 3, life: o.life ?? 6, dmg: o.dmg ?? 1, t: 0, c: o.c ?? (o.noparry ? P.blood : P.hex), noparry: !!o.noparry, accel: o.accel ?? 0, bounce: o.bounce || 0, trail: !o.arrow, ret: o.ret, retT: o.retT, fist: o.fist, arrow: o.arrow });
 }
 
 export function chainLightning(src, jumps, dmg) {
@@ -972,7 +1003,7 @@ export function explode(x, y, friendly, R0 = 34, dmg0 = 14) {
   const R = friendly ? R0 * G.up.shrap : R0;
   for (const e of G.E) {
     if (!alive(e)) continue;
-    if (hyp(e.x - x, e.y - y) < R + e.r) damage(e, friendly ? pd(dmg0 * G.up.shrap) : 8, { dir: Math.atan2(e.y - y, e.x - x), kb: 260, src: 'boom' });
+    if (hyp(e.x - x, e.y - y) < R + e.r) damage(e, friendly ? pd(dmg0) : 8, { dir: Math.atan2(e.y - y, e.x - x), kb: 260, src: 'boom' });
   }
   if (!friendly && hyp(G.p.x - x, G.p.y - y) < R) tryHurt(2, x, y);
   addRing(x, y - 4, P.ember2, R * 7, 0.16, 3);
@@ -988,55 +1019,47 @@ export function explode(x, y, friendly, R0 = 34, dmg0 = 14) {
 // ---------- controls (every frame, even during hit-stop) ----------
 export function controls() {
   const p = G.p, m = input.mouse, kit = G.kit;
+  if (settings.testCharge) { p.energy = p.ult = 100; p.cdQ = p.cdE = 0; }
   if (p.state === 'dead' || p.state === 'cine') return;
-  for (const k of ['q', 'e', 'r']) input.aimable[k] = isAimed(kit[k]);
+  for (const k of ['q', 'e', 'r']) input.aimable[k] = previewable(G.char,k);
   if (bossLock()) { p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0; p.castAim = null; p.atkHeld = false; return; }
   if (input.cast) p.castAim = { ...input.cast, t: 0.4 };
-  if (keyHit('KeyJ', 'KeyZ')) { p.bufAtk = 0.2; input.device = 'keys'; }
+  if (actionHit('attack')) { p.bufAtk = 0.2; input.device = 'keys'; }
   if (m.pressed) p.bufAtk = 0.2;
   // holding attack: guns keep firing, blades wind up a charged attack instead of repeating the combo
-  p.atkHeld = (m.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || (input.touch && input.tb.attack);
+  p.atkHeld = (m.down && input.device === 'mouse') || actionDown('attack') || (input.touch && input.tb.attack);
   const repeats = !kit.charge;
-  if (repeats && ((m.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ'))) p.bufAtk = Math.max(p.bufAtk, 0.04);
-  if (keyHit('Space', 'ShiftLeft', 'ShiftRight', 'KeyK', 'KeyX') || m.rpressed) p.bufDash = 0.18;
+  if (repeats && ((m.down && input.device === 'mouse') || actionDown('attack'))) p.bufAtk = Math.max(p.bufAtk, 0.04);
+  if (actionHit('dash') || m.rpressed) p.bufDash = 0.18;
   if (input.touch) {
     if (input.thit.has('attack')) p.bufAtk = 0.2;
     if (repeats && input.tb.attack) p.bufAtk = Math.max(p.bufAtk, 0.04);
     if (input.thit.has('dash')) p.bufDash = 0.18;
   }
-  const ask = (codes, cost, cd, key) => {
-    if (!keyHit(...codes) && !input.thit.has(key.toLowerCase())) return;
+  const ask = (cost, cd, key) => {
+    if (!actionHit(key.toLowerCase()) && !input.thit.has(key.toLowerCase())) return;
     if (p.energy >= cost && cd <= 0) p['buf' + key] = 0.18; else { G.deny[key.toLowerCase()] = 0.35; A.deny(); }
   };
-  ask(['KeyQ', 'KeyU'], kit.q.cost, p.cdQ, 'Q');
-  ask(['KeyE', 'KeyI'], kit.e.cost, p.cdE, 'E');
-  if (keyHit('KeyR', 'KeyO') || input.thit.has('r')) { if (p.ult >= 100 && G.E.some(alive)) p.bufR = 0.25; else { G.deny.r = 0.35; A.deny(); } }
+  ask(kit.q.cost, p.cdQ, 'Q');
+  ask(kit.e.cost, p.cdE, 'E');
+  if (actionHit('r') || input.thit.has('r')) { if (p.ult >= 100 && G.E.some(alive)) p.bufR = 0.25; else { G.deny.r = 0.35; A.deny(); } }
   // inside the Wyrm there's no room to dash or cast: only your weapon works
   if (G.swallow) { p.bufDash = p.bufQ = p.bufE = p.bufR = 0; }
 }
 
-// a skill wants aiming when its code reads the aim (a kit can say so outright with aim: true/false)
-const aimedCache = new WeakMap();
-function isAimed(sk) {
-  if (!sk) return false;
-  if (sk.target) return true;
-  if (sk.aim !== undefined) return sk.aim;
-  if (!aimedCache.has(sk)) aimedCache.set(sk, /\baim(Point)?\b|p\.aim/.test(String(sk.use)));
-  return aimedCache.get(sk);
-}
-
 // ---------- player ----------
 function startUltimate(p, kit, up) {
+  rememberAction('spell');
   const target = kit.r.target?.(p);
   p.bufR = 0; p.ult = 0; p.ultLock = 2.5; p.castAim = null;
   buzz('ult');
   // the fighter shouts the move's name over the ultimate itself: no pause, it goes off at once
   A.playVoice(kit.id);
-  kit.r.use(p, target);
+  withPower('ultimate', () => kit.r.use(p, target));
   setSpriteAction(p, 'ultimate');
-  if (awake()) { kit.awake.ult(p); p.ult = 30; }
+  if (awake()) { withPower('ultimate',()=>kit.awake.ult(p)); p.ult = 30; }
   if (up.evoUlt) {
-    p.ascend = 12; p.ascNova = 1; p.ult = Math.max(p.ult, 25);
+    p.ascend = 8; p.ascNova = 1; p.ult = Math.max(p.ult, 25);
     p.inv = Math.max(p.inv, 2); p.evoFlash = 1;
   }
 }
@@ -1111,8 +1134,8 @@ function updatePlayer(dt) {
     if (Math.random() < dt * (G.rank >= 6 ? 26 : 10)) part(p.x + rnd(-6, 6), p.y - rnd(0, 6), rnd(-8, 8), -rnd(20, 50), rnd(0.3, 0.6), Math.random() < 0.6 ? c : P.paper, { glow: true, drag: 2 });
   }
 
-  let mx = (keyDown('KeyD', 'ArrowRight') ? 1 : 0) - (keyDown('KeyA', 'ArrowLeft') ? 1 : 0);
-  let my = (keyDown('KeyS', 'ArrowDown') ? 1 : 0) - (keyDown('KeyW', 'ArrowUp') ? 1 : 0);
+  let mx = (actionDown('right') ? 1 : 0) - (actionDown('left') ? 1 : 0);
+  let my = (actionDown('down') ? 1 : 0) - (actionDown('up') ? 1 : 0);
   if (!mx && !my && input.stick.id !== null) { mx = input.stick.dx; my = input.stick.dy; }
   // the Mirror turned you around: left is right while it lasts
   if (G.mirrorT > 0) mx = -mx;
@@ -1184,7 +1207,7 @@ function updatePlayer(dt) {
         for (const e of G.E) {
           if (!alive(e) || p.phantomHit.has(e) || hyp(e.x - p.x, e.y - p.y) > e.r + 10) continue;
           p.phantomHit.add(e);
-          damage(e, pd(5 * up.phantom), { dir: Math.atan2(p.dy, p.dx) + Math.PI / 2, kb: 90, src: 'dash', slice: true });
+          damage(e, pd(5 * up.phantom * (up.evoPhantom ? 3 : 1)), { dir: Math.atan2(p.dy, p.dx) + Math.PI / 2, kb: 90, src: 'dash', slice: true });
           sparks(e.x, e.y - 5, Math.atan2(p.dy, p.dx), 8, 0.5, P.volt);
           A.hit(false, false);
         }
@@ -1235,18 +1258,18 @@ function updatePlayer(dt) {
       break;
     }
     case 'chg': if (!p.chg || p.chg.update(p, dt) === true) { p.state = 'move'; p.chg = null; } break;
-    case 'skill': if (kit.skill(p, dt, mx, my) === true) p.state = 'move'; break;
+    case 'skill': if (withPower('spell', () => kit.skill(p, dt, mx, my)) === true) p.state = 'move'; break;
     case 'dead': p.vx *= Math.exp(-6 * dt); p.vy *= Math.exp(-6 * dt); break;
   }
 
   if (p.state !== 'dead' && p.state !== 'cine') {
     const free = p.state === 'move' || (p.state === 'recover' && p.recT < 0.05);
     const canAct = free || p.state === 'charge' || (p.state === 'attack' && p.atkT >= p.cancelAt);
-    const canDash = p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
+    const canDash = G.t >= (p.nextDash || 0) && p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
     if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
     else if (p.bufR > 0 && canAct && p.ult >= 100) { startUltimate(p, kit, up); return; }
-    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const fs = flashStrike(p); const okQ = kit.q.use(p) !== false; G.skillMult = 1; if (fs && okQ) flashFx(p); p.castAim = null; if (okQ) { setSpriteAction(p,'skill1'); p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); if (awake()) G.kit.awake.skill(p, 'q'); } }
-    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const fs = flashStrike(p); const okE = kit.e.use(p) !== false; G.skillMult = 1; if (fs && okE) flashFx(p); p.castAim = null; if (okE) { setSpriteAction(p,'skill2'); p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); if (awake()) G.kit.awake.skill(p, 'e'); } }
+    else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) { p.bufQ = 0; const fs = flashStrike(p); const okQ = withPower('spell', () => kit.q.use(p)) !== false; G.skillMult = 1; if (fs && okQ) flashFx(p); p.castAim = null; if (okQ) { rememberAction('spell'); setSpriteAction(p,'skill1'); p.energy -= kit.q.cost; p.cdQ = kit.q.cd * up.cdMul; if (up.evoSpell) echo(kit.q); if (awake()) withPower('spell',()=>G.kit.awake.skill(p, 'q')); } }
+    else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) { p.bufE = 0; const fs = flashStrike(p); const okE = withPower('spell', () => kit.e.use(p)) !== false; G.skillMult = 1; if (fs && okE) flashFx(p); p.castAim = null; if (okE) { rememberAction('spell'); setSpriteAction(p,'skill2'); p.energy -= kit.e.cost; p.cdE = kit.e.cd * up.cdMul; if (up.evoSpell) echo(kit.e); if (awake()) withPower('spell',()=>G.kit.awake.skill(p, 'e')); } }
     else if (kit.melee) {
       // a fighter with a charged attack waits a moment on a fresh press: a tap swings when it's let go, a hold goes
       // straight into the charge without a swing first
@@ -1257,10 +1280,11 @@ function updatePlayer(dt) {
       else if (kit.charge && p.atkHeld && p.holdT > 0.22 && p.bufAtk <= 0 && (free || (p.state === 'attack' && p.atkT >= p.cancelAt))) startCharge(p);
     }
     if (!kit.melee && p.state !== 'dead') {
-      const held = (input.mouse.down && input.device === 'mouse') || keyDown('KeyJ', 'KeyZ') || input.tb.attack;
+      const held = (input.mouse.down && input.device === 'mouse') || actionDown('attack') || input.tb.attack;
       G.tagBasic = true;
       const shots = G.shots.length;
       kit.primary(p, dt, held && (p.state === 'move' || p.state === 'recover'));
+      if ((G.shots.length>shots || p.k.firing) && G.t >= (p.studyShot || 0)) { rememberAction('weapon'); p.studyShot=G.t+0.32; }
       if (G.shots.length > shots) { p.recoil = 1; p.sq = Math.max(p.sq || 0, 0.06); }
       G.tagBasic = false;
     }
@@ -1327,6 +1351,7 @@ function releaseCharge(p, f) {
 }
 
 function startAttack() {
+  rememberAction('weapon');
   const p = G.p, up = G.up, m = G.kit.melee;
   p.bufAtk = 0;
   p.step = p.state === 'attack' || p.comboWin > 0 ? (p.step + 1) % m.steps.length : 0;
@@ -1396,11 +1421,11 @@ function swingHits() {
 function meleeHit(e, sw, dir) {
   const p = G.p, kit = G.kit;
   let mult = 1, crit = Math.random() < 0.1 + G.up.crit;
-  if (crit) mult *= 2;
+  if (crit) mult *= G.up.evoCrit ? 3 : 2;
   if (p.invis > 0 && kit.backstab) { mult *= 3; crit = true; p.invis = 0; addText(e.x, e.y - 24, 'BACKSTAB', P.blood); }
   if (e.stunT > 0 || e.state === 'stun') mult *= 1.5;
   if (sw.iai) { mult *= crit ? 1.5 : 3; crit = true; }
-  const killed = damage(e, sw.dmg * mult * G.up.dmg, { dir, kb: sw.kb, src: 'primary', ug: true, slice: true, crit, heavy: sw.heavy, basic: true });
+  const killed = damage(e, sw.dmg * mult * G.up.dmg, { dir, kb: sw.kb, src: 'primary', ug: true, slice: true, crit, rolledCrit:true, heavy: sw.heavy, basic: true });
   kick(dir, sw.heavy || crit ? 2 : 1);
   if (!killed) hitstop(e.type === 'boss' ? 0.035 : sw.heavy || crit ? 0.085 : 0.05);
   shake(sw.heavy ? 0.3 : 0.17);
@@ -1449,6 +1474,8 @@ function flashFx(p) {
 }
 function startDash(mx, my, ml) {
   const p = G.p, kit = G.kit;
+  rememberAction('dash');
+  if (kit.dash.recovery) p.nextDash = G.t + kit.dash.time + kit.dash.recovery;
   p.bufDash = 0;
   // Flash Strike: a fighter with dashStrike hits much harder with the first attack or skill right after a dash
   if (kit.dashStrike) p.dashBuffT = kit.dash.time + 0.6;
@@ -1556,7 +1583,7 @@ function echo(ab) {
   for (const [t, label] of [[0.3, 'ECHO'], [0.6, 'ECHO X2']]) G.timers.push({ t, fn: () => {
     const p = G.p;
     if (p.state === 'dead' || G.cine) return;
-    ab.use(p);
+    withPower('spell', () => ab.use(p));
     addText(p.x, p.y - 24, label, P.gold); addRing(p.x, p.y - 6, P.gold, 200, 0.25, 2); ghost(p, P.gold);
   } });
 }
@@ -1613,7 +1640,7 @@ export function drawOrbit(p, front = true) {
 }
 
 // ---------- regular enemies ----------
-const HOME = { lootling: 'flee', husk: 'chase', wisp: 'drift', tick: 'run', brute: 'chase', larva: 'chase', slime: 'hop', slimelet: 'hop', spitter: 'root', shade: 'stalk', archer: 'keep', priest: 'tend' };
+const HOME = { bellwraith: 'hover', glasswing: 'hover', lootling: 'flee', husk: 'chase', wisp: 'drift', tick: 'run', brute: 'chase', larva: 'chase', slime: 'hop', slimelet: 'hop', spitter: 'root', shade: 'stalk', archer: 'keep', priest: 'tend' };
 // the lootling runs away, weaving, and digs out after 11 seconds
 function updateLootling(e, dt, d, ang) {
   e.life -= dt;
@@ -1640,7 +1667,7 @@ function updateEnemy(e, dt) {
   const toward = (sp) => { e.vx = Math.cos(ang) * sp; e.vy = Math.sin(ang) * sp; };
   if (e.state === 'spawn') {
     e.t -= dt;
-    if (e.t <= 0) { e.state = { ...HOME, egg: 'incubate', boss: 'intro' }[e.type]; e.t = e.type === 'boss' ? 1.4 : e.type === 'egg' ? rnd(3, 4) : 0; }
+    if (e.t <= 0) { e.state = e.type==='boss'?'intro':e.type==='egg'?'incubate':HOME[e.type]; e.t = e.type === 'boss' ? 1.4 : e.type === 'egg' ? rnd(3, 4) : 0; }
     return;
   }
   if (e.type === 'boss') {
@@ -1651,6 +1678,7 @@ function updateEnemy(e, dt) {
       G.banner = { text: 'ENRAGED', sub: 'FINISH IT FAST', t: 0, life: 1.4, c: P.blood };
       A.bossRoar(); shake(0.6); addRing(e.x, e.y - 16, P.blood, 300, 0.5, 3);
     }
+    if (deepBossTurn(e, dt)) return;
     BOSSES[e.boss].update(e, dt * (e.enraged ? 1.5 : 1.25), d, ang, dx);
     return;
   }
@@ -1674,6 +1702,28 @@ function updateEnemy(e, dt) {
     e.vx = Math.cos(wa) * e.speed * 0.5; e.vy = Math.sin(wa) * e.speed * 0.5;
     if (e.state === 'windup' || e.state === 'lunge' || e.state === 'aim' || e.state === 'fuse' || e.state === 'strike' || e.state === 'vanish') e.state = HOME[e.type];
     e.z = 0; e.hopT = 0;
+    return;
+  }
+  if (e.type === 'bellwraith' || e.type === 'glasswing') {
+    const bell = e.type === 'bellwraith';
+    e.z = (bell ? 3 : 8) + Math.sin(e.anim * (bell ? 4 : 8)) * 2;
+    if (e.state === 'hover') {
+      const range = bell ? 68 : 83, a = ang + (d > range ? 0 : d < range - 20 ? Math.PI : e.orbit * Math.PI / 2);
+      e.vx = Math.cos(a) * e.speed; e.vy = Math.sin(a) * e.speed; e.face = dx < 0 ? -1 : 1;
+      if ((e.cd -= dt) <= 0 && d < 150) {
+        e.state = 'chimeW'; e.t = bell ? 0.95 : 0.7; e.lock = ang;
+        if (bell) A.click(); else A.warn();
+      }
+    } else if (e.state === 'chimeW' && (e.t -= dt) <= 0) {
+      if (bell) {
+        for (const wait of [0, 0.48]) G.quakes.push({x:e.x,y:e.y,r:3,speed:79,max:94,delay:wait,hitP:false,friendly:false,dmg:3, c:e.def.col});
+        A.boom(0.5);
+      } else {
+        for (const side of [-1,0,1]) fire(e.x,e.y-e.r,e.lock+side*0.25,146,{c:e.def.col,dmg:2,bounce:1,r:3,life:2.4});
+        e.kx = -Math.cos(e.lock)*140; e.ky = -Math.sin(e.lock)*140; A.riftCut();
+      }
+      e.state='hover'; e.cd = bell ? 3.8 : 2.7;
+    }
     return;
   }
   if (e.type === 'larva') {
@@ -1872,7 +1922,7 @@ function updateEnemy(e, dt) {
       const cx = Math.cos(e.lock), cy = Math.sin(e.lock);
       e.vx = cx * 255; e.vy = cy * 255; e.t -= dt;
       if (Math.random() < 0.6) dust(e.x, e.y, 1, 40);
-      if (!e.hitP && d < e.r + p.r + 2) { if (tryHurt(2, e.x, e.y) === true) e.hitP = true; }
+      if (!e.hitP && d < e.r + p.r + 2) { if (tryHurt(e.elite ? 4 : 3, e.x, e.y) === true) e.hitP = true; }
       if (atWall(e, cx, cy)) {
         e.state = 'stun'; e.t = 1.7; e.vx = e.vy = 0;
         shake(0.5); A.wall(); dust(e.x, e.y, 16, 90); hitstop(0.05);
@@ -1888,9 +1938,10 @@ export const atWall = (e, cx, cy) => (cx < 0 && e.x <= B.x0 + e.r + 1) || (cx > 
 
 // ---------- bosses: shared death sequence ----------
 function bossDeath(e) {
+  if (e.dead || e.dying || e.state === 'awakening' || awakenNox(e)) return;
   G.bosses++;
   e.dying = 2.2; e.state = 'dying'; e.t = 0; e.vx = e.vy = 0; e.z = 0; e.under = false; e.shieldUp = false; e.armor = 0;
-  A.bossRoar();
+  if (e.boss === 'nox') A.rift(); else A.bossRoar();
   const bd = BOSSES[e.boss];
   G.banner = { text: bd.death || (bd.final ? 'THE KING FALLS' : bd.short + ' SLAIN'), sub: '', t: 0, life: 2.6, c: P.gold };
   if (G.night) {
@@ -1899,13 +1950,14 @@ function bossDeath(e) {
     return;
   }
   A.stopLoops();
-  say(bd.final ? TALK.kingDead : bd.end ? TALK.noxDead : bossDeadLines(e.boss, G.char), { lore: !!(bd.final || bd.end) });
+  if (!bd.final && !bd.end) say(bossDeadLines(e.boss, G.char));
   G.queue.length = 0; G.sigils.length = 0; G.hbeams.length = 0; G.hlines.length = 0; G.dark = 0;
   for (const s of G.strikes) if (!s.friendly) s.dead = true;
   for (const o of G.E) if (o !== e && alive(o)) damage(o, 9999, { dir: Math.atan2(o.y - e.y, o.x - e.x), kb: 200, src: 'boom' });
   for (const s of G.shots) if (s.owner === 'enemy') s.dead = true;
 }
 function bossDying(e, dt) {
+  if (e.boss === 'nox') { if (noxDust(e, dt)) bossFinal(e); return; }
   e.dying -= dt; e.t -= dt;
   if (e.t <= 0) {
     e.t = 0.1;
@@ -1922,21 +1974,23 @@ function bossFinal(e) {
   e.dead = true; G.kills++;
   // with two bosses out in the night, the other one becomes the one the music and the camera follow
   if (G.boss === e) G.boss = G.E.find((o) => o !== e && o.type === 'boss' && alive(o)) || null;
-  makeGibs(e, rnd(TAU));
-  bleed(e.x, e.y, rnd(TAU), 60, e.def.col, e.def.colD, 1.6);
-  splat(e.x, e.y, 26, e.def.col, e.def.colD);
+  if (!bd.end) {
+    makeGibs(e, rnd(TAU));
+    bleed(e.x, e.y, rnd(TAU), 60, e.def.col, e.def.colD, 1.6);
+    splat(e.x, e.y, 26, e.def.col, e.def.colD);
+  }
   addRing(e.x, e.y - 16, P.paper, 420, 0.5, 3);
   addRing(e.x, e.y - 16, e.def.col, 300, 0.6, 2);
   for (let i = 0; i < (G.night ? 12 : 24); i++) dropPick(e.x, e.y, 'energy');
   for (let i = 0; i < (G.night ? 1 : 3); i++) dropPick(e.x, e.y, 'heal');
   G.score += Math.round(e.def.score * (G.wave / 5) * RANKS[G.rank].m * G.D.score);
-  flash(P.paper, 0.4, true); shake(1); hitstop(0.15);
-  A.ultRelease(); buzz('boss');
+  if (!bd.end) { flash(P.paper, 0.4, true); shake(1); hitstop(0.15); A.ultRelease(); }
+  buzz('boss');
   if (G.bossClean) unlock('TANK');
   if (bd.final) unlock('ROBOT');
-  if (bd.final && !G.won) { G.won = true; G.victory = true; A.victory(); }
+  if (bd.final && !G.won) { G.won = true; G.victory = true; G.sunrise = { x: e.x, y: e.y - 22, t: 0 }; A.victory(); say(TALK.kingDead); }
   // Nox's shape breaks: the story of the endless night plays before it begins (main.js)
-  if (bd.end && !G.night) { G.nightFall = true; A.victory(); }
+  if (bd.end && !G.night) { G.nightFall = true; G.nox = true; say(TALK.noxDead); A.victory(); }
 }
 
 // ---------- main update ----------
@@ -1955,6 +2009,8 @@ function placeSpawn(type) {
 
 export function update(dt, rdt) {
   G.time += rdt;
+  if (G.sunrise) G.sunrise.t += rdt;
+  if (G.unlocks.length && !G.talk?.lore && (G.unlocks[0].t += rdt) > 2.48) G.unlocks.shift();
   updateTalk(rdt);
   G.rankPop = Math.max(0, G.rankPop - rdt * 4);
   fx.hurtVig = Math.max(0, fx.hurtVig - rdt * 1.5);
@@ -1993,7 +2049,7 @@ export function update(dt, rdt) {
       A.waveClear(); A.scene('calm'); A.stopLoops();
       // the fighter shows off with a weapon trick (if standing still)
       if (G.p.state === 'move') startFlourish(G.p);
-      G.banner = { text: 'WAVE CLEAR', sub: '', t: 0, life: 1.6, c: P.ember3 };
+      G.banner = G.victory || G.nightFall ? null : { text: 'WAVE CLEAR', sub: '', t: 0, life: 1.6, c: P.ember3 };
       if (G.twist) {
         const tw = TWISTS[G.twist], bonus = Math.round(1000 * (1 + G.wave / 10) * G.D.score);
         G.score += bonus; G.p.energy = 100; healPlayer(1);
@@ -2026,7 +2082,7 @@ export function update(dt, rdt) {
   updateTricks(dt);
   const p = G.p;
 
-  G.pfx = true; for (const a of G.allies) { a.t += dt; ALLY[a.type].update(a, dt); } G.pfx = false;
+  G.pfx = true; for (const a of G.allies) { a.t += dt; withPower(a.power,()=>ALLY[a.type].update(a, dt)); } G.pfx = false;
   sweep(G.allies, (a) => a.t < a.life && !a.dead);
 
   for (const e of G.E) {
@@ -2081,17 +2137,17 @@ export function update(dt, rdt) {
   updateHazards(dt);
 
   fadeStains(dt);
-  for (const tm of G.timers) { tm.t -= dt; if (tm.t <= 0) { G.pfx = !!tm.pfx; tm.fn(); G.pfx = false; } }
+  for (const tm of G.timers) { tm.t -= dt; if (tm.t <= 0) { G.pfx = !!tm.pfx; withPower(tm.power,tm.fn); G.pfx = false; } }
   sweep(G.timers, (tm) => tm.t > 0);
   for (const c of G.cuts) {
     c.t += dt;
     G.pfx = !!c.pfx;
-    if (!c.done && c.t >= c.pend) { c.done = true; c.fire(c, false); }
-    if (c.echo === 1 && c.t >= c.pend + 0.2) { c.echo = 2; c.fire(c, true); }
+    if (!c.done && c.t >= c.pend) { c.done = true; withPower(c.power,()=>c.fire(c, false)); }
+    if (c.echo === 1 && c.t >= c.pend + 0.2) { c.echo = 2; withPower(c.power,()=>c.fire(c, true)); }
     G.pfx = false;
   }
   sweep(G.cuts, (c) => c.t < c.pend + 0.5);
-  for (const b of G.booms) { b.t -= dt; if (b.t <= 0) { G.pfx = !!b.pfx; explode(b.x, b.y, b.friendly, b.R ?? 36, b.dmg ?? 14); G.pfx = false; } }
+  for (const b of G.booms) { b.t -= dt; if (b.t <= 0) { G.pfx = !!b.pfx; withPower(b.power,()=>explode(b.x, b.y, b.friendly, b.R ?? 36, b.dmg ?? 14)); G.pfx = false; } }
   sweep(G.booms, (b) => b.t > 0);
 
   // low health: a heartbeat that quickens on the last heart
@@ -2180,8 +2236,8 @@ function updateShots(dt) {
         if (!alive(e) || s.hit.has(e)) continue;
         if (hyp(s.x - e.x, s.y - (e.y - e.r)) < s.r + e.r + 2) {
           s.hit.add(e);
-          const killed = damage(e, s.dmg, { dir: Math.atan2(s.vy, s.vx), kb: s.kb, src: s.kind === 'orb' ? 'orb' : 'primary', ug: s.ug, slice: s.slice, basic: s.basic });
-          if (s.onHit) s.onHit(e, killed);
+          const killed = damage(e, s.dmg, { power:s.power, dir: Math.atan2(s.vy, s.vx), kb: s.kb, src: s.kind === 'orb' ? 'orb' : 'primary', ug: s.ug, slice: s.slice, basic: s.basic });
+          if (s.onHit) withPower(s.power,()=>s.onHit(e, killed));
           if (!killed && s.poison) { e.burn = 3; e.burnDps = 3; }
           if (!killed && s.freeze && e.type !== 'boss') e.frozen = Math.max(e.frozen, s.freeze);
           sparks(s.x, s.y, Math.atan2(s.vy, s.vx), s.kind === 'bullet' ? 4 : 8, 0.7, s.c);
@@ -2202,9 +2258,10 @@ function updateShots(dt) {
 function endShot(s) {
   s.dead = true;
   if (s.splash) {
-    if (s.splash.big) { explode(s.x, s.y + 4, true, s.splash.R, s.splash.big); return; }
-    for (const e of G.E) if (alive(e) && !s.hit.has(e) && hyp(e.x - s.x, e.y - e.r - s.y) < s.splash.R + e.r) damage(e, s.splash.dmg, { dir: Math.atan2(e.y - s.y, e.x - s.x), kb: 100, src: 'boom' });
-    addRing(s.x, s.y, s.c, s.splash.R * 6, 0.16, 2);
+    if (s.splash.big) { withPower(s.power,()=>explode(s.x, s.y + 4, true, s.splash.R, s.splash.big)); return; }
+    const radius=s.splash.R*G.up.shrap;
+    for (const e of G.E) if (alive(e) && !s.hit.has(e) && hyp(e.x - s.x, e.y - e.r - s.y) < radius + e.r) damage(e, s.splash.dmg, { power:s.power, dir: Math.atan2(e.y - s.y, e.x - s.x), kb: 100, src: 'boom' });
+    addRing(s.x, s.y, s.c, radius * 6, 0.16, 2);
   }
   sparks(s.x, s.y, rnd(TAU), 5, Math.PI, s.c, 100);
 }
@@ -2229,7 +2286,7 @@ function updateHazards(dt) {
     if (s.t >= s.delay && !s.dead) {
       s.dead = true;
       if (s.friendly) {
-        for (const e of G.E) if (alive(e) && hyp(e.x - s.x, e.y - s.y) < s.R + e.r) damage(e, pd(s.dmg), { dir: Math.atan2(e.y - s.y, e.x - s.x), kb: 220, src: 'boom' });
+        for (const e of G.E) if (alive(e) && hyp(e.x - s.x, e.y - s.y) < s.R + e.r) damage(e, pd(s.dmg), { power:s.power, dir: Math.atan2(e.y - s.y, e.x - s.x), kb: 220, src: 'boom' });
         if (s.kind === 'meteor') G.zones.push({ type: 'burn', x: s.x, y: s.y, r: s.R * 0.7, t: 0, life: 3 });
       } else if (hyp(G.p.x - s.x, G.p.y - s.y) < s.R) tryHurt(s.dmg ?? 2, s.x, s.y);
       if (s.kind === 'lightning') { G.bolts.push({ x0: s.x + rnd(-20, 20), y0: s.y - 160, x1: s.x, y1: s.y, t: 0, life: 0.25 }); A.zip(); }
@@ -2252,10 +2309,10 @@ function updateHazards(dt) {
       for (const e of G.E) {
         if (!alive(e) || q.hit.has(e) || Math.abs(hyp(e.x - q.x, e.y - q.y) - q.r) > 6 + e.r) continue;
         q.hit.add(e);
-        damage(e, pd(q.dmg), { dir: Math.atan2(e.y - q.y, e.x - q.x), kb: 180, src: 'boom' });
+        damage(e, pd(q.dmg), { power:q.power, dir: Math.atan2(e.y - q.y, e.x - q.x), kb: 180, src: 'boom' });
         if (e.type !== 'boss') e.stunT = Math.max(e.stunT, 1);
       }
-    } else if (!q.hitP && Math.abs(hyp(p.x - q.x, p.y - q.y) - q.r) < 5) { if (tryHurt(2, q.x, q.y)) q.hitP = true; }
+    } else if (!q.hitP && Math.abs(hyp(p.x - q.x, p.y - q.y) - q.r) < 5) { if (tryHurt(q.dmg ?? 2, q.x, q.y)) q.hitP = true; }
   }
   sweep(G.quakes, (q) => q.r < q.max);
 
@@ -2263,7 +2320,7 @@ function updateHazards(dt) {
     l.t += dt;
     if (!l.done && l.t >= l.pend) {
       l.done = true;
-      if (segDist(p.x, p.y - 5, l.x0, l.y0, l.x1, l.y1) < 7) tryHurt(2, (l.x0 + l.x1) / 2, (l.y0 + l.y1) / 2);
+      if (segDist(p.x, p.y - 5, l.x0, l.y0, l.x1, l.y1) < 7) tryHurt(l.dmg ?? 2, (l.x0 + l.x1) / 2, (l.y0 + l.y1) / 2);
       shake(0.2); A.slice();
     }
   }
@@ -2276,7 +2333,7 @@ function updateHazards(dt) {
     b.len = beamLen(b.x, b.y, b.a, 340);
     if (b.t > b.warn && b.t < b.life) {
       const ex = b.x + Math.cos(b.a) * b.len, ey = b.y + Math.sin(b.a) * b.len;
-      if (segDist(p.x, p.y - 5, b.x, b.y, ex, ey) < b.w / 2 + 3) tryHurt(2, b.x, b.y);
+      if (segDist(p.x, p.y - 5, b.x, b.y, ex, ey) < b.w / 2 + 3) tryHurt(b.dmg ?? 2, b.x, b.y);
       if (Math.random() < 0.7) sparks(ex, ey, b.a + Math.PI, 2, 1, P.blood, 120);
     }
   }
@@ -2388,7 +2445,8 @@ function updateAmbient(dt) {
 function updateCam(dt) {
   const p = G.p, b = G.boss, show = b && b.state === 'intro' && !G.night;
   // during a boss entrance the camera frames the boss instead of you
-  const fxp = show ? b.x : p.x + Math.cos(p.aim) * 16, fyp = show ? b.y - 20 : p.y - 8 + Math.sin(p.aim) * 11;
+  const gate = !G.night && G.sigils.find(s => s.type === 'boss');
+  const fxp = gate ? gate.x : show ? b.x : p.x + Math.cos(p.aim) * 16, fyp = gate ? gate.y - 18 : show ? b.y - 20 : p.y - 8 + Math.sin(p.aim) * 11;
   const tx = fxp - W / 2, ty = fyp - H / 2;
   const k = 1 - Math.exp(-7 * dt);
   fx.cam.x = clamp(fx.cam.x + (tx - fx.cam.x) * k, SX, AW - W - SX);
@@ -2582,10 +2640,13 @@ function drawPlayer() {
   const hover = heroHover(p), floats = hover > 0;
   // a dash throws the body forward with everything streaming behind it; a hit makes it flinch with its eyes screwed
   // shut; the first instant of a swing lunges into it (the dash pose, when the cut goes the way the hero faces)
-  const lunging = p.state === 'attack' && p.atkT < 0.1 && Math.cos(p.atkAng ?? 0) * (flip ? -1 : 1) > 0.3;
-  const pose = p.state === 'dash' && body.dash ? body.dash[Math.floor(G.time * 18) % body.dash.length]
-    : p.hurtT > 0 && body.hurt ? body.hurt[p.hurtT > 0.17 ? 0 : 1]
-    : lunging && body.dash && !jets ? body.dash[0] : null;
+  const age = p.spriteAction ? G.time-p.spriteAction.start : Infinity;
+  const casting = age < Math.min(0.65,p.spriteAction?.duration || 0);
+  const pose = p.state==='dash' ? body.dash[Math.min(7,Math.floor(8*(1-clamp(p.dashT/(kit.dash.time),0,1))))] :
+    p.hurtT>0 ? body.hurt[Math.min(7,Math.floor(8*(1-clamp(p.hurtT/0.25,0,1))))] :
+    p.state==='attack' ? body.attack[Math.min(15,Math.floor(16*p.atkT/Math.max(0.14,p.atkDur || 0.32)))] :
+    casting ? body.cast[Math.min(15,Math.floor(age*16/Math.min(0.65,p.spriteAction.duration)))] :
+    p.recoil>0.06 ? body.attack[Math.min(15,Math.floor((1-p.recoil)*16))] : null;
   // flying, Omega's treads stay still
   const fr = pose || (moving && !jets ? moveFrames[fi] : body.idles[ii]);
   // a lunge into each swing, a lean into a dash
@@ -2643,7 +2704,7 @@ function drawPlayer() {
     if (Math.floor(G.time * 16) !== Math.floor((G.time - 1 / 60) * 16)) G.ghosts.push({ x: p.x - Math.cos(p.moveAng) * 3, y: p.y, flip, t: 0, life: 0.16, c: '#ffb7d5', spr: fr });
   }
   ctx.save(); ctx.translate(fx0, fy0); if (jets) ctx.rotate(clamp(p.vx / 90, -1, 1) * 0.14); if (sq) ctx.scale(scx, scy);
-  ctx.drawImage(tintP ? fr.tint(tintP, flip) : flip ? fr.f : fr.n, -fr.w / 2, -fr.h + 1, fr.w, fr.h);
+  drawSprite(fr,-fr.w/2,-fr.h+1,flip,tintP);
   ctx.restore();
   // winding up a charged attack: a ring at the feet fills, and flashes once full
   if (p.state === 'charge') {
@@ -2748,6 +2809,10 @@ export function drawEnemy(e) {
   ctx.translate(snap(e.x + ps.dx), snap(feet + ps.dy));
   ctx.rotate(ps.rot);
   ctx.scale(sc * ps.sx, sc * ps.sy);
+  if (e.boss === 'nox' && e.dying) {
+    const h = s.h * e.dying / 2.2;
+    ctx.beginPath(); ctx.rect(ox, -h, s.w, h); ctx.clip(); tint = null;
+  }
   if (ac) for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) drawSprite(s, ox + dx, -s.h + dy, flip, ac);
   drawSprite(s, ox, -s.h, flip, tint);
   const body = e.boss && BOSSES[e.boss].drawBody;
@@ -2757,6 +2822,12 @@ export function drawEnemy(e) {
   }
   ctx.restore();
   ctx.globalAlpha = 1;
+  if (e.state === 'chimeW') {
+    if (e.type === 'bellwraith') { ring(e.x,e.y,8+e.t*24,1,e.def.col); ring(e.x,e.y,10,1,P.paper); }
+    else for (const side of [-1,0,1]) {
+      const a=e.lock+side*0.25; line(e.x,e.y-e.r,e.x+Math.cos(a)*29,e.y-e.r+Math.sin(a)*29,e.def.col);
+    }
+  }
   if (e.type === 'wisp' && e.state === 'windup') glow(e.x, y + 4, P.hex, 6 + (0.55 - e.t) * 18, 0.6);
   if (e.type === 'egg') glow(e.x, e.y - 3, DEF.egg.col, 6 + Math.sin(G.time * 8) * 2, 0.3);
   if (e.type === 'boss') BOSSES[e.boss].draw?.(e, x, y, s);
@@ -2908,12 +2979,14 @@ export function drawWorld() {
 
   drawZones();
   drawTricks();
+  for (const e of G.E) if (e.boss) drawDeepFloor(e);
   G.cine?.under?.();
   drawDeathUnder();
 
   for (const s of G.sigils) {
     if (s.t < 0) continue;
     const k = s.t / s.life, boss = s.type === 'boss', col = boss ? BOSSES[s.boss || bossFor(G.wave)].col : DEF[s.type].col, big = boss ? 2.2 : 1;
+    if (boss) { drawBossArrival(s.boss || bossFor(G.wave), s.x, s.y, k, col); continue; }
     const r = 9 * big * Math.min(1, k * 2.2);
     ring(s.x, s.y, r, 1, col);
     ring(s.x, s.y, r * 0.55, 1, boss ? P.ink3 : DEF[s.type].colD);
@@ -3077,6 +3150,15 @@ export function drawWorld() {
   G.cine?.draw?.(cx, cy);
   ctx.restore();
   if (G.dark > 0) drawDark();
+  if (G.sunrise) {
+    const sun = G.sunrise, k = clamp(sun.t / 2.25, 0, 1), lift = k * (2 - k);
+    const x = (sun.x - cx) * (1-lift) + W * 0.5 * lift, y = (sun.y - cy) * (1-lift) + 39 * lift;
+    const r = 3 + 13 * lift;
+    fillScreen('#ffaf59', k * 0.19);
+    glow(x,y,'#ffad53',22+k*48,0.7);
+    for(let i=0;i<12;i++){const a=i*TAU/12+sun.t*0.12; line(x+Math.cos(a)*(r+4),y+Math.sin(a)*(r+4),x+Math.cos(a)*(r+7+9*k),y+Math.sin(a)*(r+7+9*k),P.ember3);}
+    disc(x,y,r,'#ffb947'); disc(x-1,y-1,r-2,'#fff1ad');
+  }
   // a new floor of the descent: black for a moment, then the floor fades in
   if (G.descend > 0) fillScreen(P.void, Math.min(1, G.descend * 1.4));
 }

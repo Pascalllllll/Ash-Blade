@@ -12,14 +12,47 @@ import {
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
 const canParry = (s) => s.owner === 'enemy' && !s.dead && !s.noparry && !s.ret && !s.fist;
 const STORM_R = 26;
-function aimPoint(p, max) {
-  let x, y;
-  if (input.device === 'mouse') { x = input.mouse.x + fx.cam.x; y = input.mouse.y + fx.cam.y; }
-  else if (p.castAim) { const r = max * p.castAim.k; x = p.x + Math.cos(p.castAim.a) * r; y = p.y + Math.sin(p.castAim.a) * r; }
-  else { aimAssist(); x = p.x + Math.cos(p.aim) * max; y = p.y + Math.sin(p.aim) * max; }
-  const d = hyp(x - p.x, y - p.y);
-  if (d > max) { x = p.x + ((x - p.x) / d) * max; y = p.y + ((y - p.y) / d) * max; }
-  return [clamp(x, B.x0 + 6, B.x1 - 6), clamp(y, B.y0 + 6, B.y1 - 4)];
+function aimPoint(p, max, intent=p.castAim) {
+  let x,y;
+  if (intent) {
+    const r=max*intent.k; x=p.x+Math.cos(intent.a)*r; y=p.y+Math.sin(intent.a)*r;
+  } else if (input.device==='mouse') {
+    x=input.mouse.x+fx.cam.x; y=input.mouse.y+fx.cam.y;
+  } else {
+    aimAssist(); x=p.x+Math.cos(p.aim)*max; y=p.y+Math.sin(p.aim)*max;
+  }
+  const d=hyp(x-p.x,y-p.y);
+  if (d>max) { x=p.x+(x-p.x)*max/d; y=p.y+(y-p.y)*max/d; }
+  return [clamp(x,B.x0+6,B.x1-6),clamp(y,B.y0+6,B.y1-4)];
+}
+const blizzardRadius=()=>G.up.evoTwin?66:G.up.twin?52:40;
+const stepTarget=(p,a,len)=>[
+  clamp(p.x+Math.cos(a)*len,B.x0+p.r,B.x1-p.r),
+  clamp(p.y+Math.sin(a)*len,B.y0+p.r,B.y1-2),
+];
+const skillAreas={
+  BLADE:{q:'rift',e:70}, GUNNER:{q:'buckshot'}, WIZARD:{q:'missiles',e:'blizzard'},
+  NINJA:{q:'senko',e:STORM_R}, MECHANIC:{q:'turret',e:'coil',r:'titan'},
+  TANK:{q:'bulldoze',e:110,r:56}, ROBOT:{q:'salvo',e:60,r:'orbital'}, DEV:{e:40},
+};
+export const previewable=(id,key)=>skillAreas[id]?.[key]!==undefined;
+export function skillPreview(p,key,drag) {
+  const area=skillAreas[G.char]?.[key]; if(area===undefined) return null;
+  const a=drag.active?drag.a:p.aim, intent={a,k:drag.active?drag.k:1};
+  if(typeof area==='number') return {x:p.x,y:p.y,r:area};
+  if(['blizzard','turret','coil','titan','orbital'].includes(area)) {
+    const range={blizzard:170,turret:55,coil:55,titan:60,orbital:100}[area];
+    const [x,y]=aimPoint(p,range,intent);
+    return {x,y,r:area==='blizzard'?blizzardRadius():area==='orbital'?20:area==='titan'?38:6};
+  }
+  if(area==='rift'||area==='bulldoze') {
+    const [x,y]=stepTarget(p,a,area==='rift'?104:135);
+    return {x0:p.x,y0:p.y,x,y,width:area==='rift'?10:12};
+  }
+  const [x0,y0]=area==='salvo'?[p.x,p.y-10]:weaponTip(p,a);
+  if(area==='senko') { const length=beamLen(x0,y0,a,320); return {x0,y0,x:x0+Math.cos(a)*length,y:y0+Math.sin(a)*length,width:6}; }
+  const spread=area==='buckshot'?0.42:area==='salvo'?0.9:1.1;
+  return {x0,y0,a,spread,length:area==='buckshot'?144:65};
 }
 // the hand: each hero's own grip point on the side they face (world.js handPoint), where the weapon's grip sits too
 const hand = (p) => handPoint(p);
@@ -90,7 +123,7 @@ export const CHARS = {
     id: 'BLADE', name: 'BLADE', alias: 'ASH', color: () => P.ember,
     desc: ['A FAST SWORD COMBO', 'AND TIME-STOPPING CUTS'], tip: 'HOLD CLICK, LET GO FOR A FIRE CRESCENT',
     bars: { power: 3, speed: 4, range: 2, tough: 3 },
-    stats: { hp: 9, speed: 102 }, dash: { speed: 330, time: 0.14, cd: 0.32, charges: 1 }, ultRate: 1, energyHit: 1.5,
+    stats: { hp: 9, speed: 102 }, dash: { speed: 330, time: 0.14, cd: 0.9, recovery: 0.44, charges: 1 }, ultRate: 1, energyHit: 1.5,
     melee: {
       col: 'ember', steps: [
         // slash, X-cut, piercing thrust, whirlwind
@@ -125,7 +158,7 @@ export const CHARS = {
       name: 'RIFT', cost: 30, cd: 1.5, icon: 'blade', desc: 'BLINK AND CUT A LINE',
       use(p) {
         const a = p.aim, L = 104, x0 = p.x, y0 = p.y;
-        const x1 = clamp(p.x + Math.cos(a) * L, B.x0 + p.r, B.x1 - p.r), y1 = clamp(p.y + Math.sin(a) * L, B.y0 + p.r, B.y1 - 2);
+        const [x1,y1] = stepTarget(p,a,L);
         for (let i = 0; i < 8; i++) { const k = i / 8; G.ghosts.push({ x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k, flip: Math.cos(a) < 0, t: -i * 0.012, life: 0.3, c: P.paper, spr: SPR.chars.BLADE.idle }); }
         p.x = x1; p.y = y1; p.vx = Math.cos(a) * 60; p.vy = Math.sin(a) * 60;
         p.state = 'recover'; p.recT = 0.14; p.inv = Math.max(p.inv, 0.35);
@@ -155,7 +188,7 @@ export const CHARS = {
         addRing(p.x, p.y - 5, P.volt, 300, 0.26, 3); addRing(p.x, p.y - 5, P.paper, 220, 0.2, 1);
         for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 70) damage(e, pd(4), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 280, src: 'bolt' });
         for (const s of G.shots) if (s.owner === 'enemy' && hyp(s.x - p.x, s.y - p.y) < 85) { s.dead = true; sparks(s.x, s.y, rnd(TAU), 6, Math.PI, P.hex); }
-        chainLightning({ x: p.x, y: p.y }, 4 + G.up.storm * 2, 6);
+        chainLightning({ x: p.x, y: p.y }, 4 + G.up.storm * 2 + (G.up.evoStorm ? 3 : 0), 6);
         for (let i = 0; i < 24; i++) { const a = rnd(TAU), v = rnd(80, 240); part(p.x, p.y - 5, Math.cos(a) * v, Math.sin(a) * v, rnd(0.15, 0.35), Math.random() < 0.5 ? P.volt : P.paper, { drag: 7, glow: true }); }
         A.zap(); hitstop(0.06); shake(0.45); flash(P.volt, 0.12, false);
         p.state = 'recover'; p.recT = 0.12;
@@ -190,7 +223,7 @@ export const CHARS = {
             } else if (u.phase === 'hold' && u.t > 0.6) {
               G.cine = null; p.state = 'move'; p.inv = 0.8;
               for (const c of u.cuts) for (let i = 0; i < 5; i++) { const k = rnd(-0.5, 0.5); part(c.x + Math.cos(c.a) * c.L * k, c.y + 5 + Math.sin(c.a) * c.L * k, rnd(-120, 120), rnd(-120, 120), rnd(0.2, 0.5), Math.random() < 0.5 ? P.paper : P.gold, { drag: 5, glow: true }); }
-              for (const e of targets) if (alive(e)) damage(e, e.type === 'boss' ? Math.round(60 + e.maxHp * 0.06) : pd(40), { dir: rnd(TAU), kb: 240, src: 'ult', slice: true, crit: true });
+              for (const e of targets) if (alive(e)) damage(e, e.type === 'boss' ? pd(60 + e.maxHp * 0.06) : pd(40), { dir: rnd(TAU), kb: 240, src: 'ult', slice: true, crit: true });
               addRing(p.x, p.y - 6, P.gold, 380, 0.4, 3); addRing(p.x, p.y - 6, P.paper, 300, 0.3, 1);
               flash(P.paper, 0.35, true); shake(1); hitstop(0.14); A.ultRelease();
               G.slashes.push(...u.cuts.slice(0, 10).map((c) => ({ follow: false, x: c.x, y: c.y + 5, a: c.a, r: 18, arc: 1.2, dir: 1, t: 0, life: 0.25, th: 4, col: 'gold' })));
@@ -354,7 +387,7 @@ export const CHARS = {
         k.missT = 0.07; k.miss--;
         const flip = Math.cos(p.aim) < 0, tx = p.x + (flip ? -1 : 1) * 4 + (flip ? -0.25 : 0.25) * 14, ty = p.y - 4 - 10;
         const a = p.aim + rnd(-1.1, 1.1);
-        shoot({ x: tx, y: ty, a, sp: 190, dmg: pd(5), kb: 70, life: 1.8, kind: G.evo === true ? 'star' : 'arcane', r: 3, c: G.evo === true ? '#ffd447' : '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) } });
+        shoot({ x: tx, y: ty, a, sp: 190, power:'spell', dmg: pd(5), kb: 70, life: 1.8, kind: G.evo === true ? 'star' : 'arcane', r: 3, c: G.evo === true ? '#ffd447' : '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) } });
         sparks(tx, ty, a, 4, 0.5, '#b48cff', 120); A.zip();
       }
       // blizzards: ice rains inside the circle, every 0.3 s everything in it is cut and frozen
@@ -363,7 +396,7 @@ export const CHARS = {
         for (let i = 0; i < 3; i++) if (Math.random() < dt * 30) { const b = rnd(TAU), r = Math.sqrt(Math.random()) * z.R; part(z.x + Math.cos(b) * r + 10, z.y + Math.sin(b) * r * 0.6 - 30, -50, 140, 0.22, Math.random() < 0.5 ? P.paper : P.volt, { drag: 0 }); }
         if (z.tick <= 0) {
           z.tick = 0.3;
-          for (const e of G.E) if (alive(e) && hyp(e.x - z.x, e.y - z.y) < z.R + e.r) { damage(e, pd(3), { dir: rnd(TAU), kb: 10, src: 'bolt' }); if (e.type !== 'boss' && alive(e)) e.frozen = Math.max(e.frozen || 0, 0.8); }
+          for (const e of G.E) if (alive(e) && hyp(e.x - z.x, e.y - z.y) < z.R + e.r) { damage(e, pd(3), { power:'spell', dir: rnd(TAU), kb: 10, src: 'bolt' }); if (e.type !== 'boss' && alive(e)) e.frozen = Math.max(e.frozen || 0, 0.8); }
         }
       }
       k.bliz = k.bliz.filter((z) => z.t < z.life);
@@ -393,7 +426,7 @@ export const CHARS = {
     e: {
       name: 'BLIZZARD', cost: 40, cd: 5, icon: 'snow', desc: 'A FREEZING STORM WHERE YOU AIM',
       use(p) {
-        const [x, y] = aimPoint(p, 170), R = G.up.evoTwin ? 66 : G.up.twin ? 52 : 40;
+        const [x, y] = aimPoint(p, 170), R = blizzardRadius();
         p.k.bliz.push({ x, y, R, t: 0, life: 3, tick: 0 });
         addRing(x, y - 2, P.volt, R * 5, 0.3, 2); addRing(x, y - 2, P.paper, R * 3, 0.25, 1);
         A.freeze(); p.k.castT = 0.4; shake(0.15);
@@ -542,7 +575,7 @@ export const CHARS = {
         k.storm -= dt; k.stormA += dt * 9; k.stormHit -= dt;
         if (k.stormHit <= 0) {
           k.stormHit = 0.2;
-          for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < STORM_R + e.r) damage(e, pd(3), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 90, src: 'primary', ug: true, slice: true });
+          for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < STORM_R + e.r) damage(e, pd(3), { power:'spell', dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 90, src: 'primary', ug: true, slice: true });
         }
         for (const s of G.shots) if (canParry(s) && hyp(s.x - p.x, s.y - (p.y - 6)) < STORM_R + s.r) parry(s, Math.atan2(s.y - (p.y - 6), s.x - p.x), true);
         if (Math.random() < dt * 30) { const b = rnd(TAU); part(p.x + Math.cos(b) * STORM_R, p.y - 6 + Math.sin(b) * STORM_R * 0.7, -Math.sin(b) * 60, Math.cos(b) * 40, 0.4, Math.random() < 0.6 ? '#ffb7d5' : '#ff8fb8', { drag: 2 }); }
@@ -570,11 +603,11 @@ export const CHARS = {
                 const fresh = live.filter((e) => !u.hit.has(e)).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y));
                 const e = fresh[0] || live.sort((a, b) => b.hp - a.hp)[0];
                 const a = Math.atan2(e.y - p.y, e.x - p.x), x0 = p.x, y0 = p.y;
-                ghost(p, '#ffb7d5');
+                ghost(p, '#29142e');
                 p.x = clamp(e.x + Math.cos(a) * (e.r + 8), B.x0 + 6, B.x1 - 6); p.y = clamp(e.y + Math.sin(a) * 4, B.y0 + 6, B.y1 - 4); p.aim = a;
                 u.path.push([x0, y0 - 6, p.x, p.y - 6]);
                 u.hit.add(e);
-                damage(e, e.type === 'boss' ? pd(10) + Math.round(e.maxHp * 0.006) : pd(14), { dir: a, kb: 0, src: 'ult', slice: true, crit: true });
+                damage(e, e.type === 'boss' ? pd(10 + e.maxHp * 0.006) : pd(14), { dir: a, kb: 0, src: 'ult', slice: true, crit: true });
                 for (let j = 0; j < 6; j++) part(e.x, e.y - e.r, rnd(-90, 90), rnd(-90, 90), rnd(0.3, 0.6), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 4, glow: true });
                 A.ultCut(u.i); shake(0.1); u.i++;
               }
@@ -584,7 +617,7 @@ export const CHARS = {
             if (u.phase === 'sheath' && u.t > 0.45) {
               // the sword clicks home: everything she cut bursts
               G.cine = null; p.state = 'move'; p.inv = 0.8;
-              for (const e of u.hit) if (alive(e)) damage(e, e.type === 'boss' ? Math.round(40 + e.maxHp * 0.04) : pd(30), { dir: rnd(TAU), kb: 260, src: 'ult', slice: true, crit: true, heavy: true });
+              for (const e of u.hit) if (alive(e)) damage(e, e.type === 'boss' ? pd(40 + e.maxHp * 0.04) : pd(30), { dir: rnd(TAU), kb: 260, src: 'ult', slice: true, crit: true, heavy: true });
               for (const [x0, y0, x1, y1] of u.path) for (let j = 0; j < 4; j++) { const k = Math.random(); part(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k, rnd(-80, 80), rnd(-80, 80), rnd(0.4, 0.9), Math.random() < 0.6 ? '#ffb7d5' : P.paper, { drag: 3, glow: true }); }
               addRing(p.x, p.y - 6, '#ffb7d5', 360, 0.4, 3); addRing(p.x, p.y - 6, P.paper, 280, 0.3, 1);
               flash(P.paper, 0.3, true); shake(1); hitstop(0.14); A.click(); A.ultRelease();
@@ -594,12 +627,12 @@ export const CHARS = {
           draw(cx, cy) {
             ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a0a1a'; ctx.fillRect(cx - SX, cy, FW, H); ctx.globalAlpha = 1;
             for (const [x0, y0, x1, y1] of u.path) { line(x0, y0 + 1, x1, y1 + 1, P.blood); line(x0, y0, x1, y1, P.paper); }
-            // Rin's own front-facing Issen animation stays visible over the frozen battlefield.
+            // The cut is visible a moment before Rin's silhouette catches up.
             const set=(G.evo===true?SPR.evo:SPR.chars).NINJA;
             const frames=set.act?.ultimate;
             const elapsed=G.time-(p.spriteAction?.start||G.time);
             const sprite=frames?.[Math.min(frames.length-1,Math.floor(Math.max(0,elapsed)/1.6*frames.length))]||set.idle;
-            drawSprite(sprite,p.x-sprite.w/2,p.y-sprite.h+1,false);
+            drawSprite(sprite,p.x-sprite.w/2,p.y-sprite.h+1,false,'#150d20');
             for (let i = 0; i < 6; i++) { const x = cx + ((G.time * 40 + i * 57) % 320), y = cy + ((G.time * 25 + i * 31) % 180); px(x, y, '#ffb7d5'); }
           },
         };
@@ -714,14 +747,16 @@ export const CHARS = {
       use(p) {
         const turrets = G.allies.filter((a) => a.type === 'turret');
         if (turrets.length >= 2 + G.up.hands) turrets[0].dead = true;
-        G.allies.push({ type: 'turret', x: clamp(p.x + Math.cos(p.aim) * 10, B.x0 + 8, B.x1 - 8), y: clamp(p.y + Math.sin(p.aim) * 8, B.y0 + 8, B.y1 - 2), t: 0, life: 14, fireT: 0.4, ang: p.aim });
+        const [x,y]=aimPoint(p,55);
+        G.allies.push({ type: 'turret', x,y, t: 0, life: 14, fireT: 0.4, ang: p.aim });
         A.build(); dust(p.x, p.y, 8, 50);
       },
     },
     e: {
       name: 'TESLA COIL', cost: 40, cd: 5, icon: 'bolt', desc: 'ZAPS 3 FOES AT ONCE FOR 7S',
       use(p) {
-        G.allies.push({ type: 'coil', x: clamp(p.x + Math.cos(p.aim) * 12, B.x0 + 8, B.x1 - 8), y: clamp(p.y + Math.sin(p.aim) * 10, B.y0 + 10, B.y1 - 2), t: 0, life: 7, zapT: 0.3 });
+        const [x,y]=aimPoint(p,55);
+        G.allies.push({ type: 'coil', x,y, t: 0, life: 7, zapT: 0.3 });
         A.build(); A.zap();
       },
     },
@@ -914,7 +949,7 @@ export const CHARS = {
         k.otick -= dt;
         if (k.otick <= 0) {
           k.otick = 0.08;
-          for (const e of G.E) if (alive(e) && hyp(e.x - k.ox, e.y - k.oy) < 20 + e.r) damage(e, e.type === 'boss' ? 5 : pd(4), { dir: rnd(TAU), kb: 40, src: 'bolt' });
+          for (const e of G.E) if (alive(e) && hyp(e.x - k.ox, e.y - k.oy) < 20 + e.r) damage(e, pd(e.type === 'boss' ? 5 : 4), { dir: rnd(TAU), kb: 40, src: 'bolt' });
           scorch(k.ox + rnd(-6, 6), k.oy + rnd(-4, 4), 4);
         }
         for (let i = 0; i < 3; i++) { const a = rnd(TAU), v = rnd(40, 160); part(k.ox, k.oy, Math.cos(a) * v, Math.sin(a) * v * 0.6, 0.3, Math.random() < 0.5 ? P.volt : P.paper, { drag: 5, glow: true }); }
@@ -952,7 +987,7 @@ export const CHARS = {
         flash('#ff2a3a', 0.1, false);
       }
       addRing(p.x, p.y - 6, P.volt, 300, 0.3, 3);
-      for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 60) damage(e, pd(6), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 260, src: 'bolt' });
+      for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 60) damage(e, pd(6), { power:'spell', dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 260, src: 'bolt' });
       A.zap(); shake(0.4);
     },
     r: {
@@ -1177,7 +1212,7 @@ CHARS.DEV = {
       for (const s of G.shots) if (s.owner === 'enemy' && !s.dead && hyp(s.x - p.x, s.y - (p.y - 6)) < 38) { s.dead = true; glitch(s.x, s.y, 8, 4, 0.15, 4); }
       if (k.wallT <= 0) {
         k.wallT = 0.25;
-        for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 40) { damage(e, pd(3), { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 170, src: 'bolt' }); bugHit(e); }
+        for (const e of G.E) if (alive(e) && hyp(e.x - p.x, e.y - p.y) < 40) { damage(e, pd(3), { power:'spell', dir: Math.atan2(e.y - p.y, e.x - p.x), kb: 170, src: 'bolt' }); bugHit(e); }
       }
     }
     for (const m of k.marks) m.t -= dt;
@@ -1236,7 +1271,7 @@ CHARS.DEV = {
               glitch(e.x, e.y - e.r, 28, 22, 0.5, 18, GP);
               // Root deletes them: they burst into cyan and magenta pixels
               if (root) for (let i = 0; i < 18; i++) { const b = rnd(TAU), v = rnd(40, 160); part(e.x, e.y - e.r, Math.cos(b) * v, Math.sin(b) * v - 30, rnd(0.4, 0.9), i % 3 ? (i % 2 ? C1 : C2) : P.paper, { drag: 2, glow: true, s: Math.random() < 0.4 ? 2 : 1 }); }
-              damage(e, e.type === 'boss' ? Math.round(e.maxHp * 0.08 * mul) + pd(40) : pd(60 * mul), { dir: rnd(TAU), kb: 240, src: 'ult', slice: true, crit: true });
+              damage(e, e.type === 'boss' ? pd(e.maxHp * 0.08 * mul + 40) : pd(60 * mul), { dir: rnd(TAU), kb: 240, src: 'ult', slice: true, crit: true });
             }
             if (G.up.evoUlt || root) for (const s of G.shots) if (s.owner === 'enemy') s.dead = true;
             flash(C1, root ? 0.45 : 0.35, true); shake(1); hitstop(root ? 0.2 : 0.14); A.ultRelease();
@@ -1456,7 +1491,7 @@ const AWAKE = {
   // Archmage Morrow: bolts arc to a second enemy; his powers call lightning on the three nearest; Starfall adds a storm
   WIZARD: {
     pal: { col: P.gold, slash: 'gold', map: { '#b48cff': P.gold, '#62efff': '#ff4fa8', [P.volt]: '#ff4fa8', [P.volt2]: '#a0206a', '#6a4ab8': '#b9811c' } },
-    hit: (e) => chainLightning(e, 1, pd(3)),
+    hit: (e) => chainLightning(e, 1, 3),
     skill: (p) => { for (const e of awNear(p.x, p.y, 160, 3)) awStrike(e.x, e.y, 22, 10); },
     ult: (p) => { for (const e of awNear(p.x, p.y, 300, 8)) awStrike(e.x, e.y, 24, 14); },
   },
@@ -1480,16 +1515,16 @@ const AWAKE = {
   // Rivet Mk-II: every third hit arcs current to two more enemies; her powers release a tesla chain; Iron Titan lands in a lightning storm
   MECHANIC: {
     pal: { col: P.volt, slash: 'volt', charge: 'storm', map: { [P.ember]: P.volt, [P.ember2]: '#c8ffff', '#ff8a3c': P.volt, [P.ember3]: P.paper, [P.volt]: P.gold, [P.volt2]: P.gold2 } },
-    hit: (e) => { if ((G.p.k.awHits = (G.p.k.awHits || 0) + 1) % 3 === 0) chainLightning(e, 2, pd(3)); },
-    swing: (p, st) => { const t = G.E.filter((e) => alive(e) && hyp(e.x - p.x, e.y - p.y) < 70 && Math.abs(Math.atan2(Math.sin(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng), Math.cos(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng))) < 1)[0]; if (t) chainLightning(t, st.heavy ? 4 : 1, pd(st.heavy ? 5 : 3)); },
+    hit: (e) => { if ((G.p.k.awHits = (G.p.k.awHits || 0) + 1) % 3 === 0) chainLightning(e, 2, 3); },
+    swing: (p, st) => { const t = G.E.filter((e) => alive(e) && hyp(e.x - p.x, e.y - p.y) < 70 && Math.abs(Math.atan2(Math.sin(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng), Math.cos(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng))) < 1)[0]; if (t) chainLightning(t, st.heavy ? 4 : 1, st.heavy ? 5 : 3); },
     charge: (p, f) => G.timers.push({ t: 0.18, fn: () => {
       const q = G.p, t = awNear(q.x, q.y, 90, 1)[0], n = 4 + Math.round(4 * f), R = 30 + 40 * f;
-      if (t) chainLightning(t, 4 + Math.round(5 * f), pd(7 * f));
+      if (t) chainLightning(t, 4 + Math.round(5 * f), 7 * f);
       for (let i = 0; i < n; i++) { const b = (i * TAU) / n; awStrike(clamp(q.x + Math.cos(b) * R, B.x0 + 6, B.x1 - 6), clamp(q.y + Math.sin(b) * R * 0.7, B.y0 + 6, B.y1 - 4), 22, Math.round(10 + 8 * f)); }
       for (const e of awNear(q.x, q.y, 120, 2)) awStrike(e.x, e.y, 24, Math.round(14 * f));
     } }),
-    skill: (p) => { const e = awNear(p.x, p.y, 120, 1)[0]; if (e) chainLightning(e, 5, pd(5)); },
-    ult: (p) => { const e = awNear(p.x, p.y, 200, 1)[0]; if (e) chainLightning(e, 10, pd(8)); for (const t of awNear(p.x, p.y, 200, 4)) awStrike(t.x, t.y, 22, 10); },
+    skill: (p) => { const e = awNear(p.x, p.y, 120, 1)[0]; if (e) chainLightning(e, 5, 5); },
+    ult: (p) => { const e = awNear(p.x, p.y, 200, 1)[0]; if (e) chainLightning(e, 10, 8); for (const t of awNear(p.x, p.y, 200, 4)) awStrike(t.x, t.y, 22, 10); },
   },
   // Titan Grom: every blow sends a shockwave through the enemies around the target; his powers quake and stun; Fortress opens with a great quake
   TANK: {

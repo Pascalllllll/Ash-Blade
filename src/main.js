@@ -1,12 +1,14 @@
+import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=200';
+import { resetKeys, resetLayout } from './bindings.js?v=200';
 import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=200';
-import { input, keyHit, endFrame } from './input.js?v=200';
+import { input, keyHit, endFrame, actionHit, placeButtons } from './input.js?v=200';
 import { A } from './audio.js?v=200';
 import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=200';
 import { buildSprites } from './sprites.js?v=200';
-import { byId } from './upgrades.js?v=200';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash } from './world.js?v=200';
+import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=200';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash, applyPractice } from './world.js?v=200';
 import {
-  drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg,
+  drawLeave, drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg, drawInheritance,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
 } from './ui.js?v=200';
@@ -24,7 +26,10 @@ addEventListener('touchstart', fit, { once: true });
 
 let lockId = null;
 let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
-let save = loadRun((id) => !!byId(id));
+const readSlot = practice => loadRun(id => !!byId(id), practice);
+let save = readSlot(false), practice = readSlot(true);
+const menuItems = () => titleItems(save, id => id, practice);
+let waveCheckpoint = null, inheritance = [];
 
 function go(s) {
   if (scene === 'play' && s === 'pause') A.pauseVoice();
@@ -32,11 +37,17 @@ function go(s) {
   else if (scene === 'play' || s === 'title') A.stopVoice();
   scene = s; sceneT = 0;
 }
-function toTitle() { settingsFrom = 'title'; save = loadRun((id) => !!byId(id)); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
+function toTitle() { settingsFrom = 'title'; save = readSlot(false); practice = readSlot(true); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
 function startRun(char, s) {
-  A.init(settings); newRun(char, s); go('play'); }
-function checkpoint() { if (G && !G.dead) { saveRun(snapshot()); bankStats(); } }
+  A.init(settings); newRun(char, s); waveCheckpoint = snapshot(); go('play'); }
+function checkpoint() {
+  if (!G || G.dead) return;
+  waveCheckpoint = snapshot();
+  G.saveError = !saveRun(waveCheckpoint);
+  bankStats();
+}
 function recordBest(won) {
+  if (G.tested) { newBest = G.newBest = false; return; }
   bankStats();
   newBest = G.score > best.score;
   G.newBest = newBest;
@@ -46,16 +57,54 @@ function recordBest(won) {
   if (G.night) best.night = Math.max(best.night || 0, Math.floor(G.night.t));
   if (won) best.won = true;
   const r = best.chars[G.char] || { score: 0, wave: 0, won: false };
-  best.chars[G.char] = { score: Math.max(r.score, G.score), wave: Math.max(r.wave, G.wave), won: r.won || won };
+  best.chars[G.char] = { score: Math.max(r.score, G.score), wave: Math.max(r.wave, G.wave), won: !!(r.won || G.won || won),
+    nox: !!(r.nox || G.nox), night: Math.max(r.night || 0, Math.floor(G.night?.t || 0)) };
   saveBest();
 }
 function applySettings(prev) {
+  if (settingsFrom === 'pause') {
+    applyPractice();
+    if (G.tested && waveCheckpoint) {
+      waveCheckpoint.tested = true;
+      if (settings.testBuffs) {
+        const now=snapshot();
+        for (const k of ['taken','hp','maxHp','dashMax','awakened','ult','energy']) waveCheckpoint[k]=now[k];
+      }
+    }
+  }
   if (prev.theme !== settings.theme) { applyTheme(settings.theme); buildSprites(); refreshArt(); }
   applyDisplay(settings);
   A.settings(settings);
   if (settingsFrom === 'title' && prev.map !== settings.map) showMap(settings.map);
   saveSettings();
 }
+
+const exitMenu = {sel:0};
+let leaving = false;
+function armBack() {
+  if (!input.touch || leaving || history.state?.ashbladeGuard) return;
+  const hasPrevious = history.length > 1;
+  history.pushState({ashbladeGuard:true,hasPrevious},'');
+}
+function leaveGame() {
+  leaving=true;
+  if (history.state?.hasPrevious) history.go(-2);
+  else location.replace('about:blank');
+}
+if (input.touch) armBack();
+addEventListener('touchstart',armBack,{once:true});
+addEventListener('popstate',() => {
+  if (leaving || !input.touch) return;
+  // The back gesture consumed our entry. Restore it before continuing inside the game.
+  if (!history.state?.ashbladeGuard) history.pushState({ashbladeGuard:true,hasPrevious:priorPage},'');
+  if (scene==='play' && !G.dead && !G.cine) { pauseMenu.sel=0; go('pause'); A.stopLoops(); }
+  else if (scene==='pause') { go('play'); }
+  else if (scene==='controls') { closeControls(); go('settings'); }
+  else if (scene==='settings') { if(settingsFrom==='pause') go('pause'); else toTitle(); }
+  else if (scene==='title') { exitMenu.sel=0; go('leave'); }
+  else if (['leave','ash','select','splash','lore','intro','over'].includes(scene)) toTitle();
+});
+const priorPage = history.state?.ashbladeGuard ? !!history.state.hasPrevious : history.length>1;
 
 addEventListener('blur', () => { if (scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); } });
 
@@ -86,17 +135,13 @@ function tick(now) {
   fx.ox += Math.round(fx.kx); fx.oy += Math.round(fx.ky);
   fx.flashT -= rdt;
   if (input.any || input.mouse.pressed) A.init(settings);
-  // phones held upright: pause and let the overlay ask for landscape
-  const portrait = input.touch && innerHeight > innerWidth;
-  if (portrait && scene === 'play' && !G.dead) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
-
   if (scene === 'splash') {
     if (input.any || input.mouse.pressed) { A.init(settings); A.scene('lore'); playStory('lore'); go('lore'); }
     drawSplash(sceneT, input.touch);
   } else if (scene === 'lore') {
     // the story so far, page by page: any key turns the page, Escape skips to the menu
     const r = updateStory(rdt);
-    if (r === 'skip') { go('title'); A.scene('title'); drawTitle(0.8, titleItems(save, (q) => q)); }
+    if (r === 'skip') { go('title'); A.scene('title'); drawTitle(0.8, menuItems()); }
     else if (r === 'done') { A.scene('intro'); go('intro'); drawIntro(0); }
     else drawStory();
   } else if (scene === 'intro') {
@@ -105,19 +150,30 @@ function tick(now) {
     if (sceneT > 0.3 && (input.any || input.mouse.pressed)) { go('title'); A.scene('title'); }
     else if (sceneT >= INTRO_LEN) { go('title'); A.scene('title'); }
     else drawIntro(sceneT);
-    if (scene === 'title') drawTitle(0.8, titleItems(save, (r) => r));
+    if (scene === 'title') drawTitle(0.8, menuItems());
   } else if (scene === 'title') {
-    const items = titleItems(save, (r) => r);
+    const items = menuItems();
     const r = runMenu(titleMenu, items, titleMenuX(), titleMenuY(items.length), TITLE_MENU.w, TITLE_MENU.row);
     if (r === 'continue' && save) startRun(save.char, save);
+    else if (r === 'practice' && practice) startRun(practice.char, practice);
+    else if (r === 'ash') { playStory('ash'); go('ash'); A.scene('lore'); }
     else if (r === 'select') { sel.i = Math.max(0, OPTIONS.char.indexOf(settings.char)); if (!isUnlocked(settings.char)) sel.i = 0; sel.row = 0; sel.t = 0; go('select'); }
     else if (r === 'settings') { settingsFrom = 'title'; setm.tab = 0; setm.sel = 0; go('settings'); }
     drawTitle(sceneT, items);
+  } else if (scene === 'ash') {
+    if (updateStory(rdt)) toTitle(); else drawStory();
+  } else if (scene === 'leave') {
+    const items=[{label:'STAY',act:()=> 'stay'},{label:'LEAVE GAME',act:()=> 'leave'}];
+    const choice=keyHit('Escape')?'stay':runMenu(exitMenu,items,90,76,140,19);
+    if(choice==='stay') toTitle(); else if(choice==='leave') leaveGame();
+    drawLeave(exitMenu,items);
+  } else if (scene === 'controls') {
+    if (updateControls()==='back') go('settings'); else drawControls();
   } else if (scene === 'select') {
     const r = updateSelect(rdt);
     if (r?.map || r?.diff) { const prev = { ...settings }; Object.assign(settings, r); applySettings(prev); }
     if (r?.back) toTitle();
-    else if (r?.start) { settings.char = r.start; saveSettings(); clearRun(); lockId = r.start; A.init(settings); A.prepareVoice(lockId, 'entrances'); go('lockin'); }
+    else if (r?.start) { settings.char = r.start; saveSettings(); lockId = r.start; A.init(settings); A.prepareVoice(lockId, 'entrances'); go('lockin'); }
     else drawSelect(sceneT);
     if (scene === 'play') drawWorld();
   } else if (scene === 'lockin') {
@@ -127,28 +183,32 @@ function tick(now) {
     if (sceneT >= LOCK_LEN || (sceneT > 0.5 && (keyHit('Enter', 'Space', 'Escape') || input.mouse.pressed))) { startRun(lockId, null); flash(P.paper, 0.55, true); checkpoint(); drawWorld(); }
     else drawLockin(sceneT, lockId);
   } else if (scene === 'settings') {
-    const items = settingsItems({ hasSave: !!save });
+    const items = settingsItems({ hasSave: !!(save || practice) });
     const prev = { ...settings };
     const r = updateSettings(items);
     if (r === 'changed') applySettings(prev);
-    else if (r === 'reset') { resetSettings(); applySettings(prev); }
-    else if (r === 'erase') { clearRun(); save = null; }
+    else if (r === 'reset') { resetSettings(); resetKeys(); resetLayout(); placeButtons(); applySettings(prev); }
+    else if (r === 'erase') { clearRun(); save = practice = null; }
+    else if (r === 'controls') { openControls(); go('controls'); }
     else if (r === 'back') { if (settingsFrom === 'pause') go('pause'); else toTitle(); }
     if (settingsFrom === 'pause') { drawWorld(); vignette(); }
     drawSettings(sceneT, items, settingsFrom === 'pause');
   } else if (scene === 'play') {
     // the story is being told: the fight holds still until it has been read (Escape skips the rest of it)
     if (storyTalk() && !G.dead) { if (keyHit('Escape')) skipTalk(); update(0, rdt); }
-    else if ((keyHit('Escape', 'KeyP') || input.thit.has('pause')) && !G.dead && !G.cine) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
+    else if (((keyHit('Escape') || actionHit('pause')) || input.thit.has('pause')) && !G.dead && !G.cine) { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
     else {
       controls();
       update(rdt * ts, rdt);
-      if (G.victory && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); playStory('ending'); go('ending'); A.scene('dawn'); }
+      if (G.victory && (!G.sunrise || G.sunrise.t >= 2.6) && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); playStory('ending'); go('ending'); A.scene('dawn'); }
       // Nox has fallen: the story of the endless night, then a last upgrade, then the night itself
-      else if (G.nightFall && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0 && !G.talk) { G.nightFall = false; recordBest(true); playStory('nightfall'); go('nightfall'); A.scene('lore'); }
+      else if (G.nightFall && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0 && !G.talk) {
+        G.nightFall = false; G.nox = true; recordBest(true);
+        inheritance = grantAllUpgrades(G); A.victory(); go('inheritance');
+      }
       else if (G.wantUpgrade) { G.wantUpgrade = false; openUpgrade(); go('upgrade'); }
       // falling below the pit, after the King, has its own story before the run's end
-      if (G.dead && G.deadT > 3.4) { recordBest(false); clearRun(); save = null; if (G.won) { playStory('fall'); go('fall'); A.scene('lore'); } else go('over'); }
+      if (G.dead && G.deadT > 3.4) { recordBest(false); clearRun(G.tested); save = null; if (G.won) { playStory('fall'); go('fall'); A.scene('lore'); } else go('over'); }
     }
     drawWorld(); vignette(); drawHUD();
   } else if (scene === 'upgrade') {
@@ -156,8 +216,7 @@ function tick(now) {
     const pick = updateUpgrade(rdt);
     if (pick >= 0) {
       const o = upg.opts[pick];
-      o.f(G.up, G.p);
-      G.taken[o.id] = (G.taken[o.id] || 0) + 1;
+      takeUpgrade(G, o);
       A.select();
       startWave(G.wave + 1);
       if (o.req) evolveFx(typeof o.name === 'function' ? o.name(G.kit) : o.name, o.id);
@@ -167,11 +226,15 @@ function tick(now) {
     drawWorld(); vignette(); drawHUD(true); drawUpgrade();
   } else if (scene === 'pause') {
     const items = pauseItems((r) => r);
-    const r = keyHit('Escape', 'KeyP') ? 'resume' : runMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
+    const r = (keyHit('Escape') || actionHit('pause')) ? 'resume' : runMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
     if (r === 'resume') { go('play'); A.scene(G.night ? 'night' : G.boss ? 'boss_' + G.boss.boss : 'fight'); }
     else if (r === 'settings') { settingsFrom = 'pause'; setm.tab = 0; setm.sel = 0; go('settings'); }
-    else if (r === 'restart') { const s = loadRun((id) => !!byId(id)); if (s) startRun(s.char, s); else { startRun(G.char, null); checkpoint(); } }
-    else if (r === 'exit') toTitle();
+    else if (r === 'restart') { if (waveCheckpoint) startRun(G.char, waveCheckpoint); }
+    else if (r === 'exit') {
+      const s = G.night ? snapshot() : waveCheckpoint;
+      if (s && saveRun(s)) { if (G.night) bankStats(); toTitle(); }
+      else { G.saveError = true; A.deny(); }
+    }
     if (scene === 'pause' || scene === 'settings') { drawWorld(); vignette(); drawHUD(true); if (scene === 'pause') drawPause(items); }
   } else if (scene === 'over') {
     update(rdt * ts, rdt);
@@ -186,7 +249,7 @@ function tick(now) {
   } else if (scene === 'choice') {
     // the run in comic panels, then the two roads: go home (the run ends) or go deeper (endless)
     const r = updateChoice(rdt);
-    if (r === 'home') { clearRun(); save = null; playStory('home'); go('home'); drawStory(); }
+    if (r === 'home') { clearRun(G.tested); save = null; playStory('home'); go('home'); drawStory(); }
     else if (r === 'deeper') { G.saidLow = G.saidCombo = false; playStory('deeper'); go('deeper'); A.scene('lore'); drawStory(); }
     else drawChoice();
   } else if (scene === 'home') {
@@ -197,9 +260,13 @@ function tick(now) {
     // the seal breaks, the dark wakes, the fighter goes down; then the next upgrade and wave 21
     if (updateStory(rdt)) { openUpgrade(); go('upgrade'); A.scene('calm'); drawWorld(); vignette(); drawHUD(true); drawUpgrade(); }
     else drawStory();
+  } else if (scene === 'inheritance') {
+    drawWorld(); drawInheritance(sceneT, inheritance);
+    if (sceneT >= 3.4 || (sceneT > 0.85 && (input.any || input.mouse.pressed))) {
+      playStory('nightfall'); go('nightfall'); A.scene('lore'); drawStory();
+    }
   } else if (scene === 'nightfall') {
-    // the dark comes apart, everything it swallowed climbs back, the endless night begins (after one more upgrade)
-    if (updateStory(rdt)) { openUpgrade(); go('upgrade'); A.scene('calm'); drawWorld(); vignette(); drawHUD(true); drawUpgrade(); }
+    if (updateStory(rdt)) { startWave(51); checkpoint(); go('play'); drawWorld(); }
     else drawStory();
   } else if (scene === 'fall') {
     // fallen in the deep: the nights they held, the sun still rising; then the run's numbers

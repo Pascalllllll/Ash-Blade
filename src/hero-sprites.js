@@ -10,7 +10,7 @@ import { SS } from './gfx.js?v=200';
 import { RIG, WEAPON_ART } from './hero-rig.js?v=200';
 
 const CW = 120, CH = 96;
-const ROWS = { idle: [0, 16], walk: [1, 12], run: [2, 12], death: [3, 8], dash: [4, 4], hurt: [5, 2] };
+const ROWS = { idle: [0, 16], walk: [1, 12], run: [2, 12], death: [3, 8], dash: [4, 8], hurt: [5, 8], attack: [6,16], cast: [7,16] };
 const N = 64; // weapon angles
 // where a weapon rests in the menus and on the hero's own still pictures (afterimages, the mirror boss): melee
 // weapons lowered forward, guns level, the staff held up
@@ -24,33 +24,47 @@ function canvas(w, h) {
   return c;
 }
 // a frame shaped like makeSprite's: n and f canvases (f is the mirror), w/h in game pixels, k sprite pixels each
+const empty = canvas(CW,CH);
 function frame() {
-  const n = canvas(CW, CH), f = canvas(CW, CH), tints = new Map();
+  let normal, mirrored;
+  const tints = new Map();
   return {
-    n, f, k: SS, w: CW / SS, h: CH / SS, tints,
-    tint(col, flip) {
-      const key = col + (flip ? 'L' : 'R');
-      let t = tints.get(key);
-      if (t) return t;
-      t = canvas(CW, CH); const g = t.getContext('2d');
-      g.drawImage(flip ? f : n, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, CW, CH);
-      if (tints.size > 6) tints.clear();
-      tints.set(key, t);
-      return t;
+    k:SS,w:CW/SS,h:CH/SS,
+    fill(img,col,row,over,behind) {
+      this.img=img; this.u=col*CW; this.v=row*CH; this.over=over; this.behind=behind;
+      this.sheet=over || behind ? null : img;
+      normal=mirrored=null; tints.clear();
+    },
+    get n() {
+      if (!this.img) return empty;
+      if (!normal) {
+        normal=canvas(CW,CH);
+        const g=normal.getContext('2d');
+        this.behind?.(g); g.drawImage(this.img,this.u,this.v,CW,CH,0,0,CW,CH); this.over?.(g);
+      }
+      return normal;
+    },
+    get f() {
+      if (!this.img) return empty;
+      if (!mirrored) {
+        mirrored=canvas(CW,CH);
+        const g=mirrored.getContext('2d'); g.translate(CW,0); g.scale(-1,1); g.drawImage(this.n,0,0);
+      }
+      return mirrored;
+    },
+    tint(col,flip) {
+      if (!this.img) return empty;
+      const key=col+(flip?'L':'R');
+      if (!tints.has(key)) {
+        const t=canvas(CW,CH),g=t.getContext('2d'); g.drawImage(flip?this.f:this.n,0,0);
+        g.globalCompositeOperation='source-in'; g.fillStyle=col; g.fillRect(0,0,CW,CH);
+        if (tints.size>=6) tints.clear();
+        tints.set(key,t);
+      }
+      return tints.get(key);
     },
   };
 }
-function fill(fr, img, col, row, under, behind) {
-  const g = fr.n.getContext('2d');
-  g.clearRect(0, 0, CW, CH);
-  if (behind) behind(g);
-  g.drawImage(img, col * CW, row * CH, CW, CH, 0, 0, CW, CH);
-  if (under) under(g);
-  const m = fr.f.getContext('2d');
-  m.clearRect(0, 0, CW, CH); m.save(); m.translate(CW, 0); m.scale(-1, 1); m.drawImage(fr.n, 0, 0); m.restore();
-  fr.tints.clear();
-}
-
 // ---------- weapons ----------
 // SPR.weapons[id]: the weapon picture, its cell, the tip (along/across the weapon from the grip, in game pixels:
 // where shots leave) and the angle frame lookup. Unit-7's cannon and every melee weapon too; the Dev has none.
@@ -82,7 +96,7 @@ function makeSet(id, evolved) {
   // an awakened skin can hold its weapon at its own point (RIG[id].evo)
   const rig = evolved && RIG[id].evo ? { ...RIG[id], ...RIG[id].evo } : RIG[id], f = () => frame();
   const body = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 12 }, f), run: Array.from({ length: 12 }, f), death: Array.from({ length: 8 }, f),
-    dash: Array.from({ length: 4 }, f), hurt: Array.from({ length: 2 }, f) };
+    dash: Array.from({ length: 8 }, f), hurt: Array.from({ length: 8 }, f), attack: Array.from({ length: 16 }, f), cast: Array.from({ length: 16 }, f) };
   // what the menus, afterimages and the mirror boss show: the same frames with the weapon in hand at rest
   const shown = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 12 }, f), run: Array.from({ length: 12 }, f) };
   const set = {
@@ -108,12 +122,12 @@ function fillSet(set, img) {
   for (const [name, [row, n]] of Object.entries(ROWS)) {
     const key = name === 'idle' ? 'idles' : name;
     for (let i = 0; i < n; i++) {
-      fill(set.body[key][i], img, i, row);
+      set.body[key][i].fill(img, i, row);
       // the still pictures (idle, walk, run) get the weapon in hand, moving with the hand on each walk and run frame
       const off = rig.gait?.[name]?.off?.[i] || [0, 0];
       if (set[key] && name !== 'death') {
-        if (sheath && WEAPON_ART[sheath]) fill(set[key][i], img, i, row, null, withWeapon(off, sheath));
-        else fill(set[key][i], img, i, row, withWeapon(off));
+        if (sheath && WEAPON_ART[sheath]) set[key][i].fill(img, i, row, null, withWeapon(off, sheath));
+        else set[key][i].fill(img, i, row, withWeapon(off));
       }
     }
   }
@@ -126,7 +140,7 @@ function load(url) {
     im.src = url;
   });
 }
-const art = (file) => new URL(`../art/sprites/heroes/${file}?v=192`, import.meta.url).href;
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=201`, import.meta.url).href;
 
 // fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
 export function installHeroSprites(SPR) {

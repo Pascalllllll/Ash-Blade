@@ -1,9 +1,10 @@
-import { canvas, W, H, FW, SX, onWidth } from './gfx.js?v=200';
+import { canvas, W, H, FW, SX, onWidth, rotatedTouch } from './gfx.js?v=200';
 
-// the movement stick sits in a fixed spot; any touch on the left side drives it from there
+import { keys, layout, persistControls } from './bindings.js?v=200';
 // the movement stick sits near the screen's left edge (the stage can be narrower than the screen, see gfx.js)
 export let STICK_X = 50;
-export const STICK_Y = 135, STICK_R = 22;
+export let STICK_Y = 135;
+export const STICK_R = 22;
 const AIM_DEAD = 6;
 export const input = {
   down: new Set(),
@@ -37,17 +38,37 @@ export const TOUCH_BTNS = [
   { id: 'pause', bx: 302, y: 12, r: 11 },
 ];
 const REACH = 9;
-function placeButtons() {
-  for (const b of TOUCH_BTNS) b.x = b.mid ? b.bx : b.bx + SX;
-  STICK_X = 50 - SX;
+for (const b of TOUCH_BTNS) b.by = b.y;
+const bound = (n,lo,hi) => Math.max(lo,Math.min(hi,n));
+function position(id, x, y, r) {
+  const xy = layout[id];
+  return xy ? [bound(xy[0]*FW-SX,r-SX,W+SX-r), bound(xy[1]*H,r,H-r)] : [x,y];
+}
+export function placeButtons() {
+  for (const b of TOUCH_BTNS) [b.x,b.y] = position(b.id,b.bx+SX,b.by,b.r);
+  [STICK_X,STICK_Y] = position('stick',50-SX,135,STICK_R);
   const s = input.stick;
   if (s.id === null) { s.ox = s.x = STICK_X; s.oy = s.y = STICK_Y; }
 }
 const nearestBtn = (x, y) => { let best = null, bd = 1e9; for (const b of TOUCH_BTNS) { const d = Math.hypot(x - b.x, y - b.y); if (d < b.r + REACH && d - b.r < bd) { bd = d - b.r; best = b; } } return best; };
 const roles = new Map();
 let wentFull = false;
+export const editor = { active:false, drag:null };
+function dragStart(x,y) {
+  if (y <= 15 && x >= 67 && x <= 214) return false;
+  const b = nearestBtn(x,y);
+  editor.drag = b?.id || (Math.hypot(x-STICK_X,y-STICK_Y)<STICK_R+5 ? 'stick' : null);
+  return !!editor.drag;
+}
+function dragTo(x,y) {
+  if (!editor.drag) return;
+  layout[editor.drag] = [bound((x+SX)/FW,0,1),bound(y/H,0,1)];
+  placeButtons();
+}
+function dragEnd() { if (editor.drag) persistControls(); editor.drag = null; }
 function touchPt(t) {
   const r = canvas.getBoundingClientRect();
+  if (rotatedTouch()) return { x: (t.clientY-r.top)/r.height*FW-SX, y: (r.right-t.clientX)/r.width*H };
   return { x: ((t.clientX - r.left) / r.width) * FW - SX, y: ((t.clientY - r.top) / r.height) * H };
 }
 function becomeTouch() {
@@ -61,7 +82,7 @@ export function toggleFull() {
   document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => {
     // keep Escape for the game (pause): in Chromium browsers fullscreen then needs Escape held down, F11 or the button to leave
     navigator.keyboard?.lock?.(['Escape']).catch(() => {});
-    screen.orientation?.lock?.('landscape');
+    screen.orientation?.lock?.('landscape')?.catch(() => {});
   }).catch(() => {});
 }
 // the corner button: its own clicks and taps never reach the game
@@ -73,8 +94,8 @@ if (fsBtn) {
 }
 function goFull() {
   if (wentFull || !document.documentElement.requestFullscreen) return;
-  wentFull = true;
-  document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  if (isFull()) return;
+  document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => { wentFull = true; screen.orientation?.lock?.('landscape')?.catch(() => {}); }).catch(() => {});
 }
 const SKILL_GO = 12, SKILL_BACK = 9;
 function resetSkill() { Object.assign(input.skill, { id: null, key: null, dx: 0, dy: 0, active: false, was: false, cancel: false }); }
@@ -94,6 +115,7 @@ addEventListener('touchstart', (e) => {
   input.any = true;
   for (const t of e.changedTouches) {
     const { x, y } = touchPt(t);
+    if (editor.active && editor.drag === null && dragStart(x,y)) { roles.set(t.identifier,'layout'); continue; }
     if (input.touchPlay) {
       const b = nearestBtn(x, y);
       if (b && !(input.aimable[b.id] && input.skill.id === null)) {
@@ -102,7 +124,7 @@ addEventListener('touchstart', (e) => {
       } else if (b && input.aimable[b.id] && input.skill.id === null) {
         roles.set(t.identifier, b.id); input.tb[b.id] = true;
         Object.assign(input.skill, { id: t.identifier, key: b.id, ox: b.x, oy: b.y, dx: 0, dy: 0, active: false, was: false, cancel: false });
-      } else if (x < FW * 0.55 - SX && input.stick.id === null) {
+      } else if ((Math.hypot(x-STICK_X,y-STICK_Y)<STICK_R*2.8 || (!layout.stick && x < FW*0.55-SX)) && input.stick.id === null) {
         input.stick.id = t.identifier;
         roles.set(t.identifier, 'stick');
         moveStick(x, y);
@@ -117,7 +139,8 @@ addEventListener('touchmove', (e) => {
   e.preventDefault();
   for (const t of e.changedTouches) {
     const role = roles.get(t.identifier), { x, y } = touchPt(t);
-    if (role === 'stick') moveStick(x, y);
+    if (role === 'layout') dragTo(x,y);
+    else if (role === 'stick') moveStick(x, y);
     else if (input.skill.id === t.identifier) {
       const k = input.skill;
       k.dx = x - k.ox; k.dy = y - k.oy;
@@ -132,16 +155,17 @@ addEventListener('touchmove', (e) => {
   }
 }, { passive: false });
 function touchEnd(e) {
-  goFull();
+  if (e.type === 'touchend') goFull();
   for (const t of e.changedTouches) {
     const role = roles.get(t.identifier);
     roles.delete(t.identifier);
+    if (role === 'layout') { if (e.type === 'touchend') { const {x,y}=touchPt(t); dragTo(x,y); } dragEnd(); continue; }
     if (role === 'stick') { const s = input.stick; s.id = null; s.dx = s.dy = 0; s.x = STICK_X; s.y = STICK_Y; }
     if (input.aim.id === t.identifier) Object.assign(input.aim, { id: null, active: false, dx: 0, dy: 0 });
     if (input.skill.id === t.identifier) {
       const k = input.skill;
       // a tap casts with auto-aim, a drag casts where it points, a drag back onto the button cancels
-      if (!k.cancel && input.touchPlay) { input.thit.add(k.key); if (k.active) input.cast = { key: k.key, a: k.a, k: k.k }; }
+      if (e.type === 'touchend' && !k.cancel && input.touchPlay) { input.thit.add(k.key); if (k.active) input.cast = { key: k.key, a: k.a, k: k.k }; }
       resetSkill();
     }
     // release the button unless another finger still holds it (the attack button used to stay held forever)
@@ -168,22 +192,23 @@ addEventListener('blur', () => {
 });
 
 function toCanvas(e) {
-  const r = canvas.getBoundingClientRect();
-  input.mouse.x = Math.max(-SX, Math.min(W + SX - 1, ((e.clientX - r.left) / r.width) * FW - SX));
-  input.mouse.y = Math.max(0, Math.min(H - 1, ((e.clientY - r.top) / r.height) * H));
+  const {x,y} = touchPt(e); input.mouse.x = bound(x,-SX,W+SX-1); input.mouse.y = bound(y,0,H-1);
 }
 addEventListener('mousemove', (e) => {
   toCanvas(e);
+  if (editor.active && editor.drag) dragTo(input.mouse.x,input.mouse.y);
   if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) { if (!input.touch) { input.device = 'mouse'; input.mouseUsed = true; } input.mouse.moved = true; }
 });
 addEventListener('mousedown', (e) => {
   toCanvas(e);
   input.device = 'mouse';
+  if (e.button === 0 && editor.active && dragStart(input.mouse.x,input.mouse.y)) return;
   input.any = true;
   if (e.button === 0) { input.mouse.down = true; input.mouse.pressed = true; }
   if (e.button === 2) { input.mouse.rdown = true; input.mouse.rpressed = true; }
 });
 addEventListener('mouseup', (e) => {
+  if (editor.drag && e.button === 0) { toCanvas(e); dragTo(input.mouse.x,input.mouse.y); dragEnd(); }
   if (e.button === 0) input.mouse.down = false;
   if (e.button === 2) input.mouse.rdown = false;
 });
@@ -192,6 +217,8 @@ addEventListener('contextmenu', (e) => e.preventDefault());
 export const keyDown = (...codes) => codes.some((c) => input.down.has(c));
 export const keyHit = (...codes) => codes.some((c) => input.hit.has(c));
 
+export const actionHit = id => keys[id].some(c => input.hit.has(c));
+export const actionDown = id => keys[id].some(c => input.down.has(c));
 export function endFrame() {
   input.hit.clear();
   input.mouse.pressed = input.mouse.rpressed = input.mouse.moved = false;

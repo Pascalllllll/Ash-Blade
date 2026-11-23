@@ -45,7 +45,7 @@ export function loadMonsterSheet(id, paintedHeight) {
     sheets.set(id, frames);
   };
   im.onerror = () => sheets.delete(id);
-  im.src = new URL(`../art/sprites/monsters/${id}.png?v=2`, import.meta.url).href;
+  im.src = new URL(`../art/sprites/monsters/${id}.png?v=3`, import.meta.url).href;
 }
 
 export function monsterFrame(id, phase, painted, blink = false) {
@@ -57,7 +57,7 @@ export function monsterFrame(id, phase, painted, blink = false) {
 
 // Stride in world pixels, foot lift, and cycles per second for parts that move even at rest.
 const GAIT = {
-  husk: [26, 1.25, 0], brute: [38, 1.65, 0], archer: [24, 1, 0], lootling: [22, 1.5, 0],
+  bellwraith: [36, 0.65, 0.85], glasswing: [37, 0.5, 1.5], husk: [26, 1.25, 0], brute: [38, 1.65, 0], archer: [24, 1, 0], lootling: [22, 1.5, 0],
   tick: [19, 0.6, 0], larva: [15, 0, 0.55], egg: [18, 0, 0.68],
   slime: [22, 0, 0.80], slimelet: [16, 0, 1.25], spitter: [25, 0.6, 0.48],
   wisp: [42, 0, 0.80], shade: [38, 0, 0.65], priest: [28, 0.45, 0.48],
@@ -85,7 +85,9 @@ export function advanceMonsterMotion(e, dt, fromX, fromY) {
   m.clock += dt;
   m.drive += (Math.min(1, speed / Math.max(15, e.speed * 0.8)) - m.drive) * blend;
   m.lean += ((speed ? Math.max(-1, Math.min(1, dx / (dt * e.speed))) : 0) - m.lean) * blend;
-  if (idleRate || speed > 0.5) {
+  if (e.state.endsWith('W') || WINDUP.has(e.state) || LUNGE.has(e.state)) {
+    m.phase = (m.phase + dt * (LUNGE.has(e.state) ? 2.8 : 1.1)) % 1;
+  } else if (idleRate || speed > 0.5) {
     const rate = e.type === 'egg' ? idleRate * (1 + Math.max(0, 2 - e.t) * 0.75) : idleRate;
     m.phase = (m.phase + Math.min(3.4, Math.hypot(rate, speed / stride)) * dt) % 1;
   } else {

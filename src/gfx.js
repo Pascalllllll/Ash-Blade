@@ -89,10 +89,12 @@ export function hdEnd() {
 // A fixed resolution is in device pixels and never grows past the window.
 export const view = { res: 'AUTO' };
 export const MAX_W = 426;   // 21:9 and a little more
+export const rotatedTouch = () => document.documentElement.classList.contains('touch') && innerHeight > innerWidth;
 export function fit() {
-  const aspect = innerWidth / Math.max(1, innerHeight), want = 2 * Math.round((H * aspect) / 2);
+  const viewW = rotatedTouch() ? innerHeight : innerWidth, viewH = rotatedTouch() ? innerWidth : innerHeight;
+  const aspect = viewW / Math.max(1, viewH), want = 2 * Math.round((H * aspect) / 2);
   setWidth(view.res === 'AUTO' ? Math.max(W, Math.min(MAX_W, want)) : W);
-  const raw = Math.min(innerWidth / FW, innerHeight / H);
+  const raw = Math.min(viewW / FW, viewH / H);
   const touch = document.documentElement.classList.contains('touch');
   let s;
   if (view.res === 'AUTO') s = raw;
@@ -100,7 +102,7 @@ export function fit() {
   else s = Math.min(raw, parseInt(view.res, 10) / W / (devicePixelRatio || 1));
   let cw = FW * s, ch = H * s;
   // AUTO on a screen the stage widened to match: fill it exactly, edge to edge (the stretch is under a pixel)
-  if (view.res === 'AUTO' && FW === want) { cw = innerWidth; ch = innerHeight; }
+  if (view.res === 'AUTO' && FW === want) { cw = viewW; ch = viewH; }
   canvas.style.width = cw + 'px';
   canvas.style.height = ch + 'px';
   // the HD layer matches the screen in device pixels
@@ -118,6 +120,8 @@ export function line(x0, y0, x1, y1, c, w = 1) {
   C.fillStyle = rc(c);
   const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
   const o = (w - 1) >> 1;
+  if (dy === 0) { C.fillRect(Math.min(x0,x1)-o, y0-o, dx+w, w); return; }
+  if (dx === 0) { C.fillRect(x0-o, Math.min(y0,y1)-o, w, w-dy); return; }
   let e = dx + dy, n = 0;
   for (;;) {
     C.fillRect(x0 - o, y0 - o, w, w);

@@ -27,7 +27,7 @@ export const UPGRADES = [
   { id: 'thorns', name: 'THORNS', d: ['WHEN HIT, BLAST', 'FOES AROUND YOU'], icon: 'burst', c: 'blood', max: 2, f: (u) => { u.thorns++; } },
   // ---- evolutions ----
   { id: 'evoWpn', name: 'SPIRIT STRIKES', req: 'wpn', d: ['BASIC HITS RELEASE', 'HOMING SPIRITS'], icon: 'star', c: 'gold', max: 1, f: (u) => { u.evoWpn = 1; } },
-  { id: 'evoSpell', name: (k) => k.q.name.split(' ')[0] + ' & ' + k.e.name.split(' ')[0] + ' II', req: 'spell', d: ['Q AND E CAST', 'TWICE FOR FREE'], icon: 'star', c: 'volt', max: 1, f: (u) => { u.evoSpell = 1; } },
+  { id: 'evoSpell', name: (k) => k.q.name.split(' ')[0] + ' & ' + k.e.name.split(' ')[0] + ' II', req: 'spell', d: ['Q AND E GAIN', 'TWO FREE REPEATS'], icon: 'star', c: 'volt', max: 1, f: (u) => { u.evoSpell = 1; } },
   { id: 'evoUlt', name: (k) => k.r.name + ' II', req: 'focus', d: ['BIGGER ULTIMATE, THEN', '8S ASCENDED: X2 DAMAGE'], icon: 'eye', c: 'gold', max: 1, f: (u) => { u.evoUlt = 1; } },
   { id: 'evoHeart', name: 'UNDYING', req: 'heart', d: ['ONCE PER WAVE, SURVIVE', 'A KILLING BLOW'], icon: 'heart', c: 'gold', max: 1, f: (u) => { u.evoHeart = 1; } },
   { id: 'evoSwift', name: 'BLINK STORM', req: 'swift', d: ['+1 DASH, DASHES', 'SHRED FOES'], icon: 'dash', c: 'gold', max: 1, f: (u, p) => { u.evoSwift = 1; u.phantom += 2; p.dashMax++; p.charges++; } },
@@ -39,7 +39,7 @@ export const UPGRADES = [
   { id: 'evoHaste', name: 'FRENZY', req: 'haste', d: ['ATTACK SPEED', '+25% MORE'], icon: 'dash', c: 'gold', max: 1, f: (u) => { u.spd *= 1.25; } },
   { id: 'evoReach', name: "GIANT'S REACH", req: 'reach', d: ['MELEE REACH', '+30% MORE'], icon: 'blade', c: 'gold', max: 1, only: MELEE, f: (u) => { u.reach *= 1.3; } },
   { id: 'evoCrit', name: 'DEATHMARK', req: 'crit', d: ['+15% CRIT CHANCE,', 'CRITS DEAL X3'], icon: 'eye', c: 'gold', max: 1, f: (u) => { u.crit += 0.15; u.evoCrit = 1; } },
-  { id: 'evoPhantom', name: 'SHADOW STEP', req: 'phantom', d: ['DASH CUTS HIT', 'THREE TIMES HARDER'], icon: 'dash', c: 'gold', max: 1, f: (u) => { u.phantom += 3; } },
+  { id: 'evoPhantom', name: 'SHADOW STEP', req: 'phantom', d: ['DASH CUTS HIT', 'THREE TIMES HARDER'], icon: 'dash', c: 'gold', max: 1, f: (u) => { u.evoPhantom = 1; } },
   { id: 'evoMirror', name: 'REFLECT ALL', req: 'mirror', d: ['PARRIED SHOTS HOME', 'IN ON YOUR FOES'], icon: 'orb', c: 'gold', max: 1, only: MELEE, f: (u) => { u.evoMirror = 1; } },
   { id: 'evoWell', name: 'WELLSPRING', req: 'well', d: ['ENERGY REFILLS', '60% FASTER MORE'], icon: 'orb', c: 'gold', max: 1, f: (u) => { u.regen *= 1.6; } },
   { id: 'evoDebt', name: 'BLOOD PACT', req: 'debt', d: ['HEAL 1 HEALTH', 'EVERY 10 KILLS'], icon: 'heart', c: 'gold', max: 1, f: (u) => { u.evoDebt = 1; } },
@@ -49,7 +49,7 @@ export const UPGRADES = [
   { id: 'evoThorns', name: 'BRAMBLE', req: 'thorns', d: ['WHEN HIT, A BLAST', 'TWICE AS STRONG'], icon: 'burst', c: 'gold', max: 1, f: (u) => { u.thorns += 2; } },
   // fighter signatures
   { id: 'evoEcho', name: 'RIFT MASTER', req: 'echo', d: ['POWERS +25% DAMAGE,', 'COOLDOWNS -20%'], icon: 'blade', c: 'gold', max: 1, only: ['BLADE'], f: (u) => { u.spell *= 1.25; u.cdMul *= 0.8; } },
-  { id: 'evoStorm', name: 'EYE OF THE STORM', req: 'storm', d: ['TEMPEST JUMPS', 'TO 3 MORE FOES'], icon: 'bolt', c: 'gold', max: 1, only: ['BLADE'], f: (u) => { u.storm += 3; } },
+  { id: 'evoStorm', name: 'EYE OF THE STORM', req: 'storm', d: ['TEMPEST JUMPS', 'TO 3 MORE FOES'], icon: 'bolt', c: 'gold', max: 1, only: ['BLADE'], f: (u) => { u.evoStorm = 1; } },
   { id: 'evoMag', name: 'BOTTOMLESS MAG', req: 'mag', d: ['+100% AMMO,', 'EVEN FASTER RELOAD'], icon: 'gun', c: 'gold', max: 1, only: ['GUNNER'], f: (u) => { u.mag += 2; } },
   { id: 'evoPierce', name: 'RAILGUN', req: 'pierce', d: ['BULLETS PIERCE', '3 MORE FOES'], icon: 'gun', c: 'gold', max: 1, only: ['GUNNER'], f: (u) => { u.pierce += 3; } },
   { id: 'evoFrost', name: 'ABSOLUTE ZERO', req: 'frost', d: ['FROZEN FOES TAKE', 'DOUBLE DAMAGE'], icon: 'snow', c: 'gold', max: 1, only: ['WIZARD'], f: (u) => { u.evoFrost = 1; } },
@@ -94,6 +94,24 @@ export const UPGRADES = [
 
 export const MEND = { id: 'mend', name: 'MEND', d: ['RESTORE 3 HEALTH', ''], icon: 'heart', c: 'blood', max: 999, f: (u, p) => { p.hp = Math.min(p.maxHp, p.hp + 3); } };
 export const byId = (id) => (id === 'mend' ? MEND : UPGRADES.find((u) => u.id === id));
+export function takeUpgrade(run, u) {
+  if (u.only && !u.only.includes(run.char)) return false;
+  if (u !== MEND && (run.taken[u.id] || 0) >= u.max) return false;
+  u.f(run.up, run.p);
+  if (u !== MEND) run.taken[u.id] = (run.taken[u.id] || 0) + 1;
+  return true;
+}
+export function grantAllUpgrades(run) {
+  const granted = [];
+  // Resolve base ranks first, including signatures listed after their evolutions.
+  for (const evolved of [false, true]) for (const u of UPGRADES) {
+    if (!!u.req !== evolved || (u.only && !u.only.includes(run.char))) continue;
+    const missing = u.max - (run.taken[u.id] || 0);
+    for (let i = 0; i < missing; i++) takeUpgrade(run, u);
+    if (missing > 0) granted.push(u);
+  }
+  return granted;
+}
 // (with the test buff on, one pick counts as maxed, so the evolution comes right after)
 const maxed = (taken, id) => (taken[id] || 0) >= (TEST_BUFF ? 1 : byId(id).max);
 
