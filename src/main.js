@@ -86,22 +86,32 @@ function applySettings(prev) {
 
 const exitMenu = {sel:0};
 let leaving = false;
+let hasPreviousPage = !!history.state?.hasPrevious;
 function armBack() {
   if (!input.touch || leaving || history.state?.ashbladeGuard) return;
-  const hasPrevious = history.length > 1;
-  history.pushState({ashbladeGuard:true,hasPrevious},'');
+  history.pushState({ ashbladeGuard: true }, '');
+  // Pushing discards forward entries. Only the game and its guard remain on a fresh tab.
+  hasPreviousPage = history.length > 2;
+  history.replaceState({ ashbladeGuard: true, hasPrevious: hasPreviousPage }, '');
 }
 function leaveGame() {
-  leaving=true;
-  if (history.state?.hasPrevious) history.go(-2);
+  if (leaving) return;
+  leaving = true;
+  if (hasPreviousPage) history.go(history.state?.ashbladeGuard ? -2 : -1);
   else location.replace('about:blank');
 }
 if (input.touch) armBack();
 addEventListener('touchstart',armBack,{once:true});
+addEventListener('pageshow', event => {
+  if (event.persisted && leaving) {
+    leaving = false;
+    toTitle();
+    armBack();
+  }
+});
 addEventListener('popstate',() => {
-  if (leaving || !input.touch) return;
-  // The back gesture consumed our entry. Restore it before continuing inside the game.
-  if (!history.state?.ashbladeGuard) history.pushState({ashbladeGuard:true,hasPrevious:priorPage},'');
+  if (leaving || !input.touch || history.state?.ashbladeGuard) return;
+  history.forward();
   if (scene==='play' && !G.dead && !G.cine) pauseRun();
   else if (scene==='pause') resumeRun();
   else if (scene==='controls') { closeControls(); go('settings'); }
@@ -110,7 +120,6 @@ addEventListener('popstate',() => {
   else if (scene==='title') { exitMenu.sel=0; go('leave'); }
   else if (['leave','ash','select','splash','lore','intro','over'].includes(scene)) toTitle();
 });
-const priorPage = history.state?.ashbladeGuard ? !!history.state.hasPrevious : history.length>1;
 
 addEventListener('blur', () => { if (scene === 'play' && !G.dead) pauseRun(); });
 

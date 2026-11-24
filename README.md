@@ -8,13 +8,13 @@ A pixel-art hack and slash for the browser, on a computer or a phone. Pick a fig
 - Fighters that move with weight: 12-frame walks and runs where the body sinks into every step and springs up on the next, the arms swing against the feet and the run leans in. Rin, the fastest, has a quick little ninja run of her own, leaning hard with her arms swept back and her katana trailing behind her. They push off in a puff of dust, skid when they turn hard or stop, throw themselves forward into a dash with speed lines and afterimages, and flinch with their eyes screwed shut when hit. Stand still for a few seconds and they show off: Kael spins his sword, Vega twirls her revolver, Morrow raises his staff, Rin flicks her katana clean, Rivet tosses her wrench, Grom heaves his hammer onto his shoulder
 - A full-length portrait of every fighter on the select screen, in pixels three times finer than the sprites, from the owner's own High Pixel Model pictures: Kael steps in with his dagger low and his fist up, Vega aims her revolver, Morrow holds out a violet orb with his staff high, Rin points with her katana raised, Rivet shoulders her wrench with a wink, Grom carries his hammer, Unit-7 aims its arm cannon, and the Dev works his laptop from his wheelchair with code windows around him. They breathe, and their scarves, capes, coat tails, sashes, robes and hair ripple in the wind; light runs along their weapons, and lamps, screens and orbs pulse. Each stands on their own shadow, measured from their picture so it sits right under their boots, treads or wheels and darkens where each one touches the floor, lands with a burst of light in their color when picked, and has a scene and effects of their own: embers and a burning sun, a shot fired into a desert sunset, motes circling a violet orb under a star chart, petals and a flash cut under a red moon, sparks and turning gears, forge sparks off Grom's hammer under the King's torn banner, Unit-7 charging its cannon and firing it toward you, falling code
 - A title screen drawn in the game's own pixels: the swallowed sun over the ruins of the pit, and an empty battlement with fire glowing through its cracks
-- An opening that tells the story in illustrated pixel pages: how King Aurel swallowed the sun, and the fighters at the edge of his pit, twenty torches lighting one by one down to his throne. Then all eight fighters cut in one after another, and the logo slams down over the empty battlement (any key turns the page, Escape skips it)
+- An opening that tells the story in illustrated pixel pages: how King Aurel swallowed the sun, and the fighters at the edge of his pit, twenty torches lighting one by one down to his throne. Then all eight fighters cut in one after another, and the logo slams down over the empty battlement (any key turns the page, Escape skips it) The **Ash Story** entry on the title screen tells the story of the people in the ash.
 - A story told while you fight: the Ashen King taunts you and tells you who he was, a voice in the ash begs you to free his people, every fighter answers in their own words, and past wave 20 the dark itself talks. When the King falls, an illustrated ending plays, then a comic page of your victory and two roads: go home to your fighter's own ending, or go deeper. Falling down there has a story of its own
-- 10 kinds of monsters, drawn in the fighters' own style and pixel size (big heads, a dark plum outline, flat bands of light and shadow), including an archer whose aim you can see and a priest that heals the others, plus elites with affixes and wave twists that change the rules. Every kill breaks a monster apart pixel by pixel
+- 12 kinds of monsters, drawn in the fighters' own style and pixel size (big heads, a dark plum outline, flat bands of light and shadow), including an archer whose aim you can see and a priest that heals the others, a bellwraith with a double shockwave and a glasswing that fires bouncing shards, plus elites with affixes and wave twists that change the rules. Every kill breaks a monster apart pixel by pixel
 - 10 bosses, up to Nox, the dark under the pit, on wave 50, then the endless night, where they come back one at a time and later two at a time. Each has a trick no other boss has: the Warden chains you, the Brood Mother webs the floor, the Colossus's shield only breaks to its own shot knocked back, the King orders you to kneel, the Wyrm swallows you whole, the Herald charges the floor, the Mirror turns you around, the Eclipse turns you to stone, the Clockwork stops time for you, and Nox breathes you in
-- Upgrades after every wave and a relic after every boss
+- Pick an upgrade between waves and a relic after a boss. Defeating Nox grants every remaining upgrade your fighter can use.
 - A soundtrack made in the browser: an epic title theme with war drums, a choir, running strings and a horn, a sad flute theme for the story, a hopeful dawn theme for the ending, hard-hitting battle music and a theme for every boss. Every story page has sounds of its own (the sun's bells, the swallowing, the army's drums, a horn as the torches light, the seal breaking, bells for the fallen), and the fight sounds land: kills break into a crackle of pixels with a chime that climbs the scale as your combo grows, pickups climb the same scale, a horn opens each wave, and the music dips for an instant under every big hit
-- A new stage on every floor of the pit, each built for the boss at its end: the Brood Mother's webbed nest, the Ashen King's hall with his carpet and banners, the broken stone the Void Wyrm swims through, a hall of mirrors, a sun temple with an eclipse laid in the floor, the Clockwork's gears and a floor of stars under Nox. Or pick one of the 12 stages and keep it for the whole run
+- A new stage on every floor of the pit, each built for the boss at its end: the Brood Mother's webbed nest, the Ashen King's hall with his carpet and banners, the broken stone the Void Wyrm swims through, a hall of mirrors, a sun temple with an eclipse laid in the floor, the Clockwork's gears and a floor of stars under Nox.
 - 4 difficulties, a save at every wave, and phone controls on a screen that fills the whole phone, edge to edge
 
 ![The title screen: the logo and the menu under the swallowed sun, over the ruins of the pit and an empty battlement](docs/opening.png)
@@ -103,13 +103,13 @@ Each fighter also has their own sounds and an entrance of about three seconds in
 | Morrow | Enemies unravel into arcane light | His own spell lifts him up and tears him into burning pieces that rain down with his blood. *The spell was never finished* |
 | Rin | A burst of petals | Six cuts flash across her, then she falls apart along all of them at once, and the pieces scatter into petals. *She scatters with the blossoms* |
 | Rivet | Enemies come apart into bolts and springs | Her rig overloads and blows her apart, head and chest flying, and her machines go up with her. *Warranty void* |
-| Grom | Enemies are flattened into a splat | The King's crown comes down onto his helm and crushes his last guard the way a body really gives, pixel row by pixel row: his knees snap and he drops onto them, his spine folds down into his armor with blood and bone squeezing out of every seam, he braces on his hammer until the haft snaps, and the crown slams him down onto his own boots. His helm pops off a pumping stump and rolls away, its visor light going out. *Kneel before the King* |
+| Grom | Enemies are flattened into a splat | A giant hand rises through the floor, closes around his armor and crushes him in its fist |
 | Unit-7 | Enemies disintegrate into pixels | Its head pops off on a fountain of oil, the body counts down from three and blows itself to scrap. *Shutdown complete* |
 | The Dev | Enemies are deleted, now and then with a 404 | A FATAL ERROR box, and he is deleted line by line. *Process terminated* |
 
 ### Unlocking fighters
 
-You start with Blade. The select screen shows each mission and how close you are. A fighter who has cleared wave 25 gets a silver frame on the select screen and a WAVE 25 VETERAN badge; clearing wave 50 earns a gold frame with a crown, sparkles and a WAVE 50 LEGEND badge.
+You start with Blade. The select screen shows each unlock mission and your progress. Fighters who reach the endless night also show their best survival time.
 
 | Fighter | Mission |
 | --- | --- |
@@ -125,12 +125,12 @@ You start with Blade. The select screen shows each mission and how close you are
 
 ## Upgrades
 
-After every wave you pick one of three upgrades. Every upgrade has an evolution, offered once you max it. Any four evolutions awaken your fighter.
+Between waves you pick one of three cards. Press **Tab** or tap a card’s **Info** button to compare its effects before choosing. Max out an upgrade to find its evolution. Four evolutions awaken your fighter.
 
 | Max this | Evolution |
 | --- | --- |
 | Weapon Mastery | Spirit Strikes: basic hits release homing spirits |
-| Spell Mastery | Q and E cast a second time for free |
+| Spell Mastery | Arcane Echo repeats Q and E twice for free |
 | Ultimate Mastery | Your ultimate gets stronger, then you deal double damage for 8 seconds |
 | Whetstone | Razor Edge: all damage +30% more |
 | Quickhand | Frenzy: attack speed +25% more |
@@ -165,7 +165,7 @@ Each fighter's own upgrades evolve too:
 
 ## Relics
 
-Every boss drops three relics, and you keep one.
+After a boss, you can choose one of the remaining relics. Nox grants them all when you defeat its awakened form.
 
 | Relic | Effect |
 | --- | --- |
@@ -194,6 +194,8 @@ Walking monsters plant their feet as they slow down. Wisps flicker, slimes pulse
 | Ash Priest | 6 | A robed healer that stays behind the others. It chants inside a green circle, tethered to every wounded monster in it, then heals them by 30%. Hit it mid-chant to break the spell |
 | Shade | 8 | Disappears and reappears behind you |
 | Lootling | 4 (rare) | A goblin that runs off with a sack of gold. Kill it before it digs out for energy, a heart and score |
+| Bellwraith | 21 | Chimes before sending two shockwaves across the floor. Time a dash for each ring. |
+| Glasswing | 26 | Hovers at range, fires three glass shards that bounce off the walls, then recoils out of reach. |
 
 From wave 6 some monsters are elites, with more health and one affix: Regen, Volatile, Warded, Frenzy or Split.
 
@@ -222,16 +224,16 @@ Monsters die in pixels. A cut splits a monster along its own pixel grid, and bot
 | 20 | The Ashen King | Aurel himself. He talks to you before the fight, then three phases, armored knights, rings of fire, and his own Thousand Cuts. His decree, KNEEL: he raises his sword and fire falls everywhere but where you stand. Move or dash and it comes down on you |
 | 25 | Void Wyrm | A serpent that tunnels under you and breathes orbs. If it comes up right under you, it swallows you: six hits from inside cut you free and leave it stunned, or it spits you out hurt |
 | 30 | Storm Herald | Calls lightning on you and teleports. It charges the floor into a checkerboard: the squares you stand on strike first, then the others, turn and turn about |
-| 35 | The Mirror | A dark copy of your own fighter. It swaps places with you and turns you around: left is right for a few seconds |
+| 35 | The Mirror | A dark copy of your fighter. It swaps places with you and reverses movement. It studies your weapon attacks, casts, dashes and distance, then chooses a counter. Frequent dashes teach it where to mark your next landing. |
 | 40 | Eclipse | A giant eye with spirals and rotating beams. Its stare is a cone of light that turns after you: stand in it too long and you turn to stone |
 | 45 | The Clockwork | Its clock hands sweep the arena as beams. Its stopwatch: a dial under your feet with a hand sweeping round it. Still on it when the hand gets back to twelve, and time stops for you while shots close in |
-| 50 | Nox | The dark under the pit, given a shape. It names itself before the fight, then rains dead stars, reaches across the arena in lines you dash through, bursts in rings of night, sends shades, and breathes in to drag you toward it. At two thirds the night falls around you; at one third its eyes open in the corners of the arena and sweep beams across it |
+| 50 | Nox | Nox rains dead stars, summons shades and sweeps the floor with beams from the corners. Break all three health segments and a larger, tentacled form rises. Slip between its roots and reach the heart of light when it appears. When this form falls, Nox scatters into ash. |
 
 Every boss enrages after 60 seconds.
 
 ### The floors
 
-By default (the arena called THE DESCENT) every boss waits at the bottom of a floor of its own, and the wave after it starts a floor further down. The new floor fades in out of the dark under its name. Its look, torches and air are its own, and so is its footing: the forge has lava you can knock monsters into, and the frozen hollow is ice. Any one floor can also be picked in the settings or on the select screen and kept for a whole run.
+In **The Descent**, every boss waits at the bottom of its own floor. The next wave takes you a floor deeper. The forge has lava you can knock monsters into, and Frozen Hollow puts ice under your feet.
 
 | Depth | Waves | Floor | Boss |
 | --- | --- | --- | --- |
@@ -248,7 +250,7 @@ By default (the arena called THE DESCENT) every boss waits at the bottom of a fl
 
 ### The endless night
 
-After Nox there are no more waves. Monsters come in packs that grow bigger and come faster. After the first minute the bosses climb back out of the dark one at a time, and from five minutes two at a time. Everything gets tougher the longer it lasts, until you fall. The HUD shows how long you have held, and the game keeps your best time.
+When Nox dissolves, the inheritance sequence grants every remaining rank, evolution and relic your fighter can use. The endless night begins. Packs grow larger and deal more damage as the clock runs. After a minute bosses return with at least Nox’s base health. From five minutes on, two can fight together. The HUD tracks how long you hold out.
 
 ![Oni Rin fighting Nox on wave 50](docs/boss.png)
 
@@ -260,10 +262,10 @@ After Nox there are no more waves. Monsters come in packs that grow bigger and c
 | Aim | Mouse | Drag from the attack button. A tap aims at the nearest enemy |
 | Attack | Left click or J. Hold to keep firing or to charge | Attack button |
 | Dash | Space or right click | Dash button |
-| Powers | Q, E, R | Tap to cast at the nearest enemy, or hold and drag to aim |
+| Powers | Q, E, R | Hold a targeted power to preview its path or area, drag to aim, then release. Drag back to the button to cancel. |
 | Pause and menu | Esc | MENU button in the top right corner |
 
-The HUD shows up to ten health points as individual hearts. At eleven or more, a red bar shows your current and maximum health. Ordinary monsters seldom drop hearts, a boss's summoned army never does, and after a hit you're only safe for a third of a second. Dashing makes you untouchable. Dash through an attack as it lands and time slows, and your next hit is a counter for triple damage. Hit a pink orb to send it back.
+Every fighter’s health appears as hearts, wrapping across up to three rows. Ordinary monsters seldom drop hearts, a boss's summoned army never does, and after a hit you're only safe for a third of a second. Dashing makes you untouchable. Dash through an attack as it lands and time slows, and your next hit is a counter for triple damage. Hit a pink orb to send it back.
 
 Hits in a row build a combo, ranked D, C, B, A, S, SS and SSS. From A up the rank powers you: every hit does 5% more damage at A, 10% at S, 18% at SS and 30% at SSS (the HUD shows it under the rank). From S you leave afterimages in the rank's color, and every rank up from A bursts off you. Getting hit loses the combo and the power with it.
 
@@ -273,7 +275,9 @@ Hits in a row build a combo, ranked D, C, B, A, S, SS and SSS. From A up the ran
 
 The game fills the window on any screen by default. On a screen wider than 16:9, a phone on its side for example, the arena and the menus widen to fill it instead of leaving bars at the sides. Sharp mode instead zooms by whole numbers so every pixel is the same size, and there are fixed sizes from 720p to 1440p.
 
-The settings are in four tabs (audio, display, effects, game) with rows tall enough to tap. They cover volume and music choice, color theme and screen filters, arena, difficulty, and vibration on Android phones. Screen shake starts at 25%. Shake, flashes, damage numbers and particles can all be turned up or down. For now there is also a fifth tab, TEST, for trying out the late game: a god mode, and new runs that start at wave 20, 45 or 50 or straight in the endless night. While either is on, runs don't save scores, records or unlocks.
+Open **Settings → Game → Customize Controls** to remap keys or drag the touch buttons. Assigning a key already in use clears the previous action. The editor shows which actions still need keys and can restore the defaults. Phones request landscape fullscreen on touch. At the title, the Android Back button opens the exit confirmation.
+
+Audio, Display and Effects control the soundtrack, brightness, filters, screen shake and particles. The Test tab offers god mode, all upgrades, full energy and powers, access to every fighter, and starts at any boss wave or the endless night. Practice runs have their own save slot and keep scores, records and fighter unlocks separate from normal runs.
 
 ## How it's built
 

@@ -6,11 +6,16 @@ import { input } from './input.js?v=200';
 import { best } from './store.js?v=200';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, ignite, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots } from './world.js?v=200';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=200';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
 const canParry = (s) => s.owner === 'enemy' && !s.dead && !s.noparry && !s.ret && !s.fist;
+function drawBladeSilhouette(p, progress, color) {
+  const frames = heroSet().act.ultimate;
+  const sprite = frames[clamp(Math.floor(progress * frames.length), 0, frames.length - 1)];
+  drawSprite(sprite, p.x - sprite.w / 2, p.y - sprite.h + 1, Math.cos(p.aim) < 0, color);
+}
 const STORM_R = 26;
 function aimPoint(p, max, intent=p.castAim) {
   let x,y;
@@ -236,12 +241,9 @@ export const CHARS = {
             const a = (u.phase === 'gather' ? Math.min(1, u.t / 0.4) : 1) * 0.86;
             ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(cx - SX, cy, FW, H); ctx.globalAlpha = 1;
             for (const e of G.E) if (!e.dead) { const s = sprFor(e); drawSprite(s, e.x - s.w / 2, e.y - s.h + 1, e.face < 0, P.bone); }
-            { const a=(G.evo===true?SPR.evo:SPR.chars).BLADE;
-              const frames=a.act?.ultimate;
-              const elapsed=G.time-(p.spriteAction?.start||G.time);
-              const ix=Math.min((frames?.length||1)-1,Math.floor(Math.max(0,elapsed)/1.85*(frames?.length||1)));
-              const s=frames?.[ix]||a.idle;
-              drawSprite(s,p.x-s.w/2,p.y-s.h+1,false,P.ember); }
+            const progress = u.phase === 'gather' ? 0.32 * u.t / 0.5 :
+              u.phase === 'cuts' ? 0.32 + 0.48 * u.i / u.n : 0.8 + 0.2 * u.t / 0.6;
+            drawBladeSilhouette(p, progress, P.ember);
             for (const c of u.cuts) {
               const ux = (Math.cos(c.a) * c.L) / 2, uy = (Math.sin(c.a) * c.L) / 2;
               line(c.x - ux, c.y - uy + 1, c.x + ux, c.y + uy + 1, P.blood); line(c.x - ux, c.y - uy, c.x + ux, c.y + uy, P.paper);
@@ -634,11 +636,9 @@ export const CHARS = {
             ctx.globalAlpha = 0.55; ctx.fillStyle = '#2a0a1a'; ctx.fillRect(cx - SX, cy, FW, H); ctx.globalAlpha = 1;
             for (const [x0, y0, x1, y1] of u.path) { line(x0, y0 + 1, x1, y1 + 1, P.blood); line(x0, y0, x1, y1, P.paper); }
             // The cut is visible a moment before Rin's silhouette catches up.
-            const set=(G.evo===true?SPR.evo:SPR.chars).NINJA;
-            const frames=set.act?.ultimate;
-            const elapsed=G.time-(p.spriteAction?.start||G.time);
-            const sprite=frames?.[Math.min(frames.length-1,Math.floor(Math.max(0,elapsed)/1.6*frames.length))]||set.idle;
-            drawSprite(sprite,p.x-sprite.w/2,p.y-sprite.h+1,false,'#150d20');
+            const progress = u.phase === 'draw' ? 0.32 * u.t / 0.35 :
+              u.phase === 'hops' ? 0.32 + 0.48 * u.i / hops : 0.8 + 0.2 * u.t / 0.45;
+            drawBladeSilhouette(p, progress, '#150d20');
             for (let i = 0; i < 6; i++) { const x = cx + ((G.time * 40 + i * 57) % 320), y = cy + ((G.time * 25 + i * 31) % 180); px(x, y, '#ffb7d5'); }
           },
         };
@@ -1322,9 +1322,8 @@ CHARS.DEV = {
           rect(20, H - 46, W - 40, 1, C1);
           if (root) { rect(20, H - 17, W - 40, 1, C2); rect(20, H - 46, 1, 30, C1); rect(W - 21, H - 46, 1, 30, C2); }
           // The Dev above the terminal
-          const set = (G.evo === true ? SPR.evo : SPR.chars).DEV;
-          const frames = set.act?.ultimate;
-          const us = frames?.[Math.min(frames.length - 1, Math.floor(Math.min(1, u.t / 1.55) * frames.length))] || set.idle;
+          const frames = heroSet().act.ultimate;
+          const us = frames[Math.min(frames.length - 1, Math.floor(u.t / 1.55 * frames.length))];
           drawSprite(us, W / 2 - us.w / 2, H - 47 - us.h, false);
           text(cmd.slice(0, Math.floor(Math.min(1, u.t / 0.85) * cmd.length)) + (Math.floor(u.t * 6) % 2 ? '_' : ''), 26, H - 40, C1);
           if (u.t > 0.9) {

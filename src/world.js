@@ -193,6 +193,7 @@ export function newRun(charId, save) {
   // the arena chosen (the descent, or one floor for the whole run) and the floor the run starts on
   const mapKey = stageFor(arena, at);
   const kit = CHARS[char], D = DIFF[diffKey];
+  for (const key of ['q', 'e', 'r']) input.aimable[key] = previewable(char, key);
   A.stopVoice();
   A.prepareVoice(char);
   A.prepareVoice(char, 'entrances');
@@ -982,7 +983,7 @@ export function shoot(o) {
     power: o.power || G.power || (G.tagBasic ? 'weapon' : undefined), owner: 'player', x: o.x, y: o.y, vx: Math.cos(o.a) * o.sp, vy: Math.sin(o.a) * o.sp, r: o.r ?? 2, dmg: o.dmg, kb: o.kb ?? 60,
     life: o.life ?? 1, t: 0, kind: o.kind ?? 'bullet', c: o.c ?? P.gold, pierce: o.pierce ?? 0, bounce: o.bounce ?? 0,
     homing: o.homing ?? 0, splash: o.splash, hit: new Set(), ug: o.ug ?? true, slice: o.slice ?? false, poison: o.poison, freeze: o.freeze,
-    spin: 0, trail: o.trail ?? true, onHit: o.onHit, basic: !!G.tagBasic,
+    spin: 0, trail: o.trail ?? true, onHit: o.onHit, basic: o.basic ?? !!G.tagBasic,
   };
   if (G.awPal) { s.c = G.awPal[s.c] || s.c; s.thick = true; if (s.basic) s.r += 1; }
   G.shots.push(s);
@@ -1033,19 +1034,16 @@ export function controls() {
   const p = G.p, m = input.mouse, kit = G.kit;
   if (settings.testCharge) { p.energy = p.ult = 100; p.cdQ = p.cdE = 0; }
   if (p.state === 'dead' || p.state === 'cine') return;
-  for (const k of ['q', 'e', 'r']) input.aimable[k] = previewable(G.char,k);
   if (bossLock()) { p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0; p.castAim = null; p.atkHeld = false; return; }
   if (input.cast) p.castAim = { ...input.cast, a: input.cast.a ?? p.aim, t: 0.4 };
   if (actionHit('attack')) { p.bufAtk = 0.2; input.device = 'keys'; }
   if (m.pressed) p.bufAtk = 0.2;
   // holding attack: guns keep firing, blades wind up a charged attack instead of repeating the combo
   p.atkHeld = (m.down && input.device === 'mouse') || actionDown('attack') || (input.touch && input.tb.attack);
-  const repeats = !kit.charge;
-  if (repeats && ((m.down && input.device === 'mouse') || actionDown('attack'))) p.bufAtk = Math.max(p.bufAtk, 0.04);
+  if (kit.melee && !kit.charge && p.atkHeld) p.bufAtk = Math.max(p.bufAtk, 0.04);
   if (actionHit('dash') || m.rpressed) p.bufDash = 0.18;
   if (input.touch) {
     if (input.thit.has('attack')) p.bufAtk = 0.2;
-    if (repeats && input.tb.attack) p.bufAtk = Math.max(p.bufAtk, 0.04);
     if (input.thit.has('dash')) p.bufDash = 0.18;
   }
   const ask = (cost, cd, key) => {
@@ -1292,11 +1290,14 @@ function updatePlayer(dt) {
       else if (kit.charge && p.atkHeld && p.holdT > 0.22 && p.bufAtk <= 0 && (free || (p.state === 'attack' && p.atkT >= p.cancelAt))) startCharge(p);
     }
     if (!kit.melee && p.state !== 'dead') {
-      const held = (input.mouse.down && input.device === 'mouse') || actionDown('attack') || input.tb.attack;
+      const trigger = p.atkHeld || p.bufAtk > 0;
       G.tagBasic = true;
       const shots = G.shots.length;
-      kit.primary(p, dt, held && (p.state === 'move' || p.state === 'recover'));
-      if ((G.shots.length>shots || p.k.firing) && G.t >= (p.studyShot || 0)) { rememberAction('weapon'); p.studyShot=G.t+0.32; }
+      kit.primary(p, dt, trigger && (p.state === 'move' || p.state === 'recover'));
+      if (G.shots.length > shots || p.k.firing) {
+        p.bufAtk = 0;
+        if (G.t >= (p.studyShot || 0)) { rememberAction('weapon'); p.studyShot = G.t + 0.32; }
+      }
       if (G.shots.length > shots) { p.recoil = 1; p.sq = Math.max(p.sq || 0, 0.06); }
       G.tagBasic = false;
     }
@@ -1624,7 +1625,10 @@ function skyStrike(x, y, R, dmg) {
 }
 // homing golden spirits that explode
 function spirits(x, y, n) {
-  for (let i = 0; i < n; i++) shoot({ x, y, a: rnd(TAU), sp: rnd(120, 180), dmg: pd(6) * G.up.wpn, kb: 60, life: 1.8, kind: 'spirit', r: 3, c: P.gold, homing: 8, ug: false, splash: { R: 18, dmg: pd(4) } });
+  for (let i = 0; i < n; i++) shoot({
+    x, y, a: rnd(TAU), sp: rnd(120, 180), dmg: pd(6), power: 'weapon', basic: false, ug: false,
+    kb: 60, life: 1.8, kind: 'spirit', r: 3, c: P.gold, homing: 8, splash: { R: 18, dmg: pd(4) },
+  });
 }
 
 // orbiting blades upgrade

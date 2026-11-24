@@ -1,5 +1,5 @@
 // The heroes' sprites. Each hero's body (no weapon) comes from art/sprites/heroes/<hero>-<skin>.png: 120 x 96 cells,
-// rows idle (16), walk (12), run (12), death (8), dash (4), hurt (2), feet on row 92, facing right (left is the
+// rows idle (16), walk (12), run (12), death (8), dash (8), hurt (8), attack (16), cast (16), feet on row 92, facing right (left is the
 // mirror). One art pixel is a 2 x 2 block. Each weapon is its
 // own sprite, pre-turned to 64 angles in art/sprites/heroes/weapon-<name>.png (8 x 8 per skin, base on top), so the
 // game can point it wherever the player aims. Both are made by tools/build_hero_sprites.py from the master pictures.
@@ -99,22 +99,23 @@ function makeSet(id, evolved) {
     dash: Array.from({ length: 8 }, f), hurt: Array.from({ length: 8 }, f), attack: Array.from({ length: 16 }, f), cast: Array.from({ length: 16 }, f) };
   // what the menus, afterimages and the mirror boss show: the same frames with the weapon in hand at rest
   const shown = { idles: Array.from({ length: 16 }, f), walk: Array.from({ length: 12 }, f), run: Array.from({ length: 12 }, f) };
+  const bladeUltimate = id === 'BLADE' || id === 'NINJA';
   const set = {
     idle: shown.idles[0], idles: shown.idles, walk: shown.walk, run: shown.run,
     // the body without a weapon (drawPlayer draws the weapon itself, turned to the aim)
     body, rig, evolved,
     art: true, noWeapon: true, ownWeapon: false, softFacing: true,
     eye: [rig.eye[0] / SS, rig.eye[1] / SS],
-    act: { death: body.death, stance: shown.idles[0] },
+    act: { death: body.death, stance: shown.idles[0], ultimate: bladeUltimate ? Array.from({ length: body.attack.length }, f) : body.cast },
   };
   return set;
 }
 function fillSet(set, img) {
   const { rig } = set, wname = rig.weapon, w = wname && WEAPON_ART[wname];
   const sheath = SHEATH[wname];
-  const withWeapon = ([dx, dy], name = wname) => (g) => {
+  const withWeapon = ([dx, dy], name = wname, angle = REST[name] ?? 0.3) => (g) => {
     if (!w) return;
-    const fr = weaponFrame(name, set.evolved, REST[name] ?? 0.3);
+    const fr = weaponFrame(name, set.evolved, angle);
     if (!fr) return;
     // the grip on the hand (the cell's own pixels here, not game pixels)
     g.drawImage(fr.img, fr.sx, fr.sy, fr.C, fr.C, rig.hand[0] + 0.5 - fr.C / 2 + dx, rig.hand[1] + 0.5 - fr.C / 2 + dy, fr.C, fr.C);
@@ -128,6 +129,14 @@ function fillSet(set, img) {
       if (set[key] && name !== 'death') {
         if (sheath && WEAPON_ART[sheath]) set[key][i].fill(img, i, row, null, withWeapon(off, sheath));
         else set[key][i].fill(img, i, row, withWeapon(off));
+      }
+      if (name === 'attack' && set.act.ultimate !== set.body.cast) {
+        const t = i / (n - 1);
+        const windup = Math.sin(Math.PI * Math.min(1, t / 0.32));
+        const follow = Math.sin(Math.PI * Math.max(0, (t - 0.29) / 0.71));
+        const grip = [Math.round(3 * follow - windup), Math.round(2 * windup - follow)];
+        const blade = withWeapon(grip, wname, -0.3 - 1.9 * windup + 0.65 * follow);
+        set.act.ultimate[i].fill(img, i, row, blade, sheath && withWeapon(off, sheath));
       }
     }
   }
