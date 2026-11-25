@@ -15,14 +15,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=200';
-import { SPR } from './sprites.js?v=200';
-import { input, keyHit } from './input.js?v=200';
-import { A } from './audio.js?v=200';
-import { G } from './world.js?v=200';
-import { CHARS } from './chars.js?v=200';
-import { drawFighter } from './title-scene.js?v=200';
-import { drawWeaponAt } from './hero-sprites.js?v=200';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=201';
+import { SPR } from './sprites.js?v=201';
+import { input, keyHit } from './input.js?v=201';
+import { A } from './audio.js?v=201';
+import { G } from './world.js?v=201';
+import { CHARS } from './chars.js?v=201';
+import { drawFighter } from './title-scene.js?v=201';
+import { drawWeaponAt } from './hero-sprites.js?v=201';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -1040,27 +1040,204 @@ const NIGHTFALL = [
   },
 ];
 
-// ---------- the player: a page at a time ----------
-// The flour sun appears on a worktable, on an empty street, then in the fighter's hand.
+// ---------- the Ash Story: the voice in the ash tells his own story, a page at a time ----------
+// He kept the bakery on Mill Street; every morning his girl drew a sun in the flour. The old sun, the King's fear, the
+// swallowing, the hands that turned grey, the march into the pit, the little sun she still draws in the ash, the
+// fighters at the edge, and the morning that frees them. (The same voice speaks to the fighter on waves 6, 11 and 16.)
+// a little person in whole pixels, feet on base: k 1 a grown-up, under 0.8 a child. crumble (0..1) eats it from the
+// hands and head and blows the ash away to the right.
+function folk(x, base, k, col, t = 0, o = {}) {
+  x = Math.round(x); base = Math.round(base);
+  const child = k < 0.8, hh = child ? 10 : 14, cr = o.crumble || 0;
+  const body = (dx, dy, w, h, c) => rect(x + dx, base - dy, w, h, c);
+  if (child) { body(-1, 10, 3, 3, col); body(-1, 7, 3, 4, col); body(-1, 3, 1, 3, col); body(1, 3, 1, 3, col); }
+  else { body(-1, 14, 3, 3, col); body(-2, 11, 5, 6, col); body(-2, 5, 2, 5, col); body(1, 5, 2, 5, col); }
+  if (o.arm) { const [ax, ay] = o.arm; line(x + 2, base - hh + 5, x + ax, base - hh + 5 + ay, col); }
+  if (o.crown) { px(x - 1, base - hh - 1, P.gold); px(x + 1, base - hh - 1, P.gold); px(x, base - hh - 2, P.gold); }
+  if (cr > 0) for (let i = 0; i < 12 * cr; i++) {
+    const u = (t * 0.6 + hash(i * 7 + x)) % 1;
+    ctx.globalAlpha = (1 - u) * cr; px(x + 2 + u * 26 + Math.sin(t * 2 + i) * 2, base - hh + 4 + hash(i) * 6 - u * 10, i % 3 ? '#8a8086' : '#c8bcb4'); ctx.globalAlpha = 1;
+  }
+}
+// a row of houses with windows (lit: a color, or none)
+function street(base, col, lit, t, seed = 0) {
+  for (let j = 0; j < 7; j++) {
+    const x = PX + j * 33 - 4 + hash(j + seed) * 6, h = 30 + hash(j + 9 + seed) * 22, w = 26 + hash(j + 3) * 8;
+    rect(x, base - h, w, h, col);
+    for (let i = 0; i < Math.ceil(w / 2); i++) rect(x + i, base - h - i, w - i * 2, 1, col);
+    if (lit) for (let wy = base - h + 6; wy < base - 8; wy += 9) rect(x + 5, wy, 4, 5, Math.floor(t * 1.5 + j + wy) % 9 ? lit : P.ember3);
+  }
+}
+// falling ash, like grey snow
+function ashFall(t, n, col = '#6a6266') {
+  for (let i = 0; i < n; i++) {
+    const u = (t * (0.08 + hash(i) * 0.06) + hash(i + 50)) % 1;
+    px(PX + ((hash(i + 9) * PW + Math.sin(t + i) * 6 + u * 20) % PW), PY + u * PH, i % 4 ? col : '#a09498');
+  }
+}
+// a circle sun drawn with one finger: p of it drawn so far
+function fingerSun(x, y, rx, ry, p, col, rays = true) {
+  for (let j = 0; j < 60; j++) { if (j / 60 > p) break; const a = (j / 60) * TAU; px(x + Math.cos(a) * rx, y + Math.sin(a) * ry, col); }
+  if (rays && p >= 1) for (let j = 0; j < 8; j++) { const a = (j * TAU) / 8; line(x + Math.cos(a) * (rx + 2), y + Math.sin(a) * (ry + 1), x + Math.cos(a) * (rx + 5), y + Math.sin(a) * (ry + 3), col); }
+}
 const ASH_BOOK = [
-  ['MILL STREET', 'MY GIRL DREW A SUN IN THE FLOUR EACH MORNING.', 'I SAVED THAT CORNER OF THE TABLE FOR LAST.'],
-  ['THE BLACK OVEN', 'THE DAY THE KING SWALLOWED THE SUN,', 'THE LOAVES STAYED WHITE. OUR HANDS TURNED GREY.'],
-  ['THE PIT', 'DOWN HERE A THOUSAND VOICES CALL FOR LIGHT.', 'I KNOW HERS BY THE CIRCLE SHE DRAWS IN ASH.'],
-  ['THE LAST GIFT', 'IF YOUR SLEEVE IS DUSTY, LET IT BE.', 'WHEN YOU SEE MORNING, OPEN YOUR HAND.'],
-].map(([title,...cap],i)=>({
-  cap, draw(t) {
-    const cx=PX+PW/2,base=PY+PH-18;
-    sky(PX,PY,PW,PH,i===3?['#342433','#6d4640','#c37a50']:['#151120','#352635','#573a37']);
-    for(let j=0;j<7;j++){const x=PX+j*41-5,h=27+hash(j)*24;rect(x,base-h,30,h,'#241d29');rect(x+5,base-h+9,6,8,i===0||i===3?'#e7a863':'#4e3c48');}
-    rect(PX,base,PW,18,'#372934');
-    if(i<2) {rect(cx-49,base-20,98,6,'#875b46');rect(cx-44,base-14,5,14,'#4b3436');rect(cx+39,base-14,5,14,'#4b3436');}
-    const x=cx,y=i<2?base-29:base-18, c=i===3?P.ember3:'#e3c8ab';
-    for(let j=0;j<50;j++){const a=j/49*TAU, visible=Math.min(1,t*0.55);if(j/50>visible)break;px(x+Math.cos(a)*12,y+Math.sin(a)*7,c);}
-    for(let j=0;j<8;j++){const a=j*TAU/8;line(x+Math.cos(a)*15,y+Math.sin(a)*9,x+Math.cos(a)*19,y+Math.sin(a)*12,c);}
-    for(let j=0;j<28;j++){const u=(t*0.13+hash(j))%1;px(x+(hash(j+44)-0.5)*78+Math.sin(u*6+j)*4,base-u*45,i===3?P.gold:P.dust);}
-    textO(title,PX+8,PY+7,P.bone);
+  {
+    // Mill Street at dawn: the bakery's oven, the father at the dough, the girl drawing her sun in the flour
+    cue: () => A.loreCue(0),
+    cap: ['BEFORE THE DARK, I BAKED BREAD ON MILL STREET.', 'EVERY MORNING MY GIRL DREW A SUN IN THE FLOUR.'],
+    draw(t) {
+      const cx = PX + PW / 2, base = PY + PH - 8;
+      sky(PX, PY, PW, PH, ['#ffe9a8', '#ffc76a', '#ff9a4a', '#e0623a']);
+      sun(PX + 30, PY + 22, 9, t);
+      birds(PX + 120, PY + 12, t, 3, '#a05a3a');
+      street(base, '#8a5640', '#ffd98a', t);
+      // the bakery, its front cut away
+      rect(cx - 62, base - 60, 124, 60, '#4a2a20'); rect(cx - 66, base - 64, 132, 5, '#6a3a28');
+      for (let x = cx - 64; x < cx + 64; x += 8) rect(x, base - 59, 4, 3, (x / 8) % 2 ? '#e8d8b0' : '#c84a3a');
+      rect(cx - 56, base - 52, 112, 48, '#2a1812'); glow(cx + 30, base - 20, P.ember, 40, 0.35);
+      // the oven
+      rect(cx + 18, base - 34, 30, 30, '#3a2a24'); ell(cx + 33, base - 16, 9, 6, '#120808');
+      const f = Math.floor(t * 8) % 3; ell(cx + 33, base - 14, 7 - f, 3, '#ff9a3c'); ell(cx + 33, base - 13, 4, 2, '#ffe08a');
+      // father at the dough, the girl at the table drawing
+      folk(cx + 6, base - 4, 1, '#e3c8ab', t, { arm: [5, 2] });
+      rect(cx - 50, base - 18, 46, 3, '#875b46'); rect(cx - 47, base - 15, 2, 11, '#4b3436'); rect(cx - 9, base - 15, 2, 11, '#4b3436');
+      ell(cx - 14, base - 20, 4, 2, '#e8c890'); ell(cx - 42, base - 20, 4, 2, '#e8c890');
+      for (let i = 0; i < 2; i++) for (let j = 0; j < 3; j++) { ctx.globalAlpha = 0.7 - j * 0.2; px(cx - 14 - i * 28 + Math.round(Math.sin(t * 2 + j + i)), base - 24 - j * 3 - Math.floor((t * 6) % 2), '#f8f0e0'); ctx.globalAlpha = 1; }
+      folk(cx - 30, base - 4, 0.7, '#f0d8b8', t, { arm: [4, -2] });
+      fingerSun(cx - 27, base - 19, 4, 1, (t * 0.4) % 1.4, '#fff6e8', false);
+      rect(PX, base, PW, 8, '#5a3a2a');
+    },
   },
-}));
+  {
+    // the old sun, dim and low, and the King on his tower reaching for it
+    cue: () => A.loreCue(1),
+    cap: ['THE SUN GREW OLD AND DIM. THE KING GREW AFRAID', 'OF THE DARK THAT WAITS FOR EVERYTHING.'],
+    draw(t) {
+      const base = PY + PH - 10;
+      sky(PX, PY, PW, PH, ['#2a1a2a', '#6a3a3a', '#b8603a', '#d08a4a']);
+      sun(PX + PW - 54, PY + 52, 22, t * 0.3, { core: '#f0b878', rim: '#c8703a', ray: '#a8502a', ga: 0.25 });
+      castle(PX + 30, base, '#160c12', '#ffb347', t);
+      // Aurel on the tallest tower, one arm up to the sun
+      folk(PX + 71, base - 61, 1, '#160c12', t, { crown: true, arm: [6, -7 + Math.sin(t * 1.5)] });
+      rect(PX, base, PW, 10, '#160c12');
+    },
+  },
+  {
+    // the swallowing: the sun pours into the King's mouth and the sky goes black at noon
+    len: 6.2,
+    cue: () => A.storyCue('aurel'),
+    cap: ['ONE NIGHT HE OPENED HIS MOUTH TO THE SKY', 'AND SWALLOWED THE SUN WHOLE.'],
+    draw(t) {
+      const base = PY + PH - 10, k = clamp01((t - 0.6) / 3.2), kx = PX + 71, ky = base - 75;
+      sky(PX, PY, PW, PH, ['#2a1a2a', '#6a3a3a', '#b8603a', '#d08a4a']);
+      ctx.globalAlpha = 0.9 * k; rect(PX, PY, PW, PH, '#05030a'); ctx.globalAlpha = 1;
+      const sx = PX + PW - 54 + (kx - (PX + PW - 54)) * k * k, sy = PY + 52 + (ky - (PY + 52)) * k * k, r = Math.max(1, 22 * (1 - k));
+      if (k < 1) {
+        for (let i = 0; i < 3; i++) line(sx, sy + (i - 1) * 2 * (1 - k), kx, ky, i === 1 ? '#fff6c8' : P.gold, 1);
+        sun(sx, sy, r, t);
+      }
+      castle(PX + 30, base, '#160c12', k < 0.7 ? '#ffb347' : null, t);
+      folk(PX + 71, base - 61, 1, k < 1 ? '#160c12' : '#3a0c10', t, { crown: true, arm: [5, -6] });
+      if (k >= 1) { glow(kx, ky + 4, P.ember, 18, 0.5 + 0.2 * Math.sin(t * 5)); for (let i = 0; i < 6; i++) px(kx - 3 + hash(i) * 6, ky + 2 + ((t * 8 + i * 3) % 8), P.ember3); }
+      rect(PX, base, PW, 10, '#160c12');
+    },
+  },
+  {
+    // grey hands: in the cold street the father and his girl begin to crumble, and the bread goes grey
+    cue: () => A.storyCue('fall'),
+    cap: ['BY MORNING OUR HANDS WERE GREY. WE DID NOT DIE.', 'WE CRUMBLED, AND THE WIND TOOK WHAT FELL.'],
+    draw(t) {
+      const cx = PX + PW / 2, base = PY + PH - 10, k = clamp01(t / 4);
+      sky(PX, PY, PW, PH, ['#07060c', '#141220', '#221e2c']);
+      blackSun(PX + PW - 30, PY + 18, 7, t);
+      street(base, '#100c14', null, t, 4);
+      rect(cx - 30, base - 30, 60, 30, '#1a1418'); rect(cx - 8, base - 22, 16, 22, '#07050a');
+      rect(cx + 14, base - 10, 22, 3, '#3a2e2a');
+      for (let i = 0; i < 3; i++) ell(cx + 18 + i * 6, base - 12, 3, 2, i < 3 * (1 - k) ? '#c8a878' : '#5a5458');
+      const grey = (a, b) => (k < 0.5 ? a : b);
+      folk(cx - 4, base, 1, grey('#a89888', '#6a6266'), t, { crumble: 0.4 + k * 0.6, arm: [6, 3] });
+      folk(cx - 14, base, 0.7, grey('#b8a898', '#7a7276'), t, { crumble: 0.2 + k * 0.5, arm: [3, 2] });
+      ashFall(t, 60);
+      rect(PX, base, PW, 10, '#141016');
+    },
+  },
+  {
+    // the march into the pit: his fire calls them, and they go down in a line, hands reaching
+    cue: () => A.storyCue('descend'),
+    cap: ['HIS FIRE CALLED US DOWN INTO HIS PIT.', 'NOW WE FIGHT FOR HIM. WE CANNOT STOP OUR HANDS.'],
+    draw(t) {
+      const cx = PX + PW / 2, base = PY + PH - 18;
+      sky(PX, PY, PW, PH, ['#030205', '#0e0810', '#1c0e12']);
+      blackSun(cx, PY + 16, 9, t);
+      rect(PX, base - 4, PW, 26, '#241a1e');
+      for (let x = 0; x < PW; x += 2) px(PX + x, base - 4, hash(x) < 0.5 ? '#3a2e30' : '#1c1416');
+      ell(cx, base + 8, 58, 11, '#2a0808'); ell(cx, base + 9, 52, 9, '#050204');
+      glow(cx, base + 8, P.ember, 70, 0.4 + 0.1 * Math.sin(t * 3));
+      for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI, fx = cx + Math.cos(a) * 46, h = 8 + 6 * Math.sin(t * 3 + i); line(fx, base + 8, fx + Math.sin(t * 2 + i) * 3, base + 8 - h, i % 2 ? P.ember : P.blood); }
+      for (let i = 0; i < 12; i++) {
+        const side = i % 2 ? 1 : -1, u = (t * 0.12 + i / 12) % 1, x = cx + side * (120 - u * 70), fall = Math.max(0, u - 0.82) / 0.18;
+        ctx.globalAlpha = 1 - fall; folk(x, base + 2 + fall * 10, 1, '#4a4246', t + i, { crumble: 0.3, arm: [side * -5, -2] }); ctx.globalAlpha = 1;
+      }
+      ashFall(t, 30, '#3a3236');
+    },
+  },
+  {
+    // down in the pit, among the ash things, a small one draws a sun on the floor with one finger
+    len: 6,
+    cue: () => A.loreCue(3),
+    cap: ['BUT EVERY NIGHT, SOMEONE DOWN HERE DRAWS', 'A LITTLE SUN IN THE ASH. I KNOW HER CIRCLES.'],
+    draw(t) {
+      const cx = PX + PW / 2, base = PY + PH - 12, p = clamp01((t - 0.8) / 2.6);
+      sky(PX, PY, PW, PH, ['#020104', '#0a060c', '#140c12']);
+      for (let i = 0; i < 7; i++) { const x = PX + i * 34, h = 30 + hash(i) * 40; rect(x, PY, 18, h, '#07040a'); rect(x + 4, PY + h, 10, 6, '#07040a'); }
+      rect(PX, base, PW, 12, '#1a1216'); for (let x = 0; x < PW; x += 3) px(PX + x, base, hash(x + 3) < 0.5 ? '#2a2024' : '#120c10');
+      [-80, -56, 52, 78].forEach((dx, i) => { const s = SPR[i % 2 ? 'brute' : 'husk']?.[0]; if (s) silhouette(s, cx + dx - s.w / 2, base - s.h, 1, '#120a10', '#3a2a30', dx > 0); });
+      if (p > 0) glow(cx + 10, base + 2, P.gold, 26 * p, 0.35 * p);
+      fingerSun(cx + 10, base + 3, 10, 3, p, p >= 1 ? P.gold : '#c8b890');
+      glow(cx - 6, base - 6, '#8a7e84', 14, 0.25);
+      folk(cx - 6, base, 0.7, '#8a7e84', t, { arm: [6 + Math.cos(t * 2) * 2, 4] });
+      if (p >= 1) for (let i = 0; i < 8; i++) { const u = (t * 0.3 + hash(i)) % 1; ctx.globalAlpha = 1 - u; px(cx + 10 + (hash(i + 4) - 0.5) * 20, base - u * 30, P.gold); ctx.globalAlpha = 1; }
+    },
+  },
+  {
+    // the fighters at the pit's edge, torches lit, looking down
+    cue: () => A.storyCue('gather'),
+    cap: ['NOW YOU COME, ONE BY ONE, WITH BLADES AND FIRE.', 'WHEN YOU CUT US DOWN, DO NOT BE SORRY.', 'YOU ARE CUTTING OUR CHAINS.'],
+    draw(t) {
+      const base = PY + PH - 16;
+      sky(PX, PY, PW, PH, ['#05040c', '#120c1c', '#2a1424']);
+      for (let i = 0; i < 26; i++) if ((t * 2 + i) % 7 > 0.6) px(PX + hash(i) * PW, PY + hash(i + 30) * 50, '#8a84c0');
+      blackSun(PX + PW - 26, PY + 16, 6, t);
+      rect(PX, base, PW, 16, '#1a1218'); rect(PX, base + 8, PW, 8, '#050204'); glow(PX + PW / 2, base + 14, P.ember, 90, 0.25);
+      ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT', 'DEV'].forEach((id, i) => drawFighter(id, PX + 16 + i * 27, base + 1, 1, { t: t + i * 0.37, rim: '#3a0c10' }));
+      for (let i = 0; i < 4; i++) { const x = PX + 30 + i * 54, f = Math.floor(t * 10 + i) % 3; rect(x, base - 14, 1, 14, '#4a3a30'); rect(x - 1, base - 17 - f, 3, 3 + f, P.ember); px(x, base - 18 - f, P.ember3); glow(x, base - 16, P.ember, 12, 0.3); }
+    },
+  },
+  {
+    // morning: the sun comes out of the King, the ash burns into light, and two shining people rise hand in hand
+    len: 7.5,
+    cue: () => A.storyCue('freed'),
+    cap: ['BREAK HIS CROWN. LET THE SUN OUT.', 'AND IF YOU MEET MY GIRL, TELL HER', 'THE BREAD IS STILL WARM.'],
+    draw(t) {
+      const cx = PX + PW / 2, base = PY + PH - 12, rise = clamp01(t / 2.5);
+      sky(PX, PY, PW, PH, ['#3a2030', '#7a4048', '#e0904a', '#ffc76a']);
+      sun(cx, PY + 70 - rise * 48, 10, t, { ga: 0.4 });
+      ctx.globalAlpha = 0.1 * rise; for (let i = 0; i < 5; i++) rect(PX + 14 + i * 44, PY, 16, PH, P.gold); ctx.globalAlpha = 1;
+      rect(PX, base, PW, 12, '#3a2a2e'); for (let x = 0; x < PW; x += 3) px(PX + x, base, hash(x) < 0.5 ? '#5a4a4e' : '#2a1e22');
+      ['husk', 'brute', 'husk', 'husk', 'priest', 'husk'].forEach((m, i) => {
+        if (i === 2 || i === 3) return;
+        const s = SPR[m]?.[0], x = PX + 10 + i * 36, d = clamp01((t - 0.8 - i * 0.25) / 1.4);
+        burnAway(s, x, base, 1, '#1e1418', '#ffd98a', d, t, P.gold, i * 13);
+      });
+      fingerSun(cx, base + 4, 12, 3, 1, P.gold);
+      const up = Math.max(0, t - 2.2), y = base - up * 7, a = Math.min(1, up) * (up > 5 ? Math.max(0, 1 - (up - 5)) : 1);
+      ctx.globalAlpha = a;
+      glow(cx, y - 8, P.gold, 16, 0.5);
+      folk(cx - 3, y, 1, '#fff2c0', t); folk(cx + 4, y, 0.7, '#ffe08a', t); px(cx, y - 7, '#fff2c0');
+      ctx.globalAlpha = 1;
+    },
+  },
+];
 const STORIES = { ash: ASH_BOOK, lore: LORE, ending: ENDING, home: HOME, deeper: DEEPER, fall: FALL, nightfall: NIGHTFALL };
 export const story = { name: null, pages: LORE, i: 0, t: 0, cued: -1, typed: 0, cap: null };
 export function playStory(name) { Object.assign(story, { name, pages: STORIES[name], i: 0, t: 0, cued: -1, typed: 0, cap: null }); }

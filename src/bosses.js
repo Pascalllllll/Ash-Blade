@@ -1,12 +1,12 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=200';
-import { A } from './audio.js?v=200';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=201';
+import { A } from './audio.js?v=201';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor, heroSet, damage, pd,
-} from './world.js?v=200';
-import { SPR } from './sprites.js?v=200';
-import { monsterFrame } from './monster-motion.js?v=200';
-import { say, TALK, meetLines, noxLines } from './story.js?v=200';
+} from './world.js?v=201';
+import { SPR } from './sprites.js?v=201';
+import { monsterFrame } from './monster-motion.js?v=201';
+import { say, TALK, meetLines, noxLines } from './story.js?v=201';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'nox'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];

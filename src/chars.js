@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=200';
-import { heroEntrance } from './entrances.js?v=200';
-import { SPR } from './sprites.js?v=200';
-import { A } from './audio.js?v=200';
-import { input } from './input.js?v=200';
-import { best } from './store.js?v=200';
+import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=201';
+import { heroEntrance } from './entrances.js?v=201';
+import { SPR } from './sprites.js?v=201';
+import { A } from './audio.js?v=201';
+import { input } from './input.js?v=201';
+import { best } from './store.js?v=201';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, ignite, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=200';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=201';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -1387,8 +1387,8 @@ const FLAIR = {
     if (Math.random() < dt * 10) part(p.x + rnd(-6, 6), p.y - rnd(0, 14), rnd(-5, 5), -rnd(10, 25), rnd(0.4, 0.8), Math.random() < 0.5 ? '#b48cff' : '#62efff', { drag: 1, glow: true });
   },
   NINJA(p, dt, moving) {
-    // awakened, a few lavender and pink sparkles (the colors of her bow and haori) drift up behind her, never over her
-    if (G.evo === true && Math.random() < dt * 8) part(behindX(p, 5) + rnd(-3, 3), p.y - rnd(4, 16), rnd(-5, 5), -rnd(12, 28), rnd(0.4, 0.8), Math.random() < 0.5 ? '#c49aff' : '#ffc4dc', { glow: true, drag: 1.5 });
+    // awakened, a few red sparks (the color of her bow and skirt) drift up behind her, never over her
+    if (G.evo === true && Math.random() < dt * 8) part(behindX(p, 5) + rnd(-3, 3), p.y - rnd(4, 16), rnd(-5, 5), -rnd(12, 28), rnd(0.4, 0.8), Math.random() < 0.5 ? '#f64e54' : '#ffc0c0', { glow: true, drag: 1.5 });
     // sakura petals drift off her as she moves
     if (Math.random() < dt * (moving ? 22 : 4)) part(behindX(p, 4) + rnd(-2, 2), p.y - rnd(6, 14), (Math.cos(p.aim) < 0 ? 1 : -1) * rnd(10, 30), rnd(4, 14), rnd(0.5, 0.9), Math.random() < 0.6 ? '#ffb7d5' : '#ff8fb8', { drag: 2 });
     p.k.shadowT = (p.k.shadowT || 0) - dt;
@@ -1511,9 +1511,9 @@ const AWAKE = {
   },
   // Oni Rin: a petal cut opens on every enemy a beat after her blade; her powers cut a ring and parry every shot near;
   // after Issen the blossom storm rises around her for free. Her effects take the colors of her awakened look (the
-  // owner's picture): lilac and pink with white.
+  // owner's picture): crimson and red on black, with white.
   NINJA: {
-    pal: { col: '#c49aff', slash: 'lilac', charge: 'lilac', map: { '#ffb7d5': '#e6d2ff', '#ff8fc8': '#c49aff', '#ff8fb8': '#ffc4dc', [P.blood]: '#c49aff', [P.ember]: '#a25ad2', [P.ember2]: '#c49aff', [P.ember3]: '#f2e6ff', '#e0223f': '#a25ad2' } },
+    pal: { col: '#f64e54', slash: 'oni', charge: 'oni', map: { '#ffb7d5': '#ff6a6e', '#ff8fc8': '#f64e54', '#ff8fb8': '#ffc0c0', [P.blood]: '#cc303c', [P.ember]: '#7e1224', [P.ember2]: '#f64e54', [P.ember3]: '#ffe0e0', '#e0223f': '#cc303c' } },
     hit: (e) => G.timers.push({ t: 0.2, fn: () => { if (alive(e)) { damage(e, pd(2), { dir: rnd(TAU), kb: 0, src: 'bolt', slice: true }); sparks(e.x, e.y - e.r, rnd(TAU), 4, 1, '#ffb7d5', 140); } } }),
     swing: (p, st) => { for (const d of st.heavy ? [-0.4, 0, 0.4] : [0]) shoot({ x: p.x + Math.cos(p.atkAng + d) * 8, y: p.y - 6, a: p.atkAng + d, sp: 340, dmg: pd(st.heavy ? 5 : 3), kb: 60, life: 0.3, kind: 'crescent', r: 7, pierce: 99, c: '#ffb7d5', ug: true, slice: true, trail: false }); },
     charge: (p, f) => { const x0 = p.x, y0 = p.y, a = p.aim;

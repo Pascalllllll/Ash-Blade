@@ -1,6 +1,6 @@
-import { installHeroSprites } from './hero-sprites.js?v=200';
-import { makeSprite, P } from './gfx.js?v=200';
-import { MONSTER_ART } from './monster-art.js?v=200';
+import { installHeroSprites } from './hero-sprites.js?v=201';
+import { makeSprite, P } from './gfx.js?v=201';
+import { MONSTER_ART } from './monster-art.js?v=201';
 
 // Filled by buildSprites(), and rebuilt when the color theme changes.
 export const SPR = {};

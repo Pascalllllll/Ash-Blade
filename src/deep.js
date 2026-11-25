@@ -1,6 +1,6 @@
-import { ctx, P, rect, px, line, ring, disc } from './gfx.js?v=200';
-import { A } from './audio.js?v=200';
-import { G, B, TAU, clamp, hyp, angDiff, segDist, addRing, part, tryHurt, shake, sprFor } from './world.js?v=200';
+import { ctx, P, rect, px, line, ring, disc } from './gfx.js?v=201';
+import { A } from './audio.js?v=201';
+import { G, B, TAU, clamp, hyp, angDiff, segDist, addRing, part, tryHurt, shake, sprFor } from './world.js?v=201';
 
 const violet = '#c599ff', bone = '#f1d9dc', brass = '#edbc78', aqua = '#80edec';
 const arts = {

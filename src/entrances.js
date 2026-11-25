@@ -10,14 +10,14 @@
 //   Grom     the ground shakes, he falls from the sky hammer first and splits the floor with rock spikes.
 //   Unit-7   a countdown, an orbital beam, and the robot builds itself up row by row inside it and powers on.
 //   The Dev  a terminal compiles him, the window shuts off, and he renders in from coarse blocks to full detail.
-import { ctx, disc, ring, W } from './gfx.js?v=200';
-import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=200';
-import { A } from './audio.js?v=200';
-import { input, keyHit } from './input.js?v=200';
+import { ctx, disc, ring, W } from './gfx.js?v=201';
+import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=201';
+import { A } from './audio.js?v=201';
+import { input, keyHit } from './input.js?v=201';
 import {
   P, rnd, TAU, clamp, part, glow, line, rect, px, text, textO, ease, easeIn, at, between, frame, drawBody, drawHero, drawCoarse,
   handPos, eyePos, weaponLen, restAngle, makeCracks, drawCracks, stampCracks, drawLetterbox, drawNameCard, darken, floorRing,
-} from './scene-fx.js?v=200';
+} from './scene-fx.js?v=201';
 
 const SUB = { BLADE: 'THE BLADE', GUNNER: 'THE GUNNER', WIZARD: 'THE WIZARD', NINJA: 'THE SAMURAI', MECHANIC: 'THE MECHANIC', TANK: 'THE TANK', ROBOT: 'THE ROBOT', DEV: 'ROOT ACCESS' };
 const PETAL = ['#ffb7d5', '#ff8fb8', '#ffffff'];
@@ -85,7 +85,8 @@ const SCRIPTS = {
   BLADE: {
     life: 3.0, revealAt: 1.15,
     start(k) { k.s.cr = makeCracks(k.x, k.y, 10, 40); k.s.pil = Array.from({ length: 9 }, (_, i) => ({ a: (i / 9) * TAU + rnd(-0.2, 0.2), r: rnd(18, 30), d: rnd(0, 0.15), h: rnd(16, 30) })); },
-    met(k) { const f = easeIn((k.t - 0.45) / 0.7); return [k.x - 54 * (1 - f), k.y - 6 * (1 - f), 210 * (1 - f)]; },
+    // a real meteor's slant: in from the upper left at about 45 degrees, its tail streaming back along the path
+    met(k) { const f = easeIn((k.t - 0.45) / 0.7); return [k.x - 150 * (1 - f), k.y - 6 * (1 - f), 150 * (1 - f)]; },
     update(k, dt) {
       const { x, y } = k, t = k.t;
       if (at(k, 0.02)) A.powerUp(1.1);
@@ -127,7 +128,7 @@ const SCRIPTS = {
         if (t >= 0.45) {
           const [mx, my, mz] = this.met(k);
           shadow(x, y, 2 + (1 - mz / 210) * 8);
-          line(mx, my - mz, mx - 12, my - mz - 48, P.ember2, 5); line(mx, my - mz, mx - 8, my - mz - 32, P.ember3, 3);
+          line(mx, my - mz, mx - 36, my - mz - 36, P.ember2, 5); line(mx, my - mz, mx - 24, my - mz - 24, P.ember3, 3); line(mx - 36, my - mz - 36, mx - 52, my - mz - 52, P.ember, 2);
           glow(mx, my - mz, P.ember, 24, 0.8);
           drawBody(frame('death', 2), mx, my, { z: mz - 7, rot: t * 16, pivot: [0, -8], tint: Math.floor(t * 20) % 2 ? P.ember3 : P.ember });
           glow(mx, my - mz, P.ember3, 12, 0.9);

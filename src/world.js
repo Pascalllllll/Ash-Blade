@@ -1,19 +1,20 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=200';
-import { SPR, EVO_NAMES } from './sprites.js?v=200';
-import { A } from './audio.js?v=200';
-import { input, actionDown, actionHit } from './input.js?v=200';
-import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF } from './store.js?v=200';
-import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=200';
-import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=200';
-import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=200';
-import { byId, grantAllUpgrades } from './upgrades.js?v=200';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=200';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=200';
-import { WEAPON_ART } from './hero-rig.js?v=200';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=200';
-import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=200';
-import { drawBossArrival } from './boss-arrivals.js?v=200';
-import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=200';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=201';
+import { SPR, EVO_NAMES } from './sprites.js?v=201';
+import { A } from './audio.js?v=201';
+import { input, actionDown, actionHit } from './input.js?v=201';
+import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF } from './store.js?v=201';
+import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=201';
+import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=201';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=201';
+import { byId, grantAllUpgrades } from './upgrades.js?v=201';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=201';
+import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=201';
+import { WEAPON_ART } from './hero-rig.js?v=201';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=201';
+import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=201';
+import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=201';
+import { floorArrival } from './floor-arrivals.js?v=201';
+import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=201';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -300,15 +301,17 @@ export function startWave(n) {
       if (G.twist === 'BLACKOUT') G.dark = 0.75;
       A.twist();
     }
-    if (newFloor) G.banner = { text: G.map.name, sub: 'DEPTH ' + (depthOf(n) + 1) + '   ' + G.map.desc, t: 0, life: 2.8, c: G.map.flame[1] };
   }
   A.waveStart(boss);
+  // arriving on the new floor: its own cinematic, ending on its name card (the wave's banner waits for it)
+  if (newFloor && !G.cine) G.cine = floorArrival(below, n);
 }
 
 // down to the next floor: its own floor and walls, its torches, air and footing; the old floor's lava goes with it,
 // and the new one fades in out of black under its name
 function enterStage(key) {
   G.mapKey = key; G.map = MAPS[key]; showMap(key);
+  dctx.clearRect(0, 0, AW, AH);      // the floor above's blood, scorches and cracks stay up there
   G.zones = G.zones.filter((z) => !z.pool);
   for (const [x, y, r] of G.map.pools) G.zones.push({ type: 'lava', x, y, r, t: 0, life: Infinity, pool: true });
   G.amb.length = 0;
@@ -360,7 +363,7 @@ function updateNight(dt) {
   if (bosses >= most || n.bossT > 0) return;
   const key = NIGHT_BOSSES[Math.floor(rnd(NIGHT_BOSSES.length))], bd = BOSSES[key];
   const x = clamp(G.p.x + (G.p.x < AW / 2 ? 120 : -120), B.x0 + 60, B.x1 - 60), y = clamp(G.p.y + rnd(-50, 50), B.y0 + 50, B.y1 - 40);
-  G.sigils.push({ x, y, type: 'boss', boss: key, t: 0, life: 1.4 });
+  G.sigils.push({ x, y, type: 'boss', boss: key, t: 0, life: 1.8 });
   n.bossT = Math.max(8, 30 - m * 2);
   G.banner = { text: bd.name, sub: 'CLIMBS BACK OUT OF THE DARK', t: 0, life: 2.2, c: bd.col };
   A.bossRoar(); shake(0.5);
@@ -687,6 +690,9 @@ export function kill(e, o) {
   if (launch) launchCorpse(e, dir, o.kb || 200);
   else if (o.slice && !gone) { makeGibs(e, dir); A.slice(); }
   else if (!gone) dissolve(e, dir);
+  // what was left of one of the King's people goes up as ash; now and then a spark of gold, set free
+  for (let i = 0; i < (e.type === 'brute' ? 10 : 6); i++) part(e.x + rnd(-e.r, e.r), e.y - rnd(2, e.r * 2), rnd(-10, 10) + Math.cos(dir) * 12, -rnd(14, 34), rnd(0.9, 1.6), Math.random() < 0.6 ? '#6a6064' : '#9a8e92', { drag: 1.2, keep: true });
+  if (Math.random() < 0.3) part(e.x, e.y - e.r, rnd(-6, 6), -rnd(26, 40), rnd(1, 1.4), P.gold, { glow: true, drag: 0.8 });
   if (!gone) {
     bleed(e.x, e.y, dir, e.type === 'brute' ? 30 : 16, e.def.col, e.def.colD, 1.2);
     bleed(e.x, e.y, rnd(TAU), 8, e.def.col, e.def.colD, 0.6);
@@ -1404,7 +1410,7 @@ function startAttack() {
     // a second, wider arc trails the first
     const ninja = G.char === 'NINJA';
     if (shape !== 'slam') G.slashes.push({ follow: true, x: p.x, y: p.y, a: p.atkAng, r: p.swing.reach + 9, arc: s.arc * 1.1, dir: p.swing.dir, t: -0.03, life: (s.heavy ? 0.24 : 0.19) + 0.08, th: Math.max(3, Math.round(s.th * (ninja ? 1.4 : 0.7))), col: ninja ? 'gold' : 'paper' });
-    // sparkles in her awakened color (lilac) thrown off along Oni Rin's swing
+    // sparkles in her awakened color thrown off along Oni Rin's swing
     if (ninja) for (let i = 0; i < 14; i++) { const b = p.atkAng + rnd(-s.arc / 2, s.arc / 2), r = p.swing.reach * rnd(0.6, 1.1); part(p.x + Math.cos(b) * r, p.y - 5 + Math.sin(b) * r, Math.cos(b) * rnd(30, 90), Math.sin(b) * rnd(30, 90), rnd(0.2, 0.45), Math.random() < 0.5 ? G.kit.awake.pal.col : P.paper, { drag: 4, glow: true }); }
     G.kit.awake.swing?.(p, s, shape);
   }
@@ -2074,7 +2080,7 @@ export function update(dt, rdt) {
     if (G.queue.length && G.spawnCd <= 0 && count < maxAlive()) {
       const type = G.queue.shift();
       const [x, y] = placeSpawn(type);
-      G.sigils.push({ x, y, type, t: 0, life: type === 'boss' ? 1.4 : 0.8 });
+      G.sigils.push({ x, y, type, t: 0, life: type === 'boss' ? ARRIVE_LIFE : 0.8 });
       G.spawnCd = 0.3;
       A.sigil();
     }
@@ -2100,10 +2106,13 @@ export function update(dt, rdt) {
   checkEvo();
   for (const s of G.sigils) {
     s.t += dt;
+    if (s.type === 'boss') { s.boss ||= bossFor(G.wave); bossArrivalUpdate(s, dt); }
     const col = s.type === 'boss' ? BOSSES[s.boss || bossFor(G.wave)].col : DEF[s.type].col;
     if (s.t > 0 && Math.random() < dt * 30) { const a = rnd(TAU); part(s.x + Math.cos(a) * 10, s.y + Math.sin(a) * 6, 0, -rnd(10, 30), 0.4, col, { drag: 1, glow: true }); }
     if (s.t >= s.life) {
       spawnEnemy(s.type, s.x, s.y, s.boss);
+      // the Colossus comes down where its shadow was
+      if (s.boss === 'colossus') { A.boom(2.2); A.wall(); shake(1.2); kick(Math.PI / 2, 6); dust(s.x, s.y, 60, 200); scorch(s.x, s.y, 26); addRing(s.x, s.y, P.paper, 380, 0.4, 3); }
       addRing(s.x, s.y - 4, col, 140, 0.2, 2);
       dust(s.x, s.y, 8, 50);
       A.spawn();
@@ -2469,8 +2478,13 @@ function updateAmbient(dt) {
     else if (kind === 'stars') G.amb.push({ x, y, vx: 0, vy: 0, c: Math.random() < 0.3 ? '#ffffff' : '#8a84c0', t: 0, life: rnd(1, 2.5), glow: true });
     else G.amb.push({ x, y, vx: rnd(-3, 3), vy: rnd(-3, 1), c: '#3d3250', t: 0, life: rnd(3, 6) });
   }
+  // and on every floor, ash: the King's people, blowing through the pit in slow flakes that flutter as they fall
+  if (G.amb.length < n + (settings.particles === 'LOW' ? 8 : 22) && Math.random() < dt * 7) {
+    G.amb.push({ x: c.x + rnd(-20, W), y: c.y - 2, vx: rnd(3, 9), vy: rnd(6, 13), c: Math.random() < 0.6 ? '#5e5458' : '#8a7e84', t: 0, life: 14, ash: true });
+  }
   for (const a of G.amb) {
     a.t += dt;
+    if (a.ash) a.vx += Math.sin(a.t * 2.6 + a.y * 0.07) * dt * 14;
     if (kind === 'fireflies') { a.vx += rnd(-30, 30) * dt; a.vy += rnd(-30, 30) * dt; }
     if (kind === 'snow') a.vx += Math.sin(a.t * 2 + a.y * 0.05) * dt * 10;
     a.x += a.vx * dt; a.y += a.vy * dt;
@@ -2520,7 +2534,6 @@ const SLASH_COLS = () => ({
   titan: [P.paper, '#ff3b3b', '#a0101e', '#2a0a10'],
   storm: [P.paper, '#c8ffff', P.volt, P.gold],
   fire: [P.paper, '#ffe08a', '#ff9a3c', '#c6380f'],
-  lilac: [P.paper, '#ffd6ec', '#c49aff', '#6a3aa8'],
 });
 export function drawSlash(s) {
   const L = s.life, age = s.t;
@@ -3022,7 +3035,7 @@ export function drawWorld() {
   for (const s of G.sigils) {
     if (s.t < 0) continue;
     const k = s.t / s.life, boss = s.type === 'boss', col = boss ? BOSSES[s.boss || bossFor(G.wave)].col : DEF[s.type].col, big = boss ? 2.2 : 1;
-    if (boss) { drawBossArrival(s.boss || bossFor(G.wave), s.x, s.y, k, col); continue; }
+    if (boss) { drawBossArrival(s.boss || bossFor(G.wave), s.x, s.y, k, col, s); continue; }
     const r = 9 * big * Math.min(1, k * 2.2);
     ring(s.x, s.y, r, 1, col);
     ring(s.x, s.y, r * 0.55, 1, boss ? P.ink3 : DEF[s.type].colD);

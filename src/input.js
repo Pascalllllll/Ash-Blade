@@ -1,6 +1,6 @@
-import { canvas, W, H, FW, SX, onWidth, rotatedTouch } from './gfx.js?v=200';
+import { canvas, W, H, FW, SX, onWidth, rotatedTouch } from './gfx.js?v=201';
 
-import { keys, layout, persistControls } from './bindings.js?v=200';
+import { keys, layout, persistControls } from './bindings.js?v=201';
 // the movement stick sits near the screen's left edge (the stage can be narrower than the screen, see gfx.js)
 export let STICK_X = 50;
 export let STICK_Y = 135;
