@@ -192,7 +192,7 @@ Walking monsters plant their feet as they slow down. Wisps flicker, slimes pulse
 | Wisp | 2 | Keeps its distance and fires pink orbs |
 | Tick | 3 | Runs at you and explodes |
 | Slime | 3 | Hops on you, and splits in two when it dies |
-| Brute | 4 | Charges in a straight line and stuns itself on walls |
+| Ash Brute | 4 | Once a smith of Aurel's city: a hunched giant of cracked, ember-lit ash with bull horns and an iron forge gauntlet. It lowers its horns and paws the ground, then charges in a burning line; it stuns itself on walls and on the floor's obstacles |
 | Spitter | 5 | A rooted plant that lobs acid where you're heading |
 | Archer | 4 | A hooded goblin with a bow. It keeps its distance, then draws and aims, and a dashed red line shows exactly where the arrow will fly: it follows you while the bow is drawn, then locks and flashes white just before the shot. Arrows can be parried |
 | Ash Priest | 6 | A robed healer that stays behind the others. It chants inside a green circle, tethered to every wounded monster in it, then heals them by 30%. Hit it mid-chant to break the spell |
@@ -226,18 +226,20 @@ Every boss announces itself before it appears, and the camera turns to the spot,
 | --- | --- | --- |
 | 5 | The Warden | The jailer of the pit: an iron cage for a head with a skull of pink soul fire inside, chains and padlocks hanging off his shoulders, a ring of keys and a swinging soul lantern. Sword sweeps, shockwave jumps, rings and spirals of orbs. His chain: thrown from his lantern hand, it hooks you and reels you in for the sword. Dash three times to snap it |
 | 10 | The Brood Mother | A spider queen the size of a cart. She comes down out of the dark on a thread of silk, hangs there, and lands when it snaps, her eggs hatching round her. She climbs back into the dark and drops on you (her shadow follows you, then stops: move), spits acid, lays eggs, sends her young. Her webs: globs of web stick to the floor and hold your feet to less than half speed (a dash still gets you out) |
-| 15 | Iron Colossus | A hunched forge machine with a furnace burning in its belly, smokestacks on its back and hammer fists on pistons. Lasers, missiles and rocket fists. Its shield only breaks to an orb you knocked back |
+| 15 | Iron Colossus | A flying war engine held up by two jets of fire: a skull of an iron helm with a red visor, a furnace burning behind a grate in its chest, spiked pauldrons, rocket fists and a wrecking hook swinging under it. Lasers from its visor, missiles, rocket fists, and a slam: it climbs on its jets and drops onto the floor. Its shield only breaks to an orb you knocked back |
 | 20 | The Ashen King | Aurel himself. He talks to you before the fight, then three phases, armored knights, rings of fire, and his own Thousand Cuts. His decree, KNEEL: he raises his sword and fire falls everywhere but where you stand. Move or dash and it comes down on you. In his last phase he tears open the black sun in his chest and two beams of its fire sweep round the hall |
 | 25 | Void Wyrm | A serpent with horns of void crystal and a jaw that snaps open and shut, its armored body ridged with crystal, that tunnels under you and breathes orbs. If it comes up right under you, it swallows you: six hits from inside cut you free and leave it stunned, or it spits you out hurt |
 | 30 | Storm Herald | The herald who once announced the Sun King, frozen in the hollow and filled with the storm: a winged knight on a thunderhead with a crown of lightning. Calls lightning on you and teleports. His war horn throws a cone of thunder that knocks you back and sends slow ball lightning after you. He charges the floor into a checkerboard: the squares you stand on strike first, then the others, turn and turn about |
 | 35 | The Mirror | A dark copy of your fighter. It swaps places with you and reverses movement. It studies your weapon attacks, casts, dashes and distance, then chooses a counter. Frequent dashes teach it where to mark your next landing. |
 | 40 | Eclipse | A black sun in a burning corona, a great red-veined eye in its middle, rune stones circling it. A giant eye with spirals and rotating beams. Its stare is a cone of light that turns after you: stand in it too long and you turn to stone |
 | 45 | The Clockwork | A floating brass automaton: a clock face for a chest, gears turning behind it, winding keys for hands and a pendulum swinging under it. Its clock hands sweep the arena as beams. Its stopwatch: a dial under your feet with a hand sweeping round it. Still on it when the hand gets back to twelve, and time stops for you while shots close in |
-| 50 | Nox | Nox rains dead stars, summons shades and sweeps the floor with beams from the corners. Break all three health segments and a larger, tentacled form rises. Slip between its roots and reach the heart of light when it appears. When this form falls, Nox scatters into ash. |
+| 50 | Nox | Nox rains dead stars, summons shades and sweeps the floor with beams from the corners. Its limbs lash out of cracks in the floor, and its Night Loom splits the floor into lines and weaves tentacles in and out of them: stand between the cracks. Break all three health segments and a larger, tentacled form rises. Roots of the dark crawl out from under it. Slip between them, and when its Last Light rolls out across the floor, shelter in the unblinking eye. When this form falls, Nox scatters into ash. |
 
-Every boss enrages after 60 seconds. The Ashen King and Nox tower over you, and the camera pulls back toward them so you can see them whole.
+Every boss enrages after 60 seconds. Every boss is big, the Ashen King and Nox most of all, and the camera pulls back toward them so you can see them whole.
 
 ### The floors
+
+Every floor has things standing on it that block the way and stop shots, so you can hide from them and knock monsters into them: broken pillars in the Pit, frozen soldiers in the Hollow, glowing anvils in the Forge, webbed egg clutches in the Nest, the columns of the King's hall hung with his sun banners, void crystals, standing mirrors, sun obelisks, turning gears and fallen dead stars. Flying things go over them.
 
 In **The Descent**, every boss waits at the bottom of its own floor. The next wave takes you a floor deeper, with a short arrival of its own in a letterbox, ending on the floor's name: you fall through the Brood Nest's webs snapping strand by strand, crash into the Forge as its lava pools blow, walk in through the King's gate down his carpet as the torches flare and kneel, drop out of a rift into the Void Deep, slide in on the Hollow's ice in a blizzard, step out of a shattering mirror into the Glass Hall, are lowered by a shaft of sunlight into the Sun Temple, land on a gear lift in the Clockworks, and fall into the Last Night as a falling star. Below the pit, the dark greets you on each new floor, and your fighter answers it in their own words. The forge has lava you can knock monsters into, and Frozen Hollow puts ice under your feet.
 
@@ -256,7 +258,7 @@ In **The Descent**, every boss waits at the bottom of its own floor. The next wa
 
 ### The endless night
 
-When Nox dissolves, the inheritance sequence grants every remaining rank, evolution and relic your fighter can use. The endless night begins. Packs grow larger and deal more damage as the clock runs. After a minute bosses return with at least Nox’s base health. From five minutes on, two can fight together. The HUD tracks how long you hold out.
+When Nox dissolves, the inheritance sequence grants every remaining rank, evolution and relic your fighter can use. The endless night begins, in the dark itself: no walls, no floor, no edge, only stars far below and black glass underfoot that ripples where you step, going on for ever in every direction. Packs grow larger and deal more damage as the clock runs. After a minute bosses return with at least Nox’s base health, in a shuffled order: every boss comes back before any comes twice, and never the same one twice in a row. From five minutes on, two can fight together. The HUD tracks how long you hold out.
 
 ![Oni Rin fighting Nox on wave 50](docs/boss.png)
 

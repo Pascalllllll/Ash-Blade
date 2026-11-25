@@ -1,4 +1,4 @@
-import { makeCanvas } from './gfx.js?v=207';
+import { makeCanvas } from './gfx.js?v=209';
 
 const FRAMES = 24, COLUMNS = 6, TAU = Math.PI * 2;
 const sheets = new Map();
@@ -45,7 +45,7 @@ export function loadMonsterSheet(id, paintedHeight) {
     sheets.set(id, frames);
   };
   im.onerror = () => sheets.delete(id);
-  im.src = new URL(`../art/sprites/monsters/${id}.png?v=5`, import.meta.url).href;
+  im.src = new URL(`../art/sprites/monsters/${id}.png?v=7`, import.meta.url).href;
 }
 
 export function monsterFrame(id, phase, painted, blink = false) {
@@ -61,7 +61,7 @@ const GAIT = {
   tick: [19, 0.6, 0], larva: [15, 0, 0.55], egg: [18, 0, 0.68],
   slime: [22, 0, 0.80], slimelet: [16, 0, 1.25], spitter: [25, 0.6, 0.48],
   wisp: [42, 0, 0.80], shade: [38, 0, 0.65], priest: [28, 0.45, 0.48],
-  warden: [40, 1.45, 0], brood: [30, 0.55, 0.42], colossus: [48, 1.3, 0], king: [41, 1.0, 0],
+  warden: [40, 1.45, 0], brood: [30, 0.55, 0.42], colossus: [48, 0, 0.9], king: [41, 1.0, 0],
   wyrm: [42, 0, 0.58], herald: [46, 0, 0.55], mirror: [32, 0.55, 0],
   eclipse: [57, 0, 0.36], clock: [54, 0, 0.64], nox: [62, 0, 0.34],
 };

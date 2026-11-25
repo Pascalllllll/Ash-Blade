@@ -1,12 +1,12 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=207';
-import { A } from './audio.js?v=207';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=209';
+import { A } from './audio.js?v=209';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor, heroSet, damage, pd,
-} from './world.js?v=207';
-import { SPR } from './sprites.js?v=207';
-import { monsterFrame } from './monster-motion.js?v=207';
-import { say, TALK, meetLines, noxLines } from './story.js?v=207';
+} from './world.js?v=209';
+import { SPR } from './sprites.js?v=209';
+import { monsterFrame } from './monster-motion.js?v=209';
+import { say, TALK, meetLines, noxLines } from './story.js?v=209';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'nox'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
@@ -42,7 +42,7 @@ const ZAP_CELL = 36;
 const WATCH_R = 28;
 const owned = (h) => h && h.e && !h.e.dead && !h.e.dying;
 // where the Warden's lantern hand is (the chain comes out of it), from the middle of his feet
-const lanternAt = (e) => [e.x - e.face * 12, e.y - 6 - (e.z || 0)];
+const lanternAt = (e) => [e.x - e.face * 16, e.y - 8 - (e.z || 0)];
 export function updateTricks(dt) {
   const p = G.p, dead = p.state === 'dead';
   if (G.mirrorT > 0) G.mirrorT = Math.max(0, G.mirrorT - dt);
@@ -217,7 +217,7 @@ export function drawTricks() {
 export const BOSSES = {
   // ---------------------------------------------------------------- wave 5
   warden: {
-    name: 'THE WARDEN', short: 'WARDEN', sub: 'KEEPER OF THE PIT', col: '#ff4fa8', colD: '#6e1b52', hp: 1000, r: 14, speed: 36, score: 6000, music: 'boss_warden',
+    name: 'THE WARDEN', short: 'WARDEN', sub: 'KEEPER OF THE PIT', col: '#ff4fa8', colD: '#6e1b52', hp: 1000, r: 18, speed: 36, score: 6000, music: 'boss_warden',
     init(e) { e.state = 'intro'; e.t = 2.2; e.z = 240; },
     update(e, dt, d, ang, dx) {
       const p = G.p, rage = e.phase === 2 ? 1.3 : 1;
@@ -231,7 +231,7 @@ export const BOSSES = {
       }
       if (e.phase === 1 && e.hp < e.maxHp * 0.5 && e.state !== 'jump') {
         e.phase = 2; e.state = 'roar'; e.t = 1.2; A.bossRoar(); shake(0.7);
-        addRing(e.x, e.y - 16, P.hex, 260, 0.5, 3); phaseBanner('IT RAGES', P.hex);
+        addRing(e.x, e.y - 22, P.hex, 260, 0.5, 3); phaseBanner('IT RAGES', P.hex);
       }
       switch (e.state) {
         case 'roar': e.t -= dt; if (d < 60 && e.t > 0.9) { p.vx += Math.cos(ang) * 30; p.vy += Math.sin(ang) * 30; } if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; } break;
@@ -274,12 +274,12 @@ export const BOSSES = {
         }
         case 'spiral':
           e.t -= dt; e.fireT -= dt;
-          if (e.fireT <= 0) { e.fireT = 0.12 / rage; const arms = e.phase === 2 ? 3 : 2; for (let k = 0; k < arms; k++) fire(e.x, e.y - 20, e.spin + (k * TAU) / arms, 72); e.spin += 0.34; A.shoot(); }
+          if (e.fireT <= 0) { e.fireT = 0.12 / rage; const arms = e.phase === 2 ? 3 : 2; for (let k = 0; k < arms; k++) fire(e.x, e.y - 27, e.spin + (k * TAU) / arms, 72); e.spin += 0.34; A.shoot(); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
           break;
         case 'summon':
           e.t -= dt;
-          if (!e.summoned && e.t < 0.45) { e.summoned = true; for (const k of e.phase === 2 ? ['husk', 'husk', 'tick', 'tick'] : ['husk', 'husk', 'husk']) G.queue.push(k); addRing(e.x, e.y - 16, P.ichor, 200, 0.4, 2); }
+          if (!e.summoned && e.t < 0.45) { e.summoned = true; for (const k of e.phase === 2 ? ['husk', 'husk', 'tick', 'tick'] : ['husk', 'husk', 'husk']) G.queue.push(k); addRing(e.x, e.y - 22, P.ichor, 200, 0.4, 2); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.4; }
           break;
         case 'dashW': e.t -= dt; if (e.t > 0.25) { e.lock = ang; e.face = dx < 0 ? -1 : 1; } if (e.t <= 0) { e.state = 'dash'; e.t = 0.5; e.hitP = false; A.dash(); } break;
@@ -295,7 +295,7 @@ export const BOSSES = {
           e.t -= dt;
           if (e.t <= 0) {
             // a ring of soul orbs with one gap you have to find
-            const ring = (gap) => { for (let i = 0; i < 30; i++) { const a2 = (i * TAU) / 30; if (Math.abs(angDiff(a2, gap)) < 0.5) continue; fire(e.x, e.y - 20, a2, 62); } A.shoot(); };
+            const ring = (gap) => { for (let i = 0; i < 30; i++) { const a2 = (i * TAU) / 30; if (Math.abs(angDiff(a2, gap)) < 0.5) continue; fire(e.x, e.y - 27, a2, 62); } A.shoot(); };
             ring(rnd(TAU));
             if (e.phase === 2) G.timers.push({ t: 0.6, fn: () => { if (!e.dead && !e.dying) ring(rnd(TAU)); } });
             e.state = 'rec'; e.t = 1;
@@ -305,7 +305,7 @@ export const BOSSES = {
           e.t -= dt;
           if (e.t <= 0) {
             const off = rnd(TAU), dir = Math.random() < 0.5 ? 1 : -1;
-            for (let i = 0; i < 4; i++) G.hbeams.push({ owner: e, oy: 20, x: e.x, y: e.y - 20, a: off + (i * Math.PI) / 2, rot: dir * 0.9, w: 4, warn: 0.6, t: 0, life: 3, len: 0 });
+            for (let i = 0; i < 4; i++) G.hbeams.push({ owner: e, oy: 27, x: e.x, y: e.y - 27, a: off + (i * Math.PI) / 2, rot: dir * 0.9, w: 4, warn: 0.6, t: 0, life: 3, len: 0 });
             e.state = 'rec'; e.t = 3; A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3, fn: () => A.loop('bossbeam', false) });
           }
           break;
@@ -347,11 +347,11 @@ export const BOSSES = {
       if (e.state === 'intro' && e.z > 0) { ring(e.x, e.y, 6 + e.z / 12, 1, blink ? P.blood : P.paper); ring(e.x, e.y, 3, 1, P.blood); }
     },
     drawBody(e, x, y) {
-      glow(e.x, y + 8, P.hex, e.phase === 2 ? 16 : 10, e.phase === 2 ? 0.45 : 0.25);
-      const hx = e.x + e.face * 11, hy = e.y - 18 - (e.z || 0);
+      glow(e.x, y + 10, P.hex, e.phase === 2 ? 20 : 13, e.phase === 2 ? 0.45 : 0.25);
+      const hx = e.x + e.face * 15, hy = e.y - 24 - (e.z || 0);
       const a = e.state === 'sweepW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'dash' || e.state === 'dashW' ? e.lock : Math.PI / 2 + e.face * 0.5;
-      line(hx, hy, hx + Math.cos(a) * 27, hy + Math.sin(a) * 27, P.dust, 2);
-      line(hx, hy, hx + Math.cos(a) * 27, hy + Math.sin(a) * 27, P.bone);
+      line(hx, hy, hx + Math.cos(a) * 35, hy + Math.sin(a) * 35, P.dust, 2);
+      line(hx, hy, hx + Math.cos(a) * 35, hy + Math.sin(a) * 35, P.bone);
       line(hx - Math.sin(a) * 3, hy + Math.cos(a) * 3, hx + Math.sin(a) * 3, hy - Math.cos(a) * 3, '#8a8a9a');
     },
     draw(e, x, y) {
@@ -372,7 +372,7 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 10
   brood: {
-    name: 'THE BROOD MOTHER', short: 'BROOD MOTHER', sub: 'QUEEN OF THE NEST ABOVE THE THRONE', col: '#b5f23a', colD: '#45651a', hp: 1500, r: 18, speed: 40, score: 9000, music: 'boss_brood',
+    name: 'THE BROOD MOTHER', short: 'BROOD MOTHER', sub: 'QUEEN OF THE NEST ABOVE THE THRONE', col: '#b5f23a', colD: '#45651a', hp: 1500, r: 23, speed: 40, score: 9000, music: 'boss_brood',
     // she comes down out of the dark on a thread of silk from the nest in the walls above, hangs there looking at
     // you, then the thread snaps and she lands; her eggs hatch round her as she rears up and screams
     init(e) { e.state = 'intro'; e.t = 3.6; e.z = 240; e.under = false; e.landed = false; },
@@ -390,7 +390,7 @@ export const BOSSES = {
           if (before > 1.6 && e.t <= 1.6) { A.warn(); e.face = dx < 0 ? -1 : 1; }
         } else if (!e.landed) {
           // the thread snaps
-          if (before > 1.15) { A.crack(); addText(e.x, e.y - 70, 'SNAP', '#d8d0e0', 1); }
+          if (before > 1.15) { A.crack(); addText(e.x, e.y - 92, 'SNAP', '#d8d0e0', 1); }
           e.z = Math.max(0, e.z - dt * 520);
           if (e.z <= 0) {
             e.landed = true; A.bossRoar(); A.boom(1.8); shake(1); hitstop(0.08);
@@ -421,7 +421,7 @@ export const BOSSES = {
             if (k === 'webs') { e.state = 'webW'; e.t = 0.5; A.warn(); }
             else if (k === 'swarm') { e.state = 'swarmW'; e.t = 0.8; e.laid = false; A.bossRoar(); }
             else if (k === 'acidrain') {
-              for (let i = 0; i < 26; i++) G.strikes.push({ x: rnd(B.x0 + 10, B.x1 - 10), y: rnd(B.y0 + 10, B.y1 - 6), x0: e.x, y0: e.y - 14, t: -i * 0.07, delay: 0.8, R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor });
+              for (let i = 0; i < 26; i++) G.strikes.push({ x: rnd(B.x0 + 10, B.x1 - 10), y: rnd(B.y0 + 10, B.y1 - 6), x0: e.x, y0: e.y - 18, t: -i * 0.07, delay: 0.8, R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor });
               A.splat(); phaseBanner('ACID RAIN', P.ichor); e.state = 'rec'; e.t = 2;
             } else             if (k === 'burrow') { e.state = 'dig'; e.t = 0.5; A.wall(); }
             else if (k === 'spit') { e.state = 'spit'; e.t = 1.3; e.fireT = 0.2; }
@@ -448,7 +448,7 @@ export const BOSSES = {
           if (e.z <= 0) {
             if (d < 32) tryHurt(2, e.x, e.y);
             G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 70, hitP: false });
-            if (e.phase === 2) for (let i = 0; i < 8; i++) { const a = (i * TAU) / 8; G.strikes.push({ x: clamp(e.x + Math.cos(a) * 60, B.x0 + 8, B.x1 - 8), y: clamp(e.y + Math.sin(a) * 45, B.y0 + 8, B.y1 - 4), x0: e.x, y0: e.y - 14, t: 0, delay: 0.6, R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor }); }
+            if (e.phase === 2) for (let i = 0; i < 8; i++) { const a = (i * TAU) / 8; G.strikes.push({ x: clamp(e.x + Math.cos(a) * 60, B.x0 + 8, B.x1 - 8), y: clamp(e.y + Math.sin(a) * 45, B.y0 + 8, B.y1 - 4), x0: e.x, y0: e.y - 18, t: 0, delay: 0.6, R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor }); }
             A.boom(1.4); A.bossRoar(); shake(0.8); dust(e.x, e.y, 40, 160); scorch(e.x, e.y, 16);
             e.state = 'rec'; e.t = 0.9;
           }
@@ -457,7 +457,7 @@ export const BOSSES = {
           e.t -= dt; e.fireT -= dt; e.face = dx < 0 ? -1 : 1;
           if (e.fireT <= 0) {
             e.fireT = 0.4;
-            for (let i = 0; i < 5; i++) G.strikes.push({ x: clamp(p.x + rnd(-40, 40), B.x0 + 8, B.x1 - 8), y: clamp(p.y + rnd(-30, 30), B.y0 + 8, B.y1 - 4), x0: e.x, y0: e.y - 14, t: 0, delay: rnd(0.6, 0.9), R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor });
+            for (let i = 0; i < 5; i++) G.strikes.push({ x: clamp(p.x + rnd(-40, 40), B.x0 + 8, B.x1 - 8), y: clamp(p.y + rnd(-30, 30), B.y0 + 8, B.y1 - 4), x0: e.x, y0: e.y - 18, t: 0, delay: rnd(0.6, 0.9), R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor });
             A.splat(); A.shoot();
           }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
@@ -484,7 +484,7 @@ export const BOSSES = {
             const n = e.phase === 2 ? 6 : 4;
             for (let i = 0; i < n; i++) {
               const a = rnd(TAU), r = i < 2 ? rnd(0, 18) : rnd(30, 90);
-              (G.globs ||= []).push({ x0: e.x, y0: e.y - 12, x1: clamp(p.x + Math.cos(a) * r, B.x0 + 14, B.x1 - 14), y1: clamp(p.y + Math.sin(a) * r * 0.7, B.y0 + 12, B.y1 - 8), t: 0, dur: 0.55 + i * 0.07 });
+              (G.globs ||= []).push({ x0: e.x, y0: e.y - 16, x1: clamp(p.x + Math.cos(a) * r, B.x0 + 14, B.x1 - 14), y1: clamp(p.y + Math.sin(a) * r * 0.7, B.y0 + 12, B.y1 - 8), t: 0, dur: 0.55 + i * 0.07 });
             }
             A.splat(); A.shoot(); G.banner = { text: 'WEBS', sub: 'THEY HOLD YOUR FEET', t: 0, life: 1.1, c: '#d8d0e0' };
             e.state = 'rec'; e.t = 0.7;
@@ -509,7 +509,7 @@ export const BOSSES = {
         const k = Math.max(0, 1 - e.t / 1.7);
         ctx.globalAlpha = 0.25 + 0.35 * k; disc(e.x, e.y, 10 + 14 * k, '#05030a'); ctx.globalAlpha = 1;
         ring(e.x, e.y, 36 - 14 * k, 1, blink ? P.blood : P.paper); ring(e.x, e.y, 22, 1, P.bloodD);
-        for (let y = e.y - 4; y > e.y - 120; y -= 3) px(e.x + Math.sin(y * 0.2 + G.time * 3) * 0.6, y, '#cfc8dc');
+        for (let y = e.y - 5; y > e.y - 157; y -= 3) px(e.x + Math.sin(y * 0.2 + G.time * 3) * 0.6, y, '#cfc8dc');
       }
       if (e.state === 'lungeW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x + cx * 14, e.y + cy * 14, e.x + cx * 120, e.y + cy * 120, blink ? P.blood : P.bloodD, 3); }
     },
@@ -531,32 +531,43 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 15
   colossus: {
-    name: 'IRON COLOSSUS', short: 'COLOSSUS', sub: 'A WAR MACHINE NOBODY TURNED OFF', col: '#ff7a2b', colD: '#5a2410', hp: 1900, r: 18, speed: 28, score: 12000, music: 'boss_colossus',
-    init(e) { e.state = 'intro'; e.t = 2.6; e.off = true; },
+    name: 'IRON COLOSSUS', short: 'COLOSSUS', sub: 'A WAR MACHINE NOBODY TURNED OFF', col: '#ff7a2b', colD: '#5a2410', hp: 1900, r: 22, speed: 34, score: 12000, music: 'boss_colossus',
+    init(e) { e.state = 'intro'; e.t = 2.6; e.off = true; e.z = 0; },
     onHit(e, o) {
       if (e.shieldUp && o.src === 'orb') {
         e.shieldUp = false; e.armor = 1.6; e.state = 'stun'; e.t = 2.2; e.vx = e.vy = 0;
-        addText(e.x, e.y - 40, 'SHIELD BROKEN', P.gold); A.shieldHit(); A.boom(1.2); shake(0.6); hitstop(0.1); addRing(e.x, e.y - 16, '#62efff', 300, 0.4, 3);
+        addText(e.x, e.y - 62, 'SHIELD BROKEN', P.gold); A.shieldHit(); A.boom(1.2); shake(0.6); hitstop(0.1); addRing(e.x, e.y - 29, '#62efff', 300, 0.4, 3);
       }
     },
     update(e, dt, d, ang, dx) {
       const p = G.p, rage = e.phase === 2 ? 1.25 : 1;
       e.superArmor = true; e.kx = e.ky = 0;
       if (e.state === 'intro') {
-        // powers on: visor lights, steam, two stomps
+        // it powers on where it came down: the visor lights, steam bursts, then its engines roar twice and lift it
+        // off the floor into the air
         e.t -= dt;
         if (e.off && e.t < 1.9) { e.off = false; A.warn(); flash('#ff4f4f', 0.12, false); }
-        if (!e.off && Math.random() < 0.5) part(e.x + rnd(-12, 12), e.y - rnd(20, 30), rnd(-10, 10), -rnd(20, 50), 0.6, P.bone, { drag: 2, keep: true });
-        for (const st of [1.2, 0.6]) if (e.t < st && e.t + dt >= st) { shake(0.7); A.boom(1.6); dust(e.x, e.y, 30, 140); addRing(e.x, e.y, '#ff7a2b', 300, 0.4, 2); }
+        if (!e.off && Math.random() < 0.5) part(e.x + rnd(-14, 14), e.y - rnd(30, 50), rnd(-10, 10), -rnd(20, 50), 0.6, P.bone, { drag: 2, keep: true });
+        for (const st of [1.2, 0.6]) if (e.t < st && e.t + dt >= st) {
+          shake(0.7); A.boom(1.6); A.rocket(); dust(e.x, e.y, 30, 140); addRing(e.x, e.y, '#ff7a2b', 300, 0.4, 2);
+          for (const sx of [-14, 14]) for (let i = 0; i < 10; i++) part(e.x + sx, e.y - 4, rnd(-50, 50), rnd(-10, 20), rnd(0.3, 0.6), Math.random() < 0.5 ? '#ff7a2a' : '#ffd447', { glow: true, drag: 3 });
+        }
+        if (e.t < 1.2) e.z = 4 * Math.min(1, (1.2 - e.t) / 1.2);
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; }
         return;
       }
+      // it flies: it hovers, bobbing on its jets (low enough to reach with a blade); stunned, its engines sputter and
+      // it sinks to the floor
+      if (e.state === 'stun') e.z = Math.max(0, (e.z || 0) - dt * 24);
+      else if (e.state !== 'stompW') e.z = 3 + Math.sin(e.anim * 2.2) * 1.5;
       if (e.phase === 1 && e.hp < e.maxHp * 0.5 && e.state !== 'stun') {
         e.phase = 2; e.shieldUp = false; e.armor = 0; e.state = 'rec'; e.t = 1; A.warn(); A.bossRoar(); shake(0.6); phaseBanner('OVERLOAD', '#ff7a2b');
       }
       switch (e.state) {
         case 'walk': {
-          if (d > 50) { e.vx = Math.cos(ang) * e.speed * rage; e.vy = Math.sin(ang) * e.speed * rage; }
+          // it glides after you, slow to turn and slow to stop
+          const tvx = d > 60 ? Math.cos(ang) * e.speed * rage : 0, tvy = d > 60 ? Math.sin(ang) * e.speed * rage : 0, gk = Math.min(1, dt * 2.5);
+          e.vx += (tvx - e.vx) * gk; e.vy += (tvy - e.vy) * gk;
           e.face = dx < 0 ? -1 : 1; e.cd -= dt;
           if (e.cd <= 0) {
             const opts = ['laser', 'laser', 'missiles', 'missiles', 'stomp', 'shield', 'punch', 'punch'];
@@ -576,8 +587,8 @@ export const BOSSES = {
           if (e.t > 0.3) e.lock = ang;
           if (e.t <= 0) {
             const start = e.lock - e.rdir * 1.0, rot = e.rdir * (e.phase === 2 ? 1.1 : 1.25);
-            G.hbeams.push({ owner: e, oy: 22, x: e.x, y: e.y - 22, a: start, rot, w: 6, warn: 0.45, t: 0, life: 2.2, len: 0 });
-            if (e.phase === 2) G.hbeams.push({ owner: e, oy: 22, x: e.x, y: e.y - 22, a: start + Math.PI, rot, w: 6, warn: 0.45, t: 0, life: 2.2, len: 0 });
+            G.hbeams.push({ owner: e, oy: 46, x: e.x, y: e.y - 46, a: start, rot, w: 6, warn: 0.45, t: 0, life: 2.2, len: 0 });
+            if (e.phase === 2) G.hbeams.push({ owner: e, oy: 46, x: e.x, y: e.y - 46, a: start + Math.PI, rot, w: 6, warn: 0.45, t: 0, life: 2.2, len: 0 });
             e.state = 'lasering'; e.t = 2.2; A.loop('bossbeam', true, 'boss');
           }
           break;
@@ -588,13 +599,16 @@ export const BOSSES = {
             e.fireT = e.phase === 2 ? 0.08 : 0.12;
             const onYou = Math.random() < 0.3;
             G.strikes.push({ x: clamp(p.x + (onYou ? 0 : rnd(-70, 70)), B.x0 + 8, B.x1 - 8), y: clamp(p.y + (onYou ? 0 : rnd(-50, 50)), B.y0 + 8, B.y1 - 4), t: 0, delay: rnd(0.9, 1.4), R: 22, dmg: 2, friendly: false, kind: 'missile', c: '#ff7a2b' });
-            A.rocket(); part(e.x + e.face * 12, e.y - 30, rnd(-20, 20), -rnd(80, 160), 0.4, P.ember2, { glow: true });
+            A.rocket(); part(e.x + (Math.random() < 0.5 ? -10 : 10), e.y - 58, rnd(-20, 20), -rnd(80, 160), 0.4, P.ember2, { glow: true });
           }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.5; }
           break;
         case 'stompW':
-          e.t -= dt;
+          // it climbs on its jets, then drops onto the floor with all its weight
+          e.t -= dt; e.z = 3 + 21 * (1 - (1 - Math.min(1, 1 - e.t / 0.7)) ** 3); e.vx *= 0.9; e.vy *= 0.9;
+          if (Math.random() < 0.6) for (const sx of [-14, 14]) part(e.x + sx, e.y - e.z - 2, rnd(-10, 10), rnd(60, 120), rnd(0.2, 0.35), Math.random() < 0.5 ? '#ff7a2a' : '#ffd447', { glow: true, drag: 2 });
           if (e.t <= 0) {
+            e.z = 0;
             for (let i = 0; i < (e.phase === 2 ? 3 : 2); i++) G.quakes.push({ x: e.x, y: e.y, r: 0, delay: i * 0.35, max: 160, hitP: false });
             shake(0.9); A.boom(2); dust(e.x, e.y, 30, 150); scorch(e.x, e.y, 14);
             e.state = 'rec'; e.t = 0.8;
@@ -602,7 +616,7 @@ export const BOSSES = {
           break;
         case 'shield':
           e.t -= dt; e.fireT -= dt;
-          if (e.fireT <= 0) { e.fireT = 0.65; const off = rnd(TAU); for (let i = 0; i < 10; i++) fire(e.x, e.y - 22, off + (i * TAU) / 10, 70); A.shoot(); }
+          if (e.fireT <= 0) { e.fireT = 0.65; const off = rnd(TAU); for (let i = 0; i < 10; i++) fire(e.x, e.y - 29, off + (i * TAU) / 10, 70); A.shoot(); }
           if (e.t <= 0) { e.shieldUp = false; e.armor = 0; e.state = 'rec'; e.t = 0.5; }
           break;
         case 'stun': e.t -= dt; if (Math.random() < 0.4) sparks(e.x + rnd(-10, 10), e.y - rnd(10, 30), rnd(TAU), 2, 1, '#62efff', 80); if (e.t <= 0) { e.armor = 0; e.state = 'rec'; e.t = 0.3; } break;
@@ -612,7 +626,7 @@ export const BOSSES = {
           if (e.t <= 0) {
             // rocket fist: flies out, then comes back to the arm
             const n = e.phase === 2 ? 2 : 1;
-            for (let i = 0; i < n; i++) fire(e.x + e.face * 14, e.y - 20, e.lock + (n > 1 ? (i - 0.5) * 0.5 : 0), 230, { r: 5, noparry: true, ret: e, retT: 0.9, fist: true, dmg: 2, life: 4, c: '#8b98ab' });
+            for (let i = 0; i < n; i++) fire(e.x + e.face * 22, e.y - 21, e.lock + (n > 1 ? (i - 0.5) * 0.5 : 0), 230, { r: 5, noparry: true, ret: e, retT: 0.9, fist: true, dmg: 2, life: 4, c: '#8b98ab' });
             A.rocket(); A.boom(0.6); shake(0.3);
             e.state = 'rec'; e.t = 1.4;
           }
@@ -621,7 +635,7 @@ export const BOSSES = {
           e.t -= dt;
           if (e.t <= 0) {
             const off = rnd(TAU), dir = Math.random() < 0.5 ? 1 : -1;
-            for (let i = 0; i < 4; i++) G.hbeams.push({ owner: e, oy: 22, x: e.x, y: e.y - 22, a: off + (i * Math.PI) / 2, rot: dir * 2.1, w: 6, warn: 0.5, t: 0, life: 3.4, len: 0 });
+            for (let i = 0; i < 4; i++) G.hbeams.push({ owner: e, oy: 46, x: e.x, y: e.y - 46, a: off + (i * Math.PI) / 2, rot: dir * 2.1, w: 6, warn: 0.5, t: 0, life: 3.4, len: 0 });
             e.state = 'lasering'; e.t = 3.4; A.loop('bossbeam', true, 'boss'); phaseBanner('OVERLOAD SPIN', '#ff7a2b');
           }
           break;
@@ -630,21 +644,27 @@ export const BOSSES = {
       e.tele = e.state === 'stompW' || e.state === 'laserW';
     },
     tele(e, blink) {
-      if (e.state === 'laserW') { const s = e.lock - e.rdir; line(e.x, e.y - 22, e.x + Math.cos(s) * 200, e.y - 22 + Math.sin(s) * 200, blink ? P.blood : P.bloodD); }
-      if (e.state === 'punchW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x, e.y - 20, e.x + cx * 200, e.y - 20 + cy * 200, blink ? P.blood : P.bloodD, 3); }
+      if (e.state === 'laserW') { const s = e.lock - e.rdir; line(e.x, e.y - 46, e.x + Math.cos(s) * 200, e.y - 46 + Math.sin(s) * 200, blink ? P.blood : P.bloodD); }
+      if (e.state === 'punchW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x + e.face * 22, e.y - 21, e.x + cx * 200, e.y - 21 + cy * 200, blink ? P.blood : P.bloodD, 3); }
       if (e.state === 'stompW') ring(e.x, e.y, 40 * (1 - e.t / 0.7) + 10, 1, blink ? P.blood : P.paper);
     },
     drawBody(e, x, y, s) {
-      // (drawn 1.3 times finer than its design: 0.87 game pixels to a unit; the visor slit runs 19.5 to 30.5 at 9.7)
-      const u = 0.867, gx = (ax) => (e.face < 0 ? x + s.w - ax * u : x + ax * u);
-      if (Math.random() < 0.25) for (const [ax, ay] of [[17, 1.5], [31, 3]]) part(gx(ax), y + ay * u, rnd(-6, 6), -rnd(14, 30), rnd(0.6, 1.1), Math.random() < 0.7 ? '#6a6470' : '#8a8490', { drag: 1 });
+      // (drawn 1.6 times finer than its design: 1.07 game pixels to a unit; the visor slit runs 21 to 35 at 10.5, the
+      // furnace is at 27, the engine pods at 15 and 41, the smokestacks at 19 and 37)
+      const u = 1.067, gx = (ax) => (e.face < 0 ? x + s.w - ax * u : x + ax * u);
+      if (Math.random() < 0.3) for (const ax of [19, 37]) part(gx(ax), y + 1.5, rnd(-6, 6), -rnd(14, 30), rnd(0.6, 1.1), Math.random() < 0.7 ? '#6a6470' : '#8a8490', { drag: 1 });
       if (e.state === 'intro' && e.off) return;
-      for (let i = 0; i < 9; i++) px(x + 17 + i, y + 8, Math.floor(G.time * 10 + i) % 4 ? '#ff4f4f' : P.paper);
-      glow(e.x, y + 8, '#ff4f4f', 10, 0.4);
-      glow(e.x, y + 19, '#ff7a2b', e.phase === 2 ? 16 : 10, 0.4);
+      // the jets: glowing where they leave the pods, sparks raining out of them
+      if (e.state !== 'stun' || Math.random() < 0.3) for (const ax of [15, 41]) {
+        glow(gx(ax), y + 50 * u, '#ff7a2a', 9, 0.5);
+        if (Math.random() < 0.5) part(gx(ax) + rnd(-2, 2), e.y - (e.z || 0) + 2, rnd(-12, 12), rnd(20, 60), rnd(0.15, 0.3), Math.random() < 0.5 ? '#ffd447' : '#ff7a2a', { glow: true, drag: 2 });
+      }
+      for (let i = 0; i < 15; i++) px(x + 22 + i, y + 11, Math.floor(G.time * 10 + i) % 4 ? '#ff4f4f' : P.paper);
+      glow(e.x, y + 11, '#ff4f4f', 12, 0.45);
+      glow(e.x, y + 29, '#ff7a2b', e.phase === 2 ? 20 : 13, 0.45);
     },
     draw(e, x, y) {
-      if (e.shieldUp) { ring(e.x, e.y - 14, 20 + Math.sin(G.time * 10), 1, '#62efff'); glow(e.x, e.y - 14, '#62efff', 22, 0.25); }
+      if (e.shieldUp) { ring(e.x, e.y - 29, 31 + Math.sin(G.time * 10), 1, '#62efff'); ring(e.x, e.y - 29, 28, 1, '#2a7a9a'); glow(e.x, e.y - 29, '#62efff', 32, 0.25); }
       if (e.state === 'stun') for (let i = 0; i < 4; i++) { const a = G.time * 5 + (i * TAU) / 4; px(e.x + Math.cos(a) * 12, y - 4 + Math.sin(a) * 3, P.gold); }
     },
     bars: introBars,
@@ -652,7 +672,7 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 20: final
   king: {
-    name: 'THE ASHEN KING', short: 'ASHEN KING', sub: 'THE LAST FIRE', col: '#ff6a2b', colD: '#5a1420', hp: 3600, r: 27, speed: 55, score: 30000, music: 'boss_king', final: true,
+    name: 'THE ASHEN KING', short: 'ASHEN KING', sub: 'THE LAST FIRE', col: '#ff6a2b', colD: '#5a1420', hp: 3600, r: 31, speed: 55, score: 30000, music: 'boss_king', final: true,
     init(e) { e.state = 'intro'; e.t = 3; e.combo = 0; },
     update(e, dt, d, ang, dx) {
       const p = G.p;
@@ -663,7 +683,7 @@ export const BOSSES = {
         e.t -= dt;
         if (e.t <= 1 && !e.met) { e.met = true; say(meetLines(G.char), { lore: true }); }
         if (Math.random() < 0.95) part(e.x + rnd(-10, 10), e.y - rnd(0, 10), rnd(-15, 15), -rnd(80, 200), rnd(0.4, 0.9), Math.random() < 0.5 ? P.ember : P.ember3, { glow: true, keep: true, drag: 1 });
-        if (e.t < 1.6 && e.t + dt >= 1.6) { flash('#ff6a2b', 0.3, true); shake(1); A.boom(2.4); A.bossRoar(); addRing(e.x, e.y - 10, P.ember, 420, 0.6, 3); for (let i = 0; i < 16; i++) fire(e.x, e.y - 36, (i * TAU) / 16, 40, { life: 1.2, dmg: 0 }); }
+        if (e.t < 1.6 && e.t + dt >= 1.6) { flash('#ff6a2b', 0.3, true); shake(1); A.boom(2.4); A.bossRoar(); addRing(e.x, e.y - 11, P.ember, 420, 0.6, 3); for (let i = 0; i < 16; i++) fire(e.x, e.y - 41, (i * TAU) / 16, 40, { life: 1.2, dmg: 0 }); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
         return;
       }
@@ -700,7 +720,7 @@ export const BOSSES = {
               phaseBanner('ASH KNIGHTS', P.ember); A.bossRoar(); e.state = 'rec'; e.t = 1;
             } else if (k === 'crown') {
               const off = rnd(TAU);
-              for (let i = 0; i < 6; i++) G.hbeams.push({ owner: e, oy: 40, x: e.x, y: e.y - 40, a: off + (i * TAU) / 6, rot: 0.75, w: 5, warn: 0.8, t: 0, life: 3.6, len: 0 });
+              for (let i = 0; i < 6; i++) G.hbeams.push({ owner: e, oy: 46, x: e.x, y: e.y - 46, a: off + (i * TAU) / 6, rot: 0.75, w: 5, warn: 0.8, t: 0, life: 3.6, len: 0 });
               phaseBanner('CROWN OF FIRE', P.gold); A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3.6, fn: () => A.loop('bossbeam', false) });
               e.state = 'rec'; e.t = 3.6;
             } else             if (k === 'blink') { e.combo = e.phase === 1 ? 2 : 3; e.state = 'blink'; e.t = 0.25; }
@@ -729,7 +749,7 @@ export const BOSSES = {
         case 'blink':
           e.t -= dt;
           if (e.t <= 0) {
-            for (let i = 0; i < 5; i++) part(e.x, e.y - 14, rnd(-60, 60), rnd(-60, 60), 0.3, P.ember, { glow: true });
+            for (let i = 0; i < 5; i++) part(e.x, e.y - 16, rnd(-60, 60), rnd(-60, 60), 0.3, P.ember, { glow: true });
             G.ghosts.push({ x: e.x, y: e.y, flip: e.face < 0, t: 0, life: 0.35, c: P.ember, spr: sprFor(e) });
             const a = rnd(TAU);
             e.x = clamp(p.x + Math.cos(a) * 52, B.x0 + 22, B.x1 - 22); e.y = clamp(p.y + Math.sin(a) * 36, B.y0 + 22, B.y1 - 4);
@@ -747,20 +767,20 @@ export const BOSSES = {
           break;
         case 'firering':
           e.t -= dt; e.fireT -= dt;
-          if (e.fireT <= 0 && e.n < 3) { e.fireT = 0.35; e.n++; const off = rnd(TAU); for (let i = 0; i < 16; i++) fire(e.x, e.y - 36, off + (i * TAU) / 16, 76, { noparry: i % 2 === 1 }); A.shoot(); }
+          if (e.fireT <= 0 && e.n < 3) { e.fireT = 0.35; e.n++; const off = rnd(TAU); for (let i = 0; i < 16; i++) fire(e.x, e.y - 41, off + (i * TAU) / 16, 76, { noparry: i % 2 === 1 }); A.shoot(); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.5; }
           break;
         case 'spiral':
           e.t -= dt; e.fireT -= dt;
-          if (e.fireT <= 0) { e.fireT = 0.1; for (let k = 0; k < 3; k++) fire(e.x, e.y - 36, e.spin + (k * TAU) / 3, 80, { noparry: k === 0 }); e.spin += 0.29 * (e.phase === 3 ? -1 : 1); A.shoot(); }
+          if (e.fireT <= 0) { e.fireT = 0.1; for (let k = 0; k < 3; k++) fire(e.x, e.y - 41, e.spin + (k * TAU) / 3, 80, { noparry: k === 0 }); e.spin += 0.29 * (e.phase === 3 ? -1 : 1); A.shoot(); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
           break;
         case 'sunW':
           e.t -= dt; e.vx = e.vy = 0;
-          if (Math.random() < 0.9) part(e.x + rnd(-10, 10), e.y - 50 + rnd(-6, 6), 0, 0, 0.3, Math.random() < 0.5 ? P.ember : P.gold, { glow: true });
+          if (Math.random() < 0.9) part(e.x + rnd(-10, 10), e.y - 57 + rnd(-6, 6), 0, 0, 0.3, Math.random() < 0.5 ? P.ember : P.gold, { glow: true });
           if (e.t <= 0) {
             const a0 = Math.atan2(p.y - e.y, p.x - e.x) + Math.PI / 2, dir = Math.random() < 0.5 ? -1 : 1;
-            for (const off of [0, Math.PI]) G.hbeams.push({ x: e.x, y: e.y - 38, owner: e, oy: 38, a: a0 + off, rot: dir * 1.15, w: 6, warn: 0.5, t: 0, life: 3.6, len: 0 });
+            for (const off of [0, Math.PI]) G.hbeams.push({ x: e.x, y: e.y - 43, owner: e, oy: 43, a: a0 + off, rot: dir * 1.15, w: 6, warn: 0.5, t: 0, life: 3.6, len: 0 });
             flash(P.ember, 0.2, true); shake(0.8); A.boom(2); A.ultRelease();
             e.state = 'sunBeam'; e.t = 3.8;
           }
@@ -779,22 +799,22 @@ export const BOSSES = {
       if (e.state === 'intro') {
         const end = Math.min(1, e.t / 0.7), w = Math.max(1, 40 * Math.min(1, (3 - e.t) / 0.6) * end * end);
         ctx.globalAlpha = 0.4 + 0.6 * end;
-        rect(e.x - w / 2, e.y - 170, w, 170, '#c6380f'); rect(e.x - w / 4, e.y - 170, w / 2, 170, P.ember3);
-        glow(e.x, e.y - 20, P.ember, 30, 0.6 * end);
+        rect(e.x - w / 2, e.y - 194, w, 170, '#c6380f'); rect(e.x - w / 4, e.y - 194, w / 2, 170, P.ember3);
+        glow(e.x, e.y - 23, P.ember, 30, 0.6 * end);
         ctx.globalAlpha = 1;
       }
     },
     drawBody(e, x, y) {
-      // (he is drawn 2.8 times finer than his design: 1.87 game pixels to a unit of it)
-      const hx = e.x + e.face * 25, hy = e.y - 42;
+      // (he is drawn 3.2 times finer than his design: 2.13 game pixels to a unit of it)
+      const hx = e.x + e.face * 29, hy = e.y - 48;
       const a = e.state === 'kslashW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'decreeW' || G.decree?.e === e ? -Math.PI / 2 + e.face * 0.12 : Math.PI / 2 + e.face * 0.6;
-      line(hx, hy, hx + Math.cos(a) * 66, hy + Math.sin(a) * 66, '#7a1a08', 8);
-      line(hx, hy, hx + Math.cos(a) * 66, hy + Math.sin(a) * 66, '#c6380f', 6);
-      line(hx, hy, hx + Math.cos(a) * 66, hy + Math.sin(a) * 66, P.ember3, 2);
+      line(hx, hy, hx + Math.cos(a) * 75, hy + Math.sin(a) * 75, '#7a1a08', 8);
+      line(hx, hy, hx + Math.cos(a) * 75, hy + Math.sin(a) * 75, '#c6380f', 6);
+      line(hx, hy, hx + Math.cos(a) * 75, hy + Math.sin(a) * 75, P.ember3, 2);
       line(hx - Math.sin(a) * 6, hy + Math.cos(a) * 6, hx + Math.sin(a) * 6, hy - Math.cos(a) * 6, '#d8a032', 2);
-      if (Math.random() < 0.9) part(hx + Math.cos(a) * rnd(4, 66), hy + Math.sin(a) * rnd(4, 66), 0, -rnd(20, 40), 0.3, P.ember, { glow: true });
-      glow(e.x, y + 11, P.gold, 20, 0.45);
-      glow(e.x, y + 39, P.ember, e.phase * 14, 0.35);
+      if (Math.random() < 0.9) part(hx + Math.cos(a) * rnd(4, 75), hy + Math.sin(a) * rnd(4, 75), 0, -rnd(20, 40), 0.3, P.ember, { glow: true });
+      glow(e.x, y + 13, P.gold, 23, 0.45);
+      glow(e.x, y + 45, P.ember, e.phase * 16, 0.35);
     },
     bars: introBars,
   },
@@ -808,7 +828,7 @@ const VOID = '#9b5cff';
 Object.assign(BOSSES, {
   // ---------------------------------------------------------------- wave 25
   wyrm: {
-    name: 'VOID WYRM', short: 'VOID WYRM', sub: 'IT SWIMS THROUGH STONE', col: VOID, colD: '#3a1a6a', hp: 2400, r: 11, speed: 74, score: 16000, music: 'boss_wyrm',
+    name: 'VOID WYRM', short: 'VOID WYRM', sub: 'IT SWIMS THROUGH STONE', col: VOID, colD: '#3a1a6a', hp: 2400, r: 14, speed: 74, score: 16000, music: 'boss_wyrm',
     init(e) { e.state = 'intro'; e.t = 2.2; e.under = true; e.trail = []; e.segments = []; e.wob = 0; e.cdir = 1; },
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
@@ -864,14 +884,14 @@ Object.assign(BOSSES, {
         case 'breathW': e.t -= dt; if (e.t > 0.15) e.lock = ang; if (e.t <= 0) { e.state = 'breath'; e.t = 1.1; e.fireT = 0; } break;
         case 'breath':
           e.t -= dt; e.fireT -= dt;
-          if (e.fireT <= 0) { e.fireT = 0.04 / spd; fire(e.x, e.y - 8, e.lock + rnd(-0.5, 0.5), rnd(90, 140), { c: VOID, noparry: Math.random() < 0.35 }); }
+          if (e.fireT <= 0) { e.fireT = 0.04 / spd; fire(e.x, e.y - 10, e.lock + rnd(-0.5, 0.5), rnd(90, 140), { c: VOID, noparry: Math.random() < 0.35 }); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
           break;
         case 'coil': {
           // circle the player, spitting inward
           e.t -= dt; e.fireT -= dt; e.ca += dt * 2.2 * e.cdir;
           walkTo(e, p.x + Math.cos(e.ca) * 75, p.y + Math.sin(e.ca) * 60, 220);
-          if (e.fireT <= 0) { e.fireT = 0.28 / spd; fire(e.x, e.y - 8, ang, 85, { c: VOID }); A.shoot(); }
+          if (e.fireT <= 0) { e.fireT = 0.28 / spd; fire(e.x, e.y - 10, ang, 85, { c: VOID }); A.shoot(); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.5; }
           break;
         }
@@ -922,15 +942,15 @@ Object.assign(BOSSES, {
 
   // ---------------------------------------------------------------- wave 30
   herald: {
-    name: 'STORM HERALD', short: 'HERALD', sub: 'HIS HORN CALLS THE STORM', col: '#62efff', colD: '#163a78', hp: 2800, r: 12, speed: 54, score: 20000, music: 'boss_herald',
+    name: 'STORM HERALD', short: 'HERALD', sub: 'HIS HORN CALLS THE STORM', col: '#62efff', colD: '#163a78', hp: 2800, r: 16, speed: 54, score: 20000, music: 'boss_herald',
     init(e) { e.state = 'intro'; e.t = 2.4; e.under = true; e.orbsT = 0; e.oa = 0; },
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
       e.superArmor = true; e.kx = e.ky = 0; e.z = 4 + Math.sin(e.anim * 3) * 3;
       if (e.state === 'intro') {
         e.t -= dt;
-        if (Math.floor(e.t * 2.5) !== Math.floor((e.t + dt) * 2.5)) { G.bolts.push({ x0: e.x + rnd(-20, 20), y0: e.y - 170, x1: e.x, y1: e.y, t: 0, life: 0.3 }); A.zap(); shake(0.4); flash('#62efff', 0.08, false); }
-        if (e.under && e.t < 1) { e.under = false; addRing(e.x, e.y - 10, '#62efff', 320, 0.5, 3); A.bossRoar(); }
+        if (Math.floor(e.t * 2.5) !== Math.floor((e.t + dt) * 2.5)) { G.bolts.push({ x0: e.x + rnd(-20, 20), y0: e.y - 227, x1: e.x, y1: e.y, t: 0, life: 0.3 }); A.zap(); shake(0.4); flash('#62efff', 0.08, false); }
+        if (e.under && e.t < 1) { e.under = false; addRing(e.x, e.y - 13, '#62efff', 320, 0.5, 3); A.bossRoar(); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
         return;
       }
@@ -938,7 +958,7 @@ Object.assign(BOSSES, {
       if (e.orbsT > 0) {
         // four storm orbs circle him and fire at you
         e.orbsT -= dt; e.oa += dt * 2; e.ofT = (e.ofT || 0) - dt;
-        if (e.ofT <= 0) { e.ofT = 0.45 / spd; for (let i = 0; i < 4; i++) { const a = e.oa + (i * TAU) / 4, ox = e.x + Math.cos(a) * 20, oy = e.y - 14 + Math.sin(a) * 14; fire(ox, oy, Math.atan2(p.y - 6 - oy, p.x - ox), 95, { c: '#62efff' }); } A.zip(); }
+        if (e.ofT <= 0) { e.ofT = 0.45 / spd; for (let i = 0; i < 4; i++) { const a = e.oa + (i * TAU) / 4, ox = e.x + Math.cos(a) * 27, oy = e.y - 19 + Math.sin(a) * 18; fire(ox, oy, Math.atan2(p.y - 6 - oy, p.x - ox), 95, { c: '#62efff' }); } A.zip(); }
       }
       switch (e.state) {
         case 'walk': {
@@ -970,7 +990,7 @@ Object.assign(BOSSES, {
               orbRing(e, 16, 70, undefined, { c: '#62efff' }); A.zap(); e.state = 'rec'; e.t = 0.6;
             } else if (k === 'orbs') { e.orbsT = 6; e.state = 'rec'; e.t = 0.4; A.shieldUp(); }
             else if (k === 'lances') {
-              for (const off of [-0.35, 0, 0.35]) G.hbeams.push({ x: e.x, y: e.y - 14, owner: e, oy: 14, a: ang + off, rot: 0, w: 4, warn: 0.6, t: 0, life: 1.1, len: 0 });
+              for (const off of [-0.35, 0, 0.35]) G.hbeams.push({ x: e.x, y: e.y - 19, owner: e, oy: 19, a: ang + off, rot: 0, w: 4, warn: 0.6, t: 0, life: 1.1, len: 0 });
               A.warn(); e.state = 'rec'; e.t = 1.2;
             } else {
               for (let i = 0; i < 22; i++) G.strikes.push({ x: rnd(B.x0 + 10, B.x1 - 10), y: rnd(B.y0 + 10, B.y1 - 6), t: -i * 0.09, delay: 0.8, R: 16, dmg: 2, friendly: false, kind: 'lightning', c: '#62efff' });
@@ -984,9 +1004,9 @@ Object.assign(BOSSES, {
           if (e.t <= 0) {
             const pa = Math.atan2(p.y - e.y, p.x - e.x);
             if (d < 150 && Math.abs(angDiff(pa, e.lock)) < 0.75) { p.vx += Math.cos(pa) * 340; p.vy += Math.sin(pa) * 340; tryHurt(2, e.x, e.y); }
-            for (let i = 0; i < 26; i++) { const a2 = e.lock + rnd(-0.75, 0.75), v = rnd(140, 320); part(e.x, e.y - 18, Math.cos(a2) * v, Math.sin(a2) * v, rnd(0.2, 0.5), i % 3 ? '#62efff' : P.paper, { drag: 4, glow: true }); }
-            for (const off of e.phase === 2 ? [-0.5, -0.17, 0.17, 0.5] : [-0.35, 0, 0.35]) fire(e.x, e.y - 18, e.lock + off, 42, { c: '#62efff', life: 5.5, r: 4, dmg: 2, noparry: true });
-            addRing(e.x, e.y - 18, '#62efff', 300, 0.35, 3); A.bossRoar(); A.boom(1.2); A.zap(); shake(0.7); flash('#62efff', 0.1, false);
+            for (let i = 0; i < 26; i++) { const a2 = e.lock + rnd(-0.75, 0.75), v = rnd(140, 320); part(e.x, e.y - 24, Math.cos(a2) * v, Math.sin(a2) * v, rnd(0.2, 0.5), i % 3 ? '#62efff' : P.paper, { drag: 4, glow: true }); }
+            for (const off of e.phase === 2 ? [-0.5, -0.17, 0.17, 0.5] : [-0.35, 0, 0.35]) fire(e.x, e.y - 24, e.lock + off, 42, { c: '#62efff', life: 5.5, r: 4, dmg: 2, noparry: true });
+            addRing(e.x, e.y - 24, '#62efff', 300, 0.35, 3); A.bossRoar(); A.boom(1.2); A.zap(); shake(0.7); flash('#62efff', 0.1, false);
             e.state = 'rec'; e.t = 0.9;
           }
           break;
@@ -995,16 +1015,16 @@ Object.assign(BOSSES, {
     },
     tele(e, blink) { if (e.state === 'hornW') cone(e, 150, 1.5, blink, '#1a5a7a', '#0a2a3a'); },
     draw(e, x, y) {
-      glow(e.x, y + 8, '#62efff', 12, 0.4);
+      glow(e.x, y + 11, '#62efff', 16, 0.4);
       if (Math.random() < 0.15) G.bolts.push({ x0: e.x, y0: y + 6, x1: e.x + rnd(-14, 14), y1: y + rnd(0, 16), t: 0, life: 0.08 });
-      if (e.orbsT > 0) for (let i = 0; i < 4; i++) { const a = e.oa + (i * TAU) / 4, ox = e.x + Math.cos(a) * 20, oy = e.y - 14 + Math.sin(a) * 14; disc(ox, oy, 2, '#62efff'); px(ox, oy, P.paper); glow(ox, oy, '#62efff', 7, 0.5); }
+      if (e.orbsT > 0) for (let i = 0; i < 4; i++) { const a = e.oa + (i * TAU) / 4, ox = e.x + Math.cos(a) * 27, oy = e.y - 19 + Math.sin(a) * 18; disc(ox, oy, 2, '#62efff'); px(ox, oy, P.paper); glow(ox, oy, '#62efff', 7, 0.5); }
     },
     bars: introBars,
   },
 
   // ---------------------------------------------------------------- wave 35
   mirror: {
-    name: 'THE MIRROR', short: 'MIRROR', sub: 'IT LEARNED YOUR MOVES', col: '#cfd8e0', colD: '#2a2a38', hp: 2700, r: 7, speed: 110, score: 24000, music: 'boss_mirror', tint: '#1a1626',
+    name: 'THE MIRROR', short: 'MIRROR', sub: 'IT LEARNED YOUR MOVES', col: '#cfd8e0', colD: '#2a2a38', hp: 2700, r: 10, speed: 110, scale: 1.5, score: 24000, music: 'boss_mirror', tint: '#1a1626',
     init(e) { e.state = 'intro'; e.t = 2.2; e.combo = 0; },
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.25 : 1;
@@ -1012,7 +1032,7 @@ Object.assign(BOSSES, {
       if (e.state === 'intro') {
         e.t -= dt;
         if (Math.random() < 0.6) G.ghosts.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-20, 20), flip: Math.random() < 0.5, t: 0, life: 0.3, c: '#cfd8e0', spr: sprFor(e) });
-        if (e.t < 1 && !e.shown) { e.shown = true; flash(P.paper, 0.15, false); A.ultRelease(); addRing(e.x, e.y - 10, P.paper, 300, 0.4, 2); }
+        if (e.t < 1 && !e.shown) { e.shown = true; flash(P.paper, 0.15, false); A.ultRelease(); addRing(e.x, e.y - 15, P.paper, 300, 0.4, 2); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; }
         return;
       }
@@ -1029,7 +1049,7 @@ Object.assign(BOSSES, {
             else if (k === 'rift') {
               for (let i = 0; i < (e.phase === 2 ? 3 : 2); i++) { const a = rnd(TAU); G.hlines.push({ x0: p.x - Math.cos(a) * 200, y0: p.y - 5 - Math.sin(a) * 200, x1: p.x + Math.cos(a) * 200, y1: p.y - 5 + Math.sin(a) * 200, t: -i * 0.15, pend: 0.65, done: false }); }
               A.rift(); A.warn(); e.state = 'rec'; e.t = 0.9;
-            } else { for (let i = -2; i <= 2; i++) fire(e.x, e.y - 14, ang + i * 0.18, 120, { c: '#cfd8e0' }); A.shoot(); e.state = 'rec'; e.t = 0.5; }
+            } else { for (let i = -2; i <= 2; i++) fire(e.x, e.y - 21, ang + i * 0.18, 120, { c: '#cfd8e0' }); A.shoot(); e.state = 'rec'; e.t = 0.5; }
           }
           break;
         case 'swapW':
@@ -1042,7 +1062,7 @@ Object.assign(BOSSES, {
             G.mirrorT = e.phase === 2 ? 3.6 : 3;
             G.banner = { text: 'MIRRORED', sub: 'LEFT IS RIGHT', t: 0, life: 1.4, c: P.paper };
             flash(P.paper, 0.2, false); A.ultRelease(); shake(0.5);
-            addRing(p.x, p.y - 6, P.paper, 240, 0.35, 2); addRing(e.x, e.y - 6, '#cfd8e0', 240, 0.35, 2);
+            addRing(p.x, p.y - 6, P.paper, 240, 0.35, 2); addRing(e.x, e.y - 9, '#cfd8e0', 240, 0.35, 2);
             e.state = 'rec'; e.t = 0.5;
           }
           break;
@@ -1082,7 +1102,7 @@ Object.assign(BOSSES, {
 
   // ---------------------------------------------------------------- wave 40
   eclipse: {
-    name: 'ECLIPSE', short: 'ECLIPSE', sub: 'THE SUN THAT WATCHES', col: '#ffd447', colD: '#5a1420', hp: 4300, r: 19, speed: 14, score: 40000, music: 'boss_eclipse',
+    name: 'ECLIPSE', short: 'ECLIPSE', sub: 'THE SUN THAT WATCHES', col: '#ffd447', colD: '#5a1420', hp: 4300, r: 25, speed: 14, score: 40000, music: 'boss_eclipse',
     init(e) { e.state = 'intro'; e.t = 3; e.open = 0; e.spin = 0; },
     update(e, dt, d, ang) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
@@ -1093,7 +1113,7 @@ Object.assign(BOSSES, {
         e.lightBack = false;
         G.dark = Math.min(0.75, (3 - e.t) * 0.5);
         e.open = Math.max(0, Math.min(1, (1.6 - e.t) / 1.2));
-        if (e.t < 0.4 && !e.lit) { e.lit = true; flash(P.gold, 0.25, true); A.bossRoar(); A.ultRelease(); addRing(e.x, e.y - 14, P.gold, 380, 0.6, 3); }
+        if (e.t < 0.4 && !e.lit) { e.lit = true; flash(P.gold, 0.25, true); A.bossRoar(); A.ultRelease(); addRing(e.x, e.y - 19, P.gold, 380, 0.6, 3); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; e.lightBack = true; }
         return;
       }
@@ -1110,27 +1130,27 @@ Object.assign(BOSSES, {
             const k = pick(e, opts);
             if (k === 'gaze') {
               // it stares: a cone of light that turns after you; stay in it too long and you turn to stone
-              e.state = 'gaze'; e.t = 3; e.ga = Math.atan2(p.y - (e.y - 22), p.x - e.x); G.stare = 0;
+              e.state = 'gaze'; e.t = 3; e.ga = Math.atan2(p.y - (e.y - 29), p.x - e.x); G.stare = 0;
               G.banner = { text: 'DO NOT MEET ITS GAZE', sub: '', t: 0, life: 1.4, c: P.gold }; A.warn();
             } else if (k === 'spiral') { e.state = 'spiral'; e.t = 2.6; e.fireT = 0; e.sdir = Math.random() < 0.5 ? 1 : -1; }
-            else if (k === 'rings') { for (let i = 0; i < 4; i++) G.timers.push({ t: i * 0.45, fn: () => { if (!e.dead && !e.dying) orbRing(e, 26, 70, rnd(TAU), { oy: 14, c: P.gold, noparry: i % 2 === 1 }); } }); e.state = 'rec'; e.t = 2; }
+            else if (k === 'rings') { for (let i = 0; i < 4; i++) G.timers.push({ t: i * 0.45, fn: () => { if (!e.dead && !e.dying) orbRing(e, 26, 70, rnd(TAU), { oy: 19, c: P.gold, noparry: i % 2 === 1 }); } }); e.state = 'rec'; e.t = 2; }
             else if (k === 'beams') {
               const off = rnd(TAU), dir = Math.random() < 0.5 ? 1 : -1;
-              for (let i = 0; i < 8; i++) G.hbeams.push({ owner: e, oy: 14, x: e.x, y: e.y - 14, a: off + (i * TAU) / 8, rot: dir * 0.55, w: 4, warn: 0.9, t: 0, life: 3.5, len: 0 });
+              for (let i = 0; i < 8; i++) G.hbeams.push({ owner: e, oy: 19, x: e.x, y: e.y - 19, a: off + (i * TAU) / 8, rot: dir * 0.55, w: 4, warn: 0.9, t: 0, life: 3.5, len: 0 });
               A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3.5, fn: () => A.loop('bossbeam', false) }); e.state = 'rec'; e.t = 3.5;
             } else if (k === 'minions') {
               for (let i = 0; i < 4; i++) { const a = (i * TAU) / 4; spawnEnemy('wisp', clamp(e.x + Math.cos(a) * 50, B.x0 + 10, B.x1 - 10), clamp(e.y + Math.sin(a) * 40, B.y0 + 10, B.y1 - 4)); }
               A.sigil(); e.state = 'rec'; e.t = 0.8;
             } else {
               const off = rnd(TAU);
-              for (let i = 0; i < 4; i++) G.hbeams.push({ owner: e, oy: 14, x: e.x, y: e.y - 14, a: off + (i * Math.PI) / 2, rot: 1.3 * (Math.random() < 0.5 ? 1 : -1), w: 8, warn: 0.7, t: 0, life: 2.6, len: 0 });
+              for (let i = 0; i < 4; i++) G.hbeams.push({ owner: e, oy: 19, x: e.x, y: e.y - 19, a: off + (i * Math.PI) / 2, rot: 1.3 * (Math.random() < 0.5 ? 1 : -1), w: 8, warn: 0.7, t: 0, life: 2.6, len: 0 });
               A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 2.6, fn: () => A.loop('bossbeam', false) }); e.state = 'spiral'; e.t = 2.6; e.fireT = 0.3; e.sdir = 1;
             }
           }
           break;
         case 'gaze': {
           e.t -= dt;
-          const ey = e.y - 22 - (e.z || 0), want = Math.atan2(p.y - 6 - ey, p.x - e.x), turn = (e.phase === 2 ? 1 : 0.78) * dt;
+          const ey = e.y - 29 - (e.z || 0), want = Math.atan2(p.y - 6 - ey, p.x - e.x), turn = (e.phase === 2 ? 1 : 0.78) * dt;
           e.ga += clamp(angDiff(want, e.ga), -turn, turn);
           const inCone = p.state !== 'dash' && p.state !== 'dead' && Math.abs(angDiff(want, e.ga)) < 0.3 && hyp(p.x - e.x, p.y - 6 - ey) < 270;
           G.stare = inCone ? (G.stare || 0) + dt : Math.max(0, (G.stare || 0) - dt * 0.6);
@@ -1149,7 +1169,7 @@ Object.assign(BOSSES, {
         }
         case 'spiral':
           e.t -= dt; e.fireT -= dt;
-          if (e.fireT <= 0) { e.fireT = 0.07 / spd; for (let k = 0; k < 4; k++) fire(e.x, e.y - 14, e.spin + (k * TAU) / 4, 75, { c: P.gold, noparry: k % 2 === 0 }); e.spin += 0.22 * e.sdir; A.shoot(); }
+          if (e.fireT <= 0) { e.fireT = 0.07 / spd; for (let k = 0; k < 4; k++) fire(e.x, e.y - 19, e.spin + (k * TAU) / 4, 75, { c: P.gold, noparry: k % 2 === 0 }); e.spin += 0.22 * e.sdir; A.shoot(); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
           break;
         case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
@@ -1158,7 +1178,7 @@ Object.assign(BOSSES, {
     tele(e, blink) {
       if (e.state !== 'gaze') return;
       // the stare: a wedge of gold light out of the eye, and the stone creeping over you while you stand in it
-      const ey = e.y - 22 - (e.z || 0), p = G.p;
+      const ey = e.y - 29 - (e.z || 0), p = G.p;
       ctx.globalAlpha = 0.5; ctx.fillStyle = checker(blink ? '#ffd447' : '#c98a1a');
       ctx.beginPath(); ctx.moveTo(e.x, ey); ctx.arc(e.x, ey, 270, e.ga - 0.3, e.ga + 0.3); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
       line(e.x, ey, e.x + Math.cos(e.ga) * 270, ey + Math.sin(e.ga) * 270, '#fff0a0');
@@ -1166,14 +1186,14 @@ Object.assign(BOSSES, {
       if (k > 0) for (let i = 0; i < 24; i++) { if (i / 24 > k) break; const a = -Math.PI / 2 + (i / 24) * TAU; px(p.x + Math.cos(a) * 10, p.y - 8 + Math.sin(a) * 12, k > 0.7 && blink ? P.paper : '#9c98aa'); }
     },
     drawBody(e, x, y) {
-      // (drawn 1.2 times finer than its design: 0.8 game pixels to a unit; the eye sits at 25, 24)
-      const cx = x + 20, cy = y + 19;
-      ring(cx, cy, 13 + Math.sin(G.time * 6) * 1.5, 1, P.gold); glow(cx, cy, P.gold, 30, 0.35);
+      // (drawn 1.6 times finer than its design: 1.07 game pixels to a unit; the eye sits at 25, 24)
+      const cx = x + 27, cy = y + 26;
+      ring(cx, cy, 17 + Math.sin(G.time * 6) * 1.5, 1, P.gold); glow(cx, cy, P.gold, 38, 0.35);
       // the pupil looks at you (while it stares, along its stare)
       const a = e.state === 'gaze' ? e.ga : Math.atan2(G.p.y - 6 - cy, G.p.x - cx);
       if (e.state === 'gaze') glow(cx, cy, '#fff0a0', 18, 0.5);
-      rect(cx + Math.cos(a) * 1.6 - 1, cy + Math.sin(a) * 1.6 - 2, 2, 4, '#1a0a06'); px(cx + Math.cos(a) * 1.6, cy + Math.sin(a) * 1.6 - 1, P.paper);
-      if (e.open < 1) { const h = Math.round(6 * (1 - e.open)); rect(cx - 8, cy - 6, 16, h, '#0a0610'); rect(cx - 8, cy + 6 - h, 16, h, '#0a0610'); }
+      rect(cx + Math.cos(a) * 2.1 - 1, cy + Math.sin(a) * 2.1 - 2, 3, 5, '#1a0a06'); px(cx + Math.cos(a) * 2.1, cy + Math.sin(a) * 2.1 - 1, P.paper);
+      if (e.open < 1) { const h = Math.round(8 * (1 - e.open)); rect(cx - 10, cy - 8, 21, h, '#0a0610'); rect(cx - 10, cy + 8 - h, 21, h, '#0a0610'); }
     },
     bars: introBars,
   },
@@ -1185,7 +1205,7 @@ const BRASS = '#e8c070', NOXC = '#b48cff';
 const volley = (fn) => { const n0 = G.shots.length; fn(); return G.shots.slice(n0); };
 Object.assign(BOSSES, {
   clock: {
-    name: 'THE CLOCKWORK', short: 'CLOCKWORK', sub: 'TIME BENDS TO IT', col: BRASS, colD: '#5a3a10', hp: 5100, r: 17, speed: 28, score: 52000, music: 'boss_clock',
+    name: 'THE CLOCKWORK', short: 'CLOCKWORK', sub: 'TIME BENDS TO IT', col: BRASS, colD: '#5a3a10', hp: 5100, r: 22, speed: 28, score: 52000, music: 'boss_clock',
     init(e) { e.state = 'intro'; e.t = 2.8; e.under = true; e.hand = 0; e.handM = 0; },
     update(e, dt, d, ang) {
       const p = G.p, spd = e.phase === 2 ? 1.35 : 1;
@@ -1195,7 +1215,7 @@ Object.assign(BOSSES, {
         // it ticks louder and louder, then appears with a chime
         e.t -= dt;
         if (Math.floor(e.t * 4) !== Math.floor((e.t + dt) * 4)) { A.click(); if (e.t < 2) shake(0.15); }
-        if (e.under && e.t < 1) { e.under = false; flash(BRASS, 0.2, true); A.bossRoar(); A.victory(); addRing(e.x, e.y - 28, BRASS, 360, 0.6, 3); addRing(e.x, e.y - 28, P.paper, 260, 0.4, 1); }
+        if (e.under && e.t < 1) { e.under = false; flash(BRASS, 0.2, true); A.bossRoar(); A.victory(); addRing(e.x, e.y - 37, BRASS, 360, 0.6, 3); addRing(e.x, e.y - 37, P.paper, 260, 0.4, 1); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
         return;
       }
@@ -1217,20 +1237,20 @@ Object.assign(BOSSES, {
             } else if (k === 'hands') {
               // the hour and minute hands sweep the arena as beams
               const a0 = rnd(TAU);
-              G.hbeams.push({ owner: e, oy: 28, x: e.x, y: e.y - 28, a: a0, rot: 0.5 * spd, w: 7, warn: 0.9, t: 0, life: 3.6, len: 0 });
-              G.hbeams.push({ owner: e, oy: 28, x: e.x, y: e.y - 28, a: a0 + Math.PI, rot: -1.1 * spd, w: 4, warn: 0.9, t: 0, life: 3.6, len: 0 });
-              if (e.phase === 2) G.hbeams.push({ owner: e, oy: 28, x: e.x, y: e.y - 28, a: a0 + Math.PI / 2, rot: 1.7, w: 3, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              G.hbeams.push({ owner: e, oy: 37, x: e.x, y: e.y - 37, a: a0, rot: 0.5 * spd, w: 7, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              G.hbeams.push({ owner: e, oy: 37, x: e.x, y: e.y - 37, a: a0 + Math.PI, rot: -1.1 * spd, w: 4, warn: 0.9, t: 0, life: 3.6, len: 0 });
+              if (e.phase === 2) G.hbeams.push({ owner: e, oy: 37, x: e.x, y: e.y - 37, a: a0 + Math.PI / 2, rot: 1.7, w: 3, warn: 0.9, t: 0, life: 3.6, len: 0 });
               A.warn(); A.loop('bossbeam', true, 'boss'); G.timers.push({ t: 3.6, fn: () => A.loop('bossbeam', false) });
               e.state = 'rec'; e.t = 3.6;
             } else if (k === 'freeze') {
               // a ring of shots stops dead, then every one turns toward you
-              const shots = volley(() => orbRing(e, e.phase === 2 ? 30 : 22, 95, undefined, { oy: 28, c: BRASS, life: 5 }));
+              const shots = volley(() => orbRing(e, e.phase === 2 ? 30 : 22, 95, undefined, { oy: 37, c: BRASS, life: 5 }));
               G.timers.push({ t: 0.65, fn: () => { for (const s of shots) { s.vx = s.vy = 0; } A.click(); flash(BRASS, 0.08, false); G.banner = { text: 'TIME STOP', sub: '', t: 0, life: 0.8, c: BRASS }; } });
               G.timers.push({ t: 1.35, fn: () => { for (const s of shots) { if (s.dead) continue; const a = Math.atan2(G.p.y - 6 - s.y, G.p.x - s.x) + rnd(-0.08, 0.08); s.vx = Math.cos(a) * 150; s.vy = Math.sin(a) * 150; } A.zip(); } });
               e.state = 'rec'; e.t = 1.8;
             } else if (k === 'tick') {
               // tick, tock: rings with the gaps shifting each beat
-              for (let i = 0; i < 6; i++) G.timers.push({ t: i * 0.32, fn: () => { if (!e.dead && !e.dying) { orbRing(e, 18, 80, (i % 2 ? 0.5 : 0) + e.hand, { oy: 28, c: i % 2 ? P.paper : BRASS, noparry: i % 2 === 0 }); A.click(); } } });
+              for (let i = 0; i < 6; i++) G.timers.push({ t: i * 0.32, fn: () => { if (!e.dead && !e.dying) { orbRing(e, 18, 80, (i % 2 ? 0.5 : 0) + e.hand, { oy: 37, c: i % 2 ? P.paper : BRASS, noparry: i % 2 === 0 }); A.click(); } } });
               e.state = 'rec'; e.t = 2.1;
             } else if (k === 'alarm') {
               // twelve strikes go off around you like the hours on a dial
@@ -1242,7 +1262,7 @@ Object.assign(BOSSES, {
               // rewinds to the far side of the arena and fires as it lands
               G.ghosts.push({ x: e.x, y: e.y, flip: false, t: 0, life: 0.5, c: BRASS, spr: sprFor(e) });
               e.x = clamp(AWc() - (p.x - AWc()), B.x0 + 30, B.x1 - 30); e.y = clamp(B.y0 + 40 + rnd(0, 40), B.y0 + 30, B.y1 - 30);
-              orbRing(e, 24, 85, undefined, { oy: 28, c: BRASS }); A.zip(); flash(BRASS, 0.1, false);
+              orbRing(e, 24, 85, undefined, { oy: 37, c: BRASS }); A.zip(); flash(BRASS, 0.1, false);
               e.state = 'rec'; e.t = 0.7;
             }
           }
@@ -1253,12 +1273,12 @@ Object.assign(BOSSES, {
     },
     drawBody(e, x, y) {
       // the hands, drawn live over the dial
-      // (drawn 1.25 times finer than its design: 0.83 game pixels to a unit; the dial is at 22, 22 and floats with it)
-      const bob = 0.8 * Math.sin(TAU * (e.motion?.phase || 0)) * 0.833, cx = x + 18.3, cy = y + 18.3 + bob;
-      line(cx, cy, cx + Math.cos(e.hand) * 4.5, cy + Math.sin(e.hand) * 4.5, '#3a2410', 2);
-      line(cx, cy, cx + Math.cos(e.handM) * 6.5, cy + Math.sin(e.handM) * 6.5, '#3a2410', 1);
-      disc(cx, cy, 1, BRASS); px(cx, cy, P.paper);
-      ring(cx, cy, 11 + Math.sin(G.time * 4), 1, BRASS); glow(cx, cy, BRASS, 24, 0.3);
+      // (drawn 1.65 times finer than its design: 1.1 game pixels to a unit; the dial is at 22, 22 and floats with it)
+      const bob = 0.8 * Math.sin(TAU * (e.motion?.phase || 0)) * 1.1, cx = x + 24.2, cy = y + 24.2 + bob;
+      line(cx, cy, cx + Math.cos(e.hand) * 6, cy + Math.sin(e.hand) * 6, '#3a2410', 2);
+      line(cx, cy, cx + Math.cos(e.handM) * 8.6, cy + Math.sin(e.handM) * 8.6, '#3a2410', 1);
+      disc(cx, cy, 1.5, BRASS); px(cx, cy, P.paper);
+      ring(cx, cy, 14.5 + Math.sin(G.time * 4), 1, BRASS); glow(cx, cy, BRASS, 30, 0.3);
     },
     bars: introBars,
   },
@@ -1270,7 +1290,7 @@ Object.assign(BOSSES, {
   // breathes in and drags you toward it while night pours out in a spiral. At two thirds the night falls (the arena goes
   // dark round you); at one third it becomes the last night: faster, and eyes open round the arena and stare beams.
   nox: {
-    name: 'NOX', short: 'NOX', sub: 'THE LAST NIGHT', col: NOXC, colD: '#14082a', hp: 8200, r: 29, speed: 40, score: 100000, music: 'boss_nox', end: true,
+    name: 'NOX', short: 'NOX', sub: 'THE LAST NIGHT', col: NOXC, colD: '#14082a', hp: 8200, r: 32, speed: 40, score: 100000, music: 'boss_nox', end: true,
     death: 'THE NIGHT BREAKS', marks: [0.33, 0.66],
     init(e) { e.state = 'intro'; e.t = 3.2; e.alpha = 0; e.y = Math.max(e.y, B.y0 + 92); },
     update(e, dt, d, ang, dx) {
@@ -1285,7 +1305,7 @@ Object.assign(BOSSES, {
         if (e.t <= 1.2 && !e.met) {
           e.met = true; delete e.alpha;
           flash(NOXC, 0.3, true); A.bossRoar(); shake(1);
-          for (let i = 0; i < 3; i++) addRing(e.x, e.y - 30, i % 2 ? P.paper : NOXC, 300 + i * 90, 0.6, 3);
+          for (let i = 0; i < 3; i++) addRing(e.x, e.y - 33, i % 2 ? P.paper : NOXC, 300 + i * 90, 0.6, 3);
           say(noxLines(G.char), { lore: true });
         }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.6; }
@@ -1311,11 +1331,11 @@ Object.assign(BOSSES, {
             G.banner = { text: 'DEAD STARS', sub: '', t: 0, life: 1, c: NOXC }; A.meteorFall(); e.state = 'rec'; e.t = 1.5;
           } else if (k === 'reach') {
             // the dark reaches across the arena in lines: dash through them
-            for (let i = 0; i < (e.phase >= 2 ? 7 : 5); i++) { const a = rnd(TAU), cx = p.x + (i < 2 ? 0 : rnd(-80, 80)), cy = p.y - 5 + (i < 2 ? 0 : rnd(-55, 55)); G.hlines.push({ x0: cx - Math.cos(a) * 160, y0: cy - Math.sin(a) * 160, x1: cx + Math.cos(a) * 160, y1: cy + Math.sin(a) * 160, t: -i * 0.12, pend: 0.95, dmg: e.awakened ? 5 : 3, done: false, c: NOXC, c0: '#2a0e4a' }); }
+            for (let i = 0; i < (e.phase >= 2 ? 7 : 5); i++) { const a = rnd(TAU), cx = p.x + (i < 2 ? 0 : rnd(-80, 80)), cy = p.y - 5 + (i < 2 ? 0 : rnd(-55, 55)); G.hlines.push({ x0: cx - Math.cos(a) * 160, y0: cy - Math.sin(a) * 160, x1: cx + Math.cos(a) * 160, y1: cy + Math.sin(a) * 160, t: -i * 0.12, pend: 0.95, dmg: e.awakened ? 5 : 3, done: false, c: NOXC, c0: '#2a0e4a', tent: true }); }
             G.banner = { text: 'THE DARK REACHES', sub: 'DASH THROUGH IT', t: 0, life: 1.2, c: NOXC }; A.warn(); A.rift(); e.state = 'rec'; e.t = 1.6;
           } else if (k === 'ring') {
             // rings of night, each with a gap to slip through
-            for (let i = 0; i < 3; i++) G.timers.push({ t: i * 0.45, fn: () => { if (!e.dead && !e.dying) orbRing(e, 30, 75 + i * 12, Math.atan2(G.p.y - e.y, G.p.x - e.x) + rnd(-1, 1), { oy: 30, c: NOXC, noparry: i === 1 }); } });
+            for (let i = 0; i < 3; i++) G.timers.push({ t: i * 0.45, fn: () => { if (!e.dead && !e.dying) orbRing(e, 30, 75 + i * 12, Math.atan2(G.p.y - e.y, G.p.x - e.x) + rnd(-1, 1), { oy: 33, c: NOXC, noparry: i === 1 }); } });
             e.state = 'rec'; e.t = 1.6;
           } else if (k === 'shades') {
             for (let i = 0; i < (e.phase >= 2 ? 4 : 3); i++) { const a = rnd(TAU); spawnEnemy('shade', clamp(e.x + Math.cos(a) * 50, B.x0 + 10, B.x1 - 10), clamp(e.y + Math.sin(a) * 40, B.y0 + 10, B.y1 - 4)); }
@@ -1338,8 +1358,8 @@ Object.assign(BOSSES, {
           e.t -= dt; e.fireT -= dt; e.vx = e.vy = 0;
           const dd = Math.max(1, hyp(e.x - p.x, e.y - p.y)), pull = 46 * spd * dt;
           if (dd > e.r + 8 && p.state !== 'dead' && p.state !== 'dash') { p.x = clamp(p.x + ((e.x - p.x) / dd) * pull, B.x0 + 4, B.x1 - 4); p.y = clamp(p.y + ((e.y - p.y) / dd) * pull, B.y0 + 4, B.y1 - 2); }
-          if (Math.random() < 0.6) { const a = rnd(TAU), r = rnd(60, 110); part(e.x + Math.cos(a) * r, e.y - 30 + Math.sin(a) * r * 0.7, -Math.cos(a) * r * 1.6, -Math.sin(a) * r * 1.1, 0.5, NOXC, { drag: 0.5 }); }
-          if (e.fireT <= 0) { e.fireT = 0.14; for (let j = 0; j < 2; j++) fire(e.x, e.y - 30, e.spin + j * Math.PI, 70, { c: NOXC }); e.spin += 0.32; A.shoot(); }
+          if (Math.random() < 0.6) { const a = rnd(TAU), r = rnd(60, 110); part(e.x + Math.cos(a) * r, e.y - 33 + Math.sin(a) * r * 0.7, -Math.cos(a) * r * 1.6, -Math.sin(a) * r * 1.1, 0.5, NOXC, { drag: 0.5 }); }
+          if (e.fireT <= 0) { e.fireT = 0.14; for (let j = 0; j < 2; j++) fire(e.x, e.y - 33, e.spin + j * Math.PI, 70, { c: NOXC }); e.spin += 0.32; A.shoot(); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
           break;
         }
@@ -1350,7 +1370,7 @@ Object.assign(BOSSES, {
       // two eyes burning in the hood, a crown of dead stars glittering over it (its design is drawn 2.4 times finer:
       // 1.6 game pixels to each unit of the design in tools/bosses_art.py)
       if (e.awakened) { glow(e.x, y + s.h * 0.50, '#ffaa7b', 12 + Math.sin(G.t*4)*2, 0.62); return; }
-      const u = 2.4, gx = (ax) => x + (e.face < 0 ? s.w - ax * u : ax * u);
+      const u = 2.667, gx = (ax) => x + (e.face < 0 ? s.w - ax * u : ax * u);
       glow(gx(18.5), y + 13 * u, NOXC, 5 + Math.sin(G.time * 6), 0.6); glow(gx(25.5), y + 13 * u, NOXC, 5, 0.5);
       for (let i = 0; i < 3; i++) { const a = G.time * 0.8 + (i * TAU) / 3; px(gx(22 + Math.cos(a) * 9), y + (8 + Math.sin(a) * 3) * u, '#ece8f4'); }
       if (e.state === 'pull') { ctx.globalAlpha = 0.3; ring(x + s.w / 2, y + 26 * u, 30 + (G.time * 60) % 40, 1, NOXC); ctx.globalAlpha = 1; }

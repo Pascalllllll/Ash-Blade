@@ -9,16 +9,16 @@
 //          your card again, Escape goes back to choosing.
 // Fighters are drawn at three quarters of their fight size while you choose, and at their fight size once one is
 // locked in and you walk the camp, as you would in a fight.
-import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas } from './gfx.js?v=207';
-import { A } from './audio.js?v=207';
-import { input, keyHit, keyDown, actionHit } from './input.js?v=207';
-import { keyLabel } from './bindings.js?v=207';
-import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=207';
-import { CHARS } from './chars.js?v=207';
-import { drawFighter } from './title-scene.js?v=207';
-import { drawEmote, sayBubble } from './emotes.js?v=207';
-import { drawSelect, sel } from './ui.js?v=207';
-import { loadPortraits } from './portraits.js?v=207';
+import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas } from './gfx.js?v=209';
+import { A } from './audio.js?v=209';
+import { input, keyHit, keyDown, actionHit } from './input.js?v=209';
+import { keyLabel } from './bindings.js?v=209';
+import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=209';
+import { CHARS } from './chars.js?v=209';
+import { drawFighter } from './title-scene.js?v=209';
+import { drawEmote, sayBubble } from './emotes.js?v=209';
+import { drawSelect, sel } from './ui.js?v=209';
+import { loadPortraits } from './portraits.js?v=209';
 
 const TAU = Math.PI * 2;
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };

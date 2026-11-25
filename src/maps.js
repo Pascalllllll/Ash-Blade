@@ -1,4 +1,4 @@
-import { BAYER, target, rect, px, line, disc, ring } from './gfx.js?v=207';
+import { BAYER, target, rect, px, line, disc, ring } from './gfx.js?v=209';
 
 export const AW = 560, AH = 352;
 export const B = { x0: 20, y0: 50, x1: AW - 20, y1: AH - 18 };
@@ -11,12 +11,14 @@ export const MAPS = {
     f: ['#1f1929', '#2b2337', '#1a1523', '#3d3250', '#15111d', '#07060b'],
     w: ['#3d3250', '#463a5c', '#574868', '#1f1929', '#2b2337'],
     flame: ['#ff6a2b', '#ffa646', '#ffe08a'], friction: 18, slide: 9, deco: 'rune', ambient: 'dust', pools: [],
+    ob: 'pillar', obst: [[95, 112, 9], [465, 112, 9], [110, 288, 9], [450, 288, 9]],
   },
   FROST: {
     name: 'FROZEN HOLLOW', desc: 'ICE FLOOR. EVERYTHING SLIDES',
     f: ['#1b2a3e', '#25405c', '#162236', '#4a7aa3', '#0f1a2a', '#060a12'],
     w: ['#2e4a66', '#3a5a7a', '#7fb2dc', '#16233a', '#24405e'],
     flame: ['#3fa9ff', '#9fe0ff', '#ffffff'], friction: 4, slide: 3, deco: 'ice', ambient: 'snow', pools: [],
+    ob: 'ice', obst: [[108, 118, 9], [452, 118, 9], [178, 302, 8], [382, 302, 8], [56, 218, 8], [504, 218, 8]],
   },
   FORGE: {
     name: 'EMBER FORGE', desc: 'KNOCK FOES INTO THE LAVA',
@@ -24,18 +26,21 @@ export const MAPS = {
     w: ['#3a2a26', '#46322c', '#6a4a3c', '#1d1616', '#2a1e1b'],
     flame: ['#ff4a1c', '#ff9a3c', '#ffe08a'], friction: 18, slide: 9, deco: 'cracks', ambient: 'ash',
     pools: [[130, 140, 22], [440, 135, 20], [160, 285, 18], [410, 282, 24]],
+    ob: 'anvil', obst: [[72, 212, 9], [488, 212, 9], [280, 304, 9]],
   },
   GRID: {
     name: 'NEON GRID', desc: 'A FIGHT INSIDE THE MACHINE',
     f: ['#0c0b1c', '#121130', '#0a0918', '#2a2470', '#06050f', '#020108'],
     w: ['#141236', '#1b1846', '#ff4fa8', '#0a0918', '#121130'],
     flame: ['#ff4fa8', '#62efff', '#ffffff'], friction: 20, slide: 9, deco: 'grid', ambient: 'data', pools: [],
+    ob: 'pylon', obst: [[130, 96, 7], [430, 96, 7], [130, 300, 7], [430, 300, 7], [58, 200, 7], [502, 200, 7]],
   },
   SHRINE: {
     name: 'OVERGROWN SHRINE', desc: 'MOSS, LANTERNS AND FIREFLIES',
     f: ['#1a2119', '#243024', '#151b14', '#3b4f33', '#10150f', '#060805'],
     w: ['#3a4434', '#46523e', '#6e8a55', '#1a2119', '#2a3426'],
     flame: ['#ffcf5a', '#fff0a8', '#ffffff'], friction: 18, slide: 9, deco: 'moss', ambient: 'fireflies', pools: [],
+    ob: 'lantern', obst: [[100, 120, 7], [460, 120, 7], [100, 282, 7], [460, 282, 7]],
   },
   // the floors of the descent that are theirs alone, each built for the boss waiting at its end
   NEST: {
@@ -43,42 +48,49 @@ export const MAPS = {
     f: ['#18201a', '#212c22', '#121914', '#344832', '#0d130e', '#050806'],
     w: ['#2c3a2a', '#354632', '#58783a', '#141c14', '#22301f'],
     flame: ['#7ae03a', '#b5f23a', '#f0ffc0'], friction: 18, slide: 9, deco: 'webs', ambient: 'spores', pools: [],
+    ob: 'eggs', obst: [[92, 130, 10], [468, 140, 10], [142, 296, 9], [424, 292, 10]],
   },
   THRONE: {
     name: 'THE ASHEN THRONE', desc: "THE KING'S HALL, STILL BURNING",
     f: ['#272224', '#322c2e', '#1f1b1c', '#463e40', '#171314', '#070506'],
     w: ['#3a3234', '#463c3e', '#6e5a4c', '#1f1a1c', '#2c2527'],
     flame: ['#ff5a1c', '#ffa646', '#ffe08a'], friction: 18, slide: 9, deco: 'carpet', ambient: 'ash', pools: [],
+    ob: 'column', obst: [[178, 112, 8], [382, 112, 8], [178, 212, 8], [382, 212, 8], [178, 306, 8], [382, 306, 8]],
   },
   VOID: {
     name: 'THE VOID DEEP', desc: 'THE STONE IS THIN HERE',
     f: ['#161022', '#1e1630', '#100b1a', '#30244c', '#0b0814', '#040208'],
     w: ['#261d3a', '#2e2446', '#5a3e8a', '#120d1e', '#1d1630'],
     flame: ['#9a5aff', '#c49aff', '#ffffff'], friction: 18, slide: 9, deco: 'rifts', ambient: 'void', pools: [],
+    ob: 'crystal', obst: [[104, 114, 9], [456, 106, 9], [68, 262, 8], [492, 266, 8], [280, 312, 8]],
   },
   GLASS: {
     name: 'THE GLASS HALL', desc: 'A THOUSAND OF YOU LOOK BACK',
     f: ['#1a1c26', '#222634', '#14161e', '#464c66', '#0e1016', '#05060a'],
     w: ['#2a2e3e', '#33384a', '#8a94b0', '#151820', '#202432'],
     flame: ['#cfd8e0', '#ffffff', '#ffffff'], friction: 18, slide: 9, deco: 'mirror', ambient: 'glints', pools: [],
+    ob: 'mirror', obst: [[118, 110, 8], [442, 110, 8], [118, 292, 8], [442, 292, 8], [280, 318, 7]],
   },
   TEMPLE: {
     name: 'THE SUN TEMPLE', desc: 'THE SUN WATCHES FROM THE FLOOR',
     f: ['#241c14', '#2e2419', '#1c150f', '#4a3a24', '#140f0a', '#070503'],
     w: ['#3e3020', '#4a3a26', '#8a6a3a', '#1e170f', '#2e2419'],
     flame: ['#ffb02a', '#ffd447', '#fff2c0'], friction: 18, slide: 9, deco: 'sun', ambient: 'motes', pools: [],
+    ob: 'obelisk', obst: [[90, 130, 8], [470, 130, 8], [90, 282, 8], [470, 282, 8]],
   },
   GEARS: {
     name: 'THE CLOCKWORKS', desc: 'GEARS UNDER YOUR FEET',
     f: ['#1e1a14', '#28221a', '#17140f', '#4a3c26', '#110e0a', '#050403'],
     w: ['#3a3022', '#463a28', '#9a7a3a', '#1c170f', '#2a2318'],
     flame: ['#ffc85a', '#ffe8a8', '#ffffff'], friction: 18, slide: 9, deco: 'gears', ambient: 'brass', pools: [],
+    ob: 'gear', obst: [[100, 112, 10], [460, 112, 10], [150, 302, 9], [410, 302, 9]],
   },
   NIGHT: {
     name: 'THE LAST NIGHT', desc: 'NOTHING BELOW BUT STARS',
     f: ['#0d0b15', '#13111e', '#0a0910', '#25213c', '#08070d', '#020104'],
     w: ['#17152b', '#1d1a35', '#3c3668', '#0b0a15', '#15132b'],
     flame: ['#6a5aff', '#b4a8ff', '#ffffff'], friction: 18, slide: 9, deco: 'stars', ambient: 'stars', pools: [],
+    ob: 'rock', obst: [[110, 120, 9], [458, 130, 8], [78, 270, 8], [432, 302, 9], [248, 316, 7]],
   },
   // not a floor of its own: the arena choice that goes down through the floors below, one after each boss
   DESCENT: { name: 'THE DESCENT', desc: 'A NEW STAGE PAST EVERY BOSS' },
