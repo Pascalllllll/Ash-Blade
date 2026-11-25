@@ -32,7 +32,10 @@ const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], b
 export const settings = { ...DEFAULTS, ver: 5 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
 // night: the longest the endless night has been held, in seconds
-export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0, night: 0, codex: {} };
+export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0, night: 0, codex: {},
+  // the camp's shops (shop.js): gold to spend, what has been bought, the camp's look, the decorations put away, and
+  // each fighter's permanent upgrades ({ BLADE: { vit: 1, ... } })
+  gold: 0, owned: [], skin: 'ash', hidden: [], perm: {} };
 // the Compendium's record of what has been found: monsters killed (by type), bosses beaten, floors reached, endings
 // seen, evolutions taken and fighters awakened, each a count. Practice and test runs don't add to it.
 export const CODEX = ['foes', 'bosses', 'floors', 'endings', 'evos', 'awake'];
@@ -87,6 +90,19 @@ export function loadAll() {
     best.combo = Math.floor(num(b.combo, 0, 1e7, 0));
     best.perfects = Math.floor(num(b.perfects, 0, 1e6, 0));
     best.night = Math.floor(num(b.night, 0, 1e7, 0));
+    best.gold = Math.floor(num(b.gold, 0, 1e7, 0));
+    if (b.daily && typeof b.daily.day === 'string' && Array.isArray(b.daily.list)) best.daily = {
+      day: b.daily.day.slice(0, 10),
+      list: b.daily.list.slice(0, 3).map((m) => ({ id: String(m?.id || '').slice(0, 12), goal: Math.floor(num(m?.goal, 1, 1e5, 1)), reward: Math.floor(num(m?.reward, 0, 50, 0)), got: Math.floor(num(m?.got, 0, 1e5, 0)), claimed: m?.claimed === true })),
+    };
+    const ids = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === 'string' && /^[a-z0-9]{1,16}$/.test(x)))].slice(0, 200) : []);
+    best.owned = ids(b.owned); best.hidden = ids(b.hidden);
+    best.skin = typeof b.skin === 'string' && /^[a-z0-9]{1,16}$/.test(b.skin) ? b.skin : 'ash';
+    best.perm = {};
+    if (b.perm && typeof b.perm === 'object') for (const c of OPTIONS.char) {
+      const r = b.perm[c];
+      if (r && typeof r === 'object') { best.perm[c] = {}; for (const k of Object.keys(r).slice(0, 12)) if (/^[a-z]{1,8}$/.test(k)) best.perm[c][k] = Math.floor(num(r[k], 0, 5, 0)); }
+    }
     // the training is shown once; anyone who has played before has seen how to play
     best.tut = b.tut === true || best.wave > 0;
     for (const k of CODEX) {

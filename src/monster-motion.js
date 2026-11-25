@@ -1,6 +1,6 @@
-import { makeCanvas } from './gfx.js?v=209';
+import { makeCanvas } from './gfx.js?v=212';
 
-const FRAMES = 24, COLUMNS = 6, TAU = Math.PI * 2;
+const TAU = Math.PI * 2;
 const sheets = new Map();
 
 // Most draws can use the atlas directly. A corpse, a flash or a mirrored afterimage may need its own bitmap.
@@ -32,9 +32,11 @@ export function loadMonsterSheet(id, paintedHeight) {
   const im = new Image();
   im.decoding = 'async';
   im.onload = () => {
-    const w = im.naturalWidth / COLUMNS, h = Math.round(paintedHeight * 3), block = FRAMES / COLUMNS * h;
-    const frames = Array.from({ length: FRAMES }, (_, i) => {
-      const x = i % COLUMNS * w, y = Math.floor(i / COLUMNS) * h;
+    // 48 frames in 8 columns (6 rows), or a giant's 24 in 6 columns (4 rows); twice the rows when the blink follows
+    const h = Math.round(paintedHeight * 3), rows = Math.round(im.naturalHeight / h);
+    const count = rows === 4 || rows === 8 ? 24 : 48, cols = count === 24 ? 6 : 8, w = im.naturalWidth / cols, block = count / cols * h;
+    const frames = Array.from({ length: count }, (_, i) => {
+      const x = i % cols * w, y = Math.floor(i / cols) * h;
       const frame = atlasFrame(im, x, y, w, h);
       if (im.naturalHeight === 2 * block) {
         frame.blink = atlasFrame(im, x, y + block, w, h);
@@ -45,7 +47,7 @@ export function loadMonsterSheet(id, paintedHeight) {
     sheets.set(id, frames);
   };
   im.onerror = () => sheets.delete(id);
-  im.src = new URL(`../art/sprites/monsters/${id}.png?v=7`, import.meta.url).href;
+  im.src = new URL(`../art/sprites/monsters/${id}.png?v=9`, import.meta.url).href;
 }
 
 export function monsterFrame(id, phase, painted, blink = false) {

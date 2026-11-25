@@ -13,7 +13,8 @@
 //   obelisk  the Sun Temple: a sandstone obelisk with a gold sun set in it
 //   gear     the Clockworks: a great gear standing in its frame, turning
 //   rock     the Last Night: a fallen dead star, black, cracked with violet light
-import { ctx, P, rect, px, line, disc, ring, glow } from './gfx.js?v=209';
+//   dummy    the training yard: a straw dummy on its post, a target painted on its chest
+import { ctx, P, rect, px, line, disc, ring, glow } from './gfx.js?v=212';
 
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 // the shadow on the floor under it (drawn with the floor, before anyone stands on it)
@@ -23,6 +24,19 @@ export function drawObstacleShadow(o) {
   ctx.globalAlpha = 1;
 }
 const DRAW = {
+  dummy(o, t) {
+    const { x, y } = o, wob = Math.round(Math.sin(t * 1.3 + x) * 0.6);
+    rect(x - 1, y - 26, 3, 26, '#3a2818'); rect(x - 1, y - 26, 1, 26, '#6a4a2e'); rect(x - 4, y - 2, 9, 2, '#4a3420');
+    rect(x - 9, y - 21, 19, 2, '#5a3e26'); rect(x - 9, y - 21, 19, 1, '#8c6a44');
+    rect(x - 10, y - 22, 3, 4, '#c8a870'); rect(x + 8, y - 22, 3, 4, '#c8a870');
+    rect(x - 5 + wob, y - 22, 11, 13, '#140c08'); rect(x - 4 + wob, y - 21, 9, 11, '#c8a870'); rect(x - 4 + wob, y - 21, 2, 11, '#e0c48a'); rect(x + 3 + wob, y - 21, 2, 11, '#a88a58');
+    rect(x - 2 + wob, y - 17, 5, 4, '#f0e8d8'); rect(x - 1 + wob, y - 16, 3, 2, '#c0302a'); px(x + wob, y - 16, '#ffd447');
+    rect(x - 4 + wob, y - 12, 9, 1, '#7a5a3a');
+    rect(x - 4 + wob, y - 30, 9, 8, '#140c08'); rect(x - 3 + wob, y - 29, 7, 6, '#d8b880'); rect(x - 3 + wob, y - 29, 2, 6, '#ecd4a0');
+    px(x - 2 + wob, y - 27, '#3a2a1a'); px(x - 1 + wob, y - 26, '#3a2a1a'); px(x - 2 + wob, y - 25, '#3a2a1a');
+    px(x + 2 + wob, y - 27, '#3a2a1a'); px(x + 1 + wob, y - 26, '#3a2a1a'); px(x + 2 + wob, y - 25, '#3a2a1a');
+    rect(x - 2 + wob, y - 31, 5, 1, '#c8a050'); px(x + 3 + wob, y - 32, '#c8a050'); px(x - 3 + wob, y - 32, '#a8823a');
+  },
   pillar(o, t) {
     const { x, y } = o, w = o.r * 2 - 2, h = 26, x0 = x - w / 2;
     rect(x0 - 3, y - 4, w + 6, 5, '#2a2434'); rect(x0 - 3, y - 4, w + 6, 1, '#4a4258');

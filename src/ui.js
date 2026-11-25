@@ -1,17 +1,19 @@
-import { keys, keyLabel } from './bindings.js?v=209';
-import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=209';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=209';
-import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=209';
-import { SPR, icon } from './sprites.js?v=209';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=209';
-import { A } from './audio.js?v=209';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=209';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock, DASH_COST, dashGap } from './world.js?v=209';
-import { CHARS, skillPreview } from './chars.js?v=209';
-import { BOSSES, bossFor } from './bosses.js?v=209';
-import { MAPS } from './maps.js?v=209';
-import { drawTalk } from './story.js?v=209';
-import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=209';
+import { drawGold, perkFactors } from './shop.js?v=212';
+import { dailyList } from './daily.js?v=212';
+import { keys, keyLabel } from './bindings.js?v=212';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=212';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=212';
+import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=212';
+import { SPR, icon } from './sprites.js?v=212';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=212';
+import { A } from './audio.js?v=212';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=212';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock, DASH_COST, dashGap } from './world.js?v=212';
+import { CHARS, skillPreview } from './chars.js?v=212';
+import { BOSSES, bossFor } from './bosses.js?v=212';
+import { MAPS } from './maps.js?v=212';
+import { drawTalk } from './story.js?v=212';
+import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=212';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -187,17 +189,23 @@ export function drawHUD(menu) {
 
   if (TEST_BUFF) textO('TEST BUFF ON', W / 2, 4, Math.floor(G.time * 2) % 2 ? P.gold : P.paper, 1, 'c');
   // TESTING, temporary: say so while god mode or a test start is on
-  if (G.tested && !G.talk) textO(settings.god ? 'GOD MODE' : 'TEST RUN', W / 2, 4, P.gold, 1, 'c');
+  if (G.tested && !G.training && !G.talk) textO(settings.god ? 'GOD MODE' : 'TEST RUN', W / 2, 4, P.gold, 1, 'c');
   // score and high score, against the screen's right edge
   ctx.save(); ctx.translate(SX, 0);
   const hi = Math.max(best.score, G.startBest ?? best.score), beat = !G.tested && G.score > hi && hi > 0;
   // (on a phone the menu button sits in the very corner, so the numbers make room for it)
-  const rx = input.touch ? W - 30 : W - 6, waveTxt = G.night ? 'NIGHT ' + clockOf(G.night.t) : 'WAVE ' + G.wave;
+  const rx = input.touch ? W - 30 : W - 6, waveTxt = G.training ? 'TRAINING' : G.night ? 'NIGHT ' + clockOf(G.night.t) : 'WAVE ' + G.wave;
   textO(waveTxt, rx, 4, G.night ? '#b48cff' : P.bone, 1, 'r');
   // the wave twist, tagged next to the wave number
   if (G.twist) { const tw = TWISTS[G.twist]; textO(tw.name, rx - 6 - waveTxt.length * 4, 4, Math.floor(G.time * 2) % 2 ? tw.c : P.paper, 1, 'r'); }
+  // (training keeps no score)
+  if (!G.training) {
   textO('SCORE ' + String(G.score).padStart(7, '0'), rx, 12, P.paper, 1, 'r');
-  textO((beat ? 'NEW BEST ' : 'BEST ') + String((G.tested ? hi : Math.max(hi, G.score))).padStart(7, '0'), rx, 20, beat && Math.floor(G.time * 4) % 2 ? P.paper : P.gold, 1, 'r');
+  const bestTxt = (beat ? 'NEW BEST ' : 'BEST ') + String((G.tested ? hi : Math.max(hi, G.score))).padStart(7, '0');
+  textO(bestTxt, rx, 20, beat && Math.floor(G.time * 4) % 2 ? P.paper : P.gold, 1, 'r');
+  // the gold you have, counting what this run has found (it is banked when the run ends)
+  if (!G.tested) drawGold(rx - textW(bestTxt) - 8, 20, 'r', best.gold + G.gold - G.goldBanked);
+  }
 
   if (G.combo >= 2) {
     const rk = RANKS[G.rank], rc = C(rk.c), pop = G.rankPop > 0.5 ? 1 : 0;
@@ -558,7 +566,7 @@ function drawCardInfo(id, k, lk, col, t, card) {
     text('TO UNLOCK', PANEL_C, 50, P.dust, 1, 'c'); text(k.mission[0], PANEL_C, 60, P.gold, 1, 'c'); text(k.mission[1](), PANEL_C, 68, P.bone, 1, 'c');
   } else {
     text(k.lore[0], 158, 20, P.bone); text(k.lore[1], 158, 28, P.bone);
-    const st = [['HEARTS', k.stats.hp], ['SPEED', k.stats.speed], ['DASHES', k.dash.charges], ['WEAPON POWER', Math.round((k.wpnPower || 1) * 100) + '%']];
+    const st = [['HEARTS', k.stats.hp + perkFactors(id).hp], ['SPEED', Math.round(k.stats.speed * perkFactors(id).speed)], ['DASHES', k.dash.charges], ['WEAPON POWER', Math.round((k.wpnPower || 1) * perkFactors(id).wpn * 100) + '%']];
     st.forEach(([n, v], i) => { const x = 158 + (i % 2) * 82, y = 40 + Math.floor(i / 2) * 8; text(n, x, y, P.dust); text(String(v), x + 76, y, P.paper, 1, 'r'); });
     // (the bars sit under the numbers: drawBars draws at y 85 and 92, so they are moved up here)
     ctx.save(); ctx.translate(4, -28); drawBars([['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]], col, t, id === 'DEV'); ctx.restore();
@@ -778,8 +786,8 @@ export function pauseItems(go) {
   return [
     { label: 'RESUME', act: () => go('resume') },
     { label: 'SETTINGS', act: () => go('settings') },
-    { label: 'RESTART FROM WAVE ' + G.wave, act: () => go('restart') },
-    { label: 'SAVE AND EXIT TO MENU', act: () => go('exit') },
+    { label: G.training ? 'START TRAINING AGAIN' : 'RESTART FROM WAVE ' + G.wave, act: () => go('restart') },
+    { label: G.training ? 'BACK TO THE CAMP' : 'SAVE AND EXIT TO MENU', act: () => go('exit') },
   ];
 }
 export function drawPause(items) {
@@ -787,7 +795,12 @@ export function drawPause(items) {
   textO('PAUSED', W / 2, 22, P.paper, 3, 'c');
   text(G.kit.name + '   WAVE ' + G.wave + '   ' + MAPS[G.mapKey].name + '   ' + G.diffKey, W / 2, 46, P.dust, 1, 'c');
   drawMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
-  text(G.saveError ? 'SAVE FAILED. CHECK BROWSER STORAGE AND RETRY.' : G.night ? 'SAVE KEEPS YOUR ENDLESS TIME AND BUILD' : 'CONTINUE RESTARTS THIS WAVE FROM ITS CHECKPOINT', W / 2, 150, G.saveError ? P.ember3 : P.stone2, 1, 'c');
+  // today's missions and how far along they are (they count in real runs only)
+  if (!G.tested && !G.training) dailyList().forEach((m, i) => {
+    const ready = !m.claimed && m.got >= m.goal;
+    text(m.text + '   ' + (m.claimed ? 'CLAIMED' : ready ? 'DONE: CLAIM IT AT CAMP' : Math.min(m.got, m.goal) + '/' + m.goal), W / 2, 129 + i * 7, m.claimed ? '#6a8a6a' : ready ? P.gold : '#8a7a80', 1, 'c');
+  });
+  text(G.saveError ? 'SAVE FAILED. CHECK BROWSER STORAGE AND RETRY.' : G.training ? 'TRAINING IS NEVER SAVED' : G.night ? 'SAVE KEEPS YOUR ENDLESS TIME AND BUILD' : 'CONTINUE RESTARTS THIS WAVE FROM ITS CHECKPOINT', W / 2, 150, G.saveError ? P.ember3 : P.stone2, 1, 'c');
   if (!input.touch) text('ESC TO RESUME', W / 2, 162, P.stone2, 1, 'c');
 }
 
@@ -811,6 +824,16 @@ function stats(y0, t) {
     text(v, x1, y, i === 8 ? C(RANKS[G.bestRank].c) : i === 0 ? P.gold : P.paper, 1, 'r');
   });
 }
+// what the run paid, worked out now that it is over: the lootlings' coins and the payout (world.js payOut), counting up
+function payout(y, t) {
+  const pay = G.payout, k = Math.min(1, t / 0.8), n = Math.round(G.gold * (1 - Math.pow(1 - k, 3)));
+  if (G.gold <= 0) { text('NO GOLD THIS TIME. THE DEEPER YOU GO, THE MORE THE PIT PAYS', W / 2, y, P.dust, 1, 'c'); return; }
+  let why = [['LOOTLINGS', pay.found], ['DEPTH', pay.depth], ['BOSSES', pay.bosses], ['NIGHT', pay.night], ['KILLS', pay.kills]].filter(([, v]) => v > 0).map(([a, v]) => a + ' ' + v).join('  ');
+  if (pay.mult !== 1 && pay.total > 0) why += '  X' + pay.mult + ' ' + G.diffKey;
+  const head = '+' + n, w = textW(head) + 8 + 8 + textW(why), x0 = Math.round(W / 2 - w / 2);
+  drawGold(x0, y, 'l', head);
+  text(why, x0 + textW(head) + 16, y, P.dust);
+}
 export function drawOver(t, isBest) {
   const k = ease(t / 0.6);
   dim(0.75 * k);
@@ -821,14 +844,15 @@ export function drawOver(t, isBest) {
     : G.won ? G.kit.name + ' HELD THE DARK FOR ' + held + (held === 1 ? ' NIGHT' : ' NIGHTS') : G.kit.name + ' ON WAVE ' + G.wave, W / 2, 52, G.won ? '#b48cff' : P.bone, 1, 'c');
   if (G.deathLine) text(G.deathLine, W / 2, 61, P.dust, 1, 'c');
   stats(72, t);
-  if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 127, P.gold, 2, 'c');
+  if (G.payout && t > 1.1) payout(122, t - 1.1);
+  if (isBest && t > 1 && Math.floor(t * 3) % 2) textO('NEW BEST', W / 2, 130, P.gold, 2, 'c');
   // the King's parting words over your body (the pit's, once he's dead), typed out
-  if (G.lastWords && t > 0.8) { const n = Math.floor((t - 0.8) * 30); textO(G.lastWords.slice(0, n), W / 2, 139, G.won ? '#b48cff' : P.ember, 1, 'c'); }
-  if (t > 1 && !input.touch) textO('ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 150, P.paper, 1, 'c');
+  if (G.lastWords && t > 0.8) { const n = Math.floor((t - 0.8) * 30); textO(G.lastWords.slice(0, n), W / 2, 142, G.won ? '#b48cff' : P.ember, 1, 'c'); }
+  if (t > 1 && !input.touch) textO('ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 153, P.paper, 1, 'c');
   // on a phone, two big buttons (the left half of the screen plays again, the right half goes to the menu)
   if (t > 1 && input.touch) for (const [x, label, c] of [[W / 2 - 104, 'AGAIN', P.ember], [W / 2 + 8, 'MENU', P.stone2]]) {
-    rect(x - 1, 145, 98, 20, P.ink0); rect(x, 146, 96, 18, P.ink2); rect(x, 146, 96, 1, c);
-    textO(label, x + 48, 151, P.paper, 2, 'c');
+    rect(x - 1, 151, 98, 20, P.ink0); rect(x, 152, 96, 18, P.ink2); rect(x, 152, 96, 1, c);
+    textO(label, x + 48, 157, P.paper, 2, 'c');
   }
 }
 

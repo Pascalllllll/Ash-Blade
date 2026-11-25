@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=209';
-import { heroEntrance } from './entrances.js?v=209';
-import { SPR } from './sprites.js?v=209';
-import { A } from './audio.js?v=209';
-import { input } from './input.js?v=209';
-import { best } from './store.js?v=209';
+import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=212';
+import { heroEntrance } from './entrances.js?v=212';
+import { SPR } from './sprites.js?v=212';
+import { A } from './audio.js?v=212';
+import { input } from './input.js?v=212';
+import { best } from './store.js?v=212';
 import {
-  G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, ignite, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=209';
+  G, fx, B, TAU, rnd, clamp, hyp, alive, foe, segDist, part, sparks, dust, addText, addRing, ghost, damage, ignite, pd, shoot,
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=212';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -85,7 +85,7 @@ function parryArc(p, a, R, arc, act) {
 }
 const nearest = (x, y, range, skip) => {
   let best = null, bd = range;
-  for (const e of G.E) { if (!alive(e) || (skip && skip.has(e))) continue; const d = hyp(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } }
+  for (const e of G.E) { if (!foe(e) || (skip && skip.has(e))) continue; const d = hyp(e.x - x, e.y - y); if (d < bd) { bd = d; best = e; } }
   return best;
 };
 function muzzle(x, y, a, c, n = 5) { for (let i = 0; i < n; i++) { const s = a + rnd(-0.4, 0.4), v = rnd(60, 180); part(x, y, Math.cos(s) * v, Math.sin(s) * v, rnd(0.05, 0.12), Math.random() < 0.5 ? P.paper : c, { drag: 10, glow: true, keep: true }); } }
@@ -131,7 +131,7 @@ export const CHARS = {
     id: 'BLADE', name: 'BLADE', alias: 'ASH', color: () => P.ember,
     desc: ['A FAST SWORD COMBO', 'AND TIME-STOPPING CUTS'], tip: 'HOLD CLICK, LET GO FOR A FIRE CRESCENT',
     bars: { power: 3, speed: 4, range: 2, tough: 3 },
-    stats: { hp: 9, speed: 102 }, wpnPower: 1.08, dash: { speed: 340, time: 0.14, cd: 0.55, charges: 1 }, ultRate: 1, energyHit: 1.5,
+    stats: { hp: 8, speed: 102 }, wpnPower: 1.08, dash: { speed: 340, time: 0.14, cd: 0.55, charges: 1 }, ultRate: 1, energyHit: 1.5,
     melee: {
       col: 'ember', steps: [
         // slash, X-cut, piercing thrust, whirlwind
@@ -205,7 +205,7 @@ export const CHARS = {
     r: {
       name: 'THOUSAND CUTS', icon: 'cross', desc: 'STOP TIME, CUT EVERYTHING',
       use(p) {
-        const targets = G.E.filter(alive).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y)).slice(0, 14);
+        const targets = G.E.filter(foe).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y)).slice(0, 14);
         const u = { t: 0, phase: 'gather', cuts: [], i: 0, cutT: 0, ox: p.x, oy: p.y, n: Math.round(Math.max(12, targets.length + 6) * (G.up.evoUlt ? 1.7 : 1)) };
         p.state = 'cine'; p.vx = p.vy = 0;
         A.ultStart(); shake(0.25);
@@ -240,7 +240,7 @@ export const CHARS = {
           draw(cx, cy) {
             const a = (u.phase === 'gather' ? Math.min(1, u.t / 0.4) : 1) * 0.86;
             ctx.globalAlpha = a; ctx.fillStyle = P.void; ctx.fillRect(cx - SX, cy, FW, H); ctx.globalAlpha = 1;
-            for (const e of G.E) if (!e.dead) { const s = sprFor(e); drawSprite(s, e.x - s.w / 2, e.y - s.h + 1, e.face < 0, P.bone); }
+            for (const e of G.E) if (!e.dead && !e.prop) { const s = sprFor(e); drawSprite(s, e.x - s.w / 2, e.y - s.h + 1, e.face < 0, P.bone); }
             const progress = u.phase === 'gather' ? 0.32 * u.t / 0.5 :
               u.phase === 'cuts' ? 0.32 + 0.48 * u.i / u.n : 0.8 + 0.2 * u.t / 0.6;
             drawBladeSilhouette(p, progress, P.ember);
@@ -260,7 +260,7 @@ export const CHARS = {
     id: 'GUNNER', name: 'GUNNER', alias: 'VEGA', color: () => P.gold,
     desc: ['HOLD TO SHOOT, RELOAD', 'IS AUTOMATIC'], tip: 'HOLD CLICK TO SHOOT',
     bars: { power: 3, speed: 4, range: 5, tough: 2 },
-    stats: { hp: 8, speed: 104 }, wpnPower: 1.4, dash: { speed: 310, time: 0.15, cd: 0.4, charges: 1 }, ultRate: 0.8, energyHit: 0.4,
+    stats: { hp: 7, speed: 104 }, wpnPower: 1.4, dash: { speed: 310, time: 0.15, cd: 0.4, charges: 1 }, ultRate: 0.8, energyHit: 0.4,
     primaryName: 'REVOLVER',
     init: () => ({ ammo: 14, reload: 0, fireT: 0, stand: 0, flashT: 0, marks: [] }),
     primary(p, dt, held) {
@@ -311,7 +311,7 @@ export const CHARS = {
     e: {
       name: 'DEADEYE', cost: 35, cd: 3, icon: 'eye', desc: 'SLOW TIME, SIX SURE SHOTS',
       use(p) {
-        const pool = G.E.filter((e) => alive(e) && !e.under && hyp(e.x - p.x, e.y - p.y) < 230).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y));
+        const pool = G.E.filter((e) => foe(e) && !e.under && hyp(e.x - p.x, e.y - p.y) < 230).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y));
         if (!pool.length) return false;
         const shots = 6 + G.up.mag * 2, list = pool.slice(0, shots), tough = [...list].sort((a, b) => b.hp - a.hp)[0];
         while (list.length < shots) list.push(tough);
@@ -370,9 +370,9 @@ export const CHARS = {
     id: 'WIZARD', name: 'WIZARD', alias: 'MOTH', color: () => '#b48cff',
     desc: ['HOMING MAGIC, ARCANE', 'MISSILES AND BLIZZARDS'], tip: 'E CALLS A BLIZZARD WHERE YOU AIM',
     bars: { power: 5, speed: 2, range: 4, tough: 1 },
-    stats: { hp: 8, speed: 96 }, wpnPower: 1.05, dash: { speed: 360, time: 0.12, cd: 0.5, charges: 1 }, ultRate: 1, energyHit: 1.5,
+    stats: { hp: 7, speed: 96 }, wpnPower: 1.05, dash: { speed: 360, time: 0.12, cd: 0.5, charges: 1 }, ultRate: 1, energyHit: 1.5,
     primaryName: 'ARCANE BOLT',
-    init: () => ({ fireT: 0, star: 0, starT: 0, castT: 0, volleys: [], missT: 0, rune: 0, bliz: [] }),
+    init: () => ({ fireT: 0, star: 0, starT: 0, castT: 0, volleys: [], zip: 0, rune: 0, bliz: [] }),
     primary(p, dt, held) {
       const k = p.k;
       k.fireT -= dt; k.castT -= dt;
@@ -387,15 +387,22 @@ export const CHARS = {
     update(p, dt) {
       const k = p.k;
       k.rune -= dt;
-      // the missile volley leaves the staff one at a time
-      if (k.volleys.length && (k.missT -= dt) <= 0) {
-        const volley = k.volleys[0], aim = volley.aim ?? p.aim;
-        if (--volley.remaining === 0) k.volleys.shift();
-        k.missT = 0.07;
-        const [tx, ty] = weaponTip(p, aim), a = aim + rnd(-1.1, 1.1);
-        shoot({ x: tx, y: ty, a, sp: 190, power:'spell', dmg: pd(5), kb: 70, life: 1.8, kind: G.evo === true ? 'star' : 'arcane', r: 3, c: G.evo === true ? '#ffd447' : '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) } });
-        sparks(tx, ty, a, 4, 0.5, '#b48cff', 120); A.zip();
+      // missiles leave the staff one at a time. Every volley empties within half a second of its cast, and volleys
+      // fire side by side: queued one behind another, a few quick casts (and Spell Mastery's echoes) used to stack
+      // hundreds of missiles that went on firing for half a minute after the last press.
+      k.zip -= dt;
+      for (const v of k.volleys) {
+        v.t -= dt;
+        while (v.t <= 0 && v.remaining > 0) {
+          v.remaining--; v.t += v.gap;
+          const aim = v.aim ?? p.aim, [tx, ty] = weaponTip(p, aim), a = aim + rnd(-1.1, 1.1);
+          // they don't refill energy: twelve hits a cast (thirty-six with the echoes) made the volley pay for itself
+          shoot({ x: tx, y: ty, a, sp: 190, power:'spell', dmg: pd(5), kb: 70, life: 1.8, kind: G.evo === true ? 'star' : 'arcane', r: 3, c: G.evo === true ? '#ffd447' : '#d8b8ff', homing: 7, splash: { R: 12, dmg: pd(2) }, noEnergy: true });
+          sparks(tx, ty, a, 4, 0.5, '#b48cff', 120);
+          if (k.zip <= 0) { k.zip = 0.06; A.zip(); }
+        }
       }
+      k.volleys = k.volleys.filter((v) => v.remaining > 0);
       // blizzards: ice rains inside the circle, every 0.3 s everything in it is cut and frozen
       for (const z of k.bliz) {
         z.t += dt; z.tick -= dt;
@@ -410,7 +417,7 @@ export const CHARS = {
         k.star -= dt; k.starT -= dt;
         if (k.starT <= 0) {
           k.starT = 0.14;
-          const live = G.E.filter(alive), e = live.length ? live[Math.floor(rnd(live.length))] : null;
+          const live = G.E.filter(foe), e = live.length ? live[Math.floor(rnd(live.length))] : null;
           const x = e ? e.x + rnd(-8, 8) : clamp(p.x + rnd(-120, 120), B.x0 + 10, B.x1 - 10), y = e ? e.y + rnd(-6, 6) : clamp(p.y + rnd(-80, 80), B.y0 + 10, B.y1 - 6);
           G.strikes.push({ x, y, t: 0, delay: 0.6, R: 30, dmg: 13, friendly: true, kind: 'meteor', c: P.ember });
           A.meteorFall();
@@ -422,8 +429,10 @@ export const CHARS = {
     q: {
       name: 'ARCANE MISSILES', cost: 25, cd: 1.5, icon: 'orb', desc: 'A VOLLEY OF HOMING MISSILES',
       use(p) {
-        p.k.volleys.push({ remaining: G.up.evoTwin ? 12 : G.up.twin ? 8 : 5, aim: input.device === 'touch' ? p.aim : null });
-        p.k.missT = 0; p.k.castT = 0.5;
+        const n = G.up.evoTwin ? 12 : G.up.twin ? 8 : 5;
+        if (p.k.volleys.length >= 3) p.k.volleys.shift();   // a cast and its two echoes at most
+        p.k.volleys.push({ remaining: n, gap: Math.min(0.07, 0.5 / n), t: 0, aim: input.device === 'touch' ? p.aim : null });
+        p.k.castT = 0.5;
         addRing(p.x, p.y - 1, '#b48cff', 120, 0.3, 1); addRing(p.x, p.y - 1, P.paper, 80, 0.2, 1);
         p.k.rune = 0.5; A.magic(); A.sigil();
       },
@@ -475,7 +484,7 @@ export const CHARS = {
     id: 'NINJA', name: 'SAMURAI', alias: 'SAKURA', color: () => P.blood,
     desc: ['FAST KATANA, TWO DASHES,', 'CUTS THAT SEND SHOTS BACK'], tip: 'Q FIRES A LASER FROM THE SWORD',
     bars: { power: 4, speed: 5, range: 2, tough: 2 },
-    stats: { hp: 8, speed: 118 }, wpnPower: 0.88, dash: { speed: 380, time: 0.11, cd: 0.65, charges: 2 }, ultRate: 1.05, energyHit: 1.4,
+    stats: { hp: 7, speed: 118 }, wpnPower: 0.88, dash: { speed: 380, time: 0.11, cd: 0.65, charges: 2 }, ultRate: 1.05, energyHit: 1.4,
     // Flash Strike: the first sword swing or skill within 0.6 s after a dash does 2.5x damage
     dashStrike: 2.5,
     melee: {
@@ -605,7 +614,7 @@ export const CHARS = {
               u.hopT -= dt;
               while (u.hopT <= 0 && u.i < hops) {
                 u.hopT += 0.06;
-                const live = G.E.filter((e) => alive(e) && !e.under);
+                const live = G.E.filter((e) => foe(e) && !e.under);
                 if (!live.length) { u.i = hops; break; }
                 // the nearest foe not cut yet, else the toughest
                 const fresh = live.filter((e) => !u.hit.has(e)).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y));
@@ -708,7 +717,7 @@ export const CHARS = {
     id: 'MECHANIC', name: 'MECHANIC', alias: 'RIVET', color: () => '#ff8a3c',
     desc: ['BUILDS TURRETS AND', 'COILS THAT FIGHT FOR YOU'], tip: 'Q BUILDS A TURRET',
     bars: { power: 3, speed: 3, range: 3, tough: 3 },
-    stats: { hp: 9, speed: 99 }, dash: { speed: 320, time: 0.14, cd: 0.4, charges: 1 }, ultRate: 1.1, energyHit: 2,
+    stats: { hp: 8, speed: 99 }, dash: { speed: 320, time: 0.14, cd: 0.4, charges: 1 }, ultRate: 1.1, energyHit: 2,
     melee: {
       col: 'ember', heavySfx: true, steps: [
         // swing, wrench twirl, ground slam
@@ -794,7 +803,7 @@ export const CHARS = {
     id: 'TANK', name: 'TANK', alias: 'BULWARK', color: () => '#8fa2bd',
     desc: ['SLOW, HUGE HAMMER,', 'LOTS OF HEALTH'], tip: 'HOLD CLICK TO SHATTER THE GROUND',
     bars: { power: 5, speed: 1, range: 3, tough: 5 },
-    stats: { hp: 12, speed: 83 }, dash: { speed: 260, time: 0.16, cd: 0.6, charges: 1 }, ultRate: 1, energyHit: 2.5,
+    stats: { hp: 11, speed: 83 }, dash: { speed: 260, time: 0.16, cd: 0.6, charges: 1 }, ultRate: 1, energyHit: 2.5,
     melee: {
       col: 'steel', heavySfx: true, steps: [
         // sweep, overhead slam, full hammer spin
@@ -916,7 +925,7 @@ export const CHARS = {
     id: 'ROBOT', name: 'ROBOT', alias: 'UNIT-7', color: () => P.volt,
     desc: ['A LASER BEAM THAT', 'OVERHEATS, PLUS ROCKETS'], tip: 'HOLD CLICK, WATCH THE HEAT',
     bars: { power: 4, speed: 3, range: 4, tough: 3 },
-    stats: { hp: 9, speed: 94 }, wpnPower: 1.35, dash: { speed: 340, time: 0.13, cd: 0.45, charges: 1 }, ultRate: 0.85, energyHit: 0.35, handY: 9,
+    stats: { hp: 8, speed: 94 }, wpnPower: 1.35, dash: { speed: 340, time: 0.13, cd: 0.45, charges: 1 }, ultRate: 0.85, energyHit: 0.35, handY: 9,
     primaryName: 'LASER BEAM',
     init: () => ({ heat: 0, over: 0, tick: 0, firing: false, orb: 0, ox: 0, oy: 0, otick: 0, end: [0, 0] }),
     primary(p, dt, held) {
@@ -949,7 +958,7 @@ export const CHARS = {
         k.orb -= dt;
         let tx, ty;
         if (input.device === 'mouse') { tx = input.mouse.x + fx.cam.x; ty = input.mouse.y + fx.cam.y; }
-        else { const e = G.E.find(alive); tx = e ? e.x : p.x; ty = e ? e.y : p.y; }
+        else { const e = G.E.find(foe); tx = e ? e.x : p.x; ty = e ? e.y : p.y; }
         const d = hyp(tx - k.ox, ty - k.oy), sp = Math.min(d, 150 * dt);
         if (d > 0) { k.ox += ((tx - k.ox) / d) * sp; k.oy += ((ty - k.oy) / d) * sp; }
         k.otick -= dt;
@@ -1203,7 +1212,7 @@ CHARS.DEV = {
   id: 'DEV', name: 'THE DEV', alias: 'ROOT', color: () => GREEN,
   desc: ['STARTS AS A NORMAL GUY WITH A LAPTOP.', 'PAST WAVE 20 HE REWRITES THE GAME'], tip: '5 HITS CRASH A FOE',
   bars: { power: 4, speed: 4, range: 4, tough: 2 },
-  stats: { hp: 8, speed: 100 }, wpnPower: 1.15, dash: { speed: 420, time: 0.09, cd: 0.5, charges: 1 }, ultRate: 0.9, energyHit: 1,
+  stats: { hp: 7, speed: 100 }, wpnPower: 1.15, dash: { speed: 420, time: 0.09, cd: 0.5, charges: 1 }, ultRate: 0.9, energyHit: 1,
   primaryName: 'PING',
   dmgScale: devScale,
   init: () => ({ fireT: 0, wall: 0, wallT: 0, flashT: 0, marks: [] }),
@@ -1238,7 +1247,7 @@ CHARS.DEV = {
     name: 'EXPLOIT', cost: 30, cd: 2, icon: 'eye', desc: 'MARK A GROUP, HACK THEM ALL',
     use(p) {
       const n = Math.min(10, 1 + Math.floor(devVer() / 6) + (G.wave >= 25 ? 2 : 0));
-      const targets = G.E.filter((e) => alive(e) && hyp(e.x - p.x, e.y - p.y) < 220).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y)).slice(0, n);
+      const targets = G.E.filter((e) => foe(e) && hyp(e.x - p.x, e.y - p.y) < 220).sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y)).slice(0, n);
       if (!targets.length) return false;
       for (const e of targets) {
         if (e.type !== 'boss') e.marked = 0.5;
@@ -1292,7 +1301,7 @@ CHARS.DEV = {
             if (G.up.evoUlt || root) for (const s of G.shots) if (s.owner === 'enemy') s.dead = true;
             flash(C1, root ? 0.45 : 0.35, true); shake(1); hitstop(root ? 0.2 : 0.14); A.ultRelease();
             if (root) { addRing(p.x, p.y - 6, C1, 420, 0.5, 3); addRing(p.x, p.y - 6, C2, 300, 0.4, 2); }
-            addText(p.x, p.y - 28, G.E.some(alive) ? (root ? 'SEGMENTATION FAULT' : 'PERMISSION DENIED') : root ? 'ROOT: DELETED' : 'DONE', C1, 2);
+            addText(p.x, p.y - 28, G.E.some(foe) ? (root ? 'SEGMENTATION FAULT' : 'PERMISSION DENIED') : root ? 'ROOT: DELETED' : 'DONE', C1, 2);
           }
         },
         draw() {
@@ -1327,7 +1336,7 @@ CHARS.DEV = {
           drawSprite(us, W / 2 - us.w / 2, H - 47 - us.h, false);
           text(cmd.slice(0, Math.floor(Math.min(1, u.t / 0.85) * cmd.length)) + (Math.floor(u.t * 6) % 2 ? '_' : ''), 26, H - 40, C1);
           if (u.t > 0.9) {
-            const n = G.E.filter(alive).length;
+            const n = G.E.filter(foe).length;
             if (root) {
               // a progress bar filling as it wipes
               const k = Math.min(1, (u.t - 0.9) / 0.5), bw = 80;
@@ -1470,7 +1479,7 @@ const EYES = { DEV: '#39ff6a', WIZARD: '#62efff', NINJA: '#a070ff', MECHANIC: '#
 //   skill: an awakened burst after every Q and E,
 //   ult: an awakened finisher after the ultimate,
 //   charge: an awakened follow-up to the charged attack (the four melee fighters).
-const awNear = (x, y, R, n = 99, skip = null) => G.E.filter((e) => alive(e) && e !== skip && hyp(e.x - x, e.y - y) < R).sort((a, b) => hyp(a.x - x, a.y - y) - hyp(b.x - x, b.y - y)).slice(0, n);
+const awNear = (x, y, R, n = 99, skip = null) => G.E.filter((e) => foe(e) && e !== skip && hyp(e.x - x, e.y - y) < R).sort((a, b) => hyp(a.x - x, a.y - y) - hyp(b.x - x, b.y - y)).slice(0, n);
 const awBurst = (p, R, dmg, col, o = {}) => {
   for (const e of awNear(p.x, p.y, R)) { damage(e, dmg, { dir: Math.atan2(e.y - p.y, e.x - p.x), kb: o.kb ?? 180, src: 'bolt' }); o.each?.(e); }
   addRing(p.x, p.y - 6, col, R * 4, 0.3, 2); addRing(p.x, p.y - 6, P.paper, R * 3, 0.2, 1);
@@ -1530,7 +1539,7 @@ const AWAKE = {
   MECHANIC: {
     pal: { col: P.volt, slash: 'volt', charge: 'storm', map: { [P.ember]: P.volt, [P.ember2]: '#c8ffff', '#ff8a3c': P.volt, [P.ember3]: P.paper, [P.volt]: P.gold, [P.volt2]: P.gold2 } },
     hit: (e) => { if ((G.p.k.awHits = (G.p.k.awHits || 0) + 1) % 3 === 0) chainLightning(e, 2, 3); },
-    swing: (p, st) => { const t = G.E.filter((e) => alive(e) && hyp(e.x - p.x, e.y - p.y) < 70 && Math.abs(Math.atan2(Math.sin(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng), Math.cos(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng))) < 1)[0]; if (t) chainLightning(t, st.heavy ? 4 : 1, st.heavy ? 5 : 3); },
+    swing: (p, st) => { const t = G.E.filter((e) => foe(e) && hyp(e.x - p.x, e.y - p.y) < 70 && Math.abs(Math.atan2(Math.sin(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng), Math.cos(Math.atan2(e.y - p.y, e.x - p.x) - p.atkAng))) < 1)[0]; if (t) chainLightning(t, st.heavy ? 4 : 1, st.heavy ? 5 : 3); },
     charge: (p, f) => G.timers.push({ t: 0.18, fn: () => {
       const q = G.p, t = awNear(q.x, q.y, 90, 1)[0], n = 4 + Math.round(4 * f), R = 30 + 40 * f;
       if (t) chainLightning(t, 4 + Math.round(5 * f), 7 * f);

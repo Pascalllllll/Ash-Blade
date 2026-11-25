@@ -1,22 +1,22 @@
-import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=209';
-import { resetKeys, resetLayout } from './bindings.js?v=209';
-import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=209';
-import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=209';
-import { A } from './audio.js?v=209';
-import { codexNote } from './store.js?v=209';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=209';
-import { buildSprites } from './sprites.js?v=209';
-import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=209';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash, applyPractice } from './world.js?v=209';
+import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=212';
+import { resetKeys, resetLayout } from './bindings.js?v=212';
+import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=212';
+import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=212';
+import { A } from './audio.js?v=212';
+import { codexNote } from './store.js?v=212';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=212';
+import { buildSprites } from './sprites.js?v=212';
+import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=212';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, payOut, flash, applyPractice } from './world.js?v=212';
 import {
   drawLeave, drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg, drawInheritance,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=209';
-import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=209';
-import { updateTutorial, drawTutorial } from './tutorial.js?v=209';
-import { openCamp, updateCamp, drawCamp } from './lobby.js?v=209';
-import { openCodex, updateCodex, drawCodex } from './codex.js?v=209';
+} from './ui.js?v=212';
+import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=212';
+import { updateTutorial, drawTutorial } from './tutorial.js?v=212';
+import { openCamp, updateCamp, drawCamp, campNote } from './lobby.js?v=212';
+import { openCodex, updateCodex, drawCodex } from './codex.js?v=212';
 
 loadAll();
 applyTheme(settings.theme);
@@ -47,7 +47,7 @@ function go(s) {
 function pauseRun() { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
 function resumeRun() { go('play'); A.scene(G.night ? 'night' : G.boss ? 'boss_' + G.boss.boss : 'fight'); }
 function toTitle() { settingsFrom = 'title'; save = readSlot(false); practice = readSlot(true); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
-function toCamp() { openCamp(); A.stopLoops(); A.scene('title'); go('camp'); }
+function toCamp(o) { openCamp(o); A.stopLoops(); A.scene('title'); go('camp'); }
 function startRun(char, s, opts) {
   A.init(settings); newRun(char, s, opts); waveCheckpoint = snapshot(); go('play'); }
 function checkpoint() {
@@ -244,7 +244,7 @@ function tick(now) {
       controls();
       update(rdt * ts, rdt);
       updateTutorial(rdt * ts);
-      if (G.trainDone > 0 && (G.trainDone -= rdt) <= 0) { G.trainDone = 0; clearRun(true); toCamp(); }
+      if (G.trainDone > 0 && (G.trainDone -= rdt) <= 0) { G.trainDone = 0; clearRun(true); toCamp({ walkAs: G.char, at: 'dummy', msg: 'TRAINING DONE' }); }
       else if (G.victory && (!G.sunrise || G.sunrise.t >= 2.6) && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); playStory('ending'); go('ending'); A.scene('dawn'); }
       // Nox has fallen: the story of the endless night, then a last upgrade, then the night itself
       else if (G.nightFall && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0 && !G.talk) {
@@ -253,7 +253,7 @@ function tick(now) {
       }
       else if (G.wantUpgrade) { G.wantUpgrade = false; openUpgrade(); go('upgrade'); }
       // falling below the pit, after the King, has its own story before the run's end
-      if (G.dead && G.deadT > 3.4) { recordBest(false); clearRun(G.tested); save = null; if (G.won) { playStory('fall'); go('fall'); A.scene('lore'); } else go('over'); }
+      if (G.dead && G.deadT > 3.4) { payOut(); recordBest(false); clearRun(G.tested); save = null; if (G.won) { playStory('fall'); go('fall'); A.scene('lore'); } else go('over'); }
     }
     drawWorld(); vignette(); drawHUD(); drawTutorial();
   } else if (scene === 'upgrade') {
@@ -275,7 +275,9 @@ function tick(now) {
     const r = (keyHit('Escape') || actionHit('pause')) ? 'resume' : runMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
     if (r === 'resume') resumeRun();
     else if (r === 'settings') { settingsFrom = 'pause'; setm.tab = 0; setm.sel = 0; go('settings'); }
-    else if (r === 'restart') { if (waveCheckpoint) startRun(G.char, waveCheckpoint); }
+    else if (r === 'restart') { if (G.training) { startRun(G.char, null, { train: true }); flash(P.paper, 0.4, true); } else if (waveCheckpoint) startRun(G.char, waveCheckpoint); }
+    // training is never saved: leaving it goes back to the camp, by the dummy
+    else if (r === 'exit' && G.training) { clearRun(true); toCamp({ walkAs: G.char, at: 'dummy' }); }
     else if (r === 'exit') {
       const s = G.night ? snapshot() : waveCheckpoint;
       if (s && saveRun(s)) { if (G.night) recordBest(G.won); toTitle(); }
@@ -295,7 +297,7 @@ function tick(now) {
   } else if (scene === 'choice') {
     // the run in comic panels, then the two roads: go home (the run ends) or go deeper (endless)
     const r = updateChoice(rdt);
-    if (r === 'home') { if (!G.tested) { codexNote('endings', G.char); saveBest(); } clearRun(G.tested); save = null; playStory('home'); go('home'); drawStory(); }
+    if (r === 'home') { if (!G.tested) { payOut(); bankStats(); codexNote('endings', G.char); saveBest(); if (G.payout?.total) campNote('THE ROAD HOME PAID ' + G.payout.total + ' GOLD'); } clearRun(G.tested); save = null; playStory('home'); go('home'); drawStory(); }
     else if (r === 'deeper') { G.saidLow = G.saidCombo = false; playStory('deeper'); go('deeper'); A.scene('lore'); drawStory(); }
     else drawChoice();
   } else if (scene === 'home') {

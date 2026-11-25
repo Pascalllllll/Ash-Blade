@@ -1,12 +1,12 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=209';
-import { A } from './audio.js?v=209';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=212';
+import { A } from './audio.js?v=212';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor, heroSet, damage, pd,
-} from './world.js?v=209';
-import { SPR } from './sprites.js?v=209';
-import { monsterFrame } from './monster-motion.js?v=209';
-import { say, TALK, meetLines, noxLines } from './story.js?v=209';
+} from './world.js?v=212';
+import { SPR } from './sprites.js?v=212';
+import { monsterFrame } from './monster-motion.js?v=212';
+import { say, TALK, meetLines, noxLines } from './story.js?v=212';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'nox'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
@@ -241,7 +241,7 @@ export const BOSSES = {
           if (e.cd <= 0) {
             const opts = ['jump', 'spiral'];
             if (d < 72) opts.push('sweep', 'sweep', 'sweep');
-            if (G.E.filter(alive).length < 5) opts.push('summon');
+            if (G.E.filter((o) => alive(o) && !o.prop).length < 5) opts.push('summon');
             opts.push('soulring');
             if (!G.shackle) opts.push('shackle', e.phase === 2 ? 'shackle' : 'soulring');
             if (e.phase === 2) opts.push('dash', 'dash', 'jump', 'chains', 'chains');
@@ -532,7 +532,7 @@ export const BOSSES = {
   // ---------------------------------------------------------------- wave 15
   colossus: {
     name: 'IRON COLOSSUS', short: 'COLOSSUS', sub: 'A WAR MACHINE NOBODY TURNED OFF', col: '#ff7a2b', colD: '#5a2410', hp: 1900, r: 22, speed: 34, score: 12000, music: 'boss_colossus',
-    init(e) { e.state = 'intro'; e.t = 2.6; e.off = true; e.z = 0; },
+    init(e) { e.state = 'intro'; e.t = 2.6; e.off = true; e.z = 320; e.landed = false; },
     onHit(e, o) {
       if (e.shieldUp && o.src === 'orb') {
         e.shieldUp = false; e.armor = 1.6; e.state = 'stun'; e.t = 2.2; e.vx = e.vy = 0;
@@ -546,6 +546,12 @@ export const BOSSES = {
         // it powers on where it came down: the visor lights, steam bursts, then its engines roar twice and lift it
         // off the floor into the air
         e.t -= dt;
+        // first it falls out of the sky onto the drop zone, engines dead, and hits the floor hard
+        if (!e.landed) {
+          e.z = Math.max(0, e.z - 760 * dt);
+          if (Math.random() < 0.9) part(e.x + rnd(-16, 16), e.y - e.z - rnd(10, 40), rnd(-10, 10), -rnd(40, 90), rnd(0.3, 0.6), Math.random() < 0.5 ? '#8a8098' : '#5a5060', { drag: 1 });
+          if (e.z === 0) { e.landed = true; shake(1.1); hitstop(0.1); A.boom(2.2); dust(e.x, e.y, 46, 170); scorch(e.x, e.y, 22); addRing(e.x, e.y, '#ff7a2b', 340, 0.45, 3); }
+        }
         if (e.off && e.t < 1.9) { e.off = false; A.warn(); flash('#ff4f4f', 0.12, false); }
         if (!e.off && Math.random() < 0.5) part(e.x + rnd(-14, 14), e.y - rnd(30, 50), rnd(-10, 10), -rnd(20, 50), 0.6, P.bone, { drag: 2, keep: true });
         for (const st of [1.2, 0.6]) if (e.t < st && e.t + dt >= st) {
@@ -674,6 +680,8 @@ export const BOSSES = {
   king: {
     name: 'THE ASHEN KING', short: 'ASHEN KING', sub: 'THE LAST FIRE', col: '#ff6a2b', colD: '#5a1420', hp: 3600, r: 31, speed: 55, score: 30000, music: 'boss_king', final: true,
     init(e) { e.state = 'intro'; e.t = 3; e.combo = 0; },
+    // he rises out of the floor inside his pillar of fire, glowing as he comes, and roars once he is up
+    reveal: (e) => ({ k: clamp((3 - e.t) / 1.3, 0, 1), style: 'rise', col: '#ff6a2b' }),
     update(e, dt, d, ang, dx) {
       const p = G.p;
       e.superArmor = true; e.kx = e.ky = 0;
@@ -830,6 +838,8 @@ Object.assign(BOSSES, {
   wyrm: {
     name: 'VOID WYRM', short: 'VOID WYRM', sub: 'IT SWIMS THROUGH STONE', col: VOID, colD: '#3a1a6a', hp: 2400, r: 14, speed: 74, score: 16000, music: 'boss_wyrm',
     init(e) { e.state = 'intro'; e.t = 2.2; e.under = true; e.trail = []; e.segments = []; e.wob = 0; e.cdir = 1; },
+    // it bursts up out of the stone it was swimming through
+    reveal: (e) => ({ k: clamp((1.2 - e.t) / 0.35, 0, 1), style: 'rise', col: VOID }),
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
       e.superArmor = true; e.kx = e.ky = 0;
@@ -944,13 +954,15 @@ Object.assign(BOSSES, {
   herald: {
     name: 'STORM HERALD', short: 'HERALD', sub: 'HIS HORN CALLS THE STORM', col: '#62efff', colD: '#163a78', hp: 2800, r: 16, speed: 54, score: 20000, music: 'boss_herald',
     init(e) { e.state = 'intro'; e.t = 2.4; e.under = true; e.orbsT = 0; e.oa = 0; },
+    // it comes down out of the storm inside a bolt of lightning, white at first
+    reveal: (e) => ({ k: clamp((1 - e.t) / 0.45, 0, 1), style: 'descend', height: 150, col: '#e8fbff' }),
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
       e.superArmor = true; e.kx = e.ky = 0; e.z = 4 + Math.sin(e.anim * 3) * 3;
       if (e.state === 'intro') {
         e.t -= dt;
         if (Math.floor(e.t * 2.5) !== Math.floor((e.t + dt) * 2.5)) { G.bolts.push({ x0: e.x + rnd(-20, 20), y0: e.y - 227, x1: e.x, y1: e.y, t: 0, life: 0.3 }); A.zap(); shake(0.4); flash('#62efff', 0.08, false); }
-        if (e.under && e.t < 1) { e.under = false; addRing(e.x, e.y - 13, '#62efff', 320, 0.5, 3); A.bossRoar(); }
+        if (e.under && e.t < 1) { e.under = false; addRing(e.x, e.y - 13, '#62efff', 320, 0.5, 3); A.bossRoar(); G.bolts.push({ x0: e.x, y0: e.y - 270, x1: e.x, y1: e.y - 12, t: 0, life: 0.45 }); flash('#e8fbff', 0.2, true); shake(0.8); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
         return;
       }
@@ -1026,12 +1038,16 @@ Object.assign(BOSSES, {
   mirror: {
     name: 'THE MIRROR', short: 'MIRROR', sub: 'IT LEARNED YOUR MOVES', col: '#cfd8e0', colD: '#2a2a38', hp: 2700, r: 10, speed: 110, scale: 1.5, score: 24000, music: 'boss_mirror', tint: '#1a1626',
     init(e) { e.state = 'intro'; e.t = 2.2; e.combo = 0; },
+    // it forms out of glass at the point where the copies folded in, growing from a shard
+    reveal: (e) => ({ k: clamp((1.9 - e.t) / 0.9, 0, 1), style: 'form', col: '#cfd8e0' }),
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.25 : 1;
       e.superArmor = true; e.kx = e.ky = 0;
       if (e.state === 'intro') {
         e.t -= dt;
         if (Math.random() < 0.6) G.ghosts.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-20, 20), flip: Math.random() < 0.5, t: 0, life: 0.3, c: '#cfd8e0', spr: sprFor(e) });
+        // shards of glass flying in to make it
+        if (e.t > 1 && e.t < 1.95) for (let i = 0; i < 3; i++) { const a = rnd(TAU), r = rnd(30, 56); part(e.x + Math.cos(a) * r, e.y - 18 + Math.sin(a) * r * 0.6, -Math.cos(a) * r * 2.6, -Math.sin(a) * r * 1.5, 0.38, Math.random() < 0.5 ? '#cfd8e0' : P.paper, { glow: true, drag: 0 }); }
         if (e.t < 1 && !e.shown) { e.shown = true; flash(P.paper, 0.15, false); A.ultRelease(); addRing(e.x, e.y - 15, P.paper, 300, 0.4, 2); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; }
         return;
@@ -1104,6 +1120,8 @@ Object.assign(BOSSES, {
   eclipse: {
     name: 'ECLIPSE', short: 'ECLIPSE', sub: 'THE SUN THAT WATCHES', col: '#ffd447', colD: '#5a1420', hp: 4300, r: 25, speed: 14, score: 40000, music: 'boss_eclipse',
     init(e) { e.state = 'intro'; e.t = 3; e.open = 0; e.spin = 0; },
+    // it comes down out of the darkening sky as a black shape, and its colors come as its eye opens
+    reveal: (e) => ({ k: clamp((3 - e.t) / 1.2, 0, 1), style: 'fade', height: 60, col: '#05020a', over: 1 - e.open }),
     update(e, dt, d, ang) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
       e.superArmor = true; e.kx = e.ky = 0; e.z = 5 + Math.sin(e.anim * 1.5) * 1.5;
@@ -1207,6 +1225,8 @@ Object.assign(BOSSES, {
   clock: {
     name: 'THE CLOCKWORK', short: 'CLOCKWORK', sub: 'TIME BENDS TO IT', col: BRASS, colD: '#5a3a10', hp: 5100, r: 22, speed: 28, score: 52000, music: 'boss_clock',
     init(e) { e.state = 'intro'; e.t = 2.8; e.under = true; e.hand = 0; e.handM = 0; },
+    // it rises out of the clock face on the floor, brass glowing, and chimes once it is up
+    reveal: (e) => ({ k: clamp((1.6 - e.t) / 0.6, 0, 1), style: 'rise', col: BRASS }),
     update(e, dt, d, ang) {
       const p = G.p, spd = e.phase === 2 ? 1.35 : 1;
       e.superArmor = true; e.kx = e.ky = 0; e.z = 6 + Math.sin(e.anim * 1.2) * 2;
@@ -1215,7 +1235,8 @@ Object.assign(BOSSES, {
         // it ticks louder and louder, then appears with a chime
         e.t -= dt;
         if (Math.floor(e.t * 4) !== Math.floor((e.t + dt) * 4)) { A.click(); if (e.t < 2) shake(0.15); }
-        if (e.under && e.t < 1) { e.under = false; flash(BRASS, 0.2, true); A.bossRoar(); A.victory(); addRing(e.x, e.y - 37, BRASS, 360, 0.6, 3); addRing(e.x, e.y - 37, P.paper, 260, 0.4, 1); }
+        if (e.under && e.t < 1.6) { e.under = false; A.rocket(); dust(e.x, e.y, 30, 120); addRing(e.x, e.y, BRASS, 200, 0.4, 2); }
+        if (!e.chimed && e.t < 1) { e.chimed = true; flash(BRASS, 0.2, true); A.bossRoar(); A.victory(); addRing(e.x, e.y - 37, BRASS, 360, 0.6, 3); addRing(e.x, e.y - 37, P.paper, 260, 0.4, 1); }
         if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
         return;
       }
@@ -1293,6 +1314,8 @@ Object.assign(BOSSES, {
     name: 'NOX', short: 'NOX', sub: 'THE LAST NIGHT', col: NOXC, colD: '#14082a', hp: 8200, r: 32, speed: 40, score: 100000, music: 'boss_nox', end: true,
     death: 'THE NIGHT BREAKS', marks: [0.33, 0.66],
     init(e) { e.state = 'intro'; e.t = 3.2; e.alpha = 0; e.y = Math.max(e.y, B.y0 + 92); },
+    // it rises out of the floor as it comes out of the dark
+    reveal: (e) => ({ k: clamp((3.2 - e.t) / 2, 0, 1), style: 'rise', depth: 0.75, col: NOXC }),
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.awakened ? 1.6 : e.phase === 3 ? 1.45 : e.phase === 2 ? 1.2 : 1;
       e.superArmor = true; e.kx = e.ky = 0; e.z = 6 + Math.sin(e.anim * 1.6) * 3;

@@ -955,6 +955,26 @@ export const A = {
   },
   heartbeat() { if (!ac) return; const t = ac.currentTime; tone('sine', 62, 38, 0.14, 0.5, crunch, t); tone('sine', 58, 34, 0.12, 0.35, crunch, t + 0.16); },
   coin() { if (gate('coin', 0.05)) { const t = ac.currentTime; v('square', 1976, 1976, 0.04, 0.045, t); v('square', 2637, 2637, 0.14, 0.045, t + 0.05); v('sine', 5274, 5274, 0.1, 0.015, t + 0.05, { rev: 0.5 }); } },
+  // things to break (props.js): a knock when one is hit, a crash when it goes, by what it is made of
+  knock(m) {
+    if (!gate('knock', 0.05)) return;
+    const t = ac.currentTime;
+    if (m === 'metal' || m === 'gold') { v('triangle', 1100, 900, 0.08, 0.08, t); hiss(0.04, 0.15, 'highpass', 3000, 3000, 1); }
+    else if (m === 'glass' || m === 'ice' || m === 'crystal') { v('sine', 2600, 2400, 0.06, 0.06, t); hiss(0.03, 0.15, 'highpass', 5000, 5000, 1); }
+    else if (m === 'goo') tone('sine', 260, 140, 0.08, 0.2);
+    else { tone('square', 190, 110, 0.06, 0.18, crunch); hiss(0.04, 0.2, 'bandpass', 1400, 900, 1.5); }
+  },
+  smash(m) {
+    if (!gate('smash', 0.04)) return;
+    const t = ac.currentTime;
+    if (m === 'wood') { tone('square', 150, 55, 0.14, 0.3, crunch); hiss(0.16, 0.5, 'bandpass', 1300, 400, 1.4); hiss(0.07, 0.3, 'highpass', 2600, 1600, 1, sfx, t + 0.03); }
+    else if (m === 'clay' || m === 'bone') { hiss(0.2, 0.45, 'bandpass', 2400, 900, 2); tone('triangle', m === 'bone' ? 900 : 520, 300, 0.08, 0.15); for (let i = 0; i < 3; i++) v('square', 700 + Math.random() * 900, 400, 0.03, 0.05, t + 0.03 + i * 0.035); }
+    else if (m === 'glass' || m === 'ice' || m === 'crystal') { hiss(0.25, 0.35, 'highpass', 5000, 8000, 1); for (let i = 0; i < 5; i++) v('sine', 2200 + Math.random() * 2600, 1800, 0.12, 0.05, t + i * 0.03, { rev: 0.4 }); }
+    else if (m === 'stone') { tone('sine', 120, 45, 0.18, 0.45, crunch); hiss(0.18, 0.45, 'lowpass', 1200, 300, 1); }
+    else if (m === 'metal' || m === 'gold') { v('triangle', 880, 620, 0.25, 0.16, t, { rev: 0.4 }); v('square', 1320, 900, 0.16, 0.05, t); hiss(0.1, 0.3, 'highpass', 3000, 2000, 1); }
+    else if (m === 'goo') { tone('sine', 320, 80, 0.2, 0.4); hiss(0.16, 0.35, 'lowpass', 900, 200, 1); }
+    else { hiss(0.12, 0.35, 'bandpass', 1500, 700, 1.2); tone('sine', 400, 200, 0.1, 0.12); }
+  },
   jackpot() {
     if (!ac) return;
     const t = ac.currentTime;

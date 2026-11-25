@@ -16,14 +16,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=209';
-import { SPR } from './sprites.js?v=209';
-import { input, keyHit } from './input.js?v=209';
-import { A } from './audio.js?v=209';
-import { G } from './world.js?v=209';
-import { CHARS } from './chars.js?v=209';
-import { drawFighter } from './title-scene.js?v=209';
-import { drawWeaponAt } from './hero-sprites.js?v=209';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=212';
+import { SPR } from './sprites.js?v=212';
+import { input, keyHit } from './input.js?v=212';
+import { A } from './audio.js?v=212';
+import { G } from './world.js?v=212';
+import { CHARS } from './chars.js?v=212';
+import { drawFighter } from './title-scene.js?v=212';
+import { drawWeaponAt } from './hero-sprites.js?v=212';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -352,12 +352,16 @@ export function updateTalk(dt) {
   }
 }
 // a speaker's face, 24 x 24: a crop of their own sprite, four screen pixels to each of its art pixels
+// where a boss's face is in its sprite (x, y and the square's size, as fractions of the sprite's width), so the whole
+// head shows, crown and all; fractions keep it framed whenever the boss is drawn bigger or smaller
+const FACE_BOX = { king: [0.25, 0, 0.52], nox: [0.27, 0.045, 0.46] };
+function bossFace(s, box, x, y) { const w = s.n.width, [fx, fy, fs] = box; ctx.drawImage(s.n, Math.round(fx * w), Math.round(fy * w), Math.round(fs * w), Math.round(fs * w), x, y, 24, 24); }
 function face(who, x, y) {
   rect(x, y, 24, 24, '#05030a');
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, 24, 24); ctx.clip();
   if (who === KING) {
     const s = SPR.king?.[Math.floor(G.time * 2) % 2];
-    if (s) { glow(x + 12, y + 14, P.ember, 14, 0.3); ctx.drawImage(s.n, 12, 0, 36, 36, x, y, 24, 24); }
+    if (s) { glow(x + 12, y + 14, P.ember, 14, 0.3); bossFace(s, FACE_BOX.king, x, y); }
   } else if (who === VOID) {
     // nothing to see but two eyes in the dark, blinking now and then
     const open = (G.time % 3.1) > 0.12;
@@ -365,7 +369,7 @@ function face(who, x, y) {
   } else if (who === NOX) {
     // Nox's hood, with its crown of dead stars and its eyes
     const s = SPR.nox?.[Math.floor(G.time * 2) % 2];
-    if (s) { glow(x + 12, y + 12, '#b48cff', 14, 0.3); ctx.drawImage(s.n, 34, 8, 39, 39, x - 1, y - 1, 26, 26); }
+    if (s) { glow(x + 12, y + 12, '#b48cff', 14, 0.3); bossFace(s, FACE_BOX.nox, x, y); }
   } else if (who === ASH) {
     // a face in the ash: pale, hollow-eyed, never quite still, with ash blowing off it
     const f = Math.sin(G.time * 3);

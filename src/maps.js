@@ -1,7 +1,10 @@
-import { BAYER, target, rect, px, line, disc, ring } from './gfx.js?v=209';
+import { BAYER, target, rect, px, line, disc, ring } from './gfx.js?v=212';
 
 export const AW = 560, AH = 352;
 export const B = { x0: 20, y0: 50, x1: AW - 20, y1: AH - 18 };
+// the arena's own bounds, never moved: B follows the fighter in the endless night, but a floor is always painted from
+// these (a floor painted from the night's bounds came out cropped and shifted in the next run)
+const HOME = Object.freeze({ ...B });
 export const TORCHES = [[86, 31], [196, 31], [364, 31], [474, 31]];
 
 // f: tile base, light tile, dark tile, highlight, crack, void.  w: brick, brick 2, wall lip, dark brick, mortar.
@@ -92,6 +95,15 @@ export const MAPS = {
     flame: ['#6a5aff', '#b4a8ff', '#ffffff'], friction: 18, slide: 9, deco: 'stars', ambient: 'stars', pools: [],
     ob: 'rock', obst: [[110, 120, 9], [458, 130, 8], [78, 270, 8], [432, 302, 9], [248, 316, 7]],
   },
+  // the camp's training ground (training from the dummy is fought here, never in the pit): packed earth inside a
+  // wooden palisade, a chalk sparring ring, lanes to dash along, straw everywhere, straw dummies in the corners
+  YARD: {
+    name: 'THE TRAINING YARD', desc: 'WHERE THE CAMP LEARNS TO FIGHT',
+    f: ['#3e3022', '#4a3a2a', '#352819', '#5e4a34', '#291e14', '#0e0a06'],
+    w: ['#5a3e26', '#6a4a2e', '#8c6a44', '#3a2818', '#4a3420'],
+    flame: ['#ff8a2a', '#ffb347', '#ffe08a'], friction: 18, slide: 9, deco: 'yard', dirt: true, ambient: 'dust', pools: [],
+    ob: 'dummy', obst: [[96, 112, 8], [464, 112, 8], [96, 298, 8], [464, 298, 8]],
+  },
   // not a floor of its own: the arena choice that goes down through the floors below, one after each boss
   DESCENT: { name: 'THE DESCENT', desc: 'A NEW STAGE PAST EVERY BOSS' },
 };
@@ -107,6 +119,7 @@ export const stageFor = (arena, wave) => (arena === 'DESCENT' ? DEPTHS[depthOf(w
 function seeded(s) { return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
 
 export function buildFloor(canvas, key) {
+  const B = HOME;
   const m = MAPS[key]?.f ? MAPS[key] : MAPS.PIT, f = m.f, w = m.w;
   const g = canvas.getContext('2d');
   g.clearRect(0, 0, AW, AH);
@@ -115,7 +128,14 @@ export function buildFloor(canvas, key) {
   const ao = (x, y, k) => { if (k > (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16) px(x, y, f[5]); };
   rect(0, 0, AW, AH, f[5]);
 
-  for (let row = 0, y = B.y0 - 8; y < AH; row++, y += 12) {
+  // packed earth (the yard): no tiles, just grain and darker trodden patches
+  if (m.dirt) {
+    rect(0, B.y0 - 8, AW, AH - B.y0 + 8, f[0]);
+    for (let i = 0; i < 26; i++) { const cx = r() * AW, cy = B.y0 + r() * (AH - B.y0), R = 6 + r() * 18; for (let k = 0; k < R * 7; k++) { const a = r() * 6.28, d = Math.sqrt(r()) * R; px(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.6, f[2]); } }
+    for (let i = 0; i < 3200; i++) { const x = r() * AW, y = B.y0 - 8 + r() * (AH - B.y0 + 8), v = r(); px(x, y, v < 0.4 ? f[1] : v < 0.75 ? f[2] : v < 0.92 ? f[4] : f[3]); }
+    for (let i = 0; i < 40; i++) { const x = r() * AW, y = B.y0 + r() * (AH - B.y0); rect(x, y, 2, 1, f[3]); px(x, y + 1, f[4]); }
+  }
+  for (let row = 0, y = B.y0 - 8; y < AH && !m.dirt; row++, y += 12) {
     const off = (row % 2) * 8;
     for (let x = -off; x < AW; x += 16) {
       const v = r();
@@ -130,7 +150,17 @@ export function buildFloor(canvas, key) {
   }
 
   const mx = AW / 2, my = (B.y0 + B.y1) / 2;
-  if (m.deco === 'rune') {
+  if (m.deco === 'yard') {
+    // straw trodden into the earth, footprints, two chalk lanes to dash along and a chalk ring to spar in
+    for (let i = 0; i < 260; i++) { const x = B.x0 + r() * (B.x1 - B.x0), y = B.y0 + r() * (B.y1 - B.y0), a = r() * 3.14; line(x, y, x + Math.cos(a) * 3, y + Math.sin(a) * 1.5, ['#c8a050', '#a8823a', '#8a6a2e'][Math.floor(r() * 3)]); }
+    for (let i = 0; i < 6; i++) { let x = B.x0 + 40 + r() * (B.x1 - B.x0 - 80), y = B.y0 + 30 + r() * (B.y1 - B.y0 - 60); const a = r() * 6.28; for (let k = 0; k < 9; k++) { px(x + (k % 2) * 3, y, '#241a10'); px(x + (k % 2) * 3 + 1, y, '#241a10'); x += Math.cos(a) * 7; y += Math.sin(a) * 5; } }
+    for (const ly of [my - 40, my + 40]) for (let x = B.x0 + 24; x < B.x0 + 150; x += 10) rect(x, ly, 6, 1, '#8a7650');
+    for (const ly of [my - 40, my + 40]) for (let x = B.x1 - 150; x < B.x1 - 24; x += 10) rect(x, ly, 6, 1, '#8a7650');
+    ring(mx, my, 70, 1, '#8a7650'); ring(mx, my, 64, 1, '#6e5c3e');
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; line(mx + Math.cos(a) * 64, my + Math.sin(a) * 64, mx + Math.cos(a) * 70, my + Math.sin(a) * 70, '#a89068'); }
+    rect(mx - 6, my, 13, 1, '#6e5c3e'); rect(mx, my - 4, 1, 9, '#6e5c3e');
+    for (const [cx, cy] of [[B.x0 + 20, B.y0 + 14], [B.x1 - 20, B.y0 + 14], [B.x0 + 24, B.y1 - 10], [B.x1 - 24, B.y1 - 10]]) for (let k = 0; k < 40; k++) { const a = r() * 6.28, d = r() * 14; line(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.6, cx + Math.cos(a) * d + 2, cy + Math.sin(a) * d * 0.6, k % 2 ? '#c8a050' : '#a8823a'); }
+  } else if (m.deco === 'rune') {
     ring(mx, my, 74, 1, '#30283f'); ring(mx, my, 68, 1, '#2a2338');
     for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; rect(mx + Math.cos(a) * 71 - 1, my + Math.sin(a) * 71 - 1, 2, 2, i % 3 ? '#30283f' : '#3c3250'); }
     const st = [];
