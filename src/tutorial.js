@@ -2,12 +2,12 @@
 // monsters until it is done: a step at a time, a panel at the top says what to do and ticks it off when it's done,
 // with a few ash husks to practise on. Nobody dies in training: a hit can't take the last heart. When the last step is
 // done (or Tab / tapping SKIP skips it), wave 1 starts for real and the record remembers it was seen.
-import { ctx, W, P, rect, text, textO, textW, glow } from './gfx.js?v=206';
-import { A } from './audio.js?v=206';
-import { input, keyHit } from './input.js?v=206';
-import { keyLabel } from './bindings.js?v=206';
-import { best, saveBest } from './store.js?v=206';
-import { G, B, rnd, clamp, hyp, addRing, addText, buildQueue, DASH_COST } from './world.js?v=206';
+import { ctx, W, P, rect, text, textO, textW, glow } from './gfx.js?v=207';
+import { A } from './audio.js?v=207';
+import { input, keyHit } from './input.js?v=207';
+import { keyLabel } from './bindings.js?v=207';
+import { best, saveBest } from './store.js?v=207';
+import { G, B, rnd, clamp, hyp, addRing, addText, buildQueue, DASH_COST } from './world.js?v=207';
 
 const touch = () => input.touch;
 const moveKeys = () => ['up', 'left', 'down', 'right'].map(keyLabel).join('');

@@ -2,17 +2,17 @@
 // (and their awakened forms), the monsters, the bosses, the floors of the pit, the endings (watch one again) and the
 // records. What hasn't been found yet is a dark shape and '???'. Opened from the title menu or the camp's old stone.
 // Keys: Q / E or Tab change the page, arrows pick, Enter uses (hear a fighter, watch an ending), Escape goes back.
-import { ctx, W, H, FW, SX, P, rect, px, text, textO, textW, glow, drawSprite } from './gfx.js?v=206';
-import { A } from './audio.js?v=206';
-import { input, keyHit } from './input.js?v=206';
-import { OPTIONS, best, isUnlocked } from './store.js?v=206';
-import { CHARS } from './chars.js?v=206';
-import { SPR, EVO_NAMES } from './sprites.js?v=206';
-import { MAPS, DEPTHS } from './maps.js?v=206';
-import { BOSSES, ORDER } from './bosses.js?v=206';
-import { monsterFrame } from './monster-motion.js?v=206';
-import { drawFighter } from './title-scene.js?v=206';
-import { drawEmote } from './emotes.js?v=206';
+import { ctx, W, H, FW, SX, P, rect, px, text, textO, textW, glow, drawSprite } from './gfx.js?v=207';
+import { A } from './audio.js?v=207';
+import { input, keyHit } from './input.js?v=207';
+import { OPTIONS, best, isUnlocked } from './store.js?v=207';
+import { CHARS } from './chars.js?v=207';
+import { SPR, EVO_NAMES } from './sprites.js?v=207';
+import { MAPS, DEPTHS } from './maps.js?v=207';
+import { BOSSES, ORDER } from './bosses.js?v=207';
+import { monsterFrame } from './monster-motion.js?v=207';
+import { drawFighter } from './title-scene.js?v=207';
+import { drawEmote } from './emotes.js?v=207';
 
 const FOES = {
   husk: ['ASH HUSK', "WHAT IS LEFT OF THE KING'S PEOPLE.", 'THEY WIND UP BEFORE THEY SWING.'],
@@ -34,9 +34,17 @@ const FOES = {
 const TRICK = {
   warden: 'HIS CHAIN HOLDS YOU. THREE DASHES BREAK IT.', brood: 'HER WEBS HOLD YOUR FEET. HER YOUNG NEVER STOP.',
   colossus: 'A WAR MACHINE NOBODY TURNED OFF.', king: 'WHEN HE SAYS KNEEL, DO NOT MOVE.',
-  wyrm: 'IT SWALLOWS YOU WHOLE. CUT YOUR WAY OUT.', herald: 'HIS HORN CHARGES THE FLOOR. STAND ON THE DARK TILES.',
+  wyrm: 'IT SWALLOWS YOU WHOLE. CUT YOUR WAY OUT.', herald: 'HE CHARGES THE FLOOR. STEP OFF THE LIT TILES.',
   mirror: 'IT LEARNED YOUR MOVES. IT FIGHTS LIKE YOU.', eclipse: 'ITS STARE HOLDS YOU IN PLACE.',
-  clock: 'STAND IN ITS DIAL WHEN THE HAND COMES ROUND AND TIME STOPS.', nox: 'THE NIGHT AFTER THE LAST NIGHT.',
+  clock: 'STILL IN ITS DIAL AT TWELVE, TIME STOPS FOR YOU.', nox: 'THE NIGHT AFTER THE LAST NIGHT.',
+};
+// who each boss was before the ash (or the dark) took them
+const ONCE = {
+  warden: "AUREL'S JAILER. HE LOCKED HIMSELF IN THE PIT.", brood: 'SHE NESTS IN THE WALLS ABOVE THE THRONE.',
+  colossus: 'BUILT TO GUARD THE SUN. NEVER TURNED OFF.', king: 'AUREL, THE SUN KING, WHO SWALLOWED THE SUN.',
+  wyrm: 'THE FIRST THING THE DARK EVER SWALLOWED.', herald: 'HE CALLED THE KINGDOM TO SEE AUREL CROWNED.',
+  mirror: 'IT WATCHED YOU ALL THE WAY DOWN.', eclipse: "THE DARK'S OWN SUN, TO MOCK THE ONE YOU FREED.",
+  clock: "AUREL'S CLOCKMAKER, WHO TRIED TO STOP TIME.", nox: 'THE DARK UNDER THE PIT, GIVEN A SHAPE.',
 };
 const PAGES = ['FIGHTERS', 'MONSTERS', 'BOSSES', 'FLOORS', 'ENDINGS', 'RECORDS'];
 const cx = () => best.codex;
@@ -163,7 +171,8 @@ function drawDetail(e, t) {
     title(b.name, 36, b.col); say(b.sub, 45, '#8a7a80');
     const s = monsterFrame(e.id, (t * 0.5) % 1, SPR[e.id]);
     if (s) { const k = Math.min(1.5, 70 / s.h, 150 / s.w); ctx.save(); ctx.translate(cxm, 92); ctx.scale(k, k); drawSprite(s, -s.w / 2, -s.h / 2, false); ctx.restore(); }
-    say(TRICK[e.id] || '', 132);
+    say(ONCE[e.id] || '', 124, '#c8b8c8');
+    say(TRICK[e.id] || '', 133);
     say('WAVE ' + e.wave + '   BEATEN ' + n('bosses', e.id), 142, P.gold);
   } else if (codex.page === 3) {
     const m = MAPS[e.id];

@@ -1,4 +1,4 @@
-import { makeCanvas } from './gfx.js?v=206';
+import { makeCanvas } from './gfx.js?v=207';
 
 const FRAMES = 24, COLUMNS = 6, TAU = Math.PI * 2;
 const sheets = new Map();

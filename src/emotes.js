@@ -6,7 +6,7 @@
 //   sleep 'z'   standing still too long                          star        a big win, a new best
 //   dizzy       stunned: stars circling the head
 // drawEmote(kind, x, y, t, k): x, y is the top of the head; t is how long it has shown (it pops in); k fades it.
-import { ctx, P, rect, px, textO } from './gfx.js?v=206';
+import { ctx, P, rect, px, textO } from './gfx.js?v=207';
 
 const INK = '#1a0e16';
 // a speech bubble with a tail pointing down at the head, w x h inside

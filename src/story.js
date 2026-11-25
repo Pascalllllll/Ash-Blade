@@ -16,14 +16,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=206';
-import { SPR } from './sprites.js?v=206';
-import { input, keyHit } from './input.js?v=206';
-import { A } from './audio.js?v=206';
-import { G } from './world.js?v=206';
-import { CHARS } from './chars.js?v=206';
-import { drawFighter } from './title-scene.js?v=206';
-import { drawWeaponAt } from './hero-sprites.js?v=206';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=207';
+import { SPR } from './sprites.js?v=207';
+import { input, keyHit } from './input.js?v=207';
+import { A } from './audio.js?v=207';
+import { G } from './world.js?v=207';
+import { CHARS } from './chars.js?v=207';
+import { drawFighter } from './title-scene.js?v=207';
+import { drawWeaponAt } from './hero-sprites.js?v=207';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -58,11 +58,11 @@ export const TALK = {
   lowHpDeep: [[VOID, 'YES. LET GO. THE DARK IS SOFT.']],
   combo: [[KING, 'YOU DANCE WELL. THEY ALL DANCE WELL, AT FIRST.']],
   comboDeep: [[VOID, 'SUCH A BRIGHT LITTLE FIRE. YOU WILL KEEP ME WARM FOR A WHILE.']],
-  warden: [[KING, 'MY WARDEN HAS KEPT THIS PIT FOR A HUNDRED YEARS. HE WILL KEEP YOUR BONES.']],
+  warden: [[KING, 'WHEN THE ASH CAME, MY WARDEN LOCKED HIMSELF IN WITH IT SO NOTHING WOULD GET OUT. HE STILL HOLDS THE KEYS.']],
   wardenDead: [[KING, 'STUBBORN. GOOD. THE STUBBORN ONES BURN THE LONGEST.']],
   brood: [[KING, 'SHE NESTS IN THE WALLS ABOVE MY THRONE, AND HER CHILDREN ARE HUNGRY.']],
   broodDead: [[KING, 'YOU KILLED MY PET. I HAVE AN ARMY OF THEM.']],
-  colossus: [[KING, 'MY OLD WAR MACHINE NEVER LEARNED HOW TO STOP. NEITHER DID I.']],
+  colossus: [[KING, 'I BUILT IT TO GUARD THE SUN. IT NEVER LEARNED HOW TO STOP. NEITHER DID I.']],
   colossusDead: [[KING, 'ENOUGH. COME DOWN TO MY THRONE. I WILL MEET YOU MYSELF.']],
   kingBurns: [[KING, 'YOU THINK YOU CAN PUT OUT THE SUN?']],
   kingUnbound: [[KING, 'I WILL NOT GO BACK INTO THE DARK!']],
@@ -81,12 +81,17 @@ export const TALK = {
   w36: [[VOID, 'THEY PRAYED TO THE SUN DOWN HERE, ONCE. I WAS THE ONE WHO ANSWERED.']],
   w41: [[VOID, 'HEAR THE GEARS? EVERY TICK IS ONE LESS BREATH FOR YOU.']],
   w46: [[VOID, 'NO MORE FLOORS, LITTLE LIGHT. THIS IS THE BOTTOM. THIS IS ME.']],
-  wyrm: [[VOID, 'SOMETHING SWIMS UP THROUGH THE STONE.']],
-  herald: [[VOID, 'THE STORM HAS A VOICE NOW. IT KNOWS YOUR NAME.']],
-  mirror: [[VOID, 'IT WATCHED YOU ALL THE WAY DOWN. IT LEARNED.']],
+  wyrm: [[VOID, 'THE FIRST THING I EVER SWALLOWED. IT SWIMS THROUGH STONE THE WAY YOU SWIM THROUGH AIR.']],
+  herald: [[VOID, 'HIS HERALD ONCE CALLED THE WHOLE KINGDOM TO SEE THE SUN KING CROWNED. I TOOK HIS VOICE. NOW IT CALLS THE STORM.']],
+  mirror: [[VOID, 'IT WATCHED YOU ALL THE WAY DOWN, LITTLE LIGHT. IT KNOWS HOW YOU MOVE. IT KNOWS HOW YOU TIRE.']],
   eclipse: [[VOID, 'YOU FREED HIS SUN, SO I MADE ONE OF MY OWN. IT HAS AN EYE.']],
-  clock: [[VOID, 'TIME ITSELF WANTS YOU GONE.']],
+  clock: [[VOID, 'YOUR KING ASKED HIS CLOCKMAKER TO STOP TIME, SO THE SUN WOULD NEVER GROW OLD. I FINISHED THE WORK.']],
   // wave 50: the dark gives itself a shape and a name
+  wyrmDead: [[VOID, 'IT WAS ALWAYS HUNGRY. SO AM I.']],
+  heraldDead: [[VOID, 'LISTEN. NO ONE ANNOUNCES YOU DOWN HERE. NO ONE WILL REMEMBER YOU CAME.']],
+  mirrorDead: [[VOID, 'YOU BROKE YOUR OWN FACE TO GET PAST IT. YOU ARE BECOMING LIKE ME.']],
+  eclipseDead: [[VOID, 'MY SUN WAS BLIND ANYWAY. I NEVER NEEDED TO SEE YOU TO TAKE YOU.']],
+  clockDead: [[VOID, 'TIME MOVES AGAIN. GOOD. EVERY SECOND OF IT BELONGS TO ME.']],
   noxNight: [[NOX, 'NIGHT FALLS. IT ALWAYS DOES.']],
   noxLast: [[NOX, 'THERE IS NO DAWN DOWN HERE. THERE NEVER WAS.']],
   noxDead: [[NOX, 'YOU CANNOT KILL THE NIGHT, LITTLE LIGHT...'], [NOX, '...BUT YOU CAN STAND IN IT. LET US SEE HOW LONG.']],

@@ -1,24 +1,24 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=206';
-import { SPR, EVO_NAMES } from './sprites.js?v=206';
-import { A } from './audio.js?v=206';
-import { input, actionDown, actionHit } from './input.js?v=206';
-import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF, codexNote } from './store.js?v=206';
-import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=206';
-import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=206';
-import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=206';
-import { byId, grantAllUpgrades } from './upgrades.js?v=206';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=206';
-import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=206';
-import { WEAPON_ART } from './hero-rig.js?v=206';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=206';
-import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=206';
-import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=206';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=207';
+import { SPR, EVO_NAMES } from './sprites.js?v=207';
+import { A } from './audio.js?v=207';
+import { input, actionDown, actionHit } from './input.js?v=207';
+import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF, codexNote } from './store.js?v=207';
+import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=207';
+import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=207';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=207';
+import { byId, grantAllUpgrades } from './upgrades.js?v=207';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=207';
+import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=207';
+import { WEAPON_ART } from './hero-rig.js?v=207';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=207';
+import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=207';
+import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=207';
 // how long each boss's arrival takes to fade once the boss is here (the Brood Mother's web lasts while she comes down)
 const ARRIVE_FADE = { brood: 3.8, herald: 1.8, nox: 2.4, king: 1.6, eclipse: 1.8, wyrm: 1.4, clock: 1.4, warden: 1.2, colossus: 0.8, mirror: 1 };
-import { floorArrival } from './floor-arrivals.js?v=206';
-import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=206';
-import { startTutorial, tutNote } from './tutorial.js?v=206';
-import { drawEmote } from './emotes.js?v=206';
+import { floorArrival } from './floor-arrivals.js?v=207';
+import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=207';
+import { startTutorial, tutNote } from './tutorial.js?v=207';
+import { drawEmote } from './emotes.js?v=207';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -608,6 +608,15 @@ function drawEmoteOn(who, headY) {
   const t = G.time - em.at;
   if (t > em.life) { who.emote = null; return; }
   drawEmote(em.kind, who.x, headY, t, Math.min(1, (em.life - t) * 4));
+}
+// when a cinematic (a hero's entrance, a floor arrival) ends, what it left in the world (webs, cracks, circles, the
+// dark) keeps being drawn for a moment and fades out instead of vanishing: parts.under, parts.draw, on its clock parts.k
+export function cineTail(parts, life = 1.3) { G.cineTail = { ...parts, t: 0, life }; }
+function drawCineTail(which) {
+  const c = G.cineTail;
+  if (!c || G.cine || !c[which]) return;
+  const v = Math.max(0, 1 - c.t / c.life);
+  ctx.save(); ctx.globalAlpha = v * v * (3 - 2 * v); c[which](); ctx.restore(); ctx.globalAlpha = 1;
 }
 export const DASH_COST = 15, DASH_GAP = 0.2;
 export const dashGap = (kit) => kit.dash.recovery ?? DASH_GAP;
@@ -2100,6 +2109,7 @@ function placeSpawn(type) {
 
 export function update(dt, rdt) {
   G.time += rdt;
+  if (G.cineTail) { const c = G.cineTail; c.t += rdt; if (c.k) { c.k.prev = c.k.t; c.k.t += rdt; } if (c.t >= c.life) G.cineTail = null; }
   if (G.sunrise) G.sunrise.t += rdt;
   if (G.unlocks.length && !G.talk?.lore && (G.unlocks[0].t += rdt) > 2.48) G.unlocks.shift();
   updateTalk(rdt);
@@ -3097,6 +3107,7 @@ export function drawWorld() {
   drawTricks();
   for (const e of G.E) if (e.boss) drawDeepFloor(e);
   G.cine?.under?.();
+  drawCineTail('under');
   drawDeathUnder();
 
   // a boss's arrival dies away slowly once the boss is here
@@ -3289,6 +3300,7 @@ export function drawWorld() {
   }
 
   G.cine?.draw?.(cx, cy);
+  drawCineTail('draw');
   ctx.restore();
   if (G.dark > 0) drawDark();
   if (G.sunrise) {

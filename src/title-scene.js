@@ -2,9 +2,9 @@
 // same pixels as the game: a blood-red sky with the swallowed black sun, two rows of ruined towers far off, fog,
 // ash and embers on the wind, now and then red lightning, and an empty broken battlement in front with fire
 // glowing through its cracks. (drawFighter and the flourishes below draw the fighters in the opening's cut-ins.)
-import { ctx, W, H, FW, SX, onWidth, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=206';
-import { SPR } from './sprites.js?v=206';
-import { drawWeaponAt, REST, SHEATH, sheathPose } from './hero-sprites.js?v=206';
+import { ctx, W, H, FW, SX, onWidth, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=207';
+import { SPR } from './sprites.js?v=207';
+import { drawWeaponAt, REST, SHEATH, sheathPose } from './hero-sprites.js?v=207';
 
 const TAU = Math.PI * 2;
 // the same "random" every time, so the skyline never changes

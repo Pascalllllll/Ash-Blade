@@ -4,24 +4,27 @@
 //          and choose it; locked ones are ash statues. Escape goes back to the title.
 //   card   the chosen fighter's card: their high pixel portrait on the left, their numbers, powers and records on the
 //          right. Enter locks them in and you walk the camp as them; Escape chooses another.
-//   walk   you walk the camp as that fighter. The others talk when you come up to them. Read the Compendium on the
+//   walk   you walk the camp as that fighter. Walk up to the others and talk to them (Enter). Read the Compendium on the
 //          old stone, set the difficulty at the war banner, train at the dummy, walk into the pit to begin. Tab shows
 //          your card again, Escape goes back to choosing.
-// Fighters are drawn at half the size they have in a fight (one art pixel to a screen pixel), so the camp feels big.
-import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas } from './gfx.js?v=206';
-import { A } from './audio.js?v=206';
-import { input, keyHit, keyDown, actionHit } from './input.js?v=206';
-import { keyLabel } from './bindings.js?v=206';
-import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=206';
-import { CHARS } from './chars.js?v=206';
-import { drawFighter } from './title-scene.js?v=206';
-import { drawEmote, sayBubble } from './emotes.js?v=206';
-import { drawSelect, sel } from './ui.js?v=206';
-import { loadPortraits } from './portraits.js?v=206';
+// Fighters are drawn at three quarters of their fight size while you choose, and at their fight size once one is
+// locked in and you walk the camp, as you would in a fight.
+import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas } from './gfx.js?v=207';
+import { A } from './audio.js?v=207';
+import { input, keyHit, keyDown, actionHit } from './input.js?v=207';
+import { keyLabel } from './bindings.js?v=207';
+import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=207';
+import { CHARS } from './chars.js?v=207';
+import { drawFighter } from './title-scene.js?v=207';
+import { drawEmote, sayBubble } from './emotes.js?v=207';
+import { drawSelect, sel } from './ui.js?v=207';
+import { loadPortraits } from './portraits.js?v=207';
 
 const TAU = Math.PI * 2;
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
-const S = 0.5;                       // the fighters' size in the camp
+// the fighters' size: three quarters while you choose, then, once one is locked in, eased up to their size in a fight
+const PICK_S = 0.75, WALK_S = 1;
+let S = PICK_S;
 const CW = 600, CH = 214;            // the camp, in game pixels
 const FIRE = [300, 136], PIT = [300, 64], STONE = [130, 132], BANNER = [470, 132], DUMMY = [168, 184];
 const TENTS = [[62, 118, '#5a3a3a'], [538, 118, '#3a4a5a']], POSTS = [[214, 104], [386, 104], [236, 196], [364, 196]];
@@ -37,11 +40,22 @@ const LINES = {
   ROBOT: ['ORDER: STOP THE KING. PENDING.', 'CAMPFIRE TEMPERATURE: NICE.'],
   DEV: ['THIS CAMP IS HARDCODED.', 'WHO WROTE THESE BUGS? OH. ME.'],
 };
+// what they say after they have beaten the King once (their own ending has happened)
+const LINES_WON = {
+  BLADE: ['THE EMBER IS HOME. I CAME BACK FOR THE DARK.', 'AUREL WAS AFRAID. I UNDERSTAND THAT NOW.'],
+  GUNNER: ['THE TOWN GOT ITS ROUND. THIS ONE IS FOR ME.', 'NO BOUNTY ON THE DARK. I CHECKED.'],
+  WIZARD: ['I HAVE MY FACE BACK. I WOULD LIKE TO KEEP IT.', 'THE NEW SUN HAS A LONG NAME. WORTH IT.'],
+  NINJA: ['THE CHERRY TREE BLOOMED. I SAW IT.', 'I WAS LATE AGAIN. WORTH IT.'],
+  MECHANIC: ['THE WINDMILL STILL TURNS. BIG GUY IS PROUD.', 'THE DARK HAS PARTS TOO, RIGHT?'],
+  TANK: ['I CARVED HIS NAME. NOW I GUARD THE LIGHT.', 'REST, MY KING. I WILL HOLD THE DARK.'],
+  ROBOT: ['NEW ORDER: KEEP IT SAFE. STILL EXECUTING.', 'THE FLOWER IS FINE. THANK YOU FOR ASKING.'],
+  DEV: ['SOMETHING BELOW IS STILL RUNNING.', 'THE ENDING SHIPPED. NOW THE SEQUEL.'],
+};
 const MOODS = {
   BLADE: ['dots', 'note'], GUNNER: ['note', 'heart'], WIZARD: ['dots', 'star'], NINJA: ['sweat', 'note'],
   MECHANIC: ['note', 'ask'], TANK: ['dots', 'sleep'], ROBOT: ['ask', 'alert'], DEV: ['dots', 'sleep'],
 };
-const HEAD = 17;                     // from the feet to just over the head, at the camp's size
+const head = () => Math.round(34 * S);   // from the feet to just over the head, at the current size
 const spot = (i) => { const a = Math.PI * 1.1 + (i / OPTIONS.char.length) * TAU; return [FIRE[0] + Math.cos(a) * 78, FIRE[1] + 4 + Math.sin(a) * 26]; };
 
 export const camp = { t: 0, mode: 'pick' };
@@ -51,6 +65,7 @@ export function openCamp() {
   if (!isUnlocked(id)) id = 'BLADE';
   const others = {};
   list.forEach((o, i) => { const [x, y] = spot(i); others[o] = { id: o, x, y, hx: x, hy: y, face: x > FIRE[0] ? -1 : 1, emote: null, eT: 0, eNext: 2 + hash(i) * 5, say: null, sayT: 0, near: false, li: 0 }; });
+  S = PICK_S;
   Object.assign(camp, { t: 0, mode: 'pick', pick: list.indexOf(id), id, x: 0, y: 0, face: 1, moving: 0, tx: null, ty: null, pending: null, near: null, others, puffs: [], sparks: [], msg: null, msgT: 0, cam: { x: FIRE[0] - W / 2, y: FIRE[1] - H / 2 - 6 }, cardFrom: 'pick', cardId: id });
   loadPortraits();
 }
@@ -80,7 +95,7 @@ function updatePick() {
   if (lr) { camp.pick = (camp.pick + lr + list.length) % list.length; A.ui(); }
   const m = world(input.mouse.x, input.mouse.y);
   let over = -1;
-  list.forEach((id, i) => { const o = camp.others[id]; if (Math.abs(m.x - o.x) < 9 && m.y > o.y - HEAD - 2 && m.y < o.y + 4) over = i; });
+  list.forEach((id, i) => { const o = camp.others[id]; if (Math.abs(m.x - o.x) < 12 && m.y > o.y - head() - 2 && m.y < o.y + 4) over = i; });
   if (over >= 0 && (input.mouse.moved || input.mouse.pressed) && over !== camp.pick) { camp.pick = over; A.ui(); }
   if ((input.mouse.pressed && over >= 0) || keyHit('Enter', 'Space') || actionHit('attack')) openCard(list[camp.pick], 'pick');
   return null;
@@ -100,7 +115,7 @@ function updateCard() {
 // what you can use while walking, where it is, and how close you have to be
 function usables() {
   const out = [];
-  for (const o of Object.values(camp.others)) if (o.id !== camp.id) out.push({ kind: 'hero', id: o.id, x: o.x, y: o.y, r: 14 });
+  for (const o of Object.values(camp.others)) if (o.id !== camp.id) out.push({ kind: 'hero', id: o.id, x: o.x, y: o.y, r: 18 });
   out.push({ kind: 'pit', x: PIT[0], y: PIT[1] + 20, r: 30 }, { kind: 'codex', x: STONE[0], y: STONE[1], r: 16 }, { kind: 'diff', x: BANNER[0], y: BANNER[1], r: 16 }, { kind: 'train', x: DUMMY[0], y: DUMMY[1], r: 14 });
   return out;
 }
@@ -114,7 +129,7 @@ function use(u) {
     // a word with them: unlocked ones answer, statues just stand there
     const o = camp.others[u.id];
     if (!isUnlocked(u.id)) { o.emote = 'ask'; o.eT = 0; camp.msg = 'AN ASH STATUE. ' + CHARS[u.id].mission[0]; camp.msgT = 2; A.deny(); return null; }
-    o.say = LINES[u.id][o.li++ % 2]; o.sayT = 0; o.emote = null; A.ui();
+    o.say = (best.chars[u.id]?.won ? LINES_WON : LINES)[u.id][o.li++ % 2]; o.sayT = 0; o.emote = null; A.ui();
     return null;
   }
   return null;
@@ -130,7 +145,7 @@ function updateWalk(dt) {
   const all = usables();
   if (input.mouse.pressed) {
     const m = world(input.mouse.x, input.mouse.y + 4);
-    const hit = all.find((u) => (u.kind === 'hero' ? Math.abs(u.x - m.x) < 9 && m.y > u.y - HEAD && m.y < u.y + 6 : Math.hypot(u.x - m.x, u.y - 8 - m.y) < 14) || (u.kind === 'pit' && Math.abs(m.x - PIT[0]) < 80 && Math.abs(m.y - PIT[1]) < 18));
+    const hit = all.find((u) => (u.kind === 'hero' ? Math.abs(u.x - m.x) < 12 && m.y > u.y - head() && m.y < u.y + 6 : Math.hypot(u.x - m.x, u.y - 8 - m.y) < 14) || (u.kind === 'pit' && Math.abs(m.x - PIT[0]) < 80 && Math.abs(m.y - PIT[1]) < 18));
     c.tx = hit ? hit.x + (hit.kind === 'hero' ? (c.x < hit.x ? -10 : 10) : 0) : m.x; c.ty = hit ? (hit.kind === 'pit' ? BOUNDS.y0 : hit.y + 4) : m.y;
     c.tx = Math.max(BOUNDS.x0, Math.min(BOUNDS.x1, c.tx)); c.ty = Math.max(BOUNDS.y0, Math.min(BOUNDS.y1, c.ty));
     c.pending = hit || null;
@@ -164,6 +179,8 @@ function updateWalk(dt) {
 
 export function updateCamp(dt) {
   const c = camp;
+  const want = c.mode === 'walk' || (c.mode === 'card' && c.cardFrom === 'walk') ? WALK_S : PICK_S;
+  S += (want - S) * Math.min(1, dt * 7); if (Math.abs(want - S) < 0.01) S = want;
   c.t += dt; c.msgT = Math.max(0, c.msgT - dt);
   let r = null;
   if (c.mode === 'pick') { if (back()) return { back: true }; r = updatePick(); }
@@ -180,12 +197,11 @@ export function updateCamp(dt) {
     if (c.mode === 'walk' && o.id === c.id) continue;
     const close = c.mode === 'walk' && Math.hypot(c.x - o.x, c.y - o.y) < 26;
     o.face = close ? (c.x < o.x ? -1 : 1) : (o.x > FIRE[0] ? -1 : 1);
-    if (close && !o.near && isUnlocked(o.id)) { o.say = LINES[o.id][o.li++ % 2]; o.sayT = 0; }
     o.near = close;
     if (o.say) { o.sayT += dt; if (o.sayT > 2.6) o.say = null; }
     o.eT += dt; o.eNext -= dt;
     if (o.emote && o.eT > 2.2) o.emote = null;
-    if (o.eNext <= 0 && !o.say) { o.eNext = 5 + Math.random() * 6; if (isUnlocked(o.id)) { o.emote = MOODS[o.id][Math.floor(Math.random() * 2)]; o.eT = 0; } }
+    if (o.eNext <= 0 && !o.say) { o.eNext = 9 + Math.random() * 9; if (isUnlocked(o.id)) { o.emote = MOODS[o.id][Math.floor(Math.random() * 2)]; o.eT = 0; } }
   }
   for (const p of c.puffs) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; p.vy *= 0.92; }
   c.puffs = c.puffs.filter((p) => p.t < p.life);
@@ -321,8 +337,8 @@ function drawScene(t) {
   // bubbles over heads go on top
   for (const o of Object.values(camp.others)) {
     if (camp.mode === 'walk' && o.id === camp.id) continue;
-    if (o.say) sayBubble(o.say, Math.max(cx + 70, Math.min(cx + W - 70, o.x)), o.y - HEAD - 2, o.sayT);
-    else if (o.emote) drawEmote(o.emote, o.x, o.y - HEAD, o.eT, Math.min(1, (2.2 - o.eT) * 3));
+    if (o.say) sayBubble(o.say, Math.max(cx + 70, Math.min(cx + W - 70, o.x)), o.y - head() - 2, o.sayT);
+    else if (o.emote) drawEmote(o.emote, o.x, o.y - head(), o.eT, Math.min(1, (2.2 - o.eT) * 3));
   }
   if (camp.mode === 'pick') drawPicker(t);
   ctx.restore();
@@ -342,8 +358,8 @@ function drawOther(o, t) {
   drawFighter(o.id, o.x, o.y + 1, S, { t: t + hash(o.hx) * 3, flip: o.face < 0 });
   // a crown over one who has beaten the King, a violet one over one who has beaten Nox
   const h = best.chars[o.id];
-  if (h?.won) { const c = h.nox ? '#b48cff' : '#ffd447', cy = o.y - HEAD - 1 + Math.round(Math.sin(t * 2 + o.hx)); px(o.x - 2, cy, c); px(o.x, cy - 1, c); px(o.x + 2, cy, c); rect(o.x - 2, cy + 1, 5, 1, c); }
-  if (camp.mode === 'walk' && camp.near?.id === o.id) { const c = CHARS[o.id].color(); for (let i = 0; i < 3; i++) rect(o.x - i, o.y - HEAD - 6 + i + (Math.floor(t * 4) % 2), 1 + i * 2, 1, c); }
+  if (h?.won) { const c = h.nox ? '#b48cff' : '#ffd447', cy = o.y - head() - 1 + Math.round(Math.sin(t * 2 + o.hx)); px(o.x - 2, cy, c); px(o.x, cy - 1, c); px(o.x + 2, cy, c); rect(o.x - 2, cy + 1, 5, 1, c); }
+  if (camp.mode === 'walk' && camp.near?.id === o.id) { const c = CHARS[o.id].color(); for (let i = 0; i < 3; i++) rect(o.x - i, o.y - head() - 6 + i + (Math.floor(t * 4) % 2), 1 + i * 2, 1, c); }
 }
 function drawMe(t) {
   ctx.globalAlpha = 0.35; disc(camp.x, camp.y + 1, 5, '#0a0608'); ctx.globalAlpha = 1;
@@ -356,7 +372,7 @@ function drawPicker(t) {
   const id = ids()[camp.pick], o = camp.others[id], k = CHARS[id], lk = !isUnlocked(id), col = lk ? '#8a8088' : k.color();
   for (let i = 0; i < 20; i++) { const a = (i / 20) * TAU + t * 1.5; px(o.x + Math.cos(a) * 9, o.y + 1 + Math.sin(a) * 3, i % 2 ? col : P.paper); }
   glow(o.x, o.y - 6, col, 16, 0.3);
-  const by = o.y - HEAD - 8 + (Math.floor(t * 4) % 2);
+  const by = o.y - head() - 8 + (Math.floor(t * 4) % 2);
   for (let i = 0; i < 4; i++) rect(o.x - 3 + i, by + i, 7 - i * 2, 1, col);
   textO(lk && id === 'DEV' ? '???' : k.hero, o.x, by - 9, col, 1, 'c');
 }

@@ -11,10 +11,10 @@
 //   Eclipse    a black disc slides over a gold sun overhead, the light fails, and a ring of gold opens on the floor
 //   Clock      a clock face draws itself on the floor; its hands spin backwards, faster, ticking louder
 //   Nox        the light dies around the spot, tendrils of night crawl out of it, and two pale eyes open
-import { ctx, P, line, rect, px, disc, ring, glow, drawSprite } from './gfx.js?v=206';
-import { G, TAU, heroSet, part, rnd, shake, dust, addRing, flash, fx } from './world.js?v=206';
-import { A } from './audio.js?v=206';
-import { darken, floorRing, ease } from './scene-fx.js?v=206';
+import { ctx, P, line, rect, px, disc, ring, glow, drawSprite } from './gfx.js?v=207';
+import { G, TAU, heroSet, part, rnd, shake, dust, addRing, flash, fx } from './world.js?v=207';
+import { A } from './audio.js?v=207';
+import { darken, floorRing, ease } from './scene-fx.js?v=207';
 
 export const ARRIVE_LIFE = 2.6;
 const passed = (s, dt, at) => s.t >= at && s.t - dt < at;

@@ -10,14 +10,14 @@
 //   Grom     the ground shakes, he falls from the sky hammer first and splits the floor with rock spikes.
 //   Unit-7   a countdown, an orbital beam, and the robot builds itself up row by row inside it and powers on.
 //   The Dev  a terminal compiles him, the window shuts off, and he renders in from coarse blocks to full detail.
-import { ctx, disc, ring, W } from './gfx.js?v=206';
-import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=206';
-import { A } from './audio.js?v=206';
-import { input, keyHit } from './input.js?v=206';
+import { ctx, disc, ring, W } from './gfx.js?v=207';
+import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet, cineTail } from './world.js?v=207';
+import { A } from './audio.js?v=207';
+import { input, keyHit } from './input.js?v=207';
 import {
   P, rnd, TAU, clamp, part, glow, line, rect, px, text, textO, ease, easeIn, at, between, frame, drawBody, drawHero, drawCoarse,
   handPos, eyePos, weaponLen, restAngle, makeCracks, drawCracks, stampCracks, drawLetterbox, drawNameCard, darken, floorRing,
-} from './scene-fx.js?v=206';
+} from './scene-fx.js?v=207';
 
 const SUB = { BLADE: 'THE BLADE', GUNNER: 'THE GUNNER', WIZARD: 'THE WIZARD', NINJA: 'THE SAMURAI', MECHANIC: 'THE MECHANIC', TANK: 'THE TANK', ROBOT: 'THE ROBOT', DEV: 'ROOT ACCESS' };
 const PETAL = ['#ffb7d5', '#ff8fb8', '#ffffff'];
@@ -64,6 +64,7 @@ export function heroEntrance(id) {
       // keys pressed during the entrance (to skip it, or out of impatience) don't fire once it's over
       p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0;
       S.end?.(k);
+      cineTail({ k, under: () => S.under?.(k) }, 1.3);
       if (k.banner) { k.banner.t = 0; G.banner = k.banner; }
     }
   };
