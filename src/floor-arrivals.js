@@ -11,15 +11,15 @@
 //   The Clockworks     they drop onto a gear lift that spins down into place, vents steam, and the clock strikes.
 //   The Last Night     the stars go out and they fall as one, a streak of light across the dark.
 // Any attack key, Enter, Space, Escape or a tap skips to the end. The world waits while it plays (G.cine).
-import { ctx, disc, ring, W, H, SX } from './gfx.js?v=203';
-import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, shadow } from './world.js?v=203';
-import { A } from './audio.js?v=203';
-import { input, keyHit } from './input.js?v=203';
-import { MAPS, B, AW, AH, TORCHES, depthOf } from './maps.js?v=203';
+import { ctx, disc, ring, W, H, SX } from './gfx.js?v=204';
+import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, shadow } from './world.js?v=204';
+import { A } from './audio.js?v=204';
+import { input, keyHit } from './input.js?v=204';
+import { MAPS, B, AW, AH, TORCHES, depthOf } from './maps.js?v=204';
 import {
   P, rnd, TAU, clamp, part, glow, line, rect, px, ease, easeIn, at, frame, drawBody, drawHero, restAngle, makeCracks,
   drawCracks, stampCracks, drawLetterbox, drawNameCard, darken, floorRing,
-} from './scene-fx.js?v=203';
+} from './scene-fx.js?v=204';
 
 const skipPressed = () => keyHit('Enter', 'Space', 'Escape', 'KeyJ', 'KeyZ') || input.mouse.pressed || input.thit?.size > 0;
 const sweep = (list) => { for (let i = list.length - 1; i >= 0; i--) if (list[i].t >= list[i].life) list.splice(i, 1); };

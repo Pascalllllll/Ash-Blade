@@ -1,12 +1,12 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, disc, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=203';
-import { A } from './audio.js?v=203';
-import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=203';
+import { ctx, P, rect, px, line, disc, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=204';
+import { A } from './audio.js?v=204';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=204';
 import {
   BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
   stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
-} from './scene-fx.js?v=203';
+} from './scene-fx.js?v=204';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();

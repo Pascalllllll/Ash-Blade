@@ -1,18 +1,18 @@
-import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=203';
-import { resetKeys, resetLayout } from './bindings.js?v=203';
-import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=203';
-import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=203';
-import { A } from './audio.js?v=203';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=203';
-import { buildSprites } from './sprites.js?v=203';
-import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=203';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash, applyPractice } from './world.js?v=203';
+import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=204';
+import { resetKeys, resetLayout } from './bindings.js?v=204';
+import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=204';
+import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=204';
+import { A } from './audio.js?v=204';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=204';
+import { buildSprites } from './sprites.js?v=204';
+import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=204';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash, applyPractice } from './world.js?v=204';
 import {
   drawLeave, drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg, drawInheritance,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=203';
-import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=203';
+} from './ui.js?v=204';
+import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=204';
 
 loadAll();
 applyTheme(settings.theme);

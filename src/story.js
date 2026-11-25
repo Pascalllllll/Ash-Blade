@@ -1,8 +1,9 @@
 // The story. Aurel was the Sun King. When the sun grew old he feared the dark that waits for everything, so he
 // swallowed it to burn forever, and became the Ashen King: the sky went black, the land turned to ash (his own people
 // with it: they are the ash things that climb out of his pit), and every night his army comes up out of the pit
-// below his throne. The fighters hold the pit. The goal of a run: survive 20 nights, kill the King on the twentieth
-// and cut the sun out of him. Then the fighter chooses: go home (the run ends with their own ending), or go deeper:
+// below his throne. The fighters go down into the pit, floor by floor, each for a reason of their own. The goal of a
+// run: fight down 20 waves to his throne, kill the King and cut the sun out of him. Then the fighter chooses: go home
+// (the run ends with their own ending, three pages that close the reason they came), or go deeper:
 // the King's fire was what kept his pit sealed, and under it waits the dark he was so afraid of.
 //
 //   say()     the dialog box: the King taunts the fighter and tells them who he was, a voice in the ash begs for help,
@@ -11,18 +12,18 @@
 //   stories   picture books, a page at a time: a small pixel picture with its caption typing out under it
 //               lore     the intro: the golden sun, the fear, the swallowing, the ash, the fighters at the pit's edge
 //               ending   the King falls: the sun breaks out, his people go free, his last look, the light, a last word
-//               home     going home: the climb into the morning, the fighter's own ending, the end
+//               home     going home: the climb into the morning, three pages of the fighter's own ending (HOMES), the end
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=203';
-import { SPR } from './sprites.js?v=203';
-import { input, keyHit } from './input.js?v=203';
-import { A } from './audio.js?v=203';
-import { G } from './world.js?v=203';
-import { CHARS } from './chars.js?v=203';
-import { drawFighter } from './title-scene.js?v=203';
-import { drawWeaponAt } from './hero-sprites.js?v=203';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=204';
+import { SPR } from './sprites.js?v=204';
+import { input, keyHit } from './input.js?v=204';
+import { A } from './audio.js?v=204';
+import { G } from './world.js?v=204';
+import { CHARS } from './chars.js?v=204';
+import { drawFighter } from './title-scene.js?v=204';
+import { drawWeaponAt } from './hero-sprites.js?v=204';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -860,7 +861,7 @@ const EPI = {
   },
   DEV: {
     cap: ['THE DEV SHIPPED THE ENDING.', 'ZERO BUGS. PROBABLY.'],
-    draw(t) {
+    draw(t, o = {}) {
       rect(PX, PY, PW, PH, '#0a0c14');
       // a window behind: the sun coming up outside
       sky(PX + 14, PY + 12, 50, 40, ['#ffd0a0', '#ff9a7a', '#c0607a']);
@@ -871,13 +872,13 @@ const EPI = {
       rect(PX + 96, dy, 110, 4, '#3a2a22'); rect(PX + 100, dy + 4, 4, 22, '#2a1e18'); rect(PX + 198, dy + 4, 4, 22, '#2a1e18');
       rect(PX + 118, dy - 46, 72, 44, '#2a2e3a'); rect(PX + 121, dy - 43, 66, 36, '#06120a'); rect(PX + 150, dy - 2, 8, 2, '#2a2e3a');
       const LOG = ['> BUILD ENDING', '> TESTS 1337/1337', '> SUN: ONLINE', '> SHIPPED'];
-      let n = Math.floor(t * 14);
+      let n = o.off ? 0 : Math.floor(t * 14);
       LOG.forEach((l, i) => { if (n > 0) text(l.slice(0, n), PX + 124, dy - 40 + i * 8, i === 3 ? P.gold : '#39ff6a', 1); n -= l.length + 4; });
-      if (Math.floor(t * 3) % 2) rect(PX + 124, dy - 8, 3, 1, '#39ff6a');
-      glow(PX + 154, dy - 25, '#39ff6a', 26, 0.15);
+      if (!o.off && Math.floor(t * 3) % 2) rect(PX + 124, dy - 8, 3, 1, '#39ff6a');
+      if (!o.off) glow(PX + 154, dy - 25, '#39ff6a', 26, 0.15);
       // coffee
       rect(PX + 196, dy - 7, 6, 7, P.paper); for (let i = 0; i < 3; i++) px(PX + 198 + Math.sin(t * 3 + i) * 1.5, dy - 9 - i * 2 - ((t * 6) % 2 | 0), '#8a8aa0');
-      drawFighter('DEV', PX + 90, PY + PH, 2, { t, evo: evo() });
+      if (!o.away) drawFighter('DEV', PX + 90, PY + PH, 2, { t, evo: evo() });
     },
   },
 };
@@ -923,6 +924,467 @@ const HOME = [
     },
   },
 ];
+// ---------- going home: three pages of each fighter's own story, after the climb ----------
+// Each one pays off what they said on the way down:
+//   Kael    gives the ember back to the sun, buries Aurel's crown under his cold blade, and comes home to his
+//           grandmother singing the old Sun King's song to the sun for the first time
+//   Vega    the bounty was a poor town's last sack of coins; she keeps one coin for luck, buys the town a round, and
+//           takes the road again at sundown
+//   Morrow  the stars come back and answer to their names, he takes three days to name the new sun, and the stars
+//           give him back the face he traded for them
+//   Rin     the cherry tree at her clan's burned shrine blooms, she runs for school at 8:59, and is late anyway
+//   Rivet   she and Big Guy haul the Colossus core out of the pit, build a windmill from it, and light the town
+//   Grom    he carves his King's tomb, stands one last watch, lays down his hammer and walks home to a lit window
+//   Unit-7  no orders remain; a child gives it a flower to keep safe; it keeps that order for a thousand sunrises
+//   Dev     a last patch closes the pit (one warning: something below still runs), everyone goes in the credits,
+//           even the ash, and he logs off to see the real sun
+const NIGHT_SKY = ['#05020a', '#0c0a1e', '#1a1838'], DAWN_SKY = ['#2a1838', '#7a3a4a', '#e08a4a'];
+const DAY_SKY = ['#8ad0ff', '#ffe0a0', '#ffb070'], DUSK_SKY = ['#3a1838', '#a04a4a', '#ff9a4a'];
+// days going by, one every `per` seconds: the sky turns, the sun arcs over, the stars come out at night
+function daysGo(t, per) {
+  const u = (t / per) % 1;
+  sky(PX, PY, PW, PH, u < 0.1 ? DAWN_SKY : u < 0.48 ? DAY_SKY : u < 0.58 ? DUSK_SKY : NIGHT_SKY);
+  if (u >= 0.58) for (let i = 0; i < 18; i++) px(PX + hash(i) * PW, PY + hash(i + 40) * 56, i % 3 ? '#8a84c0' : P.paper);
+  else { const a = Math.PI * (u / 0.58); sun(PX + PW / 2 - Math.cos(a) * 92, PY + PH - 18 - Math.sin(a) * 74, 8, t, { ga: 0.3 }); }
+  return u;
+}
+// a little house: walls, a roof, a window (lit, or dark), a door
+function cottage(x, base, w, h, wall, roof, lit) {
+  rect(x, base - h, w, h, wall);
+  for (let i = 0; i < Math.ceil(w / 2) + 2; i++) rect(x - 2 + i, base - h - i, w + 4 - i * 2, 1, roof);
+  rect(x + 4, base - h + 5, 6, 5, lit || '#2a1e22');
+  if (lit) glow(x + 7, base - h + 7, lit, 9, 0.35);
+  rect(x + w - 10, base - 10, 6, 10, '#3a2418');
+}
+// a music note
+function note(x, y, col) { rect(x, y, 2, 2, col); rect(x + 1, y - 4, 1, 5, col); px(x + 2, y - 4, col); px(x + 3, y - 3, col); }
+// a floating terminal window, its lines typing out (a line in col2 if it starts with '!')
+function term(x, y, w, lines, t, cps = 16) {
+  const h = lines.length * 8 + 7;
+  ctx.globalAlpha = 0.86; rect(x, y, w, h, '#06120a'); ctx.globalAlpha = 1;
+  rect(x, y, w, 1, '#39ff6a'); rect(x, y + h - 1, w, 1, '#1a5a2a'); rect(x, y, 1, h, '#1a5a2a'); rect(x + w - 1, y, 1, h, '#1a5a2a');
+  let n = Math.floor(t * cps);
+  lines.forEach((l, i) => {
+    const warn = l[0] === '!', s = warn ? l.slice(1) : l;
+    if (n > 0) text(s.slice(0, n), x + 4, y + 4 + i * 8, warn ? '#b48cff' : '#39ff6a', 1);
+    n -= s.length + 3;
+  });
+  if (Math.floor(t * 3) % 2 && n > 0) rect(x + 4, y + 4 + lines.length * 8 - 2, 3, 1, '#39ff6a');
+}
+// Big Guy, Rivet's mech: a squat walker with an orange stripe and a cyan cockpit
+function mech(x, base, t, walking) {
+  const st = walking ? Math.sin(t * 7) : 0, bob = walking ? Math.abs(Math.cos(t * 7)) : 0;
+  rect(x - 7, base - 8 - Math.max(0, st) * 2, 4, 8, '#4a4652'); rect(x + 3, base - 8 - Math.max(0, -st) * 2, 4, 8, '#4a4652');
+  const by = base - 24 - bob;
+  rect(x - 10, by, 20, 16, '#6a6470'); rect(x - 10, by, 20, 2, '#8a8490'); rect(x - 10, by + 10, 20, 2, '#ff9a3c');
+  rect(x - 4, by + 3, 8, 5, '#62efff'); glow(x, by + 5, '#62efff', 6, 0.4);
+  rect(x - 14, by + 3, 4, 10, '#5a5460'); rect(x + 10, by + 3, 4, 10, '#5a5460');
+}
+// the little person from the Ash Story, used for townsfolk; a child is k 0.7
+const kid = (x, base, col, t, o) => folk(x, base, 0.7, col, t, o);
+
+const HOMES = {
+  BLADE: [
+    {
+      // the ember lifts off his raised blade and flies home into the new sun
+      len: 7.4, cue: () => A.storyCue('freed'),
+      cap: ['FOR A HUNDRED YEARS HIS FAMILY KEPT ONE EMBER', 'OF THE OLD SUN ALIVE IN HIS BLADE.', 'KAEL RAISED IT, AND LET THE EMBER GO HOME.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#ffd9a0', '#ffb070', '#e07050']);
+        const sx = PX + 176, sy = PY + 28, gy = PY + PH - 14, k = clamp01((t - 1.4) / 2.8);
+        const flare = t > 4.2 ? Math.max(0, 1 - (t - 4.2) / 1.4) : 0;
+        sun(sx, sy, 12 + flare * 3, t, { ga: 0.35 + flare * 0.4 });
+        if (flare > 0) { ctx.globalAlpha = flare; ring(sx, sy, 14 + (1 - flare) * 26, 1, P.gold); ring(sx, sy, 10 + (1 - flare) * 40, 1, P.paper); ctx.globalAlpha = 1; }
+        ground(gy, '#4a3a2a', '#6aa84a');
+        const [hx, hy, wa] = drawFighter('BLADE', PX + 74, gy + 1, 2, { t, wa: -1.2, front: true, evo: evo() }) || [PX + 80, gy - 20, -1.2];
+        const tx = hx + Math.cos(wa) * 13, ty = hy + Math.sin(wa) * 13;
+        // the path: up and over to the sun
+        const at = (u) => { const cx = PX + 118, cy = PY + 2, a = (1 - u) ** 2, b = 2 * u * (1 - u), c = u * u; return [a * tx + b * cx + c * sx, a * ty + b * cy + c * sy]; };
+        if (t < 1.4) { const f = 0.7 + 0.3 * Math.sin(t * 20); glow(tx, ty, '#ff6a2a', 10 + f * 4, 0.9); disc(tx, ty, 2.5, '#ff6a2a'); disc(tx, ty, 1.5, P.ember3); }
+        else if (k < 1) {
+          for (let j = 16; j >= 1; j--) { const [x, y] = at(Math.max(0, ease(k) - j * 0.02)); ctx.globalAlpha = 1 - j / 17; rect(x + Math.sin(t * 9 + j) * 1.5, y, 2, 2, j % 3 ? '#ff6a2a' : P.gold); }
+          ctx.globalAlpha = 1;
+          const [x, y] = at(ease(k)); glow(x, y, '#ff6a2a', 12, 0.9); disc(x, y, 3, '#ff6a2a'); disc(x, y, 2, P.ember3); px(x, y, P.paper);
+        }
+      },
+    },
+    { len: 7.4, cue: () => A.storyCue('aurel'), cap: ['HE BURIED THE CROWN ON THE HILL WHERE AUREL', 'HAD WATCHED THE DAWN AS A BOY,', 'AND LEFT HIS COLD BLADE STANDING OVER IT.'], draw: (t) => EPI.BLADE.draw(t) },
+    {
+      // home: his grandmother at her door, singing, notes drifting up into the evening
+      len: 8, cue: () => A.endingCue(1),
+      cap: ['AT HOME, HIS GRANDMOTHER WAS SINGING THE OLD SONG.', 'FOR THE FIRST TIME IN HER LIFE,', 'SHE SANG IT TO THE SUN.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#6a3a5a', '#e07a5a', '#ffc07a']);
+        sun(PX + 34, PY + PH - 26, 13, t, { ga: 0.4 });
+        const gy = PY + PH - 12;
+        ground(gy, '#3a3a2a', '#5a8a3a');
+        cottage(PX + 140, gy, 46, 30, '#7a5a4a', '#5a2a2a', '#ffd98a');
+        const gx = PX + 136, arrive = clamp01(t / 4.6);
+        folk(gx, gy, 0.95, '#d8c8d8', t, t > 4.6 ? { arm: [-6, -1] } : {});
+        rect(gx - 2, gy - 14, 5, 2, '#a898b0');
+        for (let i = 0; i < 7; i++) { const u = (t * 0.25 + i / 7) % 1; ctx.globalAlpha = Math.sin(u * Math.PI); note(gx + 2 + u * 34 + Math.sin(t * 2 + i) * 4, gy - 18 - u * 52, i % 2 ? P.gold : P.paper); }
+        ctx.globalAlpha = 1;
+        const kx = PX + 24 + ease(arrive) * 84;
+        drawFighter('BLADE', kx, gy + 1, 2, arrive < 1 ? { anim: 'walk', t, fps: 10, evo: evo() } : { t, evo: evo() });
+      },
+    },
+  ],
+
+  GUNNER: [
+    {
+      // the town's poster comes down off the board and blows away
+      len: 7.2, cue: () => A.storyCue('stamp'),
+      cap: ['THE BOUNTY ON THE ASHEN KING WAS POSTED BY A TOWN', 'THAT HAD NOTHING LEFT BUT ONE SACK OF COINS.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#ffd9a0', '#ffb070', '#c06a50']);
+        const gy = PY + PH - 14;
+        for (const [x, w, h] of [[2, 30, 34], [36, 26, 26], [168, 30, 38], [200, 24, 28]]) { rect(PX + x, gy - h, w, h, '#8a5a3a'); rect(PX + x, gy - h, w, 2, '#5a3a2a'); rect(PX + x + 6, gy - h + 8, 8, 7, '#3a2418'); }
+        ground(gy, '#a07a50', '#c09a60');
+        // the sheriff's board
+        const bx = PX + 104;
+        rect(bx, gy - 40, 3, 40, '#5a3a2a'); rect(bx + 40, gy - 40, 3, 40, '#5a3a2a'); rect(bx - 2, gy - 44, 47, 28, '#6a4a30');
+        const off = t > 3.8, pk = clamp01((t - 3.8) / 2.6);
+        const px0 = off ? bx + 6 - pk * 120 : bx + 6, py0 = off ? gy - 41 + Math.sin(pk * 12) * 6 - pk * 10 : gy - 41, sq = off ? Math.abs(Math.cos(pk * 14)) : 1;
+        const pw = Math.max(2, Math.round(31 * sq));
+        rect(px0 + (31 - pw) / 2, py0, pw, 24, '#e8d8b0');
+        if (sq > 0.6) { text('WANTED', px0 + 4, py0 + 2, '#6a2a1a', 1); crown(px0 + 16, py0 + 15, t); text('1 SACK', px0 + 4, py0 + 17, '#3a2a1a', 1); }
+        // a tumbleweed
+        const tw = PX + 240 - ((t * 40) % 300); ring(tw, gy - 4, 4, 1, '#a08050'); ring(tw, gy - 4, 2, 1, '#806040');
+        const arrive = clamp01(t / 3);
+        drawFighter('GUNNER', PX + 214 - ease(arrive) * 34, gy + 1, 2, arrive < 1 ? { anim: 'walk', t, fps: 10, flip: true, evo: evo() } : { t, flip: true, evo: evo() });
+      },
+    },
+    { len: 7.6, cue: () => A.storyCue('gather'), cap: ['VEGA TOOK ONE COIN, FOR LUCK.', 'THE REST BOUGHT THE BIGGEST ROUND', 'THE TOWN HAD EVER DRUNK.'], draw: (t) => EPI.GUNNER.draw(t) },
+    {
+      // down the long road into the sunset, smaller and smaller
+      len: 7.6, cue: () => A.storyCue('rise'),
+      cap: ['BY SUNDOWN SHE WAS ON THE ROAD AGAIN.', 'SOMEWHERE, SOMEONE ALWAYS NEEDS A HUNTER.'],
+      draw(t) {
+        const hz = PY + 54, vx = PX + 110;
+        sky(PX, PY, PW, hz - PY, DUSK_SKY);
+        ctx.save(); ctx.beginPath(); ctx.rect(PX, PY, PW, hz - PY); ctx.clip(); sun(vx, hz - 6 + ease(t / 7.6) * 14, 12, t, { ga: 0.45 }); ctx.restore();
+        rect(PX, hz, PW, PY + PH - hz, '#7a5038');
+        for (let y = hz; y < PY + PH; y++) { const w = 2 + (y - hz) * 1.5; rect(vx - w / 2, y, w, 1, '#4a3024'); if ((y - hz + Math.floor(t * 20)) % 6 < 2) rect(vx, y, 1, 1, '#d8c090'); }
+        for (const [x, h] of [[24, 16], [40, 10], [180, 20], [198, 12]]) { rect(PX + x, hz - h + 6, 3, h, '#3a2a2a'); rect(PX + x - 3, hz - h + 10, 3, 2, '#3a2a2a'); rect(PX + x + 3, hz - h + 8, 3, 2, '#3a2a2a'); }
+        const u = ease(t / 7.6), y = PY + PH - 6 - u * (PY + PH - 6 - hz - 6), s = 2 - u * 1.25;
+        ctx.globalAlpha = 0.35; rect(vx - 1, y, 3, 10 * s, '#2a1a14'); ctx.globalAlpha = 1;
+        drawFighter('GUNNER', vx, y, s, { anim: 'walk', t, fps: 9, evo: evo() });
+      },
+    },
+  ],
+
+  WIZARD: [
+    {
+      // the first night with stars: each one lights as he names it
+      len: 8, cue: () => A.storyCue('epilogue'),
+      cap: ['THE NEXT NIGHT, THE STARS CAME BACK.', 'MORROW CALLED EACH ONE BY ITS NAME,', 'AND EACH ONE ANSWERED.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, NIGHT_SKY);
+        const NAMES = ['VESPER', 'ORIN', 'ALDA', 'KESS', 'MIRA', 'TAVEN', 'SOLE', 'IVRA', 'NUL', 'EMBERLIGHT', 'HANE', 'CORVUS'];
+        const POS = [[14, 40], [40, 14], [62, 34], [92, 10], [118, 28], [150, 12], [176, 32], [24, 64], [56, 56], [100, 50], [136, 58], [196, 8]];
+        const st = NAMES.map((n, i) => [PX + POS[i][0], PY + POS[i][1], 0.5 + i * 0.5, n]);
+        for (let i = 0; i + 1 < st.length; i++) if (i % 4 !== 3 && t > st[i + 1][2] + 0.4) { ctx.globalAlpha = 0.35; line(st[i][0], st[i][1], st[i + 1][0], st[i + 1][1], '#5a5a9a'); ctx.globalAlpha = 1; }
+        for (const [x, y, at, n] of st) {
+          if (t < at) continue;
+          const u = t - at, tw = Math.floor(t * 3 + x) % 5 ? 1 : 0.5;
+          if (u < 0.3) glow(x, y, P.paper, 8 * (1 - u / 0.3) + 2, 0.6);
+          px(x, y, tw > 0.6 ? P.paper : '#c8c0ff'); px(x - 1, y, '#6a6ab0'); px(x + 1, y, '#6a6ab0'); px(x, y - 1, '#6a6ab0'); px(x, y + 1, '#6a6ab0');
+          if (u < 0.9) { ctx.globalAlpha = Math.min(1, (0.9 - u) * 3); text(n, Math.min(x + 4, PX + PW - textW(n) - 2), y - 3, '#c8c0ff', 1); ctx.globalAlpha = 1; }
+        }
+        ell(PX + 170, PY + PH + 14, 80, 30, '#14122a');
+        drawFighter('WIZARD', PX + 168, PY + PH - 14, 2, { t, wa: -1.3, front: true, evo: evo() });
+      },
+    },
+    {
+      len: 8, cue: () => A.loreCue(0),
+      cap: ["AT DAWN HE BEGAN TO SAY THE NEW SUN'S NAME.", 'IT TOOK HIM THREE DAYS.'],
+      draw(t) { EPI.WIZARD.draw(t); textO('DAY ' + Math.min(3, 1 + Math.floor(t / 2.4)), PX + 8, PY + 6, P.gold, 1, 'l'); },
+    },
+    {
+      // the pond at dawn: his reflection has a face again
+      len: 8.2, cue: () => A.storyCue('freed'),
+      cap: ['WHEN HE WAS DONE, THE STARS GAVE BACK', 'WHAT HE HAD TRADED FOR THEIR NAMES.', 'HE HAD FORGOTTEN HE COULD SMILE.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#ffd9a0', '#ffc0a0', '#c08aa0']);
+        sun(PX + 186, PY + 26, 10, t, { ga: 0.35 });
+        const wy = PY + 74, mx = PX + 92;
+        ground(wy, '#3a5a3a', '#5a8a4a');
+        ell(PX + 112, wy + 16, 70, 16, '#2a4a7a'); ell(PX + 112, wy + 15, 64, 13, '#3a6a9a');
+        // the reflection, upside down in the water
+        ctx.save(); ctx.beginPath(); ctx.rect(PX, wy + 1, PW, 40); ctx.clip();
+        ctx.translate(0, 2 * wy + 2); ctx.scale(1, -1);
+        ctx.globalAlpha = 0.55; drawFighter('WIZARD', mx, wy, 2, { t, bare: true, evo: evo() }); ctx.globalAlpha = 1;
+        ctx.restore();
+        for (let i = 0; i < 3; i++) { const r = ((t * 10 + i * 8) % 26); ctx.globalAlpha = 1 - r / 26; ring(mx, wy + 10, r, 1, '#8ab0e0'); ctx.globalAlpha = 1; }
+        // the face the stars gave back, coming clear in the reflection
+        const f = clamp01((t - 2.6) / 1.6);
+        if (f > 0) {
+          const fx = mx + 1, fy = wy + 22;
+          ctx.globalAlpha = f;
+          rect(fx - 3, fy - 3, 7, 6, '#e8c8a8'); px(fx - 2, fy - 1, '#2a1a1a'); px(fx + 2, fy - 1, '#2a1a1a');
+          rect(fx - 3, fy + 3, 7, 3, '#f0f0f0'); rect(fx - 2, fy + 6, 5, 1, '#f0f0f0');
+          px(fx - 1, fy + 2, '#8a4a3a'); px(fx, fy + 2, '#8a4a3a'); px(fx + 1, fy + 2, '#8a4a3a');
+          ctx.globalAlpha = 1;
+          for (let i = 0; i < 6; i++) { const a = t * 2 + (i * TAU) / 6; ctx.globalAlpha = f * 0.8; px(fx + Math.cos(a) * 9, fy + Math.sin(a) * 6, P.gold); ctx.globalAlpha = 1; }
+        }
+        drawFighter('WIZARD', mx, wy, 2, { t, bare: true, evo: evo() });
+      },
+    },
+  ],
+
+  NINJA: [
+    {
+      // her clan's burned shrine; the old cherry tree flowers as the sun reaches it
+      len: 7.6, cue: () => A.storyCue('aurel'),
+      cap: ["RIN WENT TO THE RUINS OF HER CLAN'S SHRINE FIRST.", 'THE OLD CHERRY TREE BLOOMED FOR THE FIRST TIME', 'IN A HUNDRED YEARS.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#ffe6f0', '#ffd0d8', '#e8a0b0']);
+        sun(PX + 190, PY + 22, 9, t, { ga: 0.3 });
+        const gy = PY + PH - 14;
+        ground(gy, '#6a5a4a', '#8aa86a');
+        // the torii gate, charred
+        const gx = PX + 128;
+        rect(gx, gy - 36, 4, 36, '#c0302a'); rect(gx + 30, gy - 36, 4, 36, '#c0302a');
+        rect(gx - 6, gy - 40, 46, 4, '#c0302a'); rect(gx - 8, gy - 43, 50, 3, '#2a1a1a'); rect(gx - 2, gy - 31, 38, 3, '#a02a24');
+        for (const [x, y] of [[1, 20], [31, 12], [8, -39], [24, -40], [2, 6]]) rect(gx + x, gy - Math.abs(y) - (y < 0 ? 0 : 0), 2, 3, '#2a1010');
+        // the tree: bare branches, then blossom
+        const tx = PX + 52;
+        rect(tx, gy - 30, 4, 30, '#4a2a2a');
+        for (const [dx, dy] of [[-16, -42], [14, -46], [-6, -50], [20, -34], [-20, -30]]) line(tx + 2, gy - 28, tx + dx, gy + dy, '#4a2a2a');
+        for (let i = 0; i < 130; i++) {
+          if (t < 1 + i * 0.022) continue;
+          const a = hash(i) * TAU, r = 3 + hash(i + 9) * 20, x = tx + 2 + Math.cos(a) * r * 1.3, y = gy - 40 + Math.sin(a) * r * 0.6;
+          rect(x, y, 2, 2, i % 3 ? '#ff9fc0' : '#ffd0e0');
+        }
+        if (t > 3.2) for (let i = 0; i < 16; i++) { const u = (t * 0.3 + hash(i + 2)) % 1; px(tx - 20 + hash(i + 5) * 60 + u * 50, gy - 46 + u * 46 + Math.sin(t * 3 + i) * 2, i % 2 ? '#ff9fc0' : '#ffd0e0'); }
+        drawFighter('NINJA', PX + 92, gy + 1, 2, { t, flip: true, evo: evo() });
+      },
+    },
+    {
+      // the run to school: the street flies by, the bakery on Mill Street is open, the clock reads 8:59
+      len: 6.8, cue: () => A.storyCue('choose'),
+      cap: ['THEN SHE RAN. SCHOOL STARTED AT NINE.', 'IT WAS EIGHT FIFTY-NINE.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, DAY_SKY);
+        const gy = PY + PH - 12, cx = PX + 186;
+        // the clock tower, far off
+        rect(cx - 8, PY + 20, 16, gy - PY - 20, '#c8b8a8'); disc(cx, PY + 30, 6, '#ffffff'); ring(cx, PY + 30, 6, 1, '#4a3a3a');
+        const m = Math.min(1, t / 6.2), ma = -Math.PI / 2 - 0.105 * (1 - m);
+        line(cx, PY + 30, cx + Math.cos(ma) * 5, PY + 30 + Math.sin(ma) * 5, '#2a1a1a'); line(cx, PY + 30, cx + Math.cos(-Math.PI / 2 + TAU * 0.75) * 3, PY + 30 + Math.sin(-Math.PI / 2 + TAU * 0.75) * 3, '#2a1a1a');
+        if (t > 6.2 && Math.floor(t * 6) % 2) textO('DING', cx, PY + 10, P.paper, 1, 'c');
+        // the street scrolling by
+        const off = t * 70;
+        for (let i = 0; i < 8; i++) {
+          const x = PX + ((i * 52 - off) % 416 + 416) % 416 - 60, h = 28 + hash(i) * 22, bakery = i === 3;
+          rect(x, gy - h, 44, h, bakery ? '#a06a4a' : i % 2 ? '#d8c0a8' : '#c0a890');
+          rect(x + 6, gy - h + 8, 10, 8, bakery ? '#ffd98a' : '#8ac0e0'); rect(x + 26, gy - h + 8, 10, 8, bakery ? '#ffd98a' : '#8ac0e0');
+          if (bakery) { rect(x + 4, gy - h - 6, 36, 7, '#5a2a1a'); text('BAKERY', x + 10, gy - h - 5, '#ffd98a', 1); }
+        }
+        ground(gy, '#a09080', '#c0b0a0');
+        for (let i = 0; i < 5; i++) { const u = (t * 3 + i / 5) % 1; ctx.globalAlpha = 1 - u; disc(PX + 66 - u * 30, gy - 2 - u * 4, 2 + u * 2, '#d8d0c0'); ctx.globalAlpha = 1; }
+        drawFighter('NINJA', PX + 80, gy + 1, 2, { anim: 'run', t, fps: 16, evo: evo() });
+      },
+    },
+    { len: 7.6, cue: () => A.endingCue(1), cap: ['SHE WAS STILL LATE. HER HOMEWORK WAS SCORCHED.', 'NOBODY ASKED WHY.', 'THE SUN WAS UP, AND THAT WAS ENOUGH.'], draw: (t) => EPI.NINJA.draw(t) },
+  ],
+
+  MECHANIC: [
+    {
+      // hauling the Colossus core up out of the pit: Big Guy pulls, Rivet pushes
+      len: 7.4, cue: () => A.storyCue('stamp'),
+      cap: ['RIVET DRAGGED THE COLOSSUS CORE UP OUT OF THE PIT.', 'BIG GUY DID MOST OF THE PULLING.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, DAWN_SKY);
+        const slope = (x) => PY + PH - 8 - (x - PX) * 0.22;
+        ell(PX + 6, PY + PH + 4, 40, 14, '#0a0508');
+        for (let x = PX; x < PX + PW; x++) rect(x, slope(x), 1, PY + PH - slope(x) + 1, '#3a2a26');
+        for (let x = PX; x < PX + PW; x += 2) px(x, slope(x), '#5a4a3a');
+        const g = PX + 54 + ease(t / 7.4) * 70, mx = g + 46, sx = g + 16;
+        line(sx + 8, slope(sx) - 8, mx - 10, slope(mx) - 16, '#8a8490');
+        rect(sx - 8, slope(sx) - 4, 18, 4, '#5a3a2a'); disc(sx, slope(sx) - 10, 6, '#2a3a4a'); disc(sx, slope(sx) - 10, 4, '#62efff');
+        glow(sx, slope(sx) - 10, '#62efff', 14, 0.5 + 0.2 * Math.sin(t * 6));
+        mech(mx, slope(mx), t, true);
+        for (let i = 0; i < 3; i++) { const u = (t * 2 + i / 3) % 1; ctx.globalAlpha = 1 - u; disc(sx - 10 - u * 14, slope(sx) - 2 - u * 4, 2 + u * 2, '#8a7a6a'); ctx.globalAlpha = 1; }
+        drawFighter('MECHANIC', sx - 28, slope(sx - 28) + 1, 2, { anim: 'walk', t, fps: 8, evo: evo() });
+      },
+    },
+    {
+      // a week of building, days flickering by: the tower rises, the sails go on and turn
+      len: 7.6, cue: () => A.storyCue('gather'),
+      cap: ['SHE BUILT FOR A WEEK.', 'NOT ONE PIECE OF IT WOULD EVER BE A WEAPON AGAIN.'],
+      draw(t) {
+        daysGo(t, 1.1);
+        const gy = PY + PH - 12, mx = PX + 130, built = Math.min(56, t * 9);
+        ground(gy, '#2a2030', '#3a3040');
+        for (let y = 0; y < built; y++) { const w = 6 + Math.round((56 - y) * 0.18); rect(mx - w, gy - y - 1, w * 2, 1, y % 9 ? '#6a5a50' : '#5a4a42'); }
+        if (built >= 56) {
+          const hy = gy - 58, spin = (t - 6.2) * 1.6;
+          for (let i = 0; i < 4; i++) { const a = spin + (i * TAU) / 4; line(mx, hy, mx + Math.cos(a) * 28, hy + Math.sin(a) * 28, '#d8c8b0', 2); }
+          disc(mx, hy, 3, '#62efff'); glow(mx, hy, '#62efff', 10, 0.6);
+        } else for (let i = 0; i < 4; i++) { const a = hash(Math.floor(t * 12) + i) * TAU; px(mx + 4 + Math.cos(a) * 4, gy - built + Math.sin(a) * 3, i % 2 ? '#fff6c8' : '#62efff'); }
+        mech(mx - 40, gy, t, false);
+        drawFighter('MECHANIC', mx + 40, gy + 1, 2, { t, flip: true, wa: Math.PI + 0.7, evo: evo() });
+      },
+    },
+    { len: 8, cue: () => A.storyCue('epilogue'), cap: ['THAT NIGHT THE WHOLE TOWN HAD LIGHT AGAIN.', 'RIVET CALLED IT HER BEST REPAIR JOB YET.'], draw: (t) => EPI.MECHANIC.draw(t) },
+  ],
+
+  TANK: [
+    {
+      // carving the tomb in the old palace garden, a letter at a stroke, then the crown on top
+      len: 7.6, cue: () => A.storyCue('aurel'),
+      cap: ['GROM BURIED HIS KING IN THE OLD PALACE GARDEN.', 'HE CARVED THE NAME HIMSELF:', 'AUREL, WHO WAS GOOD ONCE.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#ffe0b0', '#ffc890', '#e09070']);
+        const gy = PY + PH - 14, tx = PX + 136;
+        ground(gy, '#4a3a2a', '#6aa84a');
+        for (const x of [12, 196]) { rect(PX + x, gy - 26, 3, 26, '#5a3a2a'); ell(PX + x + 1, gy - 28, 10, 7, t > 2 ? '#5aa84a' : '#4a4038'); }
+        rect(tx - 18, gy - 30, 36, 30, '#6a6070'); rect(tx - 18, gy - 30, 36, 2, '#8a8090');
+        const strokes = Math.max(0, Math.floor((t - 0.6) / 0.75));
+        text('AUREL'.slice(0, Math.min(5, strokes)), tx, gy - 20, '#2a2430', 1, 'c');
+        const swing = strokes < 5 ? Math.sin(t * 8.4) : 0, wa = -0.5 + swing * 0.6;
+        if (strokes < 5 && swing > 0.92) for (let i = 0; i < 3; i++) px(tx - 20 + hash(Math.floor(t * 20) + i) * 4, gy - 18 + hash(i + Math.floor(t * 20)) * 6, P.paper);
+        if (t > 5) crown(tx, gy - 32 - Math.max(0, 1 - (t - 5) / 0.4) * 10, t);
+        drawFighter('TANK', tx - 42, gy + 1, 2, { t, wa, evo: evo() });
+      },
+    },
+    {
+      // the last watch: the stars wheel overhead, the moon crosses, his visor glows
+      len: 8, cue: () => A.storyCue('hold'),
+      cap: ['HE STOOD ONE LAST WATCH THROUGH THE NIGHT,', 'AS HE HAD STOOD THEM ALL FOR TWENTY YEARS.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, NIGHT_SKY);
+        const pole = [PX + 110, PY + 8];
+        for (let i = 0; i < 46; i++) { const r = 12 + hash(i) * 130, a = hash(i + 7) * TAU + t * 0.12; px(pole[0] + Math.cos(a) * r, pole[1] + Math.sin(a) * r * 0.7, i % 5 ? '#6a64a0' : P.paper); }
+        const ma = Math.PI * (0.15 + t / 10); disc(PX + PW / 2 - Math.cos(ma) * 90, PY + 60 - Math.sin(ma) * 46, 5, '#e8e4ff');
+        const gy = PY + PH - 14, tx = PX + 140;
+        ground(gy, '#1a1a24', '#2a3a2a');
+        rect(tx - 18, gy - 30, 36, 30, '#3a3644'); rect(tx - 18, gy - 30, 36, 2, '#4a4654'); text('AUREL', tx, gy - 20, '#14121a', 1, 'c'); crown(tx, gy - 32, t);
+        for (let i = 0; i < 6; i++) { const x = PX + 20 + hash(i) * 180 + Math.sin(t + i) * 6, y = gy - 10 - hash(i + 4) * 30 + Math.cos(t * 1.3 + i) * 4; if (Math.floor(t * 2 + i) % 3) { px(x, y, '#d8ff6a'); glow(x, y, '#d8ff6a', 3, 0.4); } }
+        drawFighter('TANK', tx - 40, gy + 1, 2, { t, wa: Math.PI / 2 - 0.1, evo: evo() });
+        glow(tx - 38, gy - 30, '#ffd447', 6 + Math.sin(t * 2) * 2, 0.4);
+      },
+    },
+    {
+      // dawn: the hammer laid on the tomb, and the walk home down the road to a lit window and someone waving
+      len: 8.4, cue: () => A.endingCue(1),
+      cap: ['AT DAWN HE LAID HIS HAMMER ON THE TOMB.', 'THEN THE OLD KNIGHT WALKED HOME.', 'SOMEONE HAD KEPT A LIGHT ON FOR HIM.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#ffe0b0', '#ffb880', '#e08060']);
+        sun(PX + 190, PY + 30, 12, t, { ga: 0.4 });
+        const gy = PY + PH - 12;
+        ground(gy, '#4a3a2a', '#6aa84a');
+        rect(PX + 14, gy - 24, 30, 24, '#6a6070'); rect(PX + 14, gy - 24, 30, 2, '#8a8090');
+        ctx.save(); ctx.translate(PX + 30, gy - 27); drawWeaponAt(ctx, 'hammer', evo(), 0, 0, 0.02, false, 1); ctx.restore();
+        cottage(PX + 168, gy, 40, 26, '#7a5a4a', '#5a2a2a', '#ffd98a');
+        folk(PX + 180, gy, 1, '#d8c0a8', t, { arm: [5, -6 + Math.round(Math.sin(t * 8) * 2)] });
+        const u = ease(t / 8), x = PX + 56 + u * 90;
+        drawFighter('TANK', x, gy + 1, 1.6, u < 1 ? { anim: 'walk', t, fps: 8, bare: true, evo: evo() } : { t, bare: true, evo: evo() });
+      },
+    },
+  ],
+
+  ROBOT: [
+    {
+      // at the pit's edge, the order list runs out
+      len: 7.6, cue: () => A.storyCue('hold'),
+      cap: ['ORDER COMPLETE. NO ORDERS REMAIN.', 'FOR ONCE, UNIT-7 DID NOT KNOW WHAT TO DO NEXT.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, DAY_SKY);
+        const gy = PY + PH - 14;
+        ground(gy, '#4a3a30', '#6a8a4a');
+        ell(PX + 196, gy + 8, 40, 10, '#0a0508');
+        drawFighter('ROBOT', PX + 50, gy + 1, 2, { t, evo: evo() });
+        term(PX + 92, PY + 10, 120, ['> ORDER: STOP THE KING', '> STATUS: COMPLETE', '> NEXT ORDER:', '!> NONE'], t, 18);
+      },
+    },
+    {
+      // a child brings a flower and asks it to keep it safe; it plants the flower and accepts
+      len: 7.8, cue: () => A.storyCue('epilogue'),
+      cap: ['A CHILD GAVE IT A FLOWER AND SAID: KEEP IT SAFE.', 'NEW ORDER ACCEPTED.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, DAY_SKY);
+        const gy = PY + PH - 14, rx = PX + 60;
+        ground(gy, '#4a3a30', '#6a8a4a');
+        drawFighter('ROBOT', rx, gy + 1, 2, { t, evo: evo() });
+        const come = ease(clamp01(t / 2.6)), leave = clamp01((t - 5.6) / 2), kx = PX + 190 - come * 98 + leave * 110;
+        kid(kx, gy, '#e0c0a0', t, t < 3.4 ? { arm: [-4, -3] } : t > 5.6 ? { arm: [4, -6 + Math.round(Math.sin(t * 10) * 2)] } : {});
+        // the flower: in the child's hand, then the robot's, then planted
+        const fl = t < 3.4 ? [kx - 4, gy - 10] : t < 4.8 ? [rx + 12, gy - 18] : [rx + 22, gy - 1];
+        rect(fl[0], fl[1], 1, 4, '#5aa84a'); px(fl[0] + 1, fl[1] + 2, '#5aa84a'); rect(fl[0] - 1, fl[1] - 3, 3, 3, '#ff9fc0'); px(fl[0] - 2, fl[1] - 2, '#ff9fc0'); px(fl[0] + 2, fl[1] - 2, '#ff9fc0'); px(fl[0], fl[1] - 2, '#ffd447');
+        if (t > 4.8 && t < 5.6) glow(fl[0], fl[1], '#ff9fc0', 6, 0.5);
+        if (t > 3.4) term(PX + 100, PY + 10, 118, ['> NEW ORDER:', '> KEEP IT SAFE', '!> ACCEPTED'], t - 3.4, 18);
+      },
+    },
+    {
+      // a thousand sunrises on the sea cliff: the count climbs, the flowers spread, a bird's nest on its head
+      len: 8.4, cue: () => A.storyCue('rise'),
+      cap: ['IT KEPT THAT ORDER FOR A THOUSAND SUNRISES.', 'THE FLOWER BECAME A MEADOW. THE BIRDS MOVED IN.'],
+      draw(t) {
+        EPI.ROBOT.draw(t);
+        const cy = PY + 70, n = Math.min(1000, Math.round(Math.pow(clamp01(t / 7), 2.2) * 1000));
+        for (let i = 0; i < Math.min(40, n / 20); i++) { const x = PX + 6 + hash(i) * 84, c = i % 3 ? '#ff9fc0' : '#ffd447'; px(x, cy - 1, '#5aa84a'); px(x, cy - 2, c); }
+        if (n > 600) { rect(PX + 50, cy - 26, 9, 2, '#8a6a3a'); px(PX + 51, cy - 27, '#8a6a3a'); px(PX + 57, cy - 27, '#8a6a3a'); if (Math.floor(t * 4) % 2) { px(PX + 53, cy - 28, '#6a3a4a'); px(PX + 54, cy - 29, '#6a3a4a'); } }
+        textO('SUNRISES: ' + n, PX + 8, PY + 6, P.gold, 1, 'l');
+      },
+    },
+  ],
+
+  DEV: [
+    {
+      // a last patch at the edge of the pit: it closes, with one warning
+      len: 7.6, cue: () => A.storyCue('seal'),
+      cap: ['THE DEV OPENED A TERMINAL AT THE EDGE OF THE PIT', 'AND PUSHED ONE LAST PATCH: CLOSE IT.', 'IT BUILT WITH ONE WARNING.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, DAWN_SKY);
+        const gy = PY + PH - 16, pk = 1 - clamp01((t - 3) / 1.8), cx = PX + 150;
+        ground(gy, '#2a2030', '#3a3040');
+        if (pk > 0) {
+          ell(cx, gy + 6, 50 * pk, 9 * pk, '#05020a');
+          for (let i = 0; i < 10 * pk; i++) rect(cx - 50 * pk + hash(i + Math.floor(t * 12)) * 100 * pk, gy + 2 + hash(i) * 8, 4, 1, i % 2 ? '#39ff6a' : '#ff4fa8');
+        } else rect(cx - 30, gy + 6, 60, 1, '#4a4058');
+        drawFighter('DEV', PX + 46, gy + 1, 2, { t, evo: evo() });
+        term(PX + 84, PY + 8, 130, ['$ PATCH PIT --CLOSE', '$ DEPLOY', 'BUILD OK. 1 WARNING:', '!SOMETHING BELOW IS', '!STILL RUNNING'], t, 16);
+      },
+    },
+    {
+      // the credits roll up over the dawn while everyone walks by underneath
+      len: 9, cue: () => A.storyCue('gather'),
+      cap: ['HE PUT EVERYONE IN THE CREDITS.', 'EVEN THE ASH. ESPECIALLY THE ASH.'],
+      draw(t) {
+        sky(PX, PY, PW, PH, ['#2a1838', '#5a3a5a', '#c07a5a']);
+        const CRED = ['ASHBLADE', '', 'KAEL', 'VEGA HALE', 'MORROW', 'RIN', 'RIVET', 'GROM', 'UNIT-7', 'THE DEV', '', 'THE BAKER OF MILL STREET', 'AND HIS GIRL', 'THE PEOPLE OF THE ASH', 'AUREL, THE SUN KING', '', 'AND YOU'];
+        const gy = PY + PH - 6;
+        ctx.save(); ctx.beginPath(); ctx.rect(PX, PY, PW, gy - 30 - PY); ctx.clip();
+        CRED.forEach((s, i) => { const y = gy - 24 - t * 16 + i * 10; if (s) textO(s, PX + PW / 2, y, i === 0 ? P.gold : i === CRED.length - 1 ? P.ember3 : P.paper, 1, 'c'); });
+        ctx.restore();
+        rect(PX, gy, PW, 6, '#2a1a20');
+        ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT', 'DEV'].forEach((id, i) => {
+          const x = PX - 20 + ((t * 18 + i * 30) % 260);
+          drawFighter(id, x, gy + 1, 1, { anim: 'walk', t: t + i * 0.3, fps: 9, evo: id === G.char && evo() });
+        });
+      },
+    },
+    {
+      // back at his desk: the build shipped; he goes out of the door into the real morning
+      len: 8, cue: () => A.endingCue(1),
+      cap: ['THEN HE CLOSED THE LAPTOP AND WENT OUTSIDE.', 'THE REAL SUN WAS UP TOO.', 'IT HAD BEEN WAITING FOR HIM.'],
+      draw(t) {
+        EPI.DEV.draw(t, { off: t > 1.2, away: true });
+        const open = clamp01((t - 2.4) / 1.2), dx = PX + 196, walk = clamp01((t - 3) / 3);
+        rect(dx, PY + 30, 20, PY + PH - 30 - PY, '#1a1418');
+        if (open > 0) {
+          rect(dx + 2, PY + 32, Math.round(16 * open), PY + PH - 32 - PY, '#fff2c0');
+          ctx.globalAlpha = 0.25 * open; for (let i = 0; i < 6; i++) line(dx + 2, PY + 34 + i * 12, dx - 60 * open, PY + PH, '#ffe08a'); ctx.globalAlpha = 1;
+          glow(dx + 10, PY + 60, P.gold, 30 * open, 0.4 * open);
+        }
+        const wx = PX + 90 + ease(walk) * 108;
+        if (wx < dx + 14) { ctx.save(); ctx.beginPath(); ctx.rect(PX, PY, dx + 14 - PX, PH); ctx.clip(); drawFighter('DEV', wx, PY + PH, 2, walk > 0 && walk < 1 ? { anim: 'walk', t, fps: 10, evo: evo() } : { t, evo: evo() }); ctx.restore(); }
+        if (t > 6) { ctx.globalAlpha = clamp01((t - 6) / 1.6); rect(PX, PY, PW, PH, '#fff6e0'); ctx.globalAlpha = 1; }
+      },
+    },
+  ],
+};
 // going deeper
 const DEEPER = [
   {
@@ -1305,7 +1767,9 @@ const ASH_BOOK = [
 ];
 const STORIES = { ash: ASH_BOOK, lore: LORE, ending: ENDING, home: HOME, deeper: DEEPER, fall: FALL, nightfall: NIGHTFALL };
 export const story = { name: null, pages: LORE, i: 0, t: 0, cued: -1, typed: 0, cap: null };
-export function playStory(name) { Object.assign(story, { name, pages: STORIES[name], i: 0, t: 0, cued: -1, typed: 0, cap: null }); }
+// going home is the climb, then three pages of the fighter's own ending, then THE END
+const pagesOf = (name) => (name === 'home' ? [HOME[0], ...(HOMES[G.char] || [HOME[1]]), HOME[2]] : STORIES[name]);
+export function playStory(name) { Object.assign(story, { name, pages: pagesOf(name), i: 0, t: 0, cued: -1, typed: 0, cap: null }); }
 const capOf = (p) => (typeof p.cap === 'function' ? p.cap() : p.cap);
 // a caption types out at 34 letters a second after a short pause; returns how many letters show at time t
 const typedAt = (cap, t) => Math.min(cap.reduce((a, l) => a + l.length, 0), Math.floor(Math.max(0, t - 0.25) * 34));
