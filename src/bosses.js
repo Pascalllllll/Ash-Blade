@@ -1,12 +1,12 @@
-import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=204';
-import { A } from './audio.js?v=204';
+import { ctx, P, px, line, ring, disc, rect, glow, drawSprite, makeCanvas, textO } from './gfx.js?v=206';
+import { A } from './audio.js?v=206';
 import {
   G, B, TAU, rnd, clamp, hyp, angDiff, alive, part, sparks, dust, addText, addRing, tryHurt, fire, shake, hitstop, flash,
   spawnEnemy, scorch, atWall, sprFor, heroSet, damage, pd,
-} from './world.js?v=204';
-import { SPR } from './sprites.js?v=204';
-import { monsterFrame } from './monster-motion.js?v=204';
-import { say, TALK, meetLines, noxLines } from './story.js?v=204';
+} from './world.js?v=206';
+import { SPR } from './sprites.js?v=206';
+import { monsterFrame } from './monster-motion.js?v=206';
+import { say, TALK, meetLines, noxLines } from './story.js?v=206';
 
 export const ORDER = ['warden', 'brood', 'colossus', 'king', 'wyrm', 'herald', 'mirror', 'eclipse', 'clock', 'nox'];
 export const bossFor = (wave) => ORDER[(Math.floor(wave / 5) - 1) % ORDER.length];
@@ -42,7 +42,7 @@ const ZAP_CELL = 36;
 const WATCH_R = 28;
 const owned = (h) => h && h.e && !h.e.dead && !h.e.dying;
 // where the Warden's lantern hand is (the chain comes out of it), from the middle of his feet
-const lanternAt = (e) => [e.x - e.face * 8.7, e.y - 5 - (e.z || 0)];
+const lanternAt = (e) => [e.x - e.face * 12, e.y - 6 - (e.z || 0)];
 export function updateTricks(dt) {
   const p = G.p, dead = p.state === 'dead';
   if (G.mirrorT > 0) G.mirrorT = Math.max(0, G.mirrorT - dt);
@@ -217,7 +217,7 @@ export function drawTricks() {
 export const BOSSES = {
   // ---------------------------------------------------------------- wave 5
   warden: {
-    name: 'THE WARDEN', short: 'WARDEN', sub: 'KEEPER OF THE PIT', col: '#ff4fa8', colD: '#6e1b52', hp: 820, r: 13, speed: 34, score: 6000, music: 'boss_warden',
+    name: 'THE WARDEN', short: 'WARDEN', sub: 'KEEPER OF THE PIT', col: '#ff4fa8', colD: '#6e1b52', hp: 1000, r: 14, speed: 36, score: 6000, music: 'boss_warden',
     init(e) { e.state = 'intro'; e.t = 2.2; e.z = 240; },
     update(e, dt, d, ang, dx) {
       const p = G.p, rage = e.phase === 2 ? 1.3 : 1;
@@ -350,8 +350,9 @@ export const BOSSES = {
       glow(e.x, y + 8, P.hex, e.phase === 2 ? 16 : 10, e.phase === 2 ? 0.45 : 0.25);
       const hx = e.x + e.face * 11, hy = e.y - 18 - (e.z || 0);
       const a = e.state === 'sweepW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'dash' || e.state === 'dashW' ? e.lock : Math.PI / 2 + e.face * 0.5;
-      line(hx, hy, hx + Math.cos(a) * 22, hy + Math.sin(a) * 22, P.dust, 2);
-      line(hx, hy, hx + Math.cos(a) * 22, hy + Math.sin(a) * 22, P.bone);
+      line(hx, hy, hx + Math.cos(a) * 27, hy + Math.sin(a) * 27, P.dust, 2);
+      line(hx, hy, hx + Math.cos(a) * 27, hy + Math.sin(a) * 27, P.bone);
+      line(hx - Math.sin(a) * 3, hy + Math.cos(a) * 3, hx + Math.sin(a) * 3, hy - Math.cos(a) * 3, '#8a8a9a');
     },
     draw(e, x, y) {
       // the chain: flying out of his lantern hand, or holding you
@@ -371,25 +372,36 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 10
   brood: {
-    name: 'THE BROOD MOTHER', short: 'BROOD MOTHER', sub: 'SHE NESTS BELOW', col: '#b5f23a', colD: '#45651a', hp: 1250, r: 14, speed: 40, score: 9000, music: 'boss_brood',
-    init(e) { e.state = 'intro'; e.t = 2.4; e.under = true; e.mx = e.x - 120; e.my = e.y + 60; },
+    name: 'THE BROOD MOTHER', short: 'BROOD MOTHER', sub: 'QUEEN OF THE NEST ABOVE THE THRONE', col: '#b5f23a', colD: '#45651a', hp: 1500, r: 18, speed: 40, score: 9000, music: 'boss_brood',
+    // she comes down out of the dark on a thread of silk from the nest in the walls above, hangs there looking at
+    // you, then the thread snaps and she lands; her eggs hatch round her as she rears up and screams
+    init(e) { e.state = 'intro'; e.t = 3.6; e.z = 240; e.under = false; e.landed = false; },
     update(e, dt, d, ang, dx) {
-      const p = G.p, rage = e.phase === 2 ? 1.25 : 1;
+      const p = G.p, rage = e.phase === 2 ? 1.3 : 1;
       e.superArmor = true; e.kx = e.ky = 0;
       if (e.state === 'intro') {
-        // a mound tunnels toward the center, then she bursts out
+        const T = 3.6, before = e.t;
         e.t -= dt;
-        if (e.under) {
-          e.mx += (e.x - e.mx) * Math.min(1, dt * 2); e.my += (e.y - e.my) * Math.min(1, dt * 2);
-          if (Math.random() < 0.9) dust(e.mx, e.my, 2, 40);
-          shake(0.04);
-          if (e.t < 1.2) {
-            e.under = false; A.bossRoar(); A.boom(1.6); shake(0.9); hitstop(0.08);
-            for (let i = 0; i < 50; i++) { const a = rnd(TAU), v = rnd(60, 220); part(e.x, e.y, Math.cos(a) * v, Math.sin(a) * v, rnd(0.4, 0.9), Math.random() < 0.5 ? P.stone2 : '#6a5040', { z: 4, vz: rnd(60, 160), g: 300, drag: 2, s: 2, keep: true }); }
-            scorch(e.x, e.y, 22); addRing(e.x, e.y, P.ichor, 320, 0.5, 3);
+        if (e.t > 1.15) {
+          const k = clamp((T - e.t) / (T - 1.6), 0, 1);
+          e.z = 240 - 200 * (1 - (1 - k) ** 3);
+          if (Math.random() < dt * 30) part(e.x + rnd(-24, 24), e.y - e.z - rnd(10, 40), rnd(-6, 6), rnd(10, 40), rnd(0.6, 1.2), Math.random() < 0.5 ? P.stone2 : '#6a5040', { g: 160, drag: 0.5 });
+          if (Math.floor(before * 3) !== Math.floor(e.t * 3)) A.click();
+          if (before > 1.6 && e.t <= 1.6) { A.warn(); e.face = dx < 0 ? -1 : 1; }
+        } else if (!e.landed) {
+          // the thread snaps
+          if (before > 1.15) { A.crack(); addText(e.x, e.y - 70, 'SNAP', '#d8d0e0', 1); }
+          e.z = Math.max(0, e.z - dt * 520);
+          if (e.z <= 0) {
+            e.landed = true; A.bossRoar(); A.boom(1.8); shake(1); hitstop(0.08);
+            for (let i = 0; i < 50; i++) { const a = rnd(TAU), v = rnd(60, 220); part(e.x, e.y, Math.cos(a) * v, Math.sin(a) * v * 0.6, rnd(0.4, 0.9), Math.random() < 0.5 ? P.stone2 : '#6a5040', { z: 4, vz: rnd(60, 160), g: 300, drag: 2, s: 2, keep: true }); }
+            scorch(e.x, e.y, 26); addRing(e.x, e.y, P.ichor, 360, 0.5, 3); addRing(e.x, e.y, P.paper, 260, 0.35, 1);
+            G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 60, hitP: false });
+            for (let i = 0; i < 6; i++) { const a = (i * TAU) / 6 + 0.3; spawnEnemy('larva', clamp(e.x + Math.cos(a) * 30, B.x0 + 8, B.x1 - 8), clamp(e.y + Math.sin(a) * 20, B.y0 + 8, B.y1 - 6)); }
           }
         }
-        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.5; }
+        if (e.t <= 0 && e.landed) { e.state = 'walk'; e.cd = 0.6; e.z = 0; }
+        else if (e.t <= 0) e.t = 0.01;
         return;
       }
       if (e.phase === 1 && e.hp < e.maxHp * 0.5 && !e.under) { e.phase = 2; e.state = 'rec'; e.t = 1; A.bossRoar(); shake(0.6); phaseBanner('THE NEST AWAKENS', P.ichor); for (let i = 0; i < 4; i++) spawnEnemy('egg', clamp(e.x + rnd(-50, 50), B.x0 + 10, B.x1 - 10), clamp(e.y + rnd(-40, 40), B.y0 + 10, B.y1 - 6)); }
@@ -419,16 +431,21 @@ export const BOSSES = {
           break;
         }
         case 'dig':
-          e.t -= dt; dust(e.x, e.y, 2, 60); shake(0.05);
-          if (e.t <= 0) { e.under = true; e.state = 'tunnel'; e.t = e.phase === 2 ? 1.2 : 1.6; e.mx = e.x; e.my = e.y; }
+          // she shoots a line up into the dark and climbs it out of sight
+          e.t -= dt; e.z = (e.z || 0) + dt * (e.t < 0.3 ? 520 : 60);
+          if (e.t <= 0) { e.under = true; e.state = 'tunnel'; e.t = e.phase === 2 ? 1.3 : 1.7; e.mx = e.x; e.my = e.y; }
           break;
         case 'tunnel':
+          // up there her shadow follows you; then it stops, and she drops onto it
           e.t -= dt;
-          if (e.t > 0.5) { e.vx = Math.cos(ang) * 125; e.vy = Math.sin(ang) * 125; }
+          if (e.t > 0.55) { e.vx = Math.cos(ang) * 135; e.vy = Math.sin(ang) * 135; }
           e.mx = e.x; e.my = e.y;
-          if (Math.random() < 0.9) dust(e.x, e.y, 2, 40);
-          if (e.t <= 0) {
-            e.under = false;
+          if (Math.random() < dt * 20) part(e.x + rnd(-12, 12), e.y - rnd(60, 90), 0, rnd(20, 50), 0.8, '#6a5040', { g: 160, drag: 0.5 });
+          if (e.t <= 0) { e.under = false; e.state = 'drop'; e.z = 140; A.warn(); }
+          break;
+        case 'drop':
+          e.z = Math.max(0, e.z - dt * 640);
+          if (e.z <= 0) {
             if (d < 32) tryHurt(2, e.x, e.y);
             G.quakes.push({ x: e.x, y: e.y, r: 0, delay: 0, max: 70, hitP: false });
             if (e.phase === 2) for (let i = 0; i < 8; i++) { const a = (i * TAU) / 8; G.strikes.push({ x: clamp(e.x + Math.cos(a) * 60, B.x0 + 8, B.x1 - 8), y: clamp(e.y + Math.sin(a) * 45, B.y0 + 8, B.y1 - 4), x0: e.x, y0: e.y - 14, t: 0, delay: 0.6, R: 12, dmg: 1, friendly: false, kind: 'acid', c: P.ichor }); }
@@ -487,21 +504,34 @@ export const BOSSES = {
       e.tele = e.state === 'lungeW' || e.state === 'dig';
     },
     tele(e, blink) {
-      if (e.under) {
-        const x = e.state === 'intro' ? e.mx : e.x, y = e.state === 'intro' ? e.my : e.y;
-        for (let i = -8; i <= 8; i += 2) px(x + i, y - Math.round(Math.cos(i / 5) * 3) + (Math.random() < 0.3 ? -1 : 0), '#6a5040');
-        rect(x - 7, y - 1, 15, 2, '#3d2a20');
-        if (e.state === 'tunnel' && e.t < 0.5) { ring(e.x, e.y, 32 * (0.4 + 0.6 * (1 - e.t / 0.5)), 1, blink ? P.blood : P.paper); ring(e.x, e.y, 32, 1, P.bloodD); }
+      if (e.state === 'tunnel') {
+        // where she will land: a shadow growing under you, a ring closing in as the drop comes
+        const k = Math.max(0, 1 - e.t / 1.7);
+        ctx.globalAlpha = 0.25 + 0.35 * k; disc(e.x, e.y, 10 + 14 * k, '#05030a'); ctx.globalAlpha = 1;
+        ring(e.x, e.y, 36 - 14 * k, 1, blink ? P.blood : P.paper); ring(e.x, e.y, 22, 1, P.bloodD);
+        for (let y = e.y - 4; y > e.y - 120; y -= 3) px(e.x + Math.sin(y * 0.2 + G.time * 3) * 0.6, y, '#cfc8dc');
       }
       if (e.state === 'lungeW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x + cx * 14, e.y + cy * 14, e.x + cx * 120, e.y + cy * 120, blink ? P.blood : P.bloodD, 3); }
     },
-    drawBody(e, x, y) { glow(e.x, y + 4, P.ichor, e.phase === 2 ? 14 : 9, 0.3); },
+    drawBody(e, x, y, s) {
+      glow(e.x, y + s.h * 0.3, P.ichor, e.phase === 2 ? 18 : 12, 0.3);
+      // the silk she hangs from, up into the dark
+      if (e.state === 'intro' && e.t <= 1.15) {
+        // the snapped end whips back up into the dark, fading
+        const k = Math.min(1, (1.15 - e.t) / 0.7);
+        if (k < 1) { ctx.globalAlpha = 1 - k; const yb = y + 4 - (y + 264) * k * k; for (let yy = yb; yy > y - 260; yy -= 2) px(e.x + Math.sin(yy * 0.3 + G.time * 20) * 3 * (1 - k), yy, '#cfc8dc'); ctx.globalAlpha = 1; }
+      }
+      if (e.z > 1 && (e.state === 'intro' && e.t > 1.15 || e.state === 'dig' || e.state === 'drop')) {
+        const sway = Math.sin(G.time * 2.2) * 2;
+        for (let yy = y + 4; yy > y - 260; yy -= 2) px(e.x + sway * (1 - (yy - y + 260) / 264), yy, (yy >> 1) % 3 ? '#cfc8dc' : '#8a8098');
+      }
+    },
     bars: introBars,
   },
 
   // ---------------------------------------------------------------- wave 15
   colossus: {
-    name: 'IRON COLOSSUS', short: 'COLOSSUS', sub: 'A WAR MACHINE NOBODY TURNED OFF', col: '#ff7a2b', colD: '#5a2410', hp: 1550, r: 14, speed: 26, score: 12000, music: 'boss_colossus',
+    name: 'IRON COLOSSUS', short: 'COLOSSUS', sub: 'A WAR MACHINE NOBODY TURNED OFF', col: '#ff7a2b', colD: '#5a2410', hp: 1900, r: 18, speed: 28, score: 12000, music: 'boss_colossus',
     init(e) { e.state = 'intro'; e.t = 2.6; e.off = true; },
     onHit(e, o) {
       if (e.shieldUp && o.src === 'orb') {
@@ -604,11 +634,14 @@ export const BOSSES = {
       if (e.state === 'punchW') { const cx = Math.cos(e.lock), cy = Math.sin(e.lock); line(e.x, e.y - 20, e.x + cx * 200, e.y - 20 + cy * 200, blink ? P.blood : P.bloodD, 3); }
       if (e.state === 'stompW') ring(e.x, e.y, 40 * (1 - e.t / 0.7) + 10, 1, blink ? P.blood : P.paper);
     },
-    drawBody(e, x, y) {
+    drawBody(e, x, y, s) {
+      // (drawn 1.3 times finer than its design: 0.87 game pixels to a unit; the visor slit runs 19.5 to 30.5 at 9.7)
+      const u = 0.867, gx = (ax) => (e.face < 0 ? x + s.w - ax * u : x + ax * u);
+      if (Math.random() < 0.25) for (const [ax, ay] of [[17, 1.5], [31, 3]]) part(gx(ax), y + ay * u, rnd(-6, 6), -rnd(14, 30), rnd(0.6, 1.1), Math.random() < 0.7 ? '#6a6470' : '#8a8490', { drag: 1 });
       if (e.state === 'intro' && e.off) return;
-      for (let i = 0; i < 10; i++) px(x + 7 + i, y + 3, Math.floor(G.time * 10 + i) % 4 ? '#ff4f4f' : P.paper);
-      glow(e.x, y + 4, '#ff4f4f', 10, 0.4);
-      glow(e.x, y + 10, '#ff7a2b', e.phase === 2 ? 12 : 7, 0.35);
+      for (let i = 0; i < 9; i++) px(x + 17 + i, y + 8, Math.floor(G.time * 10 + i) % 4 ? '#ff4f4f' : P.paper);
+      glow(e.x, y + 8, '#ff4f4f', 10, 0.4);
+      glow(e.x, y + 19, '#ff7a2b', e.phase === 2 ? 16 : 10, 0.4);
     },
     draw(e, x, y) {
       if (e.shieldUp) { ring(e.x, e.y - 14, 20 + Math.sin(G.time * 10), 1, '#62efff'); glow(e.x, e.y - 14, '#62efff', 22, 0.25); }
@@ -619,7 +652,7 @@ export const BOSSES = {
 
   // ---------------------------------------------------------------- wave 20: final
   king: {
-    name: 'THE ASHEN KING', short: 'ASHEN KING', sub: 'THE LAST FIRE', col: '#ff6a2b', colD: '#5a1420', hp: 3000, r: 20, speed: 55, score: 30000, music: 'boss_king', final: true,
+    name: 'THE ASHEN KING', short: 'ASHEN KING', sub: 'THE LAST FIRE', col: '#ff6a2b', colD: '#5a1420', hp: 3600, r: 27, speed: 55, score: 30000, music: 'boss_king', final: true,
     init(e) { e.state = 'intro'; e.t = 3; e.combo = 0; },
     update(e, dt, d, ang, dx) {
       const p = G.p;
@@ -647,9 +680,14 @@ export const BOSSES = {
             opts.push('flare');
             if (e.knights !== e.phase && e.phase >= 2) opts.push('knights', 'knights');
             if (e.phase === 3) opts.push('thousand', 'meteors', 'thousand', 'crown', 'crown');
+            if (e.phase === 3 && !e.sunUsed) opts.push('sunbeam', 'sunbeam', 'sunbeam');
             if (e.phase >= 2 && !G.decree) opts.push('decree', 'decree');
             const k = pick(e, opts);
-            if (k === 'decree') {
+            if (k === 'sunbeam') {
+              // he tears open the black sun in his chest: two beams of its fire sweep round the hall
+              e.sunUsed = true; e.state = 'sunW'; e.t = 1.1; A.warn(); A.bossRoar();
+              G.banner = { text: 'THE BLACK SUN', sub: 'KEEP AHEAD OF THE BEAMS', t: 0, life: 1.6, c: P.ember };
+            } else             if (k === 'decree') {
               // KNEEL: he raises his sword and commands you to be still; fire falls everywhere but where you stand
               e.state = 'decreeW'; e.t = 0.9; e.lock = -Math.PI / 2;
               G.banner = { text: 'KNEEL', sub: 'DO NOT MOVE', t: 0, life: 2.2, c: P.gold }; A.warn(); A.bossRoar();
@@ -717,6 +755,20 @@ export const BOSSES = {
           if (e.fireT <= 0) { e.fireT = 0.1; for (let k = 0; k < 3; k++) fire(e.x, e.y - 36, e.spin + (k * TAU) / 3, 80, { noparry: k === 0 }); e.spin += 0.29 * (e.phase === 3 ? -1 : 1); A.shoot(); }
           if (e.t <= 0) { e.state = 'rec'; e.t = 0.6; }
           break;
+        case 'sunW':
+          e.t -= dt; e.vx = e.vy = 0;
+          if (Math.random() < 0.9) part(e.x + rnd(-10, 10), e.y - 50 + rnd(-6, 6), 0, 0, 0.3, Math.random() < 0.5 ? P.ember : P.gold, { glow: true });
+          if (e.t <= 0) {
+            const a0 = Math.atan2(p.y - e.y, p.x - e.x) + Math.PI / 2, dir = Math.random() < 0.5 ? -1 : 1;
+            for (const off of [0, Math.PI]) G.hbeams.push({ x: e.x, y: e.y - 38, owner: e, oy: 38, a: a0 + off, rot: dir * 1.15, w: 6, warn: 0.5, t: 0, life: 3.6, len: 0 });
+            flash(P.ember, 0.2, true); shake(0.8); A.boom(2); A.ultRelease();
+            e.state = 'sunBeam'; e.t = 3.8;
+          }
+          break;
+        case 'sunBeam':
+          e.t -= dt; e.vx = e.vy = 0;
+          if (e.t <= 0) { e.state = 'rec'; e.t = 1; e.sunUsed = false; }
+          break;
         case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.8) / spd; } break;
       }
       e.tele = e.state === 'kslashW';
@@ -725,19 +777,24 @@ export const BOSSES = {
     tele(e, blink) {
       if (e.state === 'kslashW') cone(e, 80, 2.8, blink, '#5a1a0a', '#2a0a04');
       if (e.state === 'intro') {
-        const w = Math.max(2, 40 * Math.min(1, (3 - e.t) / 0.6));
+        const end = Math.min(1, e.t / 0.7), w = Math.max(1, 40 * Math.min(1, (3 - e.t) / 0.6) * end * end);
+        ctx.globalAlpha = 0.4 + 0.6 * end;
         rect(e.x - w / 2, e.y - 170, w, 170, '#c6380f'); rect(e.x - w / 4, e.y - 170, w / 2, 170, P.ember3);
-        glow(e.x, e.y - 20, P.ember, 30, 0.6);
+        glow(e.x, e.y - 20, P.ember, 30, 0.6 * end);
+        ctx.globalAlpha = 1;
       }
     },
     drawBody(e, x, y) {
-      const hx = e.x + e.face * 18, hy = e.y - 30;
+      // (he is drawn 2.8 times finer than his design: 1.87 game pixels to a unit of it)
+      const hx = e.x + e.face * 25, hy = e.y - 42;
       const a = e.state === 'kslashW' ? e.lock + Math.PI * 0.7 * e.face : e.state === 'decreeW' || G.decree?.e === e ? -Math.PI / 2 + e.face * 0.12 : Math.PI / 2 + e.face * 0.6;
-      line(hx, hy, hx + Math.cos(a) * 48, hy + Math.sin(a) * 48, '#c6380f', 5);
-      line(hx, hy, hx + Math.cos(a) * 48, hy + Math.sin(a) * 48, P.ember3, 2);
-      if (Math.random() < 0.8) part(hx + Math.cos(a) * rnd(4, 48), hy + Math.sin(a) * rnd(4, 48), 0, -rnd(20, 40), 0.3, P.ember, { glow: true });
-      glow(e.x, y + 8, P.gold, 14, 0.45);
-      glow(e.x, y + 28, P.ember, e.phase * 10, 0.35);
+      line(hx, hy, hx + Math.cos(a) * 66, hy + Math.sin(a) * 66, '#7a1a08', 8);
+      line(hx, hy, hx + Math.cos(a) * 66, hy + Math.sin(a) * 66, '#c6380f', 6);
+      line(hx, hy, hx + Math.cos(a) * 66, hy + Math.sin(a) * 66, P.ember3, 2);
+      line(hx - Math.sin(a) * 6, hy + Math.cos(a) * 6, hx + Math.sin(a) * 6, hy - Math.cos(a) * 6, '#d8a032', 2);
+      if (Math.random() < 0.9) part(hx + Math.cos(a) * rnd(4, 66), hy + Math.sin(a) * rnd(4, 66), 0, -rnd(20, 40), 0.3, P.ember, { glow: true });
+      glow(e.x, y + 11, P.gold, 20, 0.45);
+      glow(e.x, y + 39, P.ember, e.phase * 14, 0.35);
     },
     bars: introBars,
   },
@@ -751,7 +808,7 @@ const VOID = '#9b5cff';
 Object.assign(BOSSES, {
   // ---------------------------------------------------------------- wave 25
   wyrm: {
-    name: 'VOID WYRM', short: 'VOID WYRM', sub: 'IT SWIMS THROUGH STONE', col: VOID, colD: '#3a1a6a', hp: 2000, r: 11, speed: 70, score: 16000, music: 'boss_wyrm',
+    name: 'VOID WYRM', short: 'VOID WYRM', sub: 'IT SWIMS THROUGH STONE', col: VOID, colD: '#3a1a6a', hp: 2400, r: 11, speed: 74, score: 16000, music: 'boss_wyrm',
     init(e) { e.state = 'intro'; e.t = 2.2; e.under = true; e.trail = []; e.segments = []; e.wob = 0; e.cdir = 1; },
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
@@ -865,7 +922,7 @@ Object.assign(BOSSES, {
 
   // ---------------------------------------------------------------- wave 30
   herald: {
-    name: 'STORM HERALD', short: 'HERALD', sub: 'THE SKY ANSWERS HIM', col: '#62efff', colD: '#163a78', hp: 2300, r: 9, speed: 50, score: 20000, music: 'boss_herald',
+    name: 'STORM HERALD', short: 'HERALD', sub: 'HIS HORN CALLS THE STORM', col: '#62efff', colD: '#163a78', hp: 2800, r: 12, speed: 54, score: 20000, music: 'boss_herald',
     init(e) { e.state = 'intro'; e.t = 2.4; e.under = true; e.orbsT = 0; e.oa = 0; },
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
@@ -889,7 +946,7 @@ Object.assign(BOSSES, {
           e.vx = (Math.cos(ang) * radial + Math.cos(ang + Math.PI / 2) * 0.6) * e.speed; e.vy = (Math.sin(ang) * radial + Math.sin(ang + Math.PI / 2) * 0.6) * e.speed;
           e.face = dx < 0 ? -1 : 1; e.cd -= dt;
           if (e.cd <= 0) {
-            const opts = ['bolts', 'bolts', 'teleport', 'orbs'];
+            const opts = ['bolts', 'bolts', 'teleport', 'orbs', 'horn', 'horn'];
             if (e.phase === 2) opts.push('lances', 'lances', 'storm');
             if (!G.zap) opts.push('floor', 'floor');
             const k = pick(e, opts);
@@ -900,6 +957,10 @@ Object.assign(BOSSES, {
               G.zap = { e, t: -0.4, beat: 0, n: e.phase === 2 ? 6 : 5, par: (ci + cj) % 2, fired: false };
               G.banner = { text: 'THE FLOOR IS CHARGED', sub: 'STEP OFF THE LIT SQUARES', t: 0, life: 1.4, c: '#62efff' };
               A.zap(); A.warn(); e.state = 'rec'; e.t = (e.phase === 2 ? 6 : 5) * 1.05;
+            } else if (k === 'horn') {
+              // he lifts the war horn: a cone of thunder that throws you back, and ball lightning drifting after you
+              e.state = 'hornW'; e.t = 0.85; e.lock = ang; A.warn();
+              G.banner = { text: 'THE HORN', sub: 'GET OUT OF ITS PATH', t: 0, life: 1, c: '#62efff' };
             } else if (k === 'bolts') {
               for (let i = 0; i < (e.phase === 2 ? 12 : 8); i++) G.strikes.push({ x: clamp(p.x + rnd(-45, 45), B.x0 + 8, B.x1 - 8), y: clamp(p.y + rnd(-35, 35), B.y0 + 8, B.y1 - 4), t: -i * 0.12, delay: 0.7, R: 16, dmg: 2, friendly: false, kind: 'lightning', c: '#62efff' });
               A.warn(); e.state = 'rec'; e.t = 1;
@@ -918,9 +979,21 @@ Object.assign(BOSSES, {
           }
           break;
         }
+        case 'hornW':
+          e.t -= dt; e.vx *= 0.8; e.vy *= 0.8; e.face = Math.cos(e.lock) < 0 ? -1 : 1;
+          if (e.t <= 0) {
+            const pa = Math.atan2(p.y - e.y, p.x - e.x);
+            if (d < 150 && Math.abs(angDiff(pa, e.lock)) < 0.75) { p.vx += Math.cos(pa) * 340; p.vy += Math.sin(pa) * 340; tryHurt(2, e.x, e.y); }
+            for (let i = 0; i < 26; i++) { const a2 = e.lock + rnd(-0.75, 0.75), v = rnd(140, 320); part(e.x, e.y - 18, Math.cos(a2) * v, Math.sin(a2) * v, rnd(0.2, 0.5), i % 3 ? '#62efff' : P.paper, { drag: 4, glow: true }); }
+            for (const off of e.phase === 2 ? [-0.5, -0.17, 0.17, 0.5] : [-0.35, 0, 0.35]) fire(e.x, e.y - 18, e.lock + off, 42, { c: '#62efff', life: 5.5, r: 4, dmg: 2, noparry: true });
+            addRing(e.x, e.y - 18, '#62efff', 300, 0.35, 3); A.bossRoar(); A.boom(1.2); A.zap(); shake(0.7); flash('#62efff', 0.1, false);
+            e.state = 'rec'; e.t = 0.9;
+          }
+          break;
         case 'rec': e.t -= dt; if (e.t <= 0) { e.state = 'walk'; e.cd = rnd(0.3, 0.7) / spd; } break;
       }
     },
+    tele(e, blink) { if (e.state === 'hornW') cone(e, 150, 1.5, blink, '#1a5a7a', '#0a2a3a'); },
     draw(e, x, y) {
       glow(e.x, y + 8, '#62efff', 12, 0.4);
       if (Math.random() < 0.15) G.bolts.push({ x0: e.x, y0: y + 6, x1: e.x + rnd(-14, 14), y1: y + rnd(0, 16), t: 0, life: 0.08 });
@@ -931,7 +1004,7 @@ Object.assign(BOSSES, {
 
   // ---------------------------------------------------------------- wave 35
   mirror: {
-    name: 'THE MIRROR', short: 'MIRROR', sub: 'IT LEARNED YOUR MOVES', col: '#cfd8e0', colD: '#2a2a38', hp: 2200, r: 7, speed: 105, score: 24000, music: 'boss_mirror', tint: '#1a1626',
+    name: 'THE MIRROR', short: 'MIRROR', sub: 'IT LEARNED YOUR MOVES', col: '#cfd8e0', colD: '#2a2a38', hp: 2700, r: 7, speed: 110, score: 24000, music: 'boss_mirror', tint: '#1a1626',
     init(e) { e.state = 'intro'; e.t = 2.2; e.combo = 0; },
     update(e, dt, d, ang, dx) {
       const p = G.p, spd = e.phase === 2 ? 1.25 : 1;
@@ -1009,7 +1082,7 @@ Object.assign(BOSSES, {
 
   // ---------------------------------------------------------------- wave 40
   eclipse: {
-    name: 'ECLIPSE', short: 'ECLIPSE', sub: 'THE SUN THAT WATCHES', col: '#ffd447', colD: '#5a1420', hp: 3600, r: 16, speed: 14, score: 40000, music: 'boss_eclipse',
+    name: 'ECLIPSE', short: 'ECLIPSE', sub: 'THE SUN THAT WATCHES', col: '#ffd447', colD: '#5a1420', hp: 4300, r: 19, speed: 14, score: 40000, music: 'boss_eclipse',
     init(e) { e.state = 'intro'; e.t = 3; e.open = 0; e.spin = 0; },
     update(e, dt, d, ang) {
       const p = G.p, spd = e.phase === 2 ? 1.3 : 1;
@@ -1017,12 +1090,14 @@ Object.assign(BOSSES, {
       if (e.state === 'intro') {
         // the sky goes dark, then the eye opens
         e.t -= dt;
+        e.lightBack = false;
         G.dark = Math.min(0.75, (3 - e.t) * 0.5);
         e.open = Math.max(0, Math.min(1, (1.6 - e.t) / 1.2));
         if (e.t < 0.4 && !e.lit) { e.lit = true; flash(P.gold, 0.25, true); A.bossRoar(); A.ultRelease(); addRing(e.x, e.y - 14, P.gold, 380, 0.6, 3); }
-        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; G.dark = 0; }
+        if (e.t <= 0) { e.state = 'walk'; e.cd = 0.4; e.lightBack = true; }
         return;
       }
+      if (e.lightBack) { G.dark = Math.max(0, G.dark - dt * 0.5); if (G.dark <= 0) e.lightBack = false; }
       if (e.phase === 1 && e.hp < e.maxHp * 0.5) { e.phase = 2; e.state = 'rec'; e.t = 1; phaseBanner('TOTAL ECLIPSE', P.gold); A.bossRoar(); shake(0.8); }
       if (e.phase === 2) G.dark = Math.min(0.55, G.dark + dt);
       switch (e.state) {
@@ -1035,7 +1110,7 @@ Object.assign(BOSSES, {
             const k = pick(e, opts);
             if (k === 'gaze') {
               // it stares: a cone of light that turns after you; stay in it too long and you turn to stone
-              e.state = 'gaze'; e.t = 3; e.ga = Math.atan2(p.y - (e.y - 13), p.x - e.x); G.stare = 0;
+              e.state = 'gaze'; e.t = 3; e.ga = Math.atan2(p.y - (e.y - 22), p.x - e.x); G.stare = 0;
               G.banner = { text: 'DO NOT MEET ITS GAZE', sub: '', t: 0, life: 1.4, c: P.gold }; A.warn();
             } else if (k === 'spiral') { e.state = 'spiral'; e.t = 2.6; e.fireT = 0; e.sdir = Math.random() < 0.5 ? 1 : -1; }
             else if (k === 'rings') { for (let i = 0; i < 4; i++) G.timers.push({ t: i * 0.45, fn: () => { if (!e.dead && !e.dying) orbRing(e, 26, 70, rnd(TAU), { oy: 14, c: P.gold, noparry: i % 2 === 1 }); } }); e.state = 'rec'; e.t = 2; }
@@ -1055,7 +1130,7 @@ Object.assign(BOSSES, {
           break;
         case 'gaze': {
           e.t -= dt;
-          const ey = e.y - 13 - (e.z || 0), want = Math.atan2(p.y - 6 - ey, p.x - e.x), turn = (e.phase === 2 ? 1 : 0.78) * dt;
+          const ey = e.y - 22 - (e.z || 0), want = Math.atan2(p.y - 6 - ey, p.x - e.x), turn = (e.phase === 2 ? 1 : 0.78) * dt;
           e.ga += clamp(angDiff(want, e.ga), -turn, turn);
           const inCone = p.state !== 'dash' && p.state !== 'dead' && Math.abs(angDiff(want, e.ga)) < 0.3 && hyp(p.x - e.x, p.y - 6 - ey) < 270;
           G.stare = inCone ? (G.stare || 0) + dt : Math.max(0, (G.stare || 0) - dt * 0.6);
@@ -1083,7 +1158,7 @@ Object.assign(BOSSES, {
     tele(e, blink) {
       if (e.state !== 'gaze') return;
       // the stare: a wedge of gold light out of the eye, and the stone creeping over you while you stand in it
-      const ey = e.y - 13 - (e.z || 0), p = G.p;
+      const ey = e.y - 22 - (e.z || 0), p = G.p;
       ctx.globalAlpha = 0.5; ctx.fillStyle = checker(blink ? '#ffd447' : '#c98a1a');
       ctx.beginPath(); ctx.moveTo(e.x, ey); ctx.arc(e.x, ey, 270, e.ga - 0.3, e.ga + 0.3); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
       line(e.x, ey, e.x + Math.cos(e.ga) * 270, ey + Math.sin(e.ga) * 270, '#fff0a0');
@@ -1091,13 +1166,14 @@ Object.assign(BOSSES, {
       if (k > 0) for (let i = 0; i < 24; i++) { if (i / 24 > k) break; const a = -Math.PI / 2 + (i / 24) * TAU; px(p.x + Math.cos(a) * 10, p.y - 8 + Math.sin(a) * 12, k > 0.7 && blink ? P.paper : '#9c98aa'); }
     },
     drawBody(e, x, y) {
-      const cx = x + 14, cy = y + 14;
-      ring(cx, cy, 16 + Math.sin(G.time * 6) * 1.5, 1, P.gold); glow(cx, cy, P.gold, 26, 0.35);
+      // (drawn 1.2 times finer than its design: 0.8 game pixels to a unit; the eye sits at 25, 24)
+      const cx = x + 20, cy = y + 19;
+      ring(cx, cy, 13 + Math.sin(G.time * 6) * 1.5, 1, P.gold); glow(cx, cy, P.gold, 30, 0.35);
       // the pupil looks at you (while it stares, along its stare)
       const a = e.state === 'gaze' ? e.ga : Math.atan2(G.p.y - 6 - cy, G.p.x - cx);
       if (e.state === 'gaze') glow(cx, cy, '#fff0a0', 18, 0.5);
-      rect(cx + Math.cos(a) * 3 - 1, cy + Math.sin(a) * 3 - 3, 3, 7, P.paper);
-      if (e.open < 1) { const h = Math.round(13 * (1 - e.open)); rect(x + 2, cy - 11, 24, h, '#0a0610'); rect(x + 2, cy + 12 - h, 24, h, '#0a0610'); }
+      rect(cx + Math.cos(a) * 1.6 - 1, cy + Math.sin(a) * 1.6 - 2, 2, 4, '#1a0a06'); px(cx + Math.cos(a) * 1.6, cy + Math.sin(a) * 1.6 - 1, P.paper);
+      if (e.open < 1) { const h = Math.round(6 * (1 - e.open)); rect(cx - 8, cy - 6, 16, h, '#0a0610'); rect(cx - 8, cy + 6 - h, 16, h, '#0a0610'); }
     },
     bars: introBars,
   },
@@ -1109,7 +1185,7 @@ const BRASS = '#e8c070', NOXC = '#b48cff';
 const volley = (fn) => { const n0 = G.shots.length; fn(); return G.shots.slice(n0); };
 Object.assign(BOSSES, {
   clock: {
-    name: 'THE CLOCKWORK', short: 'CLOCKWORK', sub: 'TIME BENDS TO IT', col: BRASS, colD: '#5a3a10', hp: 4300, r: 15, speed: 26, score: 52000, music: 'boss_clock',
+    name: 'THE CLOCKWORK', short: 'CLOCKWORK', sub: 'TIME BENDS TO IT', col: BRASS, colD: '#5a3a10', hp: 5100, r: 17, speed: 28, score: 52000, music: 'boss_clock',
     init(e) { e.state = 'intro'; e.t = 2.8; e.under = true; e.hand = 0; e.handM = 0; },
     update(e, dt, d, ang) {
       const p = G.p, spd = e.phase === 2 ? 1.35 : 1;
@@ -1177,11 +1253,12 @@ Object.assign(BOSSES, {
     },
     drawBody(e, x, y) {
       // the hands, drawn live over the dial
-      const cx = x + 15, cy = y + 15;
-      line(cx, cy, cx + Math.cos(e.hand) * 8, cy + Math.sin(e.hand) * 8, '#3a2410', 2);
-      line(cx, cy, cx + Math.cos(e.handM) * 12, cy + Math.sin(e.handM) * 12, '#3a2410', 1);
-      disc(cx, cy, 2, BRASS); px(cx, cy, P.paper);
-      ring(cx, cy, 17 + Math.sin(G.time * 4), 1, BRASS); glow(cx, cy, BRASS, 24, 0.3);
+      // (drawn 1.25 times finer than its design: 0.83 game pixels to a unit; the dial is at 22, 22 and floats with it)
+      const bob = 0.8 * Math.sin(TAU * (e.motion?.phase || 0)) * 0.833, cx = x + 18.3, cy = y + 18.3 + bob;
+      line(cx, cy, cx + Math.cos(e.hand) * 4.5, cy + Math.sin(e.hand) * 4.5, '#3a2410', 2);
+      line(cx, cy, cx + Math.cos(e.handM) * 6.5, cy + Math.sin(e.handM) * 6.5, '#3a2410', 1);
+      disc(cx, cy, 1, BRASS); px(cx, cy, P.paper);
+      ring(cx, cy, 11 + Math.sin(G.time * 4), 1, BRASS); glow(cx, cy, BRASS, 24, 0.3);
     },
     bars: introBars,
   },
@@ -1193,7 +1270,7 @@ Object.assign(BOSSES, {
   // breathes in and drags you toward it while night pours out in a spiral. At two thirds the night falls (the arena goes
   // dark round you); at one third it becomes the last night: faster, and eyes open round the arena and stare beams.
   nox: {
-    name: 'NOX', short: 'NOX', sub: 'THE LAST NIGHT', col: NOXC, colD: '#14082a', hp: 7100, r: 22, speed: 40, score: 100000, music: 'boss_nox', end: true,
+    name: 'NOX', short: 'NOX', sub: 'THE LAST NIGHT', col: NOXC, colD: '#14082a', hp: 8200, r: 29, speed: 40, score: 100000, music: 'boss_nox', end: true,
     death: 'THE NIGHT BREAKS', marks: [0.33, 0.66],
     init(e) { e.state = 'intro'; e.t = 3.2; e.alpha = 0; e.y = Math.max(e.y, B.y0 + 92); },
     update(e, dt, d, ang, dx) {
@@ -1273,7 +1350,7 @@ Object.assign(BOSSES, {
       // two eyes burning in the hood, a crown of dead stars glittering over it (its design is drawn 2.4 times finer:
       // 1.6 game pixels to each unit of the design in tools/bosses_art.py)
       if (e.awakened) { glow(e.x, y + s.h * 0.50, '#ffaa7b', 12 + Math.sin(G.t*4)*2, 0.62); return; }
-      const u = 1.8, gx = (ax) => x + (e.face < 0 ? s.w - ax * u : ax * u);
+      const u = 2.4, gx = (ax) => x + (e.face < 0 ? s.w - ax * u : ax * u);
       glow(gx(18.5), y + 13 * u, NOXC, 5 + Math.sin(G.time * 6), 0.6); glow(gx(25.5), y + 13 * u, NOXC, 5, 0.5);
       for (let i = 0; i < 3; i++) { const a = G.time * 0.8 + (i * TAU) / 3; px(gx(22 + Math.cos(a) * 9), y + (8 + Math.sin(a) * 3) * u, '#ece8f4'); }
       if (e.state === 'pull') { ctx.globalAlpha = 0.3; ring(x + s.w / 2, y + 26 * u, 30 + (G.time * 60) % 40, 1, NOXC); ctx.globalAlpha = 1; }

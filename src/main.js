@@ -1,18 +1,22 @@
-import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=204';
-import { resetKeys, resetLayout } from './bindings.js?v=204';
-import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=204';
-import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=204';
-import { A } from './audio.js?v=204';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=204';
-import { buildSprites } from './sprites.js?v=204';
-import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=204';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash, applyPractice } from './world.js?v=204';
+import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=206';
+import { resetKeys, resetLayout } from './bindings.js?v=206';
+import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=206';
+import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=206';
+import { A } from './audio.js?v=206';
+import { codexNote } from './store.js?v=206';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=206';
+import { buildSprites } from './sprites.js?v=206';
+import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=206';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, flash, applyPractice } from './world.js?v=206';
 import {
   drawLeave, drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg, drawInheritance,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=204';
-import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=204';
+} from './ui.js?v=206';
+import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=206';
+import { updateTutorial, drawTutorial } from './tutorial.js?v=206';
+import { openCamp, updateCamp, drawCamp } from './lobby.js?v=206';
+import { openCodex, updateCodex, drawCodex } from './codex.js?v=206';
 
 loadAll();
 applyTheme(settings.theme);
@@ -24,7 +28,7 @@ fit();
 addEventListener('resize', fit);
 addEventListener('touchstart', fit, { once: true });
 
-let lockId = null;
+let lockId = null, selectFrom = 'title';
 let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
 const frameInterval = 1000 / 60;
 let nextFrame = last;
@@ -43,8 +47,9 @@ function go(s) {
 function pauseRun() { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
 function resumeRun() { go('play'); A.scene(G.night ? 'night' : G.boss ? 'boss_' + G.boss.boss : 'fight'); }
 function toTitle() { settingsFrom = 'title'; save = readSlot(false); practice = readSlot(true); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
-function startRun(char, s) {
-  A.init(settings); newRun(char, s); waveCheckpoint = snapshot(); go('play'); }
+function toCamp() { openCamp(); A.stopLoops(); A.scene('title'); go('camp'); }
+function startRun(char, s, opts) {
+  A.init(settings); newRun(char, s, opts); waveCheckpoint = snapshot(); go('play'); }
 function checkpoint() {
   if (!G || G.dead) return;
   waveCheckpoint = snapshot();
@@ -118,6 +123,8 @@ addEventListener('popstate',() => {
   else if (scene==='upgrade' && upg.detail) { upg.detail = false; }
   else if (scene==='settings') { if(settingsFrom==='pause') go('pause'); else toTitle(); }
   else if (scene==='title') { exitMenu.sel=0; go('leave'); }
+  else if (scene==='replay') go('codex');
+  else if (scene==='codex' || scene==='camp') toTitle();
   else if (['leave','ash','select','splash','lore','intro','over'].includes(scene)) toTitle();
 });
 
@@ -172,7 +179,8 @@ function tick(now) {
     if (r === 'continue' && save) startRun(save.char, save);
     else if (r === 'practice' && practice) startRun(practice.char, practice);
     else if (r === 'ash') { playStory('ash'); go('ash'); A.scene('lore'); }
-    else if (r === 'select') { sel.i = Math.max(0, OPTIONS.char.indexOf(settings.char)); if (!isUnlocked(settings.char)) sel.i = 0; sel.row = 0; sel.t = 0; go('select'); }
+    else if (r === 'codex') { openCodex('title'); go('codex'); }
+    else if (r === 'select') toCamp();
     else if (r === 'settings') { settingsFrom = 'title'; setm.tab = 0; setm.sel = 0; go('settings'); }
     drawTitle(sceneT, items);
   } else if (scene === 'ash') {
@@ -184,10 +192,30 @@ function tick(now) {
     drawLeave(exitMenu,items);
   } else if (scene === 'controls') {
     if (updateControls()==='back') go('settings'); else drawControls();
+  } else if (scene === 'codex') {
+    // the Compendium; watching an ending again plays it, then comes back here
+    const r = updateCodex(rdt);
+    if (r?.back === 'camp') { go('camp'); drawCamp(0); }
+    else if (r?.back) toTitle();
+    else if (r?.ending) { playStory('home', { char: r.ending, evo: r.evo }); go('replay'); A.scene('dawn'); drawStory(); }
+    else drawCodex(sceneT);
+  } else if (scene === 'replay') {
+    if (updateStory(rdt)) { go('codex'); A.scene('title'); drawCodex(0); } else drawStory();
+  } else if (scene === 'camp') {
+    // the lobby: walk the camp, take another fighter's place, then go down into the pit
+    const r = updateCamp(rdt);
+    if (r?.diff) { const prev = { ...settings }; settings.diff = r.diff; applySettings(prev); }
+    if (r?.back) toTitle();
+    else if (r?.start) { settings.char = r.start; saveSettings(); lockId = r.start; A.init(settings); A.prepareVoice(lockId, 'entrances'); go('lockin'); }
+    else if (r?.train) { startRun(r.train, null, { train: true }); flash(P.paper, 0.4, true); }
+    else if (r?.codex) { openCodex('camp'); go('codex'); }
+    else if (r?.view) { sel.i = Math.max(0, OPTIONS.char.indexOf(r.view)); sel.row = 0; sel.t = 0; selectFrom = 'camp'; go('select'); }
+    if (scene === 'camp') drawCamp(sceneT);
+    else if (scene === 'play') drawWorld();
   } else if (scene === 'select') {
     const r = updateSelect(rdt);
     if (r?.map || r?.diff) { const prev = { ...settings }; Object.assign(settings, r); applySettings(prev); }
-    if (r?.back) toTitle();
+    if (r?.back) { if (selectFrom === 'camp') toCamp(); else toTitle(); }
     else if (r?.start) { settings.char = r.start; saveSettings(); lockId = r.start; A.init(settings); A.prepareVoice(lockId, 'entrances'); go('lockin'); }
     else drawSelect(sceneT);
     if (scene === 'play') drawWorld();
@@ -215,7 +243,9 @@ function tick(now) {
     else {
       controls();
       update(rdt * ts, rdt);
-      if (G.victory && (!G.sunrise || G.sunrise.t >= 2.6) && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); playStory('ending'); go('ending'); A.scene('dawn'); }
+      updateTutorial(rdt * ts);
+      if (G.trainDone > 0 && (G.trainDone -= rdt) <= 0) { G.trainDone = 0; clearRun(true); toCamp(); }
+      else if (G.victory && (!G.sunrise || G.sunrise.t >= 2.6) && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0) { G.victory = false; recordBest(true); playStory('ending'); go('ending'); A.scene('dawn'); }
       // Nox has fallen: the story of the endless night, then a last upgrade, then the night itself
       else if (G.nightFall && G.deadT === 0 && G.phase === 'clear' && G.phaseT < 0 && !G.talk) {
         G.nightFall = false; G.nox = true; recordBest(true);
@@ -225,13 +255,14 @@ function tick(now) {
       // falling below the pit, after the King, has its own story before the run's end
       if (G.dead && G.deadT > 3.4) { recordBest(false); clearRun(G.tested); save = null; if (G.won) { playStory('fall'); go('fall'); A.scene('lore'); } else go('over'); }
     }
-    drawWorld(); vignette(); drawHUD();
+    drawWorld(); vignette(); drawHUD(); drawTutorial();
   } else if (scene === 'upgrade') {
     update(0, rdt);
     const pick = updateUpgrade(rdt);
     if (pick >= 0) {
       const o = upg.opts[pick];
       takeUpgrade(G, o);
+      if (o.req && !G.tested) codexNote('evos', o.id);
       A.select();
       startWave(G.wave + 1);
       if (o.req) evolveFx(typeof o.name === 'function' ? o.name(G.kit) : o.name, o.id);
@@ -264,7 +295,7 @@ function tick(now) {
   } else if (scene === 'choice') {
     // the run in comic panels, then the two roads: go home (the run ends) or go deeper (endless)
     const r = updateChoice(rdt);
-    if (r === 'home') { clearRun(G.tested); save = null; playStory('home'); go('home'); drawStory(); }
+    if (r === 'home') { if (!G.tested) { codexNote('endings', G.char); saveBest(); } clearRun(G.tested); save = null; playStory('home'); go('home'); drawStory(); }
     else if (r === 'deeper') { G.saidLow = G.saidCombo = false; playStory('deeper'); go('deeper'); A.scene('lore'); drawStory(); }
     else drawChoice();
   } else if (scene === 'home') {

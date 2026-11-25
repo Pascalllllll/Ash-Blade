@@ -1,17 +1,17 @@
-import { keys, keyLabel } from './bindings.js?v=204';
-import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=204';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=204';
-import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=204';
-import { SPR, icon } from './sprites.js?v=204';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=204';
-import { A } from './audio.js?v=204';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=204';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock } from './world.js?v=204';
-import { CHARS, skillPreview } from './chars.js?v=204';
-import { BOSSES, bossFor } from './bosses.js?v=204';
-import { MAPS } from './maps.js?v=204';
-import { drawTalk } from './story.js?v=204';
-import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=204';
+import { keys, keyLabel } from './bindings.js?v=206';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=206';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=206';
+import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=206';
+import { SPR, icon } from './sprites.js?v=206';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=206';
+import { A } from './audio.js?v=206';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=206';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock, DASH_COST, dashGap } from './world.js?v=206';
+import { CHARS, skillPreview } from './chars.js?v=206';
+import { BOSSES, bossFor } from './bosses.js?v=206';
+import { MAPS } from './maps.js?v=206';
+import { drawTalk } from './story.js?v=206';
+import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=206';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -164,6 +164,9 @@ export function drawHUD(menu) {
   for (let i = 1; i < 10; i++) rect(ex + Math.round((ew * i) / 10), ey, 1, 4, P.ink0);
   rect(ex + Math.round((ew * kit.q.cost) / 100), ey + 4, 1, 2, P.bone);
   rect(ex + Math.round((ew * kit.e.cost) / 100), ey + 4, 1, 2, P.bone);
+  // the dash's cost, and the bar flashing when a dash was refused for want of it
+  rect(ex + Math.round((ew * DASH_COST) / 100), ey + 4, 1, 2, P.volt);
+  if (G.deny.dash > 0 && Math.floor(G.time * 16) % 2) { rect(ex - 1, ey - 1, ew + 2, 1, P.blood); rect(ex - 1, ey + 4, ew + 2, 1, P.blood); }
   const uy = ey + 8, full = p.ult >= 100, blink = Math.floor(G.time * 6) % 2;
   rect(ex - 1, uy - 1, ew + 2, 4, P.ink0); rect(ex, uy, ew, 2, P.ink2);
   rect(ex, uy, Math.round((ew * p.ult) / 100), 2, full ? (blink ? P.gold : P.paper) : P.gold2);
@@ -304,6 +307,7 @@ export function titleItems(save, go, practice) {
   if (practice) items.push({ label: save ? 'PRACTICE' : 'CONTINUE PRACTICE', value: () => CHARS[practice.char].name + '  WAVE ' + practice.wave, act: () => go('practice') });
   items.push({ label: 'PLAY', act: () => go('select') });
   items.push({ label: 'ASH STORY', act: () => go('ash') });
+  items.push({ label: 'COMPENDIUM', act: () => go('codex') });
   items.push({ label: 'SETTINGS', act: () => go('settings') });
   return items;
 }
@@ -483,8 +487,10 @@ function drawHero(id, t, col, lk, h) {
   ctx.restore();
   line(150, 0, 132, H, col);
 }
-export function drawSelect(t) {
-  drawBackdrop(t, 0.75);
+// card: the camp's version (lobby.js) draws its own backdrop, and in place of the roster, difficulty and START shows
+// card.head over the stats and card.prompts (rows of [key, words]) under them
+export function drawSelect(t, card = null) {
+  if (card) card.bg(); else drawBackdrop(t, 0.75);
   const ids = OPTIONS.char, id = ids[sel.i], k = CHARS[id], lk = locked(id), col = lk ? P.dust : k.color();
   // a new pick slides its portrait in; so does coming back to this screen (its clock restarts at 0, so a
   // swap time from an earlier visit would sit in the future and hold the portrait off to the left)
@@ -500,6 +506,7 @@ export function drawSelect(t) {
   if (rec && !lk) text(rec.nox ? 'ENDLESS  ' + clockOf(rec.night || 0) : 'BEST WAVE ' + rec.wave, 8, ny + 20, P.bone);
   target(null);
   h.drawImage(NAME, 0, 0);
+  if (card) { drawCardInfo(id, k, lk, col, t, card); return; }
   // roster
   text('CHOOSE YOUR FIGHTER', PANEL_C, 2, P.dust, 1, 'c');
   ids.forEach((cid, i) => {
@@ -538,6 +545,32 @@ export function drawSelect(t) {
   rect(PANEL_C - START_W / 2 - 1, START_Y - 1, START_W + 2, START_H + 2, P.ink0); rect(PANEL_C - START_W / 2, START_Y, START_W, START_H, on ? col : P.ink3);
   textO('START', PANEL_C, START_Y + 5, on && pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
   if (input.touch) { rect(3, 2, 34, 11, P.ink0); rect(4, 3, 32, 9, P.ink2); text('< BACK', 7, 5, P.paper); } else text('ENTER START   ESC BACK', PANEL_C, 174, P.stone2, 1, 'c');
+}
+
+// the camp's card: the fighter's stats on a dark panel to the right of their portrait
+function drawCardInfo(id, k, lk, col, t, card) {
+  ctx.globalAlpha = 0.86; rect(152, 0, W + SX - 152, H, '#0c0810'); ctx.globalAlpha = 1;
+  rect(152, 0, 1, H, col);
+  textO(card.head, PANEL_C, 6, col, 1, 'c');
+  const rec = best.chars[id];
+  if (lk) {
+    textO('LOCKED', PANEL_C, 30, P.blood, 2, 'c');
+    text('TO UNLOCK', PANEL_C, 50, P.dust, 1, 'c'); text(k.mission[0], PANEL_C, 60, P.gold, 1, 'c'); text(k.mission[1](), PANEL_C, 68, P.bone, 1, 'c');
+  } else {
+    text(k.lore[0], 158, 20, P.bone); text(k.lore[1], 158, 28, P.bone);
+    const st = [['HEARTS', k.stats.hp], ['SPEED', k.stats.speed], ['DASHES', k.dash.charges], ['WEAPON POWER', Math.round((k.wpnPower || 1) * 100) + '%']];
+    st.forEach(([n, v], i) => { const x = 158 + (i % 2) * 82, y = 40 + Math.floor(i / 2) * 8; text(n, x, y, P.dust); text(String(v), x + 76, y, P.paper, 1, 'r'); });
+    // (the bars sit under the numbers: drawBars draws at y 85 and 92, so they are moved up here)
+    ctx.save(); ctx.translate(4, -28); drawBars([['POWER', k.bars.power], ['SPEED', k.bars.speed], ['RANGE', k.bars.range], ['TOUGH', k.bars.tough]], col, t, id === 'DEV'); ctx.restore();
+    const ab = [[input.touch ? 'TAP' : keyLabel('attack'), k.primaryName], ...(k.charge ? [['HOLD', k.charge.name]] : []), [input.touch ? 'Q' : keyLabel('q'), k.q.name + '  ' + k.q.cost], [input.touch ? 'E' : keyLabel('e'), k.e.name + '  ' + k.e.cost], [input.touch ? 'R' : keyLabel('r'), k.r.name]];
+    ab.forEach(([key, name], i) => { const y = 76 + i * 8; text(key, 178, y, P.ember2, 1, 'r'); text(name, 182, y, P.paper); });
+    text(rec ? 'BEST WAVE ' + rec.wave + (rec.won ? '   KING SLAIN' : '') + (rec.nox ? '   NOX' : '') : 'NO RUNS YET', PANEL_C, 122, P.gold, 1, 'c');
+  }
+  card.prompts.forEach(([key, words], i) => {
+    const y = 138 + i * 13, on = i === 0, pulse = on && Math.floor(t * 3) % 2;
+    rect(PANEL_C - 72, y - 3, 144, 11, on ? col : '#2a2028');
+    textO(key + '  ' + words, PANEL_C, y, pulse ? P.ink0 : P.paper, 1, 'c', on ? col : P.ink0);
+  });
 }
 
 // ---------- settings ----------
@@ -1061,10 +1094,10 @@ function drawTouch(p, kit, full) {
   }
   const recovery = Math.max(0, (p.nextDash || 0) - G.t);
   const dashFill = p.charges ? 1 : 1 - p.dashCd / (kit.dash.cd * G.up.dashMul);
-  const recoveryFill = recovery ? 1 - recovery / (kit.dash.time + kit.dash.recovery) : 1;
+  const recoveryFill = recovery ? 1 - recovery / (kit.dash.time + dashGap(kit)) : 1;
   const state = {
     attack: [true, 1, PRIMARY_ICON[G.char], kit.color()],
-    dash: [p.charges > 0 && recovery === 0, Math.min(dashFill, recoveryFill), 'dash', P.paper],
+    dash: [p.charges > 0 && recovery === 0 && p.energy >= DASH_COST, Math.min(dashFill, recoveryFill, p.energy / DASH_COST), 'dash', P.paper],
     q: [p.energy >= kit.q.cost && p.cdQ <= 0, Math.min(p.energy / kit.q.cost, 1 - Math.max(0, p.cdQ) / kit.q.cd), kit.q.icon, kit.color()],
     e: [p.energy >= kit.e.cost && p.cdE <= 0, Math.min(p.energy / kit.e.cost, 1 - Math.max(0, p.cdE) / kit.e.cd), kit.e.icon, kit.color()],
     r: [full, p.ult / 100, kit.r.icon, P.gold],

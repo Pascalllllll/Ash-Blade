@@ -311,10 +311,12 @@ export function glowAt(x, y, col, r, a = 1) { r = Math.max(2, Math.round(r)); C.
 export function glowEnd() { C.globalAlpha = 1; C.globalCompositeOperation = 'source-over'; }
 export function glow(x, y, col, r, a = 1) {
   r = Math.max(2, Math.round(r));
+  // (drawn inside something fading out, the glow fades with it)
+  const base = C.globalAlpha;
   C.globalCompositeOperation = 'lighter';
-  C.globalAlpha = Math.max(0, Math.min(1, a));
+  C.globalAlpha = Math.max(0, Math.min(1, a)) * base;
   C.drawImage(glowTex(rc(col), r), Math.round(x) - r, Math.round(y) - r);
-  C.globalAlpha = 1;
+  C.globalAlpha = base;
   C.globalCompositeOperation = 'source-over';
 }
 

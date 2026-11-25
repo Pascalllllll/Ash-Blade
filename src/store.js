@@ -32,7 +32,17 @@ const RANGES = { master: [0, 1], music: [0, 1], sfx: [0, 1], vibrancy: [0, 2], b
 export const settings = { ...DEFAULTS, ver: 5 };
 // unlocked: fighters you can pick. kills is lifetime; combo and perfects are the best single run.
 // night: the longest the endless night has been held, in seconds
-export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0, night: 0 };
+export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0, night: 0, codex: {} };
+// the Compendium's record of what has been found: monsters killed (by type), bosses beaten, floors reached, endings
+// seen, evolutions taken and fighters awakened, each a count. Practice and test runs don't add to it.
+export const CODEX = ['foes', 'bosses', 'floors', 'endings', 'evos', 'awake'];
+for (const k of CODEX) best.codex[k] = {};
+export function codexNote(cat, key, n = 1) {
+  if (testing() || !key) return;
+  const c = best.codex[cat] ||= {};
+  c[key] = Math.min(1e9, (c[key] || 0) + n);
+}
+
 // TESTING SWITCH, temporary: a very strong game, to reach the awakened looks fast. While it is true: every fighter
 // is pickable, every hit does 6 times the damage, fighters start with 20 more health, an upgrade counts as maxed after
 // one pick (so its evolution is offered on the next upgrade screen), one evolution awakens the fighter, the HUD shows
@@ -77,6 +87,14 @@ export function loadAll() {
     best.combo = Math.floor(num(b.combo, 0, 1e7, 0));
     best.perfects = Math.floor(num(b.perfects, 0, 1e6, 0));
     best.night = Math.floor(num(b.night, 0, 1e7, 0));
+    // the training is shown once; anyone who has played before has seen how to play
+    best.tut = b.tut === true || best.wave > 0;
+    for (const k of CODEX) {
+      const src = b.codex?.[k], out = (best.codex[k] = {});
+      if (src && typeof src === 'object' && !Array.isArray(src)) for (const key of Object.keys(src).slice(0, 200)) if (/^[A-Za-z0-9_]{1,24}$/.test(key)) out[key] = Math.floor(num(src[key], 0, 1e9, 0));
+    }
+    // older records: the bosses and floors a best wave must have passed, the endings of fighters who won
+    if (!b.codex) for (const c of OPTIONS.char) if (best.chars[c]?.won) best.codex.endings[c] = 1;
     if (Array.isArray(b.unlocked)) best.unlocked = ['BLADE', ...new Set(b.unlocked.filter((c) => OPTIONS.char.includes(c) && c !== 'BLADE'))];
     if (b.chars && typeof b.chars === 'object') {
       for (const c of OPTIONS.char) {

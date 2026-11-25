@@ -10,14 +10,14 @@
 //   Grom     the ground shakes, he falls from the sky hammer first and splits the floor with rock spikes.
 //   Unit-7   a countdown, an orbital beam, and the robot builds itself up row by row inside it and powers on.
 //   The Dev  a terminal compiles him, the window shuts off, and he renders in from coarse blocks to full detail.
-import { ctx, disc, ring, W } from './gfx.js?v=204';
-import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=204';
-import { A } from './audio.js?v=204';
-import { input, keyHit } from './input.js?v=204';
+import { ctx, disc, ring, W } from './gfx.js?v=206';
+import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, glitch, shadow, heroSet } from './world.js?v=206';
+import { A } from './audio.js?v=206';
+import { input, keyHit } from './input.js?v=206';
 import {
   P, rnd, TAU, clamp, part, glow, line, rect, px, text, textO, ease, easeIn, at, between, frame, drawBody, drawHero, drawCoarse,
   handPos, eyePos, weaponLen, restAngle, makeCracks, drawCracks, stampCracks, drawLetterbox, drawNameCard, darken, floorRing,
-} from './scene-fx.js?v=204';
+} from './scene-fx.js?v=206';
 
 const SUB = { BLADE: 'THE BLADE', GUNNER: 'THE GUNNER', WIZARD: 'THE WIZARD', NINJA: 'THE SAMURAI', MECHANIC: 'THE MECHANIC', TANK: 'THE TANK', ROBOT: 'THE ROBOT', DEV: 'ROOT ACCESS' };
 const PETAL = ['#ffb7d5', '#ff8fb8', '#ffffff'];
@@ -60,7 +60,7 @@ export function heroEntrance(id) {
     if (!k.said && k.t >= (S.cardAt ?? S.revealAt)) { k.said = true; A.playVoice(id, 0, 'entrances'); }
     S.update(k, dt);
     if (k.t >= k.life) {
-      G.cine = null; p.state = 'move'; p.inv = 0.6; p.sq = 0.26; p.sqv = 0;
+      G.cine = null; p.state = 'move'; p.inv = 0.6; p.sq = 0; p.sqv = 0;
       // keys pressed during the entrance (to skip it, or out of impatience) don't fire once it's over
       p.bufAtk = p.bufDash = p.bufQ = p.bufE = p.bufR = 0;
       S.end?.(k);
@@ -147,7 +147,7 @@ const SCRIPTS = {
       // he lands crouched in the crater, rises, and sweeps his sword all the way round
       const s = settle(u - 0.2, 0.25), crouch = u < 0.3;
       const swing = between(k, k.hitT + 0.5, k.hitT + 0.85) ? ease((u - 0.5) / 0.35) * TAU : 0;
-      drawHero(crouch ? frame('death', 2) : frame('idle', t * 7), x, y, crouch ? {} : sq(s), restAngle(false) - swing);
+      drawHero(crouch ? frame('death', 2) : frame('idle', G.time * 7), x, y, crouch ? {} : sq(s), restAngle(false) - swing);
     },
   },
 
@@ -219,7 +219,7 @@ const SCRIPTS = {
         return;
       }
       const u = t - k.hitT, s = settle(u, 0.28);
-      drawHero(u < 0.22 ? frame('death', 2) : frame('idle', t * 7), x, y, u < 0.22 ? {} : sq(s), this.gun(k));
+      drawHero(u < 0.22 ? frame('death', 2) : frame('idle', G.time * 7), x, y, u < 0.22 ? {} : sq(s), this.gun(k));
     },
   },
 
@@ -281,7 +281,7 @@ const SCRIPTS = {
       if (t > 1.05) {
         const z = u < 0 ? 4 + 80 * (1 - ease((t - 1.05) / 0.55)) : 4 + Math.sin(u * 4) * 1.5;
         shadow(x, y, 4);
-        drawHero(frame('idle', t * 7), x, y, { z, tint: u < 0 ? (Math.floor(t * 20) % 2 ? '#d8b8ff' : null) : u < 0.1 ? P.paper : null }, restAngle(false));
+        drawHero(frame('idle', G.time * 7), x, y, { z, tint: u < 0 ? (Math.floor(t * 20) % 2 ? '#d8b8ff' : null) : u < 0.1 ? P.paper : null }, restAngle(false));
         if (u >= 0) { const [hx, hy] = handPos(x, y, { z }), a = restAngle(false), L = weaponLen(); glow(hx + Math.cos(a) * L, hy + Math.sin(a) * L, VIOLET, 8, 0.5 + Math.sin(G.time * 6) * 0.15); }
       }
     },
@@ -339,7 +339,7 @@ const SCRIPTS = {
       }
       if (k.revealed) {
         const u = t - k.hitT, s = settle(u - 0.85, 0.18);
-        drawHero(u < 0.55 ? frame('death', 2) : frame('idle', t * 7), x, y, u < 0.55 ? {} : sq(s), this.blade(k));
+        drawHero(u < 0.55 ? frame('death', 2) : frame('idle', G.time * 7), x, y, u < 0.55 ? {} : sq(s), this.blade(k));
         if (t < 1.85) { const [hx, hy] = handPos(x, y), a = this.blade(k), L = weaponLen(); glow(hx + Math.cos(a) * L, hy + Math.sin(a) * L, '#ffb7d5', 6, 0.5); }
       }
       drawPuffs(k.s.puffs);
@@ -418,7 +418,7 @@ const SCRIPTS = {
         const u = t - 1.5;
         if (u < 1.2) glow(x, y, P.gold, 20, 0.35 * (1 - u / 1.2));
         const s = settle(u - 0.05, 0.2);
-        drawHero(frame('idle', t * 7), x, y, { ...sq(s), tint: u < 0.12 ? '#ffd447' : null }, this.wrench(k));
+        drawHero(frame('idle', G.time * 7), x, y, { ...sq(s), tint: u < 0.12 ? '#ffd447' : null }, this.wrench(k));
       }
       drawPuffs(k.s.puffs);
     },
@@ -482,7 +482,7 @@ const SCRIPTS = {
         px(bx, by - h, P.paper);
       }
       const crouch = u < 0.5, s = settle(u - 0.5, 0.2);
-      drawHero(crouch ? frame('death', 2) : frame('idle', t * 7), x, y, crouch ? {} : sq(s), this.hammer(k));
+      drawHero(crouch ? frame('death', 2) : frame('idle', G.time * 7), x, y, crouch ? {} : sq(s), this.hammer(k));
     },
   },
 
@@ -531,7 +531,7 @@ const SCRIPTS = {
       }
       const u = t - k.hitT, top = fx.cam.y - 10, w = u < 0.12 ? 18 : Math.max(0, 9 * (1 - (u - 0.12) / 0.6));
       if (w > 0) { const wv = w + Math.sin(G.time * 40) * 2; rect(x - wv / 2 - 2, top, wv + 4, y - top, P.volt2); rect(x - wv / 2, top, wv, y - top, P.volt); rect(x - wv / 4, top, wv / 2, y - top, P.paper); glow(x, y - 6, P.volt, 24, 0.6); }
-      const q = ease((u - 0.05) / 0.55), fr = frame('idle', t * 7);
+      const q = ease((u - 0.05) / 0.55), fr = frame('idle', G.time * 7);
       if (q < 1) {
         // the robot built up row by row from its feet, the newest rows jittering and white-hot
         const top = (heroSet().rig?.top ?? 40) / 3, rows = (fr.h - top) * q;
@@ -593,7 +593,7 @@ const SCRIPTS = {
         return;
       }
       const u = t - 1.5;
-      const fr = frame('idle', t * 7), steps = [8, 6, 4, 2];
+      const fr = frame('idle', G.time * 7), steps = [8, 6, 4, 2];
       if (u < 0.45) {
         const b = steps[Math.min(3, Math.floor(u / 0.11))];
         drawCoarse(fr, x, y, b, { tint: PINK, dx: -2, alpha: 0.5 }); drawCoarse(fr, x, y, b, { tint: GREEN, dx: 2, alpha: 0.5 }); drawCoarse(fr, x, y, b);

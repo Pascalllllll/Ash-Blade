@@ -1,20 +1,24 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=204';
-import { SPR, EVO_NAMES } from './sprites.js?v=204';
-import { A } from './audio.js?v=204';
-import { input, actionDown, actionHit } from './input.js?v=204';
-import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF } from './store.js?v=204';
-import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=204';
-import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=204';
-import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=204';
-import { byId, grantAllUpgrades } from './upgrades.js?v=204';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=204';
-import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=204';
-import { WEAPON_ART } from './hero-rig.js?v=204';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=204';
-import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=204';
-import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=204';
-import { floorArrival } from './floor-arrivals.js?v=204';
-import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=204';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=206';
+import { SPR, EVO_NAMES } from './sprites.js?v=206';
+import { A } from './audio.js?v=206';
+import { input, actionDown, actionHit } from './input.js?v=206';
+import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF, codexNote } from './store.js?v=206';
+import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=206';
+import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=206';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=206';
+import { byId, grantAllUpgrades } from './upgrades.js?v=206';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=206';
+import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=206';
+import { WEAPON_ART } from './hero-rig.js?v=206';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=206';
+import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=206';
+import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=206';
+// how long each boss's arrival takes to fade once the boss is here (the Brood Mother's web lasts while she comes down)
+const ARRIVE_FADE = { brood: 3.8, herald: 1.8, nox: 2.4, king: 1.6, eclipse: 1.8, wyrm: 1.4, clock: 1.4, warden: 1.2, colossus: 0.8, mirror: 1 };
+import { floorArrival } from './floor-arrivals.js?v=206';
+import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=206';
+import { startTutorial, tutNote } from './tutorial.js?v=206';
+import { drawEmote } from './emotes.js?v=206';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -185,7 +189,7 @@ function makePlayer(kit, D) {
   };
 }
 
-export function newRun(charId, save) {
+export function newRun(charId, save, opts = {}) {
   dctx.clearRect(0, 0, AW, AH);
   const char = OPTIONS.char.includes(charId) ? charId : 'BLADE';
   const arena = 'DESCENT', diffKey = save ? save.diff : settings.diff;
@@ -209,7 +213,7 @@ export function newRun(charId, save) {
     up: { wpn: 1, overflow: 0, spell: 1, crit: 0, magnet: 0, thorns: 0, orbit: 0, dashMul: 1, cdMul: 1, evoWpn: 0, evoSpell: 0, evoUlt: 0, evoHeart: 0, evoSwift: 0, evoStatic: 0, evoEmber: 0, evoOrbit: 0, dmg: 1, spd: 1, reach: 1, regen: 1, static: 0, ember: 0, phantom: 0, mirror: 0, debt: 0, shrap: 1, exec: 0, focus: 1, echo: 0, storm: 0, mag: 0, pierce: 0, frost: 0, twin: 0, venom: 0, overclock: 0, hands: 0, after: 0, coolant: 0, cluster: 0, phoenix: 0, rage: 0, crown: 0, midas: 0, reaper: 0 },
     taken: {}, cine: null, boss: null, dead: false, deadT: 0, wantUpgrade: false, victory: false, won: false,
     tested: !!save?.tested || testing(), nox: !!save?.nox, saveError: false,
-    phoenixUsed: false, pickChain: 0, pickChainT: 0, debtKills: 0, corpses: [], twist: null, lastTwist: null, mk: 0, mkT: 0, mkShow: null, bestMulti: 0, dmg: 0, bosses: 0, loot: 0, deny: { q: 0, e: 0, r: 0 }, startBest: best.score,
+    phoenixUsed: false, pickChain: 0, pickChainT: 0, debtKills: 0, corpses: [], twist: null, lastTwist: null, mk: 0, mkT: 0, mkShow: null, bestMulti: 0, dmg: 0, bosses: 0, loot: 0, deny: { q: 0, e: 0, r: 0, dash: 0 }, startBest: best.score,
   };
   // timers and delayed cuts remember whether the fighter made them, so their effects take its awakened colors
   for (const arr of [G.timers, G.cuts, G.bolts, G.quakes, G.ghosts, G.booms, G.slashes, G.strikes, G.allies]) arr.push = function (...a) { for (const o of a) { o.power ??= G.power; o.pfx = !!G.pfx; if (G.inCharge) o.chg = true; if (o.pfx && G.awPal && o.c) o.c = G.awPal[o.c] || o.c; } return Array.prototype.push.apply(this, a); };
@@ -232,9 +236,14 @@ export function newRun(charId, save) {
     }
   } else {
     if (at > 20) G.won = true;
+    // a player's very first run starts with training in place of wave 1's monsters
+    if (at === 1 && ((!best.tut && !testing()) || opts.train)) G.tutWant = true;
+    // training from the camp's dummy: just the lessons, no records, then back to camp
+    if (opts.train) { G.training = true; G.tested = true; }
     startWave(at);
   }
   applyPractice();
+  if (!G.tested) codexNote('floors', G.mapKey);
   G.cine = G.kit.entrance();
   fx.cam.x = clamp(G.p.x - W / 2, SX, AW - W - SX); fx.cam.y = clamp(G.p.y - H / 2, 0, AH - H);
 }
@@ -283,17 +292,18 @@ export function startWave(n) {
     const keys = Object.keys(TWISTS).filter((k) => k !== G.lastTwist);
     G.twist = G.lastTwist = keys[Math.floor(rnd(keys.length))];
   }
-  G.queue = buildQueue(n);
+  G.queue = G.tutWant && n === 1 ? [] : buildQueue(n);
   // the King talks to the fighter through the run; past wave 20, something older answers from below. The story is told
   // before the monsters come (the fight waits for it); small talk comes once the wave is under way.
   const tk = waveTalk(n, G.char, boss ? bossFor(n) : null);
   if (tk) G.timers.push({ t: tk.lore ? 0.7 : boss ? 1.1 : 2.4, fn: () => sayAfterEntrance(tk.lines, { lore: tk.lore }) });
   if (boss) {
     const bd = BOSSES[bossFor(n)];
+    G.timers.push({ t: 1.2, fn: () => emote('alert', 2) });
     G.banner = { text: bd.name, sub: bd.sub, t: 0, life: 2.6, c: bd.col };
     A.scene(bd.music);
   } else {
-    G.banner = { text: 'WAVE ' + n, sub: n === 1 ? G.kit.tip : n === 2 ? 'PINK ORBS CAN BE HIT BACK' : endless() ? 'ENDLESS  +' + endless() * 15 + '% ENEMY HEALTH' : '', t: 0, life: 1.9, c: endless() ? P.blood : P.paper };
+    G.banner = G.tutWant && n === 1 ? { text: 'TRAINING', sub: 'LEARN THE ROPES BEFORE THE PIT', t: 0, life: 2.2, c: P.gold } : { text: 'WAVE ' + n, sub: n === 1 ? G.kit.tip : n === 2 ? 'PINK ORBS CAN BE HIT BACK' : endless() ? 'ENDLESS  +' + endless() * 15 + '% ENEMY HEALTH' : '', t: 0, life: 1.9, c: endless() ? P.blood : P.paper };
     A.scene('fight');
     if (G.twist) {
       const tw = TWISTS[G.twist];
@@ -310,6 +320,7 @@ export function startWave(n) {
 // down to the next floor: its own floor and walls, its torches, air and footing; the old floor's lava goes with it,
 // and the new one fades in out of black under its name
 function enterStage(key) {
+  if (!G.tested) codexNote('floors', key);
   G.mapKey = key; G.map = MAPS[key]; showMap(key);
   dctx.clearRect(0, 0, AW, AH);      // the floor above's blood, scorches and cracks stay up there
   G.zones = G.zones.filter((z) => !z.pool);
@@ -371,7 +382,7 @@ function updateNight(dt) {
   else if (most === 2 && !n.said5) { n.said5 = true; say(TALK.night5); }
 }
 
-function buildQueue(n) {
+export function buildQueue(n) {
   if (isBossWave(n)) return ['boss'];
   if (n === 1) return ['husk', 'husk', 'husk', 'husk', 'husk', 'husk'];
   const q = [];
@@ -499,6 +510,7 @@ function checkEvo() {
   for (let i = 0; i < 3; i++) G.timers.push({ t: i * 0.18, fn: () => addRing(G.p.x, G.p.y - 6, col, 80, 0.4, 1) });
   G.timers.push({ t: 0.6, fn: () => {
     G.evo = true; G.kit = awakenKit(G.kit); G.awPal = G.kit.awake?.pal.map || null;
+    if (!G.tested) codexNote('awake', G.char);
     const q = G.p;
     q.evoFlash = 1.8; q.evoCol = col; q.maxHp++; q.hp = Math.min(q.maxHp, q.hp + 1);
     G.banner = { text: EVO_NAMES[G.char], sub: dev ? 'ROOT ACCESS GRANTED: ATTACKS EVOLVED' : 'AWAKENED: ATTACKS, POWERS AND ULTIMATE EVOLVED', t: 0, life: 2.6, c: col };
@@ -582,6 +594,23 @@ export function addCombo(n) {
 
 // ---------- damage ----------
 export const pd = x => x * G.up.dmg;
+// a dash costs energy, and after one every fighter needs a moment before the next: no dash spam
+// expressions (emotes.js): a bubble over a head for a moment. A stronger feeling is not covered by a weaker one.
+const EMO_PRI = { sweat: 0, sleep: 0, dots: 1, ask: 1, note: 2, heart: 2, star: 3, angry: 3, dizzy: 4, alert: 4 };
+export function emote(kind, life = 1.6, who = G.p) {
+  const cur = who.emote;
+  if (cur && G.time - cur.at < cur.life && (EMO_PRI[cur.kind] ?? 1) > (EMO_PRI[kind] ?? 1)) return;
+  who.emote = { kind, at: G.time, life };
+}
+function drawEmoteOn(who, headY) {
+  const em = who.emote;
+  if (!em) return;
+  const t = G.time - em.at;
+  if (t > em.life) { who.emote = null; return; }
+  drawEmote(em.kind, who.x, headY, t, Math.min(1, (em.life - t) * 4));
+}
+export const DASH_COST = 15, DASH_GAP = 0.2;
+export const dashGap = (kit) => kit.dash.recovery ?? DASH_GAP;
 export function ignite(e, seconds, baseDps, power = G.power) {
   if (!alive(e)) return;
   const dps = power === 'environment' ? baseDps : pd(baseDps) * (power === 'spell' ? G.up.spell : 1);
@@ -615,7 +644,7 @@ export function damage(e, dmg, o) {
   if (e.frozen > 0) dmg *= up.evoFrost ? 2 : 1.5;
   const kind = o.power || G.power || ((o.ug || o.basic) ? 'weapon' : 'other');
   const melee = kind === 'weapon';
-  if (melee) dmg *= up.wpn;
+  if (melee) dmg *= up.wpn * (G.kit.wpnPower || 1);
   if (kind === 'spell') dmg *= up.spell;
   if (p.ascend > 0 && o.src !== 'lava') dmg *= 2;
   if (G.kit.dmgScale && o.src !== 'lava' && o.src !== 'wall') dmg *= G.kit.dmgScale();
@@ -681,7 +710,7 @@ export function kill(e, o) {
   const dir = o.dir ?? rnd(TAU);
   if (e.type === 'boss') { bossDeath(e); return; }
   e.dead = true;
-  G.kills++;
+  G.kills++; codexNote('foes', e.type);
   if (best.kills + G.kills - G.killsBanked >= 1500) unlock('MECHANIC');
   // each fighter's signature kill (deaths.js); some take the body apart themselves
   const gone = KILLS[G.char]?.(e, o, dir) === true;
@@ -884,6 +913,7 @@ export function dropPick(x, y, kind) {
 export function healPlayer(n) {
   const p = G.p;
   if (p.hp >= p.maxHp) return;
+  if (p.hp <= Math.max(2, p.maxHp * 0.3)) emote('heart', 1.2);
   p.hp = Math.min(p.maxHp, p.hp + n);
   addText(p.x, p.y - 22, '+' + n, P.blood, 1);
   A.heal();
@@ -929,7 +959,9 @@ export function tryHurt(dmg, sx, sy) {
     G.zones.push({ type: 'burn', x: p.x, y: p.y, r: 40, t: 0, life: 4 });
     return 'blocked';
   }
+  if (G.tut) dmg = Math.min(dmg, p.hp - 1);
   p.hp -= dmg;
+  if (dmg >= 2) emote('angry', 1.3);
   // close to death, the King smells it, once a run
   if (p.hp > 0 && p.hp <= 2 && !G.saidLow && !G.talk) { G.saidLow = true; say(G.night ? TALK.lowHpNight : G.won ? TALK.lowHpDeep : TALK.lowHp); }
   // a short grace after a hit: enough to not lose two hearts to one blow, not enough to stand in a crowd
@@ -962,7 +994,7 @@ function counterBlast(e, dir) {
 
 function perfectDodge() {
   const p = G.p;
-  p.perfectUsed = true;
+  p.perfectUsed = true; emote('star', 0.9);
   if (++G.perfects >= 25) unlock('NINJA');
   slowmo(0.6, 0.3);
   p.energy = Math.min(100, p.energy + 12);
@@ -1074,7 +1106,7 @@ export function controls() {
 
 // ---------- player ----------
 function startUltimate(p, kit, up) {
-  rememberAction('spell');
+  rememberAction('spell'); tutNote('ult');
   const target = kit.r.target?.(p);
   p.bufR = 0; p.ult = 0; p.ultLock = 2.5; p.castAim = null;
   buzz('ult');
@@ -1291,7 +1323,11 @@ function updatePlayer(dt) {
     const free = p.state === 'move' || (p.state === 'recover' && p.recT < 0.05);
     const canAct = free || p.state === 'charge' || (p.state === 'attack' && p.atkT >= p.cancelAt);
     const canDash = G.t >= (p.nextDash || 0) && p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
-    if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
+    if (p.bufDash > 0 && p.charges > 0 && canDash && p.energy < DASH_COST && !G.shackle) {
+      p.bufDash = 0;
+      if (!(G.deny.dash > 0)) { A.deny(); addText(p.x, p.y - 24, 'NO ENERGY', P.volt, 1); emote('dots', 1); }
+      G.deny.dash = 0.35;
+    } else if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
     else if (p.bufR > 0 && canAct && p.ult >= 100) { startUltimate(p, kit, up); return; }
     else if (p.bufQ > 0 && canAct && p.energy >= kit.q.cost && p.cdQ <= 0) castSkill(p, 'q');
     else if (p.bufE > 0 && canAct && p.energy >= kit.e.cost && p.cdE <= 0) castSkill(p, 'e');
@@ -1371,7 +1407,7 @@ function releaseCharge(p, f) {
   G.inCharge = true; p.sq = -0.26; p.sqv = 0;
   // Flash Strike on a charge: its hits (which may land a moment later, like Rin's delayed cuts) do bonus damage
   if (p.chgFlash) { p.chgFlash = false; p.chgFlashT = 1.2; flashFx(p); }
-  rememberAction('weapon');
+  rememberAction('weapon'); tutNote('charge');
   const act = withPower('weapon', () => G.kit.charge.release(p, f));
   if (awake()?.charge) { withPower('weapon', () => G.kit.awake.charge(p, f)); chargeBurst(p, f); }
   G.inCharge = false;
@@ -1504,8 +1540,10 @@ function flashFx(p) {
 function startDash(mx, my, ml) {
   const p = G.p, kit = G.kit;
   rememberAction('dash');
-  if (kit.dash.recovery) p.nextDash = G.t + kit.dash.time + kit.dash.recovery;
+  p.nextDash = G.t + kit.dash.time + dashGap(kit); tutNote('dash');
   p.bufDash = 0;
+  // breaking the Warden's chain takes dashes: those are free
+  if (!G.shackle) p.energy = Math.max(0, p.energy - DASH_COST);
   // Flash Strike: a fighter with dashStrike hits much harder with the first attack or skill right after a dash
   if (kit.dashStrike) p.dashBuffT = kit.dash.time + 0.6;
   if (p.charges === p.dashMax) p.dashCd = kit.dash.cd * G.up.dashMul;
@@ -1568,6 +1606,9 @@ const ease = (k) => (k <= 0 ? 0 : k >= 1 ? 1 : k < 0.5 ? 2 * k * k : 1 - (-2 * k
 function flourishUpdate(p, dt) {
   const still = p.state === 'move' && hyp(p.vx, p.vy) < 14 && !p.atkHeld && !G.cine;
   p.idleT = still ? (p.idleT || 0) + dt : 0;
+  // left standing long enough, the fighter dozes off
+  p.stillT = still && !G.E.some(alive) ? (p.stillT || 0) + dt : 0;
+  if (p.stillT > 10) emote('sleep', 0.5);
   if (!still) { p.flo = null; return; }
   if (!p.flo && p.idleT > 3.6) { startFlourish(p); p.idleT = -2.6; }
   const f = p.flo;
@@ -1609,6 +1650,7 @@ function flourishAngle(p, a, up) {
 
 function castSkill(p, key) {
   const ab = G.kit[key], first = key === 'q';
+  tutNote(key);
   p[first ? 'bufQ' : 'bufE'] = 0;
   const angle = p.aim, target = ab.target?.(p), flashReady = flashStrike(p);
   const cast = withPower('spell', () => ab.use(p, target));
@@ -1988,7 +2030,7 @@ export const atWall = (e, cx, cy) => (cx < 0 && e.x <= B.x0 + e.r + 1) || (cx > 
 // ---------- bosses: shared death sequence ----------
 function bossDeath(e) {
   if (e.dead || e.dying || e.state === 'awakening' || awakenNox(e)) return;
-  G.bosses++;
+  G.bosses++; if (!G.tested) codexNote('bosses', e.boss);
   e.dying = 2.2; e.state = 'dying'; e.t = 0; e.vx = e.vy = 0; e.z = 0; e.under = false; e.shieldUp = false; e.armor = 0;
   if (e.boss === 'nox') A.rift(); else A.bossRoar();
   const bd = BOSSES[e.boss];
@@ -2082,7 +2124,7 @@ export function update(dt, rdt) {
 
   if (G.phase === 'intro') {
     G.phaseT -= dt;
-    if (G.phaseT <= 0) G.phase = 'fight';
+    if (G.phaseT <= 0) { G.phase = 'fight'; if (G.tutWant) { G.tutWant = false; startTutorial(); } }
   } else if (G.phase === 'fight') {
     G.spawnCd -= dt;
     const count = G.E.filter((e) => !e.dead).length + G.sigils.length;
@@ -2093,11 +2135,12 @@ export function update(dt, rdt) {
       G.spawnCd = 0.3;
       A.sigil();
     }
-    if (!G.queue.length && !G.sigils.length && !G.E.some((e) => !e.dead) && !G.dead) {
+    if (!G.tut && !G.queue.length && !G.sigils.length && !G.E.some((e) => !e.dead) && !G.dead) {
       G.phase = 'clear'; G.phaseT = 1.6;
       A.waveClear(); A.scene('calm'); A.stopLoops();
       // the fighter shows off with a weapon trick (if standing still)
       if (G.p.state === 'move') startFlourish(G.p);
+      emote(isBossWave(G.wave) ? 'star' : 'note', 2);
       G.banner = G.victory || G.nightFall ? null : { text: 'WAVE CLEAR', sub: '', t: 0, life: 1.6, c: P.ember3 };
       if (G.twist) {
         const tw = TWISTS[G.twist], bonus = Math.round(1000 * (1 + G.wave / 10) * G.D.score);
@@ -2113,13 +2156,15 @@ export function update(dt, rdt) {
   } else if (G.phase === 'night') updateNight(dt);
 
   checkEvo();
+  if (G.arrivalFades) { for (const a of G.arrivalFades) { a.t += dt; a.f += dt; } G.arrivalFades = G.arrivalFades.filter((a) => a.f < a.fl); }
   for (const s of G.sigils) {
     s.t += dt;
     if (s.type === 'boss') { s.boss ||= bossFor(G.wave); bossArrivalUpdate(s, dt); }
     const col = s.type === 'boss' ? BOSSES[s.boss || bossFor(G.wave)].col : DEF[s.type].col;
     if (s.t > 0 && Math.random() < dt * 30) { const a = rnd(TAU); part(s.x + Math.cos(a) * 10, s.y + Math.sin(a) * 6, 0, -rnd(10, 30), 0.4, col, { drag: 1, glow: true }); }
     if (s.t >= s.life) {
-      spawnEnemy(s.type, s.x, s.y, s.boss);
+      s.enemy = spawnEnemy(s.type, s.x, s.y, s.boss);
+      if (s.type === 'boss') (G.arrivalFades ||= []).push({ boss: s.boss, x: s.x, y: s.y, t: s.t, life: s.life, f: 0, fl: ARRIVE_FADE[s.boss] || 1.2 });
       // the Colossus comes down where its shadow was
       if (s.boss === 'colossus') { A.boom(2.2); A.wall(); shake(1.2); kick(Math.PI / 2, 6); dust(s.x, s.y, 60, 200); scorch(s.x, s.y, 26); addRing(s.x, s.y, P.paper, 380, 0.4, 3); }
       addRing(s.x, s.y - 4, col, 140, 0.2, 2);
@@ -2507,7 +2552,16 @@ function updateCam(dt) {
   // during a boss entrance the camera frames the boss instead of you
   const gate = !G.night && G.sigils.find(s => s.type === 'boss');
   const fxp = gate ? gate.x : show ? b.x : p.x + Math.cos(p.aim) * 16, fyp = gate ? gate.y - 18 : show ? b.y - 20 : p.y - 8 + Math.sin(p.aim) * 11;
-  const tx = fxp - W / 2, ty = fyp - H / 2;
+  let tx = fxp - W / 2, ty = fyp - H / 2;
+  // a big boss (the King, Nox) pulls the camera toward itself, so you see more of it than its feet, though you always
+  // stay well inside the frame
+  if (b && !show && !gate && !b.under && !b.dead && !b.dying) {
+    const bh = sprFor(b)?.h || 30, w = Math.min(0.4, Math.max(0, (bh - 36) / 200));
+    if (w > 0 && hyp(b.x - p.x, b.y - p.y) < 280) {
+      tx += (b.x - W / 2 - tx) * w * 0.4; ty += (b.y - bh * 0.55 - H / 2 - ty) * w;
+      ty = clamp(ty, p.y - H + 30, p.y - 44);
+    }
+  }
   const k = 1 - Math.exp(-7 * dt);
   fx.cam.x = clamp(fx.cam.x + (tx - fx.cam.x) * k, SX, AW - W - SX);
   fx.cam.y = clamp(fx.cam.y + (ty - fx.cam.y) * k, 0, AH - H);
@@ -3045,6 +3099,13 @@ export function drawWorld() {
   G.cine?.under?.();
   drawDeathUnder();
 
+  // a boss's arrival dies away slowly once the boss is here
+  for (const a of G.arrivalFades || []) {
+    const v = 1 - a.f / a.fl;
+    ctx.globalAlpha = v * v * (3 - 2 * v);
+    drawBossArrival(a.boss, a.x, a.y, 1, BOSSES[a.boss].col, { t: a.t, life: a.life, fade: 1 - v });
+    ctx.globalAlpha = 1;
+  }
   for (const s of G.sigils) {
     if (s.t < 0) continue;
     const k = s.t / s.life, boss = s.type === 'boss', col = boss ? BOSSES[s.boss || bossFor(G.wave)].col : DEF[s.type].col, big = boss ? 2.2 : 1;
@@ -3111,6 +3172,23 @@ export function drawWorld() {
 
   drawDeath();
   for (const s of G.slashes) drawSlash(s);
+  // expressions over heads: the fighter's (sweating when nearly dead, dizzy when held), stunned monsters' stars, a
+  // boss's anger when it turns to a new phase
+  {
+    const p = G.p, hs = heroSet()?.idle;
+    if (p.state !== 'dead' && p.state !== 'cine' && !p.hidden && !G.cine) {
+      if (p.held > 0) emote('dizzy', 0.25);
+      else if (p.hp > 0 && p.hp <= Math.max(2, Math.ceil(p.maxHp * 0.25)) && G.phase === 'fight') emote('sweat', 0.6);
+      drawEmoteOn(p, p.y - (hs?.h || 22) + 3);
+    }
+    for (const e of G.E) {
+      if (e.dead || e.under || e.dying) continue;
+      const top = e.y - (e.z || 0) - (sprFor(e)?.h || 16) * (e.def.scale || 1);
+      if (e.boss) { if (e.lastPhase && e.phase !== e.lastPhase) e.emote = { kind: 'angry', at: G.time, life: 2.4 }; e.lastPhase = e.phase; }
+      if (e.state === 'stun' || e.stunT > 0) drawEmote('dizzy', e.x, top + 2, G.time);
+      else drawEmoteOn(e, top + 2);
+    }
+  }
   if (!G.dead) { remap(G.awPal); G.kit.draw?.(G.p); remap(null); }
 
   for (const s of G.shots) {

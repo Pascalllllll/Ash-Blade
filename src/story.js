@@ -16,14 +16,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=204';
-import { SPR } from './sprites.js?v=204';
-import { input, keyHit } from './input.js?v=204';
-import { A } from './audio.js?v=204';
-import { G } from './world.js?v=204';
-import { CHARS } from './chars.js?v=204';
-import { drawFighter } from './title-scene.js?v=204';
-import { drawWeaponAt } from './hero-sprites.js?v=204';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=206';
+import { SPR } from './sprites.js?v=206';
+import { input, keyHit } from './input.js?v=206';
+import { A } from './audio.js?v=206';
+import { G } from './world.js?v=206';
+import { CHARS } from './chars.js?v=206';
+import { drawFighter } from './title-scene.js?v=206';
+import { drawWeaponAt } from './hero-sprites.js?v=206';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -31,9 +31,11 @@ const clamp01 = (k) => Math.min(1, Math.max(0, k));
 const ease = (k) => 1 - (1 - clamp01(k)) ** 3;
 // the same "random" every time, so a picture doesn't change between frames
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
-const hero = () => CHARS[G?.char]?.hero || 'THE FIGHTER';
-const heroCol = () => CHARS[G?.char]?.color?.() || P.paper;
-const evo = () => G?.evo === true;
+// whose story it is: the run's fighter, or the one the Compendium is replaying an ending for (story.char)
+const me = () => story.char || G?.char;
+const hero = () => CHARS[me()]?.hero || 'THE FIGHTER';
+const heroCol = () => CHARS[me()]?.color?.() || P.paper;
+const evo = () => (story.char ? !!story.evo : G?.evo === true);
 // the nights fought below the pit (the one they fell on counts)
 const nights = () => Math.max(1, (G?.wave || 21) - 20);
 // how long they held the endless night, in words
@@ -897,14 +899,14 @@ const HOME = [
       for (let x = PX; x < PX + PW; x++) rect(x, slope(x), 1, PY + PH - slope(x) + 1, '#4a3a30');
       for (let x = PX; x < PX + PW; x += 2) px(x, slope(x), '#6a5a4a');
       for (let x = PX; x < fxp - 4; x++) if (hash(x) < 0.55) { rect(x, slope(x) - 1, 1, 1 + (hash(x + 5) < 0.4 ? 1 : 0), '#5ac85a'); if (hash(x + 9) < 0.06) px(x, slope(x) - 3, hash(x) < 0.03 ? '#ff9fc0' : '#ffd447'); }
-      drawFighter(G.char, fxp, slope(fxp) + 1, 2, t < 6 ? { anim: 'walk', t, fps: 10, evo: evo() } : { t, evo: evo() });
+      drawFighter(me(), fxp, slope(fxp) + 1, 2, t < 6 ? { anim: 'walk', t, fps: 10, evo: evo() } : { t, evo: evo() });
     },
   },
   {
     len: 7.4,
     cue: () => A.storyCue('epilogue'),
-    cap: () => (EPI[G.char] || EPI.BLADE).cap,
-    draw(t) { (EPI[G.char] || EPI.BLADE).draw(t); },
+    cap: () => (EPI[me()] || EPI.BLADE).cap,
+    draw(t) { (EPI[me()] || EPI.BLADE).draw(t); },
   },
   {
     len: 7.5,
@@ -1361,7 +1363,7 @@ const HOMES = {
         rect(PX, gy, PW, 6, '#2a1a20');
         ['BLADE', 'GUNNER', 'WIZARD', 'NINJA', 'MECHANIC', 'TANK', 'ROBOT', 'DEV'].forEach((id, i) => {
           const x = PX - 20 + ((t * 18 + i * 30) % 260);
-          drawFighter(id, x, gy + 1, 1, { anim: 'walk', t: t + i * 0.3, fps: 9, evo: id === G.char && evo() });
+          drawFighter(id, x, gy + 1, 1, { anim: 'walk', t: t + i * 0.3, fps: 9, evo: id === me() && evo() });
         });
       },
     },
@@ -1766,10 +1768,10 @@ const ASH_BOOK = [
   },
 ];
 const STORIES = { ash: ASH_BOOK, lore: LORE, ending: ENDING, home: HOME, deeper: DEEPER, fall: FALL, nightfall: NIGHTFALL };
-export const story = { name: null, pages: LORE, i: 0, t: 0, cued: -1, typed: 0, cap: null };
+export const story = { char: null, evo: false, name: null, pages: LORE, i: 0, t: 0, cued: -1, typed: 0, cap: null };
 // going home is the climb, then three pages of the fighter's own ending, then THE END
-const pagesOf = (name) => (name === 'home' ? [HOME[0], ...(HOMES[G.char] || [HOME[1]]), HOME[2]] : STORIES[name]);
-export function playStory(name) { Object.assign(story, { name, pages: pagesOf(name), i: 0, t: 0, cued: -1, typed: 0, cap: null }); }
+const pagesOf = (name) => (name === 'home' ? [HOME[0], ...(HOMES[me()] || [HOME[1]]), HOME[2]] : STORIES[name]);
+export function playStory(name, o = {}) { story.char = o.char || null; story.evo = !!o.evo; Object.assign(story, { name, pages: pagesOf(name), i: 0, t: 0, cued: -1, typed: 0, cap: null }); }
 const capOf = (p) => (typeof p.cap === 'function' ? p.cap() : p.cap);
 // a caption types out at 34 letters a second after a short pause; returns how many letters show at time t
 const typedAt = (cap, t) => Math.min(cap.reduce((a, l) => a + l.length, 0), Math.floor(Math.max(0, t - 0.25) * 34));

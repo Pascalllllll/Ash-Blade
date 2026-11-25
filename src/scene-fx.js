@@ -1,10 +1,10 @@
 // Shared tools for the heroes' entrances (entrances.js) and deaths (deaths.js): the hero drawn in any pose with the
 // weapon in hand, a body cut into pieces that fly, bounce and bleed, spurts and pools of blood, cracks in the floor,
 // and the entrance's letterbox and name card.
-import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, FW, SX, makeCanvas } from './gfx.js?v=204';
-import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=204';
-import { drawWeaponAt, REST } from './hero-sprites.js?v=204';
-import { WEAPON_ART } from './hero-rig.js?v=204';
+import { ctx, P, rect, px, line, glow, text, textO, textW, snap, SS, W, H, FW, SX, makeCanvas } from './gfx.js?v=206';
+import { G, rnd, TAU, clamp, part, stain, heroSet, shadow } from './world.js?v=206';
+import { drawWeaponAt, REST } from './hero-sprites.js?v=206';
+import { WEAPON_ART } from './hero-rig.js?v=206';
 
 const CW = 120, FX = 60, FY = 92;             // a hero cell's width, and where the feet are on it
 export const BLOOD = ['#c4243a', '#8a0f22', '#5a0612'];
@@ -289,7 +289,8 @@ export function drawNameCard(name, sub, col, t, life) {
 // ---------- small helpers ----------
 export function darken(a, c = '#05030a') {
   if (a <= 0) return;
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = clamp(a, 0, 1); ctx.fillStyle = c; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+  const base = ctx.globalAlpha;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = clamp(a, 0, 1) * base; ctx.fillStyle = c; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
 }
 // a ring on the floor drawn point by point (squashed for the floor's angle), only part of it when sweep < 1
 export function floorRing(x, y, r, col, sweep = 1, sq = 0.5, start = -Math.PI / 2, th = 1) {

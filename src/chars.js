@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=204';
-import { heroEntrance } from './entrances.js?v=204';
-import { SPR } from './sprites.js?v=204';
-import { A } from './audio.js?v=204';
-import { input } from './input.js?v=204';
-import { best } from './store.js?v=204';
+import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=206';
+import { heroEntrance } from './entrances.js?v=206';
+import { SPR } from './sprites.js?v=206';
+import { A } from './audio.js?v=206';
+import { input } from './input.js?v=206';
+import { best } from './store.js?v=206';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, ignite, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=204';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=206';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -131,7 +131,7 @@ export const CHARS = {
     id: 'BLADE', name: 'BLADE', alias: 'ASH', color: () => P.ember,
     desc: ['A FAST SWORD COMBO', 'AND TIME-STOPPING CUTS'], tip: 'HOLD CLICK, LET GO FOR A FIRE CRESCENT',
     bars: { power: 3, speed: 4, range: 2, tough: 3 },
-    stats: { hp: 9, speed: 102 }, dash: { speed: 330, time: 0.14, cd: 0.9, recovery: 0.44, charges: 1 }, ultRate: 1, energyHit: 1.5,
+    stats: { hp: 9, speed: 102 }, wpnPower: 1.08, dash: { speed: 340, time: 0.14, cd: 0.55, charges: 1 }, ultRate: 1, energyHit: 1.5,
     melee: {
       col: 'ember', steps: [
         // slash, X-cut, piercing thrust, whirlwind
@@ -260,7 +260,7 @@ export const CHARS = {
     id: 'GUNNER', name: 'GUNNER', alias: 'VEGA', color: () => P.gold,
     desc: ['HOLD TO SHOOT, RELOAD', 'IS AUTOMATIC'], tip: 'HOLD CLICK TO SHOOT',
     bars: { power: 3, speed: 4, range: 5, tough: 2 },
-    stats: { hp: 8, speed: 104 }, dash: { speed: 310, time: 0.15, cd: 0.4, charges: 1 }, ultRate: 0.8, energyHit: 0.4,
+    stats: { hp: 8, speed: 104 }, wpnPower: 1.4, dash: { speed: 310, time: 0.15, cd: 0.4, charges: 1 }, ultRate: 0.8, energyHit: 0.4,
     primaryName: 'REVOLVER',
     init: () => ({ ammo: 14, reload: 0, fireT: 0, stand: 0, flashT: 0, marks: [] }),
     primary(p, dt, held) {
@@ -370,7 +370,7 @@ export const CHARS = {
     id: 'WIZARD', name: 'WIZARD', alias: 'MOTH', color: () => '#b48cff',
     desc: ['HOMING MAGIC, ARCANE', 'MISSILES AND BLIZZARDS'], tip: 'E CALLS A BLIZZARD WHERE YOU AIM',
     bars: { power: 5, speed: 2, range: 4, tough: 1 },
-    stats: { hp: 7, speed: 96 }, dash: { speed: 360, time: 0.12, cd: 0.5, charges: 1 }, ultRate: 1, energyHit: 1.5,
+    stats: { hp: 8, speed: 96 }, wpnPower: 1.05, dash: { speed: 360, time: 0.12, cd: 0.5, charges: 1 }, ultRate: 1, energyHit: 1.5,
     primaryName: 'ARCANE BOLT',
     init: () => ({ fireT: 0, star: 0, starT: 0, castT: 0, volleys: [], missT: 0, rune: 0, bliz: [] }),
     primary(p, dt, held) {
@@ -475,17 +475,17 @@ export const CHARS = {
     id: 'NINJA', name: 'SAMURAI', alias: 'SAKURA', color: () => P.blood,
     desc: ['FAST KATANA, TWO DASHES,', 'CUTS THAT SEND SHOTS BACK'], tip: 'Q FIRES A LASER FROM THE SWORD',
     bars: { power: 4, speed: 5, range: 2, tough: 2 },
-    stats: { hp: 9, speed: 118 }, dash: { speed: 380, time: 0.11, cd: 0.65, charges: 2 }, ultRate: 1.05, energyHit: 1.4,
+    stats: { hp: 8, speed: 118 }, wpnPower: 0.88, dash: { speed: 380, time: 0.11, cd: 0.65, charges: 2 }, ultRate: 1.05, energyHit: 1.4,
     // Flash Strike: the first sword swing or skill within 0.6 s after a dash does 2.5x damage
     dashStrike: 2.5,
     melee: {
       col: 'blood', steps: [
         // quick cut, X-cut, lunging stab, iai draw (dashes through and cuts twice)
         // heavy, deliberate cuts (slow: each swing takes 2.6x as long to recover)
-        { reach: 24, arc: 2.3, dmg: 6, dur: 0.15, cancel: 0.07, lunge: 170, kb: 80, th: 6 },
-        { reach: 25, arc: 2.3, dmg: 8, dur: 0.2, cancel: 0.1, lunge: 150, kb: 80, th: 6, shape: 'cross' },
-        { reach: 38, arc: 0.6, dmg: 8, dur: 0.16, cancel: 0.08, lunge: 300, kb: 120, th: 4, shape: 'thrust' },
-        { reach: 36, arc: 1.2, dmg: 14, dur: 0.3, cancel: 0.15, lunge: 430, kb: 220, th: 9, heavy: true, shape: 'iai' },
+        { reach: 24, arc: 2.3, dmg: 4, dur: 0.15, cancel: 0.07, lunge: 170, kb: 80, th: 6 },
+        { reach: 25, arc: 2.3, dmg: 5, dur: 0.2, cancel: 0.1, lunge: 150, kb: 80, th: 6, shape: 'cross' },
+        { reach: 38, arc: 0.6, dmg: 5, dur: 0.16, cancel: 0.08, lunge: 300, kb: 120, th: 4, shape: 'thrust' },
+        { reach: 36, arc: 1.2, dmg: 9, dur: 0.3, cancel: 0.15, lunge: 430, kb: 220, th: 9, heavy: true, shape: 'iai' },
       ], slow: 2.6,
     },
     primaryName: 'KATANA',
@@ -496,7 +496,7 @@ export const CHARS = {
       release(p, f) {
         const a = chargeAim(p), L = 24 + 115 * f, x0 = p.x, y0 = p.y;
         const x1 = clamp(p.x + Math.cos(a) * L, B.x0 + p.r, B.x1 - p.r), y1 = clamp(p.y + Math.sin(a) * L, B.y0 + p.r, B.y1 - 2);
-        const passed = new Set(), dmg = pd(26 * f);
+        const passed = new Set(), dmg = pd(20 * f);
         p.inv = Math.max(p.inv, 0.35);
         A.dash(); A.rift(); shake(0.1 + 0.2 * f);
         G.cuts.push({ x0, y0: y0 - 5, x1, y1: y1 - 5, a, t: 0, pend: 0.18 + 0.1 * f, marked: [], echo: 0, done: false, col: '#ff8fc8',
@@ -794,7 +794,7 @@ export const CHARS = {
     id: 'TANK', name: 'TANK', alias: 'BULWARK', color: () => '#8fa2bd',
     desc: ['SLOW, HUGE HAMMER,', 'LOTS OF HEALTH'], tip: 'HOLD CLICK TO SHATTER THE GROUND',
     bars: { power: 5, speed: 1, range: 3, tough: 5 },
-    stats: { hp: 13, speed: 83 }, dash: { speed: 260, time: 0.16, cd: 0.6, charges: 1 }, ultRate: 1, energyHit: 2.5,
+    stats: { hp: 12, speed: 83 }, dash: { speed: 260, time: 0.16, cd: 0.6, charges: 1 }, ultRate: 1, energyHit: 2.5,
     melee: {
       col: 'steel', heavySfx: true, steps: [
         // sweep, overhead slam, full hammer spin
@@ -916,7 +916,7 @@ export const CHARS = {
     id: 'ROBOT', name: 'ROBOT', alias: 'UNIT-7', color: () => P.volt,
     desc: ['A LASER BEAM THAT', 'OVERHEATS, PLUS ROCKETS'], tip: 'HOLD CLICK, WATCH THE HEAT',
     bars: { power: 4, speed: 3, range: 4, tough: 3 },
-    stats: { hp: 9, speed: 94 }, dash: { speed: 340, time: 0.13, cd: 0.45, charges: 1 }, ultRate: 0.85, energyHit: 0.35, handY: 9,
+    stats: { hp: 9, speed: 94 }, wpnPower: 1.35, dash: { speed: 340, time: 0.13, cd: 0.45, charges: 1 }, ultRate: 0.85, energyHit: 0.35, handY: 9,
     primaryName: 'LASER BEAM',
     init: () => ({ heat: 0, over: 0, tick: 0, firing: false, orb: 0, ox: 0, oy: 0, otick: 0, end: [0, 0] }),
     primary(p, dt, held) {
@@ -1203,7 +1203,7 @@ CHARS.DEV = {
   id: 'DEV', name: 'THE DEV', alias: 'ROOT', color: () => GREEN,
   desc: ['STARTS AS A NORMAL GUY WITH A LAPTOP.', 'PAST WAVE 20 HE REWRITES THE GAME'], tip: '5 HITS CRASH A FOE',
   bars: { power: 4, speed: 4, range: 4, tough: 2 },
-  stats: { hp: 7, speed: 100 }, dash: { speed: 420, time: 0.09, cd: 0.5, charges: 1 }, ultRate: 0.9, energyHit: 1,
+  stats: { hp: 8, speed: 100 }, wpnPower: 1.15, dash: { speed: 420, time: 0.09, cd: 0.5, charges: 1 }, ultRate: 0.9, energyHit: 1,
   primaryName: 'PING',
   dmgScale: devScale,
   init: () => ({ fireT: 0, wall: 0, wallT: 0, flashT: 0, marks: [] }),

@@ -1,4 +1,4 @@
-import { makeCanvas } from './gfx.js?v=204';
+import { makeCanvas } from './gfx.js?v=206';
 
 const FRAMES = 24, COLUMNS = 6, TAU = Math.PI * 2;
 const sheets = new Map();
@@ -45,7 +45,7 @@ export function loadMonsterSheet(id, paintedHeight) {
     sheets.set(id, frames);
   };
   im.onerror = () => sheets.delete(id);
-  im.src = new URL(`../art/sprites/monsters/${id}.png?v=3`, import.meta.url).href;
+  im.src = new URL(`../art/sprites/monsters/${id}.png?v=5`, import.meta.url).href;
 }
 
 export function monsterFrame(id, phase, painted, blink = false) {
