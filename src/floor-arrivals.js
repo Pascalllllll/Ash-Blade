@@ -2,7 +2,8 @@
 // letterbox, a different one for each floor, showing how the fighter gets down there, ending on the floor's name card.
 //   The Brood Nest     they fall through the webs strung over the pit, snapping strand after strand, into the spores.
 //   Ember Forge        they come down like a slag rock, the floor cracks orange and the lava pools blow one by one.
-//   The Ashen Throne   the King's gate opens; they walk in down his carpet as the torches flare, and kneel.
+//   The Ashen Throne   the King's gate opens; they walk in down his carpet as the torches flare, and raise their
+//                      weapon to the throne.
 //   The Void Deep      a rift tears open in the air and drops them out tumbling; it snaps shut behind them.
 //   Frozen Hollow      a blizzard blows them in sliding across the ice; frost spreads where they stop.
 //   The Glass Hall     their reflection waits in a mirror; the mirror cracks and they step out of it.
@@ -10,15 +11,15 @@
 //   The Clockworks     they drop onto a gear lift that spins down into place, vents steam, and the clock strikes.
 //   The Last Night     the stars go out and they fall as one, a streak of light across the dark.
 // Any attack key, Enter, Space, Escape or a tap skips to the end. The world waits while it plays (G.cine).
-import { ctx, disc, ring, W, H, SX } from './gfx.js?v=201';
-import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, shadow } from './world.js?v=201';
-import { A } from './audio.js?v=201';
-import { input, keyHit } from './input.js?v=201';
-import { MAPS, B, AW, AH, TORCHES, depthOf } from './maps.js?v=201';
+import { ctx, disc, ring, W, H, SX } from './gfx.js?v=203';
+import { G, fx, sparks, dust, addRing, flash, shake, kick, scorch, shadow } from './world.js?v=203';
+import { A } from './audio.js?v=203';
+import { input, keyHit } from './input.js?v=203';
+import { MAPS, B, AW, AH, TORCHES, depthOf } from './maps.js?v=203';
 import {
   P, rnd, TAU, clamp, part, glow, line, rect, px, ease, easeIn, at, frame, drawBody, drawHero, restAngle, makeCracks,
   drawCracks, stampCracks, drawLetterbox, drawNameCard, darken, floorRing,
-} from './scene-fx.js?v=201';
+} from './scene-fx.js?v=203';
 
 const skipPressed = () => keyHit('Enter', 'Space', 'Escape', 'KeyJ', 'KeyZ') || input.mouse.pressed || input.thit?.size > 0;
 const sweep = (list) => { for (let i = list.length - 1; i >= 0; i--) if (list[i].t >= list[i].life) list.splice(i, 1); };
@@ -92,9 +93,9 @@ const ARRIVALS = {
     },
     hero(k) {
       if (k.t < this.land) { const [x, y] = this.walk(k); drawHero(frame('walk', k.t * 10), x, y, {}, restAngle(false)); return true; }
-      // he kneels a beat at the foot of the throne, then stands
+      // at the foot of the empty throne they raise their weapon to it: a challenge, not a bow
       const u = k.t - this.land;
-      if (u < 0.55) { drawHero(frame('death', 2), k.x, k.y, {}, restAngle(false)); return true; }
+      if (u < 0.7) { drawHero(frame('idle', k.t * 7), k.x, k.y, {}, -Math.PI / 2 + 0.35 - 0.25 * Math.min(1, u / 0.15)); return true; }
       return false;
     },
   },

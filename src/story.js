@@ -15,14 +15,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=201';
-import { SPR } from './sprites.js?v=201';
-import { input, keyHit } from './input.js?v=201';
-import { A } from './audio.js?v=201';
-import { G } from './world.js?v=201';
-import { CHARS } from './chars.js?v=201';
-import { drawFighter } from './title-scene.js?v=201';
-import { drawWeaponAt } from './hero-sprites.js?v=201';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=203';
+import { SPR } from './sprites.js?v=203';
+import { input, keyHit } from './input.js?v=203';
+import { A } from './audio.js?v=203';
+import { G } from './world.js?v=203';
+import { CHARS } from './chars.js?v=203';
+import { drawFighter } from './title-scene.js?v=203';
+import { drawWeaponAt } from './hero-sprites.js?v=203';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -57,13 +57,13 @@ export const TALK = {
   comboDeep: [[VOID, 'SUCH A BRIGHT LITTLE FIRE. YOU WILL KEEP ME WARM FOR A WHILE.']],
   warden: [[KING, 'MY WARDEN HAS KEPT THIS PIT FOR A HUNDRED YEARS. HE WILL KEEP YOUR BONES.']],
   wardenDead: [[KING, 'STUBBORN. GOOD. THE STUBBORN ONES BURN THE LONGEST.']],
-  brood: [[KING, 'SHE NESTS BELOW MY THRONE, AND HER CHILDREN ARE HUNGRY.']],
+  brood: [[KING, 'SHE NESTS IN THE WALLS ABOVE MY THRONE, AND HER CHILDREN ARE HUNGRY.']],
   broodDead: [[KING, 'YOU KILLED MY PET. I HAVE AN ARMY OF THEM.']],
   colossus: [[KING, 'MY OLD WAR MACHINE NEVER LEARNED HOW TO STOP. NEITHER DID I.']],
   colossusDead: [[KING, 'ENOUGH. COME DOWN TO MY THRONE. I WILL MEET YOU MYSELF.']],
   kingBurns: [[KING, 'YOU THINK YOU CAN PUT OUT THE SUN?']],
   kingUnbound: [[KING, 'I WILL NOT GO BACK INTO THE DARK!']],
-  kingDead: [[KING, 'THE DARK... IT IS SO COLD...']],
+  kingDead: [[KING, 'THE DARK... I HELD IT DOWN SO LONG... IT IS SO COLD...']],
   // below the pit, the dark he was afraid of
   deeper: [[VOID, 'A LITTLE LIGHT, FALLING INTO ME. HOW BRAVE. HOW BRIEF.']],
   w23: [[VOID, 'EVERY FIRE GOES OUT, LITTLE LIGHT. I AM WHERE THEY ALL GO.']],
@@ -72,10 +72,16 @@ export const TALK = {
   w37: [[VOID, 'YOU ARE TIRED. I CAN FEEL IT. REST. ONLY REST.']],
   w43: [[VOID, 'ABOVE YOU THEY SLEEP SAFE. THEY DO NOT EVEN KNOW YOUR NAME.']],
   w47: [[VOID, 'SO STUBBORN. SO BRIGHT. I THINK I WILL KEEP YOU.']],
+  // the floors below the pit, as the dark shows them to you (the first wave of each, after its arrival)
+  w26: [[VOID, 'FEEL THAT COLD? THIS IS THE WORLD WITHOUT A SUN. THIS IS WHAT I AM.']],
+  w31: [[VOID, 'LOOK AROUND, LITTLE LIGHT. A THOUSAND OF YOU, AND NOT ONE IS GOING HOME.']],
+  w36: [[VOID, 'THEY PRAYED TO THE SUN DOWN HERE, ONCE. I WAS THE ONE WHO ANSWERED.']],
+  w41: [[VOID, 'HEAR THE GEARS? EVERY TICK IS ONE LESS BREATH FOR YOU.']],
+  w46: [[VOID, 'NO MORE FLOORS, LITTLE LIGHT. THIS IS THE BOTTOM. THIS IS ME.']],
   wyrm: [[VOID, 'SOMETHING SWIMS UP THROUGH THE STONE.']],
   herald: [[VOID, 'THE STORM HAS A VOICE NOW. IT KNOWS YOUR NAME.']],
   mirror: [[VOID, 'IT WATCHED YOU ALL THE WAY DOWN. IT LEARNED.']],
-  eclipse: [[VOID, 'THE SUN YOU FREED HAS AN EYE. IT IS LOOKING AT YOU.']],
+  eclipse: [[VOID, 'YOU FREED HIS SUN, SO I MADE ONE OF MY OWN. IT HAS AN EYE.']],
   clock: [[VOID, 'TIME ITSELF WANTS YOU GONE.']],
   // wave 50: the dark gives itself a shape and a name
   noxNight: [[NOX, 'NIGHT FALLS. IT ALWAYS DOES.']],
@@ -101,6 +107,57 @@ const REPLY = {
 export const startLines = (id) => [...TALK.start, [id, REPLY[id] || REPLY.BLADE]];
 // and answers what the King, the ash and the dark tell them between the bosses
 const ANSWER = {
+  // the floors below the pit: each fighter answers the dark as they arrive
+  w26: {
+    BLADE: "THEN I'LL CARRY THE EMBER THROUGH IT. COLD NEVER STOPPED A FIRE.",
+    GUNNER: "I'VE SLEPT IN WORSE. DESERT NIGHTS GET COLD TOO.",
+    WIZARD: 'THE STARS ARE COLD AS WELL, AND STILL THEY SHINE.',
+    NINJA: "IT'S FINE. I'LL JUST RUN FASTER. ...WAIT, IS THE FLOOR ICE?",
+    MECHANIC: "COLD KEEPS MY ENGINES HAPPY. YOU'RE DOING ME A FAVOR.",
+    TANK: 'MY ARMOR HAS KNOWN WORSE WINTERS. KEEP TALKING.',
+    ROBOT: 'TEMPERATURE LOGGED. OPERATING LIMITS NOT REACHED.',
+    DEV: 'WHO PUT AN ICE LEVEL IN HERE? ...RIGHT. ME.',
+  },
+  w31: {
+    BLADE: 'ONE OF US IS. THE ONE HOLDING THE SWORD.',
+    GUNNER: "A THOUSAND OF ME? THAT'S A LOT OF BOUNTIES TO SPLIT.",
+    WIZARD: 'A MIRROR SHOWS ONLY WHAT IS. THE STARS SHOW WHAT WILL BE.',
+    NINJA: 'OKAY, BUT MY HAIR LOOKS AMAZING IN ALL OF THEM.',
+    MECHANIC: 'HUH. I NEED A SHOWER. A THOUSAND SHOWERS.',
+    TANK: 'I SEE AN OLD MAN IN ARMOR. HE IS STILL STANDING.',
+    ROBOT: 'REFLECTIONS ARE NOT HOSTILE. PROCEEDING.',
+    DEV: 'THIS ROOM IS GOING TO MURDER THE FRAME RATE.',
+  },
+  w36: {
+    BLADE: 'THE SUN IS FREE NOW. YOUR TEMPLE IS EMPTY.',
+    GUNNER: 'PREACHERS AND MONSTERS. SAME HUSTLE, DIFFERENT HATS.',
+    WIZARD: 'I KNOW THIS PLACE. THE STARS WROTE IT DOWN BEFORE YOU ATE IT.',
+    NINJA: 'A TEMPLE? QUICK, I NEED TO PRAY FOR MY MATH GRADE.',
+    MECHANIC: "GOLD FLOORS. I'M TAKING A SAMPLE. OR TEN.",
+    TANK: 'THE KING WAS CROWNED IN A TEMPLE LIKE THIS. I HELD HIS SWORD.',
+    ROBOT: 'NO DEITY DETECTED. ONLY YOU.',
+    DEV: 'THIS IS WHERE I PUT ALL THE LORE. NOBODY READS THE LORE.',
+  },
+  w41: {
+    BLADE: "THEN I'LL MAKE EVERY BREATH COUNT.",
+    GUNNER: "TICK TOCK. I'VE OUTRUN CLOCKS BEFORE.",
+    WIZARD: 'TIME IS OLD, AND SO AM I. WE UNDERSTAND EACH OTHER.',
+    NINJA: 'UGH, CLOCKS. THIS IS GIVING ME EXAM FLASHBACKS.',
+    MECHANIC: 'OH, I LOVE THIS PLACE. LOOK AT THOSE TOLERANCES.',
+    TANK: 'I STOOD WATCH FOR TWENTY YEARS. I KNOW HOW TO WAIT.',
+    ROBOT: 'INTERNAL CLOCK SYNCHRONIZED. COUNTING DOWN TO YOU.',
+    DEV: "THIS LEVEL HAS A TIMER BUG. PLEASE DON'T LOOK AT IT.",
+  },
+  w46: {
+    BLADE: 'THEN THIS IS WHERE THE EMBER BURNS BRIGHTEST.',
+    GUNNER: "BOTTOM OF THE PIT, BIGGEST BOUNTY. LET'S DANCE.",
+    WIZARD: 'EVEN HERE I CAN SEE THE STARS. THEY ARE ON MY SIDE.',
+    NINJA: "IF I WIN THIS, I'M SKIPPING SCHOOL FOR A WEEK.",
+    MECHANIC: 'NO MORE FLOORS? GOOD. MY LEGS ARE KILLING ME.',
+    TANK: 'MY OATH ENDS WHERE YOU DO. I CAN SEE THE END FROM HERE.',
+    ROBOT: 'FINAL DEPTH REACHED. FINAL ORDER: HOLD THE LIGHT.',
+    DEV: "LAST LEVEL. I NEVER FINISHED THE ART FOR IT. JUST... STARS.",
+  },
   w3: {
     BLADE: 'I KNOW. MY GRANDMOTHER STILL SANG IT. SHE CRIED EVERY TIME.',
     GUNNER: 'NOW THEY JUST PUT YOUR FACE ON WANTED POSTERS.',
@@ -192,7 +249,7 @@ export const noxLines = (id) => [
 ];
 // the talks that are part of the story: the fight stops for them and they're read at the bottom of the screen.
 // Everything else (a boss arriving, taunts, quips) is small talk at the top that doesn't stop anything.
-const STORY_TALK = new Set(['w3', 'w6', 'w8', 'w11', 'w13', 'w16', 'w18', 'w23', 'w27', 'w33', 'w37', 'w43', 'w47']);
+const STORY_TALK = new Set(['w3', 'w6', 'w8', 'w11', 'w13', 'w16', 'w18', 'w23', 'w26', 'w27', 'w31', 'w33', 'w36', 'w37', 'w41', 'w43', 'w46', 'w47']);
 // what's said as a wave starts (boss: that wave's boss, or null): { lines, lore } or null
 export function waveTalk(n, id, boss) {
   if (n === 1) return { lines: startLines(id), lore: true };
@@ -208,7 +265,7 @@ const QUIP = {
   WIZARD: { warden: 'HIS BONES REMEMBERED A SPELL. I MADE THEM FORGET IT.', brood: 'SPIDERS. WHY IS IT ALWAYS SPIDERS.', colossus: 'FIVE MORE NIGHTS, AND THE STARS COME BACK.' },
   NINJA: { warden: "FIRST BOSS DONE. NOW WHERE'S THE SNACK MACHINE?", brood: "EW. EW. I'M NEVER GETTING THAT OUT OF MY HAIR.", colossus: "YOU HEAR THAT? HE'S SCARED OF ME." },
   MECHANIC: { warden: 'BONES ARE JUST BAD STRUTS. EASY.', brood: 'BUGS IN THE SYSTEM. MY SPECIALTY.', colossus: "I'M KEEPING THIS CORE. IT'LL MAKE A GREAT TURRET." },
-  TANK: { warden: 'HE WAS A GOOD WARDEN ONCE. REST NOW, BROTHER.', brood: 'SHE NESTED UNDER THE THRONE ROOM. I HEARD HER EVERY NIGHT ON WATCH.', colossus: 'I KNOW THE WAY TO YOUR THRONE. I GUARDED IT.' },
+  TANK: { warden: 'HE WAS A GOOD WARDEN ONCE. REST NOW, BROTHER.', brood: 'SHE NESTED IN THE WALLS ABOVE THE THRONE ROOM. I HEARD HER EVERY NIGHT ON WATCH.', colossus: 'I KNOW THE WAY TO YOUR THRONE. I GUARDED IT.' },
   ROBOT: { warden: 'OBSTACLE ONE REMOVED. CONTINUING DESCENT.', brood: 'BIOLOGICAL HAZARD CLEARED.', colossus: 'TARGET ONE HAS ACCEPTED ENGAGEMENT.' },
   DEV: { warden: 'BOSS ONE, PATCHED OUT.', brood: 'I SAID NO SPIDERS IN THE DESIGN DOC.', colossus: 'OK. FINAL BOSS INCOMING. HYPE.' },
 };
@@ -617,6 +674,14 @@ const ENDING = [
           ctx.globalAlpha = a; glow(fx, fy - 3, P.gold, 6, 0.5); rect(fx - 1, fy - 7, 2, 2, '#fff6c8'); rect(fx - 1, fy - 4, 2, 4, '#ffe08a'); px(fx - 2, fy - 4 + (Math.floor(t * 4 + i) % 2), '#ffe08a'); px(fx + 1, fy - 5, '#ffe08a'); ctx.globalAlpha = 1;
         }
       });
+      // and among them, the baker of Mill Street and his girl, rising hand in hand (the Ash Story)
+      const up = t - 3.2;
+      if (up > 0) {
+        const cx = PX + PW / 2 + 4, y = base - 4 - up * 8, a = Math.min(1, up) * Math.max(0, 1 - up / 3.5);
+        ctx.globalAlpha = a; glow(cx, y - 7, P.gold, 12, 0.5);
+        folk(cx - 3, y, 1, '#fff2c0', t); folk(cx + 4, y, 0.7, '#ffe08a', t); px(cx, y - 7, '#fff2c0');
+        ctx.globalAlpha = 1;
+      }
     },
   },
   {

@@ -1,12 +1,12 @@
-import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=201';
-import { heroEntrance } from './entrances.js?v=201';
-import { SPR } from './sprites.js?v=201';
-import { A } from './audio.js?v=201';
-import { input } from './input.js?v=201';
-import { best } from './store.js?v=201';
+import { ctx, canvas, W, H, FW, SX, SS, stageTransform, fillScreen, P, rect, px, line, disc, ring, drawSprite, glow, text, textO } from './gfx.js?v=203';
+import { heroEntrance } from './entrances.js?v=203';
+import { SPR } from './sprites.js?v=203';
+import { A } from './audio.js?v=203';
+import { input } from './input.js?v=203';
+import { best } from './store.js?v=203';
 import {
   G, fx, B, TAU, rnd, clamp, hyp, alive, segDist, part, sparks, dust, addText, addRing, ghost, damage, ignite, pd, shoot,
-  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=201';
+  chainLightning, parry, hitstop, shake, flash, beamLen, scorch, sprFor, aimAssist, glitch, buzz, shadow, chargeLevel, kick, handPoint, eraseShots, heroSet } from './world.js?v=203';
 
 // ---------- helpers ----------
 // an enemy shot a parry can send back (not the red-ringed ones, nor the Colossus fist that flies home)
@@ -1578,7 +1578,7 @@ for (const id in CHARS) { CHARS[id].flair = FLAIR[id]; CHARS[id].awake = AWAKE[i
 // ---------- heroes: names, lore, and the mission that unlocks each one ----------
 const pct = (v, max) => Math.min(v, max) + ' / ' + max;
 const META = {
-  BLADE: { hero: 'KAEL', lore: ['THE LAST GUARD OF THE PIT. HIS BLADE', 'HOLDS THE FINAL EMBER OF THE OLD SUN.'] },
+  BLADE: { hero: 'KAEL', lore: ['HIS ASHBLADE HOLDS THE LAST EMBER', 'OF THE OLD SUN. HE CAME TO RETURN IT.'] },
   GUNNER: { hero: 'VEGA HALE', lore: ['A BOUNTY HUNTER WHO FOLLOWED ONE', 'BOUNTY TOO DEEP INTO THE PIT.'], mission: ['REACH WAVE 10', () => 'BEST WAVE ' + pct(best.wave, 10)] },
   WIZARD: { hero: 'MORROW', lore: ['A WARLOCK WHO TRADED HIS FACE', 'FOR THE NAMES OF THE STARS.'], mission: ['LAND A 100-HIT COMBO', () => 'BEST COMBO ' + pct(best.combo, 100)] },
   NINJA: { hero: 'RIN', lore: ['THE LAST SAMURAI OF THE RED ONI CLAN.', 'STILL HAS HOMEWORK DUE FRIDAY.'], mission: ['25 PERFECT DODGES IN ONE RUN', () => 'BEST ' + pct(best.perfects, 25)] },

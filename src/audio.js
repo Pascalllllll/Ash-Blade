@@ -59,7 +59,7 @@ function prepareVoice(id, kind = 'ultimates') {
   const key = kind + ':' + id;
   if (!voiceClips.has(key)) {
     // (bumped when a clip is recorded again, so browsers fetch the new one)
-    const version = kind === 'entrances' ? 1 : id === 'NINJA' ? 6 : 7;
+    const version = kind === 'entrances' ? 1 : { NINJA: 6, ROBOT: 8 }[id] || 7;
     const url = new URL(`../art/audio/${kind}/${id.toLowerCase()}.mp3?v=${version}`, import.meta.url);
     const clip = fetch(url).then(response => {
       if (!response.ok) throw new Error('Voice clip unavailable');

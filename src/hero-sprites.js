@@ -6,8 +6,8 @@
 //
 // The sets exist from the start with empty frames (the title screen draws them on its first frame); the pictures fill
 // those same frames when they arrive, so nothing holds on to an empty one.
-import { SS } from './gfx.js?v=201';
-import { RIG, WEAPON_ART } from './hero-rig.js?v=201';
+import { SS } from './gfx.js?v=203';
+import { RIG, WEAPON_ART } from './hero-rig.js?v=203';
 
 const CW = 120, CH = 96;
 const ROWS = { idle: [0, 16], walk: [1, 12], run: [2, 12], death: [3, 8], dash: [4, 8], hurt: [5, 8], attack: [6,16], cast: [7,16] };
@@ -17,6 +17,13 @@ const N = 64; // weapon angles
 export const REST = { sword: 0.62, revolver: 0.12, minigun: 0.1, staff: -1.15, katana: 0.72, wrench: 0.6, hammer: 0.55, cannon: 0.12, saya: Math.PI - 0.35 };
 // Rin wears her katana in its scabbard at her hip (behind her) until she draws it
 export const SHEATH = { katana: 'saya' };
+// Rin's scabbard, hilt in her hand at the hip: it hangs back behind her (base), or, awakened, is worn in front across
+// the hip (her long hair would hide it behind her). a: the angle facing right (mirrored facing left); front: drawn over
+// the body.
+export function sheathPose(evolved, flip) {
+  const tilt = evolved ? 0.25 : 0.35;
+  return { a: flip ? tilt : Math.PI - tilt, front: !!evolved };
+}
 
 function canvas(w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -127,7 +134,10 @@ function fillSet(set, img) {
       // the still pictures (idle, walk, run) get the weapon in hand, moving with the hand on each walk and run frame
       const off = rig.gait?.[name]?.off?.[i] || [0, 0];
       if (set[key] && name !== 'death') {
-        if (sheath && WEAPON_ART[sheath]) set[key][i].fill(img, i, row, null, withWeapon(off, sheath));
+        if (sheath && WEAPON_ART[sheath]) {
+          const sp = sheathPose(set.evolved, false), sw = withWeapon(off, sheath, sp.a);
+          set[key][i].fill(img, i, row, sp.front ? sw : null, sp.front ? null : sw);
+        }
         else set[key][i].fill(img, i, row, withWeapon(off));
       }
       if (name === 'attack' && set.act.ultimate !== set.body.cast) {
@@ -136,7 +146,8 @@ function fillSet(set, img) {
         const follow = Math.sin(Math.PI * Math.max(0, (t - 0.29) / 0.71));
         const grip = [Math.round(3 * follow - windup), Math.round(2 * windup - follow)];
         const blade = withWeapon(grip, wname, -0.3 - 1.9 * windup + 0.65 * follow);
-        set.act.ultimate[i].fill(img, i, row, blade, sheath && withWeapon(off, sheath));
+        const sp = sheathPose(set.evolved, false), sw = sheath && withWeapon(off, sheath, sp.a);
+        set.act.ultimate[i].fill(img, i, row, sp.front && sw ? (g) => { blade(g); sw(g); } : blade, sp.front ? null : sw);
       }
     }
   }
@@ -149,7 +160,7 @@ function load(url) {
     im.src = url;
   });
 }
-const art = (file) => new URL(`../art/sprites/heroes/${file}?v=201`, import.meta.url).href;
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=203`, import.meta.url).href;
 
 // fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
 export function installHeroSprites(SPR) {

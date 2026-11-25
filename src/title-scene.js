@@ -2,9 +2,9 @@
 // same pixels as the game: a blood-red sky with the swallowed black sun, two rows of ruined towers far off, fog,
 // ash and embers on the wind, now and then red lightning, and an empty broken battlement in front with fire
 // glowing through its cracks. (drawFighter and the flourishes below draw the fighters in the opening's cut-ins.)
-import { ctx, W, H, FW, SX, onWidth, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=201';
-import { SPR } from './sprites.js?v=201';
-import { drawWeaponAt, REST, SHEATH } from './hero-sprites.js?v=201';
+import { ctx, W, H, FW, SX, onWidth, P, BAYER, makeCanvas, rect, px, line, glow, ring, disc } from './gfx.js?v=203';
+import { SPR } from './sprites.js?v=203';
+import { drawWeaponAt, REST, SHEATH, sheathPose } from './hero-sprites.js?v=203';
 
 const TAU = Math.PI * 2;
 // the same "random" every time, so the skyline never changes
@@ -117,11 +117,14 @@ export function drawFighter(id, x, y, s, o = {}) {
   const weapon = () => { if (!wn || o.tint || o.bare) return; ctx.save(); ctx.translate(hx, hy); ctx.scale(s, s); drawWeaponAt(ctx, wn, !!set.evolved, 0, 0, wa, flip, o.alpha ?? 1); ctx.restore(); };
   // Rin stands with her katana in its scabbard at her hip, until she shows it off
   const sheath = SHEATH[wn] && o.wa === undefined && !o.tint && !o.bare;
-  if (sheath) { ctx.save(); ctx.translate(hx, hy); ctx.scale(s, s); drawWeaponAt(ctx, SHEATH[wn], !!set.evolved, 0, 0, flip ? 0.35 : Math.PI - 0.35, flip, o.alpha ?? 1); ctx.restore(); }
+  const sp = sheath && sheathPose(!!set.evolved, flip);
+  const scabbard = () => { ctx.save(); ctx.translate(hx, hy); ctx.scale(s, s); drawWeaponAt(ctx, SHEATH[wn], !!set.evolved, 0, 0, sp.a, flip, o.alpha ?? 1); ctx.restore(); };
+  if (sheath && !sp.front) scabbard();
   const behind = !o.front && Math.sin(wa) < -0.35;
   if (behind && !sheath) weapon();
   ctx.drawImage(o.tint ? fr.tint(o.tint, flip) : flip ? fr.f : fr.n, 0, 0, 120, 96, x0, y0, w, h);
   if (!behind && !sheath) weapon();
+  if (sheath && sp.front) scabbard();
   ctx.globalAlpha = 1;
   return [hx, hy, wa];
 }

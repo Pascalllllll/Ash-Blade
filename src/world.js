@@ -1,20 +1,20 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=201';
-import { SPR, EVO_NAMES } from './sprites.js?v=201';
-import { A } from './audio.js?v=201';
-import { input, actionDown, actionHit } from './input.js?v=201';
-import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF } from './store.js?v=201';
-import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=201';
-import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=201';
-import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=201';
-import { byId, grantAllUpgrades } from './upgrades.js?v=201';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=201';
-import { softFacingLeft, drawWeaponAt } from './hero-sprites.js?v=201';
-import { WEAPON_ART } from './hero-rig.js?v=201';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=201';
-import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=201';
-import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=201';
-import { floorArrival } from './floor-arrivals.js?v=201';
-import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=201';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=203';
+import { SPR, EVO_NAMES } from './sprites.js?v=203';
+import { A } from './audio.js?v=203';
+import { input, actionDown, actionHit } from './input.js?v=203';
+import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF } from './store.js?v=203';
+import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=203';
+import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=203';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=203';
+import { byId, grantAllUpgrades } from './upgrades.js?v=203';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=203';
+import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=203';
+import { WEAPON_ART } from './hero-rig.js?v=203';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=203';
+import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=203';
+import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=203';
+import { floorArrival } from './floor-arrivals.js?v=203';
+import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction } from './deep.js?v=203';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -690,9 +690,11 @@ export function kill(e, o) {
   if (launch) launchCorpse(e, dir, o.kb || 200);
   else if (o.slice && !gone) { makeGibs(e, dir); A.slice(); }
   else if (!gone) dissolve(e, dir);
-  // what was left of one of the King's people goes up as ash; now and then a spark of gold, set free
-  for (let i = 0; i < (e.type === 'brute' ? 10 : 6); i++) part(e.x + rnd(-e.r, e.r), e.y - rnd(2, e.r * 2), rnd(-10, 10) + Math.cos(dir) * 12, -rnd(14, 34), rnd(0.9, 1.6), Math.random() < 0.6 ? '#6a6064' : '#9a8e92', { drag: 1.2, keep: true });
-  if (Math.random() < 0.3) part(e.x, e.y - e.r, rnd(-6, 6), -rnd(26, 40), rnd(1, 1.4), P.gold, { glow: true, drag: 0.8 });
+  // what was left of one of the King's people goes up as ash, now and then with a spark of gold, set free; below the
+  // pit, once he is dead, the monsters are the dark's own and come apart into it
+  const deep = G.won, n = e.type === 'brute' ? 10 : 6;
+  for (let i = 0; i < n; i++) part(e.x + rnd(-e.r, e.r), e.y - rnd(2, e.r * 2), rnd(-10, 10) + Math.cos(dir) * 12, -rnd(14, 34), rnd(0.9, 1.6), deep ? (Math.random() < 0.6 ? '#2a1d48' : '#5a3e8a') : Math.random() < 0.6 ? '#6a6064' : '#9a8e92', { drag: 1.2, keep: true });
+  if (!deep && Math.random() < 0.3) part(e.x, e.y - e.r, rnd(-6, 6), -rnd(26, 40), rnd(1, 1.4), P.gold, { glow: true, drag: 0.8 });
   if (!gone) {
     bleed(e.x, e.y, dir, e.type === 'brute' ? 30 : 16, e.def.col, e.def.colD, 1.2);
     bleed(e.x, e.y, rnd(TAU), 8, e.def.col, e.def.colD, 0.6);
@@ -867,9 +869,16 @@ export function dissolve(e, dir) {
   crumble(src, s.k || 1, e.def.scale || 1, e.x, e.y, e.z || 0, { from: dir + Math.PI, dir, life: rnd(0.5, 0.65), t0: 0.06, col: e.def.col, col2: e.def.colD });
 }
 
+// pickups: in the big late waves they can pile up by the hundred, so past 40 on the floor a new one joins a pickup of
+// its kind lying near (n counts what it holds; it grows, and gives all of it when picked up)
 export function dropPick(x, y, kind) {
+  if (G.picks.length > 40) {
+    let best = null, bd = 28 * 28;
+    for (const k of G.picks) { if (k.kind !== kind || k.got) continue; const d = (k.x - x) ** 2 + (k.y - y) ** 2; if (d < bd) { bd = d; best = k; } }
+    if (best) { best.n = (best.n || 1) + 1; best.vz = Math.max(best.vz, 40); return; }
+  }
   const a = rnd(TAU), v = rnd(30, 90);
-  G.picks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, z: 4, vz: rnd(40, 90), kind, t: 0 });
+  G.picks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, z: 4, vz: rnd(40, 90), kind, t: 0, n: 1 });
 }
 
 export function healPlayer(n) {
@@ -2219,8 +2228,8 @@ export function update(dt, rdt) {
     k.x += k.vx * dt; k.y += k.vy * dt;
     if (d < 8 && k.t > 0.35 && p.state !== 'dead') {
       k.got = true;
-      if (k.kind === 'heal') healPlayer(1);
-      else { p.energy = Math.min(100, p.energy + 2.5); G.pickChain++; G.pickChainT = 0.45; A.pickup(G.pickChain); }
+      if (k.kind === 'heal') healPlayer(k.n || 1);
+      else { p.energy = Math.min(100, p.energy + 2.5 * (k.n || 1)); G.pickChain += k.n || 1; G.pickChainT = 0.45; A.pickup(G.pickChain); }
       part(k.x, k.y, 0, -20, 0.2, k.kind === 'heal' ? P.blood : P.volt, { glow: true });
     }
   }
@@ -2478,8 +2487,9 @@ function updateAmbient(dt) {
     else if (kind === 'stars') G.amb.push({ x, y, vx: 0, vy: 0, c: Math.random() < 0.3 ? '#ffffff' : '#8a84c0', t: 0, life: rnd(1, 2.5), glow: true });
     else G.amb.push({ x, y, vx: rnd(-3, 3), vy: rnd(-3, 1), c: '#3d3250', t: 0, life: rnd(3, 6) });
   }
-  // and on every floor, ash: the King's people, blowing through the pit in slow flakes that flutter as they fall
-  if (G.amb.length < n + (settings.particles === 'LOW' ? 8 : 22) && Math.random() < dt * 7) {
+  // and while the King lives, ash: his people, blowing through the pit in slow flakes that flutter as they fall
+  // (once the sun is out they are free, and below the pit there is no ash)
+  if (!G.won && G.amb.length < n + (settings.particles === 'LOW' ? 8 : 22) && Math.random() < dt * 7) {
     G.amb.push({ x: c.x + rnd(-20, W), y: c.y - 2, vx: rnd(3, 9), vy: rnd(6, 13), c: Math.random() < 0.6 ? '#5e5458' : '#8a7e84', t: 0, life: 14, ash: true });
   }
   for (const a of G.amb) {
@@ -2676,7 +2686,7 @@ function drawPlayer() {
   const set = heroSet(), body = set.body;
   const moving = (p.state === 'move' || p.state === 'skill' || p.state === 'charge') && hyp(p.vx, p.vy) > 20;
   const flip = softFacingLeft(p);
-  // Rin runs with pink afterimages behind her
+  // Rin runs with afterimages behind her (pink, or her awakened red)
   const ninja = G.char === 'NINJA' && moving && p.state === 'move';
   // walking (slow) and running cycles, 12 frames each at the gait's own speed (Rin's quick little run is the fastest)
   const walking = moving && hyp(p.vx, p.vy) < (kit.stats?.speed || 100) * 0.7;
@@ -2745,12 +2755,14 @@ function drawPlayer() {
   const wa = p.wpnS, behind = Math.sin(wa) < -0.35 && p.state !== 'charge' && !raised;
   const lift = p.flo?.lift || 0;
   const sheathed = G.char === 'NINJA' && p.sheathed && WEAPON_ART.saya;
-  if (sheathed) drawWeaponAt(ctx, 'saya', !!set.evolved, hx, hy, flip ? 0.35 : Math.PI - 0.35, flip);
+  // the scabbard at her hip, hilt in hand: behind her, or (awakened) worn in front across the hip, after the body
+  const sp = sheathed && sheathPose(!!set.evolved, flip);
+  if (sheathed && !sp.front) drawWeaponAt(ctx, 'saya', !!set.evolved, hx, hy, sp.a, flip);
   else if (behind) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
   // a hit flashes the body white then red for an instant, then the flinch (eyes screwed shut) shows
   const tintP = p.hurtT > 0.255 ? (p.hurtT > 0.28 ? P.paper : P.blood) : p.held > 0 ? (p.heldKind === 'stone' ? '#8c8a98' : '#d8b060') : null;
   if (ninja) {
-    if (Math.floor(G.time * 16) !== Math.floor((G.time - 1 / 60) * 16)) G.ghosts.push({ x: p.x - Math.cos(p.moveAng) * 3, y: p.y, flip, t: 0, life: 0.16, c: '#ffb7d5', spr: fr });
+    if (Math.floor(G.time * 16) !== Math.floor((G.time - 1 / 60) * 16)) G.ghosts.push({ x: p.x - Math.cos(p.moveAng) * 3, y: p.y, flip, t: 0, life: 0.16, c: G.awPal?.['#ffb7d5'] || '#ffb7d5', spr: fr });
   }
   ctx.save(); ctx.translate(fx0, fy0); if (jets) ctx.rotate(clamp(p.vx / 90, -1, 1) * 0.14); if (sq) ctx.scale(scx, scy);
   drawSprite(fr,-fr.w/2,-fr.h+1,flip,tintP);
@@ -2776,6 +2788,7 @@ function drawPlayer() {
   // a charged counter crackles around the fighter
   if (p.counter > 0 && !p.counterHit) { ring(p.x, p.y - 8, 12 + Math.sin(G.time * 22), 1, Math.floor(G.time * 16) % 2 ? P.volt : P.paper); glow(p.x, p.y - 8, P.volt, 16, 0.35); }
   if (!behind && !sheathed) drawHeldWeapon(p, set, flip, hx, hy - lift, wa);
+  if (sheathed && sp.front) drawWeaponAt(ctx, 'saya', true, hx, hy, sp.a, flip);
   kit.drawAura?.(p, flip, true);
   ctx.globalAlpha = 1;
   // a faint glow at the chest (it rises with a hovering fighter)
@@ -3087,6 +3100,7 @@ export function drawWorld() {
   for (const [, kind, o] of list) {
     if (kind === 0) {
       if (o.kind === 'heal') { drawSprite(SPR.heal, o.x - 2, o.y - 5 - o.z, false); glow(o.x, o.y - 3 - o.z, P.blood, 7, 0.4); }
+      else if ((o.n || 1) > 2) { rect(o.x - 2, o.y - 3 - o.z, 4, 3, P.volt); rect(o.x - 1, o.y - 4 - o.z, 2, 5, P.volt); px(o.x, o.y - 3 - o.z, P.paper); glow(o.x, o.y - 2 - o.z, P.volt, 8, 0.55); }
       else { rect(o.x - 1, o.y - 2 - o.z, 2, 2, P.volt); px(o.x, o.y - 2 - o.z, P.paper); glow(o.x, o.y - 1 - o.z, P.volt, 5, 0.45); }
     } else if (kind === 1) drawGib(o);
     else if (kind === 2) drawEnemy(o);
