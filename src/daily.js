@@ -2,7 +2,7 @@
 // number made from the date. Progress counts in every real run that day (not practice, not training): world.js calls
 // dailyNote (counts) and dailyMax (bests in one run). When one is done, claim its gold at the board in the camp.
 // A new day brings three new missions. Kept in best.daily (store.js); saved with the rest of the record.
-import { best, saveBest } from './store.js?v=213';
+import { best, saveBest } from './store.js?v=216';
 
 const POOL = [
   { id: 'kills', text: (n) => 'KILL ' + n + ' MONSTERS', goals: [120, 170, 240], reward: [3, 4, 5] },
@@ -16,6 +16,7 @@ const POOL = [
   { id: 'lootlings', text: (n) => 'CATCH ' + n + (n > 1 ? ' LOOTLINGS' : ' LOOTLING'), goals: [1, 2, 3], reward: [3, 4, 6] },
   { id: 'ults', text: (n) => 'USE YOUR ULTIMATE ' + n + ' TIMES', goals: [3, 5, 8], reward: [2, 3, 4] },
   { id: 'props', text: (n) => 'SMASH ' + n + ' THINGS', goals: [20, 35, 50], reward: [2, 3, 4] },
+  { id: 'critters', text: (n) => 'SQUASH ' + n + ' CRITTERS', goals: [6, 10, 15], reward: [2, 3, 4] },
 ];
 const BEST_IN_ONE_RUN = new Set(['wave', 'combo']);
 export function dailyDay(d = new Date()) {

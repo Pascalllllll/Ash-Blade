@@ -15,18 +15,17 @@
 // ash statues, the fallen head of Aurel's great statue, the broken column and the bones are always there.
 // Fighters are drawn at three quarters of their fight size while you choose, and at their fight size once one is
 // locked in and you walk the camp, as you would in a fight.
-import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas } from './gfx.js?v=213';
-import { A } from './audio.js?v=213';
-import { input, keyHit, keyDown, actionHit } from './input.js?v=213';
-import { keyLabel } from './bindings.js?v=213';
-import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=213';
-import { CHARS } from './chars.js?v=213';
-import { drawFighter } from './title-scene.js?v=213';
-import { drawEmote, sayBubble } from './emotes.js?v=213';
-import { drawSelect, sel } from './ui.js?v=213';
-import { loadPortraits } from './portraits.js?v=213';
-import { DECOR, DRAW_DECOR, decorShown, drawLanternStrings, skinOf, openShop, updateShop, drawShop, drawGold } from './shop.js?v=213';
-import { dailyList, dailyReady } from './daily.js?v=213';
+import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas } from './gfx.js?v=216';
+import { A } from './audio.js?v=216';
+import { input, keyHit, keyDown, actionHit } from './input.js?v=216';
+import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=216';
+import { CHARS } from './chars.js?v=216';
+import { drawFighter } from './title-scene.js?v=216';
+import { drawEmote, sayBubble } from './emotes.js?v=216';
+import { drawSelect, sel } from './ui.js?v=216';
+import { loadPortraits } from './portraits.js?v=216';
+import { DECOR, DRAW_DECOR, decorShown, drawLanternStrings, skinOf, openShop, updateShop, drawShop, drawGold } from './shop.js?v=216';
+import { dailyList, dailyReady } from './daily.js?v=216';
 
 const TAU = Math.PI * 2;
 const OUT = '#140c14';
@@ -71,6 +70,38 @@ const LINES_WON = {
   ROBOT: ['NEW ORDER: KEEP IT SAFE. STILL EXECUTING.', 'THE FLOWER IS FINE. THANK YOU FOR ASKING.'],
   DEV: ['SOMETHING BELOW IS STILL RUNNING.', 'THE ENDING SHIPPED. NOW THE SEQUEL.'],
 };
+// how the others take your last run, when you come back to the fire: a fall before wave 5, a fall further down, the
+// King beaten (gone home or gone deeper), a fall below the pit, and a word for a new best score
+const REACT = {
+  early: { BLADE: 'THE PIT TESTS EVERYONE. GO AGAIN.', GUNNER: 'BACK SO SOON? I HAD BETS ON YOU.', WIZARD: 'THE STARS SAW THAT. THEY FORGIVE.', NINJA: 'IT HAPPENS. I FELL ON MY FIRST TOO.',
+    MECHANIC: 'DENTED, NOT BROKEN. GO AGAIN!', TANK: 'FALL. STAND. AGAIN. THAT IS ALL.', ROBOT: 'RUN ENDED EARLY. RETRY: ADVISED.', DEV: 'SKILL ISSUE. KIDDING. MOSTLY.' },
+  mid: { BLADE: (w) => 'WAVE ' + w + '. THE EMBER BURNS BRIGHTER.', GUNNER: (w) => 'WAVE ' + w + '? NOT BAD. NOT GOOD.', WIZARD: (w) => 'WAVE ' + w + '. THE STARS TOOK NOTE.',
+    NINJA: (w) => 'WAVE ' + w + '! TEACH ME THAT LATER.', MECHANIC: (w) => 'WAVE ' + w + '. I CAN WORK WITH THAT.', TANK: (w) => 'WAVE ' + w + '. DEEPER THAN MOST.',
+    ROBOT: (w) => 'DEPTH LOGGED: WAVE ' + w + '.', DEV: (w) => 'WAVE ' + w + '. I SAW THE LOGS.' },
+  won: { BLADE: 'THE SUN IS OUT. YOU DID THAT.', GUNNER: 'DRINKS ARE ON ME. JUST TONIGHT.', WIZARD: 'THE STARS ARE SINGING YOUR NAME.', NINJA: 'YOU BEAT HIM! YOU ACTUALLY DID!',
+    MECHANIC: 'THE KING IS SCRAP! HA!', TANK: 'HE IS AT REST. THANK YOU.', ROBOT: 'ORDER COMPLETE. GRATITUDE: HIGH.', DEV: 'NO BUGS IN THAT RUN. IMPRESSIVE.' },
+  deep: { BLADE: 'THE DARK IS DEEPER THAN THE KING.', GUNNER: 'BELOW THE PIT? YOU ARE MAD.', WIZARD: 'NO STARS DOWN THERE. I KNOW.', NINJA: 'IT IS SO DARK DOWN THERE...',
+    MECHANIC: 'WHAT IS DOWN THERE? ANYTHING SHINY?', TANK: 'YOU WENT WHERE HE FEARED TO GO.', ROBOT: 'BELOW THE PIT: UNMAPPED. CAUTION.', DEV: 'I NEVER WROTE WHAT IS DOWN THERE.' },
+  best: { BLADE: 'YOUR BEST YET.', GUNNER: 'A NEW RECORD. I WAS COUNTING.', WIZARD: 'A NEW HEIGHT. OR A NEW DEPTH.', NINJA: 'A NEW BEST! WRITE IT DOWN!',
+    MECHANIC: 'A NEW BEST! I WANT NOTES.', TANK: 'YOUR BEST. HONOR IT.', ROBOT: 'NEW HIGH SCORE RECORDED.', DEV: 'NEW HIGH SCORE. I SAVED IT.' },
+};
+// two by the fire talking, now and then (both have to be awake, not ash)
+const CHATS = [
+  ['MECHANIC', 'GROM, HOLD STILL. YOU SQUEAK.', 'TANK', 'I HAVE SQUEAKED FOR TWENTY YEARS.'],
+  ['GUNNER', 'MORROW, WHAT DO THE STARS SAY?', 'WIZARD', 'THAT YOU OWE ME A DRINK.'],
+  ['NINJA', 'KAEL! TOAST BREAD ON YOUR EMBER?', 'BLADE', 'IT IS THE LAST EMBER OF THE SUN.'],
+  ['ROBOT', 'SCAN: VEGA OWES THREE BOUNTIES.', 'GUNNER', 'TURN THAT THING OFF.'],
+  ['DEV', 'I COULD JUST PATCH THE KING OUT.', 'TANK', 'AND TAKE OUR GLORY? NO.'],
+  ['WIZARD', 'I HAD A FACE ONCE. A FINE ONE.', 'NINJA', 'I BELIEVE YOU. MOSTLY.'],
+  ['BLADE', 'THE EMBER IS WARMER TONIGHT.', 'MECHANIC', 'THAT IS THE CAMPFIRE, KAEL.'],
+  ['MECHANIC', 'UNIT-7, YOUR LEFT TREAD IS LOOSE.', 'ROBOT', 'IT ENJOYS ITS FREEDOM.'],
+  ['GUNNER', 'RIN. HOMEWORK. DONE?', 'NINJA', 'THE PIT ATE IT. REALLY.'],
+  ['DEV', 'THIS FIRE IS SIXTEEN SPRITES.', 'WIZARD', 'SO ARE YOU, BOY.'],
+  ['ROBOT', 'QUERY: WHAT IS A CAMPFIRE FOR?', 'TANK', 'FOR TELLING LIES ABOUT THE PIT.'],
+  ['TANK', 'I CARRIED HIS BANNER ONCE.', 'BLADE', 'NOW YOU CARRY US.'],
+  ['NINJA', 'DOES ANYONE HAVE A SNACK?', 'GUNNER', 'BEANS. ALWAYS BEANS.'],
+  ['WIZARD', 'THE PIT HUMS TONIGHT. LISTEN.', 'DEV', 'THAT IS THE FAN. SORRY.'],
+];
 const MOODS = {
   BLADE: ['dots', 'note'], GUNNER: ['note', 'heart'], WIZARD: ['dots', 'star'], NINJA: ['sweat', 'note'],
   MECHANIC: ['note', 'ask'], TANK: ['dots', 'sleep'], ROBOT: ['ask', 'alert'], DEV: ['dots', 'sleep'],
@@ -82,6 +113,29 @@ export const camp = { t: 0, mode: 'pick' };
 // a line to show when the camp opens next (what the road home paid)
 let note = null;
 export function campNote(s) { note = s; }
+// how the last run went (main.js, when it ends), for the others to react to when you come back
+let lastRun = null;
+export function campRun(r) { lastRun = r; }
+// lines to say a moment from now: { at, id, line }
+function sayLater(at, id, line) { camp.lines.push({ at: camp.t + at, id, line }); }
+const awake = (id) => isUnlocked(id) && (camp.mode !== 'walk' || id !== camp.id);
+function reactToRun(r) {
+  const kind = r.won && r.dead ? 'deep' : r.won ? 'won' : r.wave < 5 ? 'early' : 'mid';
+  const who = OPTIONS.char.filter((id) => id !== r.char && isUnlocked(id)).sort(() => Math.random() - 0.5);
+  if (!who.length) return;
+  const say = (k, id) => { const l = REACT[k][id]; return typeof l === 'function' ? l(r.wave) : l; };
+  sayLater(0.9, who[0], say(kind, who[0]));
+  if (r.best && who[1]) sayLater(3.5, who[1], say('best', who[1]));
+  // beating the King: the whole fire is happy for you
+  if (kind === 'won') for (const id of who) { const o = camp.others[id]; o.emote = Math.random() < 0.5 ? 'star' : 'heart'; o.eT = 0; o.eNext = 12; }
+}
+// now and then, two by the fire have a word with each other
+function chat() {
+  const ok = CHATS.filter(([a, , b]) => awake(a) && awake(b));
+  if (!ok.length) return;
+  const [a, la, b, lb] = ok[Math.floor(Math.random() * ok.length)];
+  sayLater(0, a, la); sayLater(2.6, b, lb);
+}
 // o.walkAs: come back walking as that fighter (from training), o.at: 'dummy' to stand by the training dummy
 export function openCamp(o = {}) {
   const list = OPTIONS.char;
@@ -91,8 +145,9 @@ export function openCamp(o = {}) {
   list.forEach((o, i) => { const [x, y] = spot(i); others[o] = { id: o, x, y, hx: x, hy: y, face: x > FIRE[0] ? -1 : 1, emote: null, eT: 0, eNext: 2 + hash(i) * 5, say: null, sayT: 0, near: false, li: 0 }; });
   for (const k in NPCS) npc[k] = { say: null, sayT: 0, li: 0, near: false };
   S = PICK_S;
-  Object.assign(camp, { t: 0, mode: 'pick', pick: list.indexOf(id), id, x: 0, y: 0, face: 1, moving: 0, tx: null, ty: null, pending: null, near: null, others, npc, puffs: [], sparks: [], msg: null, msgT: 0, cam: { x: FIRE[0] - W / 2, y: FIRE[1] - H / 2 - 6 }, cardFrom: 'pick', cardId: id });
+  Object.assign(camp, { t: 0, mode: 'pick', pick: list.indexOf(id), id, x: 0, y: 0, face: 1, moving: 0, tx: null, ty: null, pending: null, near: null, others, npc, puffs: [], sparks: [], msg: null, msgT: 0, cam: { x: FIRE[0] - W / 2, y: FIRE[1] - H / 2 - 6 }, cardFrom: 'pick', cardId: id, lines: [], chatT: 14 + Math.random() * 10 });
   if (note) { camp.msg = note; camp.msgT = 4; note = null; }
+  if (lastRun) { reactToRun(lastRun); lastRun = null; camp.chatT += 6; }
   for (const k in NPCS) npcSheet(k);
   if (o.walkAs && isUnlocked(o.walkAs)) {
     camp.mode = 'walk'; camp.id = o.walkAs; camp.pick = list.indexOf(o.walkAs); S = WALK_S;
@@ -168,7 +223,7 @@ function use(u) {
     // a word with them: unlocked ones answer, statues just stand there
     const o = camp.others[u.id];
     if (!isUnlocked(u.id)) { o.emote = 'ask'; o.eT = 0; camp.msg = 'AN ASH STATUE. ' + CHARS[u.id].mission[0]; camp.msgT = 2; A.deny(); return null; }
-    o.say = (best.chars[u.id]?.won ? LINES_WON : LINES)[u.id][o.li++ % 2]; o.sayT = 0; o.emote = null; A.ui();
+    o.say = (best.chars[u.id]?.won ? LINES_WON : LINES)[u.id][o.li++ % 2]; o.sayT = 0; o.emote = null; o.named = false; A.ui();
     return null;
   }
   return null;
@@ -239,13 +294,17 @@ export function updateCamp(dt) {
   const tx = Math.max(SX, Math.min(CW - W - SX, fo.x - W / 2)), ty = Math.max(0, Math.min(CH - H, fo.y - H / 2));
   const k = Math.min(1, dt * 6);
   c.cam.x += (tx - c.cam.x) * k; c.cam.y += (ty - c.cam.y) * k;
+  // lines waiting to be said (a reaction to your last run, two of them talking by the fire)
+  for (const l of c.lines) if (c.t >= l.at && !l.done) { l.done = true; const o = c.others[l.id]; if (o && awake(l.id)) { o.say = l.line; o.sayT = 0; o.emote = null; o.named = true; A.ui(); } }
+  c.lines = c.lines.filter((l) => !l.done);
+  if ((c.mode === 'pick' || c.mode === 'walk') && !c.lines.length && !Object.values(c.others).some((o) => o.say) && (c.chatT -= dt) <= 0) { c.chatT = 22 + Math.random() * 16; chat(); }
   // the others: glance at you, talk when you come close, show how they feel now and then
   for (const o of Object.values(c.others)) {
     if (c.mode === 'walk' && o.id === c.id) continue;
     const close = c.mode === 'walk' && Math.hypot(c.x - o.x, c.y - o.y) < 26;
     o.face = close ? (c.x < o.x ? -1 : 1) : (o.x > FIRE[0] ? -1 : 1);
     o.near = close;
-    if (o.say) { o.sayT += dt; if (o.sayT > 2.6) o.say = null; }
+    if (o.say) { o.sayT += dt; if (o.sayT > 2.4 + o.say.length * 0.03) o.say = null; }
     o.eT += dt; o.eNext -= dt;
     if (o.emote && o.eT > 2.2) o.emote = null;
     if (o.eNext <= 0 && !o.say) { o.eNext = 9 + Math.random() * 9; if (isUnlocked(o.id)) { o.emote = MOODS[o.id][Math.floor(Math.random() * 2)]; o.eT = 0; } }
@@ -334,7 +393,11 @@ function pit(t, sk) {
   oval(cx, cy, 82, 14, '#5a4044');
   for (let i = 0; i < 6; i++) { const w = 20 - i * 2.4, y = cy + 12 - i * 2.4; rect(cx - w / 2, y, w, 2, i % 2 ? '#3a2a2e' : '#4a383c'); }
   for (const x of [cx - 60, cx + 60]) lamp(x, cy + 18, t, sk, 12);
-  textO('THE DESCENT', cx, cy - 26, '#ff9a5a', 1, 'c');
+  // its name over it (kept on the screen when the camera is low, over the fire), and while you walk the camp an
+  // arrow bobbing down into it: that is where the run begins
+  const ly = Math.max(cy - 26, Math.round(camp.cam.y) + 16);
+  textO('THE DESCENT', cx, ly, '#ff9a5a', 1, 'c');
+  if (camp.mode === 'walk') { const by = ly + 9 + (Math.floor(t * 3) % 2); for (let i = 0; i < 3; i++) rect(cx - 2 + i, by + i, 5 - i * 2, 1, '#ff9a5a'); }
 }
 function lamp(x, y, t, sk, h = 10) {
   rect(x - 1, y - h, 2, h, '#4a3428');
@@ -349,10 +412,10 @@ function shadow(x, y, r) {
   ctx.globalAlpha = 1;
 }
 // a speech bubble kept on the screen, or none for someone off it
-function bubbleAt(s, x, y, t, cx) {
+function bubbleAt(s, x, y, t, cx, name = null, ncol) {
   if (x < cx - SX - 20 || x > cx + W + SX + 20) return;
-  const hw = (s.length * 4 + 3) / 2 + 2;
-  sayBubble(s, Math.max(cx - SX + hw, Math.min(cx + W + SX - hw, x)), y, t);
+  const hw = ((name ? name.length + 1 : 0) * 4 + s.length * 4 + 3) / 2 + 2;
+  sayBubble(s, Math.max(cx - SX + hw, Math.min(cx + W + SX - hw, x)), y, t, undefined, name, ncol);
 }
 function fire(t, sk) {
   const [x, y] = FIRE;
@@ -560,7 +623,7 @@ function drawScene(t) {
   // bubbles over heads go on top
   for (const o of Object.values(camp.others)) {
     if (camp.mode === 'walk' && o.id === camp.id) continue;
-    if (o.say) bubbleAt(o.say, o.x, o.y - head() - 2, o.sayT, cx);
+    if (o.say) bubbleAt(o.say, o.x, o.y - head() - 2, o.sayT, cx, o.named ? CHARS[o.id].hero : null, CHARS[o.id].color());
     else if (o.emote) drawEmote(o.emote, o.x, o.y - head(), o.eT, Math.min(1, (2.2 - o.eT) * 3));
   }
   for (const [k, n] of Object.entries(NPCS)) {
@@ -622,7 +685,9 @@ function drawInfo(t) {
   const n = camp.mode === 'walk' ? camp.near : null, y = H - 22, touch = input.touch;
   ctx.globalAlpha = 0.8; rect(-SX, y - 2, FW, 24, '#0a0608'); ctx.globalAlpha = 1;
   rect(-SX, y - 2, FW, 1, '#3a2a2e');
-  textO('THE LAST CAMP', touch ? 44 : 6, 4, '#ff9a5a', 1, 'l');
+  const title = camp.mode === 'pick' ? 'THE LAST CAMP: CHOOSE YOUR FIGHTER' : 'THE LAST CAMP', tx = touch ? 44 : 6;
+  ctx.globalAlpha = 0.6; rect(tx - 3, 2, textW(title) + 6, 11, '#0a0608'); ctx.globalAlpha = 1;
+  textO(title, tx, 4, '#ff9a5a', 1, 'l');
   if (touch) { rect(3, 2, 34, 11, P.ink0); rect(4, 3, 32, 9, P.ink2); text('< BACK', 7, 5, P.paper); }
   // your gold, against the right edge
   ctx.save(); ctx.translate(SX, 0); drawGold(W - 6, 4); ctx.restore();
@@ -630,13 +695,14 @@ function drawInfo(t) {
   const say = (name, col, line1, line2) => { textO(name, 8, y + 2, col, 1, 'l'); text(line1, 8 + textW(name) + 6, y + 2, P.bone); if (line2) text(line2, 8, y + 11, pulse); };
   if (camp.mode === 'pick') {
     const id = ids()[camp.pick], k = CHARS[id], lk = !isUnlocked(id);
-    textO('CHOOSE YOUR FIGHTER', 8, y + 2, P.gold, 1, 'l');
-    text(lk ? 'AN ASH STATUE: ' + k.mission[0] : k.lore[0], 8 + textW('CHOOSE YOUR FIGHTER') + 6, y + 2, lk ? '#8a8088' : P.bone);
+    const nm = lk && id === 'DEV' ? '???' : k.hero;
+    textO(nm, 8, y + 2, lk ? '#8a8088' : k.color(), 1, 'l');
+    text(lk ? 'AN ASH STATUE. TO WAKE: ' + k.mission[0] : k.lore[0], 8 + textW(nm) + 6, y + 2, lk ? '#8a8088' : P.bone);
     text(touch ? 'TAP A FIGHTER TO SEE THEM' : 'ARROWS OR MOUSE PICK   ' + use + ' CHOOSE   ESC BACK', 8, y + 11, pulse);
   } else if (!n) {
     const k = CHARS[camp.id];
     textO(k.hero, 8, y + 2, k.color(), 1, 'l'); text(k.lore[0], 8 + textW(k.hero) + 6, y + 2, P.bone);
-    text(touch ? 'TAP TO WALK. TAP HERE FOR YOUR CARD. WALK INTO THE PIT TO BEGIN' : 'MOVE ' + ['up', 'left', 'down', 'right'].map(keyLabel).join('') + '   ' + use + ' USE   TAB YOUR CARD   ESC CHOOSE ANOTHER', 8, y + 11, '#8a7a80');
+    text(touch ? 'TAP TO WALK. TAP HERE FOR YOUR CARD. WALK INTO THE PIT TO BEGIN' : 'WALK INTO THE PIT TO BEGIN   ' + use + ' USE   TAB YOUR CARD   ESC BACK', 8, y + 11, '#8a7a80');
   } else if (n.kind === 'hero') {
     const k = CHARS[n.id], lk = !isUnlocked(n.id), nm = lk && n.id === 'DEV' ? '???' : k.hero;
     if (lk) { textO(nm, 8, y + 2, '#8a8088', 1, 'l'); text('AN ASH STATUE. TO WAKE: ' + k.mission[0] + '   ' + k.mission[1](), 8 + textW(nm) + 6, y + 2, P.gold); }

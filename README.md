@@ -31,6 +31,8 @@ Aurel was the Sun King, and his kingdom lived in its light. When the sun grew ol
 
 Eight fighters go down into the pit, each for a reason of their own: Kael carries the last ember of the old sun in his blade, Vega followed one bounty too deep, Morrow traded his face for the names of the stars, Rin is the last samurai of the Red Oni clan (with homework due Friday), Rivet builds her weapons from what the Colossus left behind, Grom is the last knight of the King's guard come back to end what he served, Unit-7 woke up with one order left, and the Dev wrote this world and is debugging it from the inside. The goal of a run: fight down through 20 waves, floor by floor, to the throne at the bottom, kill the Ashen King on the twentieth, and cut the sun out of him. He speaks to you on the way down: when the run begins, between his bosses, where he tells you who he was a piece at a time, when each of his bosses arrives and dies, when you are close to death or fighting too well, and face to face before the last fight. Your fighter answers him every time, in their own voice. Between his speeches a voice in the ash speaks too: the monsters you have been cutting down were his people, and they ask you to set them free. If you fall, he has a last word over your body.
 
+The story is told in moving pictures. In the opening Aurel lifts a shaking hand toward the dying sun, lets it fall and holds his chest as the dark closes in; he raises both arms, pulls the sun down into his chest, doubles over as it burns in him and throws his head back in its fire; then he stands on a crag over his army raising his arm, and lifts it again on his throne as the last torch lights. When he falls, his arms are flung back as the light splits him and he goes down on his knees, reaching for the sun as he turns to ash. Each turned page burns away from the bottom up into the next one, an edge of embers eating through it.
+
 The story never talks over a fight. When something important is said, the fight stops and the words appear in a box along the bottom of the screen, with the speaker's face; press Enter or Space, click or tap to read on, and Escape skips the rest. Taunts, quips and a boss's arrival are a small box at the top that comes and goes while you keep fighting.
 
 When he falls the sun breaks out of him, his people burn away into light, and Aurel looks at the sun one last time, no longer afraid of the dark. The light comes back to the land and your fighter has the last word. Then a comic page shows what you won, and you choose:
@@ -191,7 +193,7 @@ Gold is rare and things are dear. It comes four ways:
 - **Lootlings:** each one you kill drops two coins.
 - **Things you break:** one in ten drops a coin (and one in thirty-three a heart).
 - **The run's payout,** worked out when the run ends and shown on the last screen: a coin for every four floors' worth of waves, one for each boss (three more for the King, five for Nox), one for every two minutes of the endless night and one for every 250 kills. Easy pays half, Hard half again, Nightmare double.
-- **The quest board:** three missions a day, the same for everyone that day (kill so many monsters, beat bosses, reach a wave, land a combo, perfect-dodge, smash things...). Progress counts in every real run that day, and the pause screen shows how far along each one is; claim the gold at the board.
+- **The quest board:** three missions a day, the same for everyone that day (kill so many monsters, beat bosses, reach a wave, land a combo, perfect-dodge, smash things, squash critters...). Progress counts in every real run that day, and the pause screen shows how far along each one is; claim the gold at the board.
 
 Practice and training earn nothing. In the camp:
 
@@ -204,6 +206,8 @@ Practice and training earn nothing. In the camp:
 Each reset button sits under its shop's list and asks first: press it (or R) a second time within a couple of seconds to go through with it.
 
 Every fighter now starts a little weaker than before (one heart less, 15% less weapon damage and energy, 12% slower ultimate), and the Smith's work makes them stronger than they ever were.
+
+The camp remembers your last run. Come back to the fire and one of the others has something to say about it: a word of comfort after an early fall, your wave number after a deeper one, cheers and hearts all round the fire once the King is beaten, and a second voice when you set a new best. Between runs the fighters talk among themselves now and then (only the ones awake; a statue stays quiet). The camp tells you what the last run brought home, and an arrow over the pit shows where the next one begins.
 
 ## Monsters
 
@@ -238,6 +242,10 @@ About one wave in three from wave 6 also comes with a twist. Survive it for a bo
 | Blackout | The lights go out except around you. 1.5x score |
 
 ![Grom charging a slam in a Blood Moon wave, the monsters closing in round him](docs/twist.png)
+
+Monsters have nerve, up to a point. A triple kill or an elite cut down makes the ones close by sweat and back away from you for a moment; the closest one hums a little tune when you get hit; now and then one spots you as it climbs out; and when you fall, the ones nearby celebrate. When only a few monsters are left and they are off the screen, small arrows at the edge point the way. Every hundred hits in a row pays out a golden burst and a full energy bar.
+
+Every floor has its own small life: rats in the Pit, spiderlings in the Brood Nest, fire beetles that don't mind the lava in the Ember Forge, crows in the Ashen Throne, glowing mites in the Void Deep, snow mice in the Frozen Hollow, glass crabs scuttling sideways in the Glass Hall, scarabs in the Sun Temple, clockwork beetles in the Clockworks, moths in the Last Night and hens in the camp's training yard. They mind their own business, run from you and from big monsters, scatter from blasts, take to the air if they can, and hide in the cracks while a boss is on the floor. A stray cut, shot, blast or dash squashes them, for a few points.
 
 Monsters die in pixels. A cut splits a monster along its own pixel grid, and both halves fly apart and crumble from the wound outward, shedding square chips that bounce on the floor; any other kill dissolves it pixel by pixel from the side the blow came from. Heavy hits launch bodies across the arena, tumbling a quarter turn at a time and knocking over whatever they hit, until they shatter. Kills close together chain into multi-kills, up to Annihilation at 20.
 
@@ -299,6 +307,8 @@ When Nox dissolves, the inheritance sequence grants every remaining rank, evolut
 Every fighter’s health appears as hearts, wrapping across up to three rows. Ordinary monsters seldom drop hearts, a boss's summoned army never does, and after a hit you're only safe for a third of a second. Dashing makes you untouchable. Dash through an attack as it lands and time slows, and your next hit is a counter for triple damage. Hit a pink orb to send it back.
 
 Hits in a row build a combo, ranked D, C, B, A, S, SS and SSS. From A up the rank powers you: every hit does 5% more damage at A, 10% at S, 18% at SS and 30% at SSS (the HUD shows it under the rank). From S you leave afterimages in the rank's color, and every rank up from A bursts off you. Getting hit loses the combo and the power with it.
+
+The first time something new turns up in a fight (gold, a heart, a thing to break, a style rank, an elite, a lootling, a twist, a boss, a full ultimate, a perfect dodge, a skill you can't pay for), a short note low on the screen says what it is and what it's for. Each note shows once. The upgrade screen says how many evolutions you have toward awakening when one is on offer, and the last screen names the next fighter still in ash and how close you are to waking them.
 
 ![Phone controls: the stick on the left, the attack, dash and power buttons on the right, MENU at the top](docs/mobile.png)
 

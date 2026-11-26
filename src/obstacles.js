@@ -14,7 +14,7 @@
 //   gear     the Clockworks: a great gear standing in its frame, turning
 //   rock     the Last Night: a fallen dead star, black, cracked with violet light
 //   dummy    the training yard: a straw dummy on its post, a target painted on its chest
-import { ctx, P, rect, px, line, disc, ring, glow } from './gfx.js?v=213';
+import { ctx, P, rect, px, line, disc, ring, glow } from './gfx.js?v=216';
 
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 // the shadow on the floor under it (drawn with the floor, before anyone stands on it)

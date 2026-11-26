@@ -1,12 +1,12 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, disc, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=213';
-import { A } from './audio.js?v=213';
-import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=213';
+import { ctx, P, rect, px, line, disc, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=216';
+import { A } from './audio.js?v=216';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=216';
 import {
   BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
   stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
-} from './scene-fx.js?v=213';
+} from './scene-fx.js?v=216';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
@@ -742,7 +742,7 @@ export function drawDeath() {
   if (!d) return;
   d.def.draw(d);
   drawDropped(d);
-  // the epitaph fades in under the body
-  const k = clamp((d.t - 1.6) / 0.6, 0, 1);
+  // the epitaph fades in under the body, and out again as the last screen comes up (which shows it at the top)
+  const k = clamp((d.t - 1.6) / 0.6, 0, 1) * clamp((3.4 - d.t) / 0.35, 0, 1);
   if (k > 0) { ctx.globalAlpha = k; textO(d.def.line, d.x, d.y + 10, d.def.col, 1, 'c'); ctx.globalAlpha = 1; }
 }

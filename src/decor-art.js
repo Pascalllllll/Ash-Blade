@@ -3,7 +3,7 @@
 // DECOR has their names, prices and places). Light comes from the upper left, everything has the near-black outline
 // the fighters and monsters have, and nearly everything moves a little: cloth in the wind, fire, water, steam, light.
 // sk is the camp's look (shop.js SKINS); a few take a color from it.
-import { ctx, rect, px, line, disc, glow, text, mix } from './gfx.js?v=213';
+import { ctx, rect, px, line, disc, glow, text, mix } from './gfx.js?v=216';
 
 const TAU = Math.PI * 2;
 const OUT = '#140c14';

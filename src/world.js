@@ -1,29 +1,31 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=213';
-import { SPR, EVO_NAMES } from './sprites.js?v=213';
-import { A } from './audio.js?v=213';
-import { input, actionDown, actionHit } from './input.js?v=213';
-import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF, codexNote } from './store.js?v=213';
-import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=213';
-import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=213';
-import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=213';
-import { byId, grantAllUpgrades } from './upgrades.js?v=213';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=213';
-import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=213';
-import { WEAPON_ART } from './hero-rig.js?v=213';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=213';
-import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=213';
-import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=213';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=216';
+import { SPR, EVO_NAMES } from './sprites.js?v=216';
+import { A } from './audio.js?v=216';
+import { input, actionDown, actionHit } from './input.js?v=216';
+import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF, codexNote } from './store.js?v=216';
+import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=216';
+import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=216';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=216';
+import { byId, grantAllUpgrades } from './upgrades.js?v=216';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=216';
+import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=216';
+import { WEAPON_ART } from './hero-rig.js?v=216';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=216';
+import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=216';
+import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=216';
 // how long each boss's arrival takes to fade once the boss is here (the Brood Mother's web lasts while she comes down)
 const ARRIVE_FADE = { brood: 3.8, herald: 1.8, nox: 2.4, king: 1.6, eclipse: 1.8, wyrm: 1.4, clock: 1.4, warden: 1.2, colossus: 0.8, mirror: 1 };
-import { floorArrival } from './floor-arrivals.js?v=213';
-import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction, drawLash } from './deep.js?v=213';
-import { startTutorial, tutNote, tutAllows, tutImmune, drawTutorialMarks } from './tutorial.js?v=213';
-import { drawEmote } from './emotes.js?v=213';
-import { drawVoid, drawVoidGround } from './void.js?v=213';
-import { drawObstacle, drawObstacleShadow } from './obstacles.js?v=213';
-import { perkFactors } from './shop.js?v=213';
-import { PROPS, MAP_PROPS, drawProp, pickBox, piecesOf } from './props.js?v=213';
-import { dailyNote, dailyMax } from './daily.js?v=213';
+import { floorArrival } from './floor-arrivals.js?v=216';
+import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction, drawLash } from './deep.js?v=216';
+import { startTutorial, tutNote, tutAllows, tutImmune, drawTutorialMarks } from './tutorial.js?v=216';
+import { drawEmote } from './emotes.js?v=216';
+import { drawVoid, drawVoidGround } from './void.js?v=216';
+import { drawObstacle, drawObstacleShadow } from './obstacles.js?v=216';
+import { perkFactors } from './shop.js?v=216';
+import { PROPS, MAP_PROPS, drawProp, pickBox, piecesOf } from './props.js?v=216';
+import { dailyNote, dailyMax } from './daily.js?v=216';
+import { resetCritters, updateCritters, drawCritter, critterBlast } from './critters.js?v=216';
+import { tip, updateTips, clearTips } from './tips.js?v=216';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -253,6 +255,8 @@ export function newRun(charId, save, opts = {}) {
   }
   applyPractice();
   spawnProps();
+  resetCritters();
+  clearTips();
   if (!G.tested) codexNote('floors', G.mapKey);
   G.cine = G.kit.entrance();
   fx.cam.x = clamp(G.p.x - W / 2, SX, AW - W - SX); fx.cam.y = clamp(G.p.y - H / 2, 0, AH - H);
@@ -341,6 +345,7 @@ function enterStage(key) {
   G.descend = 1;
   A.rift();
   spawnProps();
+  resetCritters();
 }
 
 // a talk never starts over the fighter's entrance: it waits for it to end
@@ -485,6 +490,7 @@ function hitProp(e, dmg, o) {
 export function breakProp(e, dir = rnd(TAU)) {
   if (e.dead) return;
   e.dead = true;
+  tip('box');
   const d = PROPS[e.kind], { x, y } = e, h = d.h, [c1, c2, c3] = piecesOf(e);
   const n = d.r >= 6 ? 16 : 11;
   for (let i = 0; i < n; i++) {
@@ -798,7 +804,7 @@ export function addGold(n, x, y) {
 }
 function dropGold(e, n) { if (earns()) for (let i = 0; i < n; i++) dropPick(e.x, e.y, 'gold'); }
 // the daily missions count what happens in real runs only; one finished mid-fight is announced over the fighter
-const daily = (id, n) => { if (earns()) missionsDone(dailyNote(id, n)); };
+export const daily = (id, n) => { if (earns()) missionsDone(dailyNote(id, n)); };
 const dailyBest = (id, v) => { if (earns()) missionsDone(dailyMax(id, v)); };
 function missionsDone(list) {
   list.forEach((text, i) => G.timers.push({ t: i * 0.9, fn: () => {
@@ -844,6 +850,15 @@ export function addCombo(n) {
     if (r > G.bestRank) G.bestRank = r;
     if (r >= 4 && !G.boss && !G.night) A.scene('hot');
   }
+  // every hundred hits in a row: a golden burst, a callout and a full energy bar
+  const hund = Math.floor(G.combo / 100);
+  if (hund > (G.comboHund || 0) && G.p.state !== 'dead') {
+    const p = G.p;
+    addText(p.x, p.y - 30, hund * 100 + ' HITS', P.gold, 2);
+    p.energy = 100; addRing(p.x, p.y - 7, P.gold, 360, 0.4, 3); addRing(p.x, p.y - 7, P.paper, 240, 0.3, 1);
+    A.rank(6); flash(P.gold, 0.08, false);
+  }
+  G.comboHund = hund;
 }
 
 // ---------- damage ----------
@@ -1014,6 +1029,8 @@ export function kill(e, o) {
     G.bestMulti = Math.max(G.bestMulti, G.mk);
     A.multi(G.mk); shake(0.1 + Math.min(G.mk, 10) * 0.03);
   }
+  // the others saw that: a big multi-kill, or an elite cut down, shakes the monsters close by for a moment
+  if (G.mk === 3 || G.mk === 6 || e.elite) frighten(e.x, e.y, e.elite ? 90 : 70, G.mk >= 6 ? 1.1 : 0.75);
   if (e.type === 'lootling') {
     G.loot++;
     dropGold(e, 2);
@@ -1045,6 +1062,24 @@ export function kill(e, o) {
   if (G.up.evoWpn && o.ug) spirits(e.x, e.y - e.r - 4, 5);
   if (e.frozen > 0 && G.up.frost) shatter(e);
   if (G.up.debt && ++G.debtKills >= (G.up.evoDebt ? 10 : 20)) { G.debtKills = 0; healPlayer(1); }
+}
+
+// Monsters have nerve, up to a point. Shaken ones sweat and back away from the fighter, still facing them, for a
+// moment: the ones that walk (not the hoppers, the hoverers or a boss), and never one in the middle of an attack.
+const SHAKEN = new Set(['husk', 'tick', 'brute', 'spitter', 'archer', 'priest', 'shade']);
+function frighten(x, y, R, t) {
+  for (const o of G.E) {
+    if (!foe(o) || !SHAKEN.has(o.type) || o.fear > 0) continue;
+    if (o.state !== (HOME[o.type] || 'chase') || hyp(o.x - x, o.y - y) > R) continue;
+    o.fear = t * rnd(0.8, 1.2);
+    o.emote = { kind: 'sweat', at: G.time, life: o.fear + 0.4 };
+  }
+}
+// and they enjoy it when you get hurt (the closest one gloats)
+function gloat(x, y) {
+  let best = null, bd = 70;
+  for (const o of G.E) { if (!foe(o) || o.type === 'boss' || o.fear > 0) continue; const d = hyp(o.x - x, o.y - y); if (d < bd) { bd = d; best = o; } }
+  if (best && Math.random() < 0.6) best.emote = { kind: 'note', at: G.time, life: 1.3 };
 }
 
 function shatter(e) {
@@ -1252,7 +1287,7 @@ export function tryHurt(dmg, sx, sy) {
   if (G.combo >= 5) addText(p.x, p.y - 24, 'COMBO LOST', P.dust);
   G.combo = 0; G.rank = 0; G.comboT = 0;
   if (!G.boss && !G.night) A.scene('fight');
-  if (p.hp <= 0) die();
+  if (p.hp <= 0) die(); else gloat(sx, sy);
   return true;
 }
 
@@ -1269,7 +1304,7 @@ function counterBlast(e, dir) {
 
 function perfectDodge() {
   const p = G.p;
-  p.perfectUsed = true; emote('star', 0.9); daily('perfects', 1);
+  p.perfectUsed = true; emote('star', 0.9); daily('perfects', 1); tip('perfect');
   if (++G.perfects >= 25) unlock('NINJA');
   slowmo(0.6, 0.3);
   p.energy = Math.min(100, p.energy + 12);
@@ -1297,6 +1332,9 @@ function die() {
   splat(p.x, p.y, 9, c1, c2);
   // each fighter has a death scene of their own (deaths.js)
   startDeath(p);
+  // and the monsters close by enjoy it, one after another
+  let n = 0;
+  for (const o of G.E) if (foe(o) && o.type !== 'boss' && hyp(o.x - p.x, o.y - p.y) < 110 && n < 4) { n++; G.timers.push({ t: 0.4 + n * 0.3, fn: () => { if (foe(o)) o.emote = { kind: 'note', at: G.time, life: 1.8 }; } }); }
 }
 
 // ---------- projectiles ----------
@@ -1348,6 +1386,7 @@ export function explode(x, y, friendly, R0 = 34, dmg0 = 14) {
     part(x, y, Math.cos(a) * v, Math.sin(a) * v * 0.8, rnd(0.2, 0.5), [P.ember, P.ember2, P.ember3, P.paper][i % 4], { drag: 5, glow: true, z: 4, vz: rnd(20, 100), g: 200 });
   }
   scorch(x, y, R * 0.6);
+  critterBlast(x, y, R);
   hitstop(0.04); shake(0.45); A.boom(1);
 }
 
@@ -1370,7 +1409,7 @@ export function controls() {
   }
   const ask = (cost, cd, key) => {
     if (!actionHit(key.toLowerCase()) && !input.thit.has(key.toLowerCase())) return;
-    if (p.energy >= cost && cd <= 0) p['buf' + key] = 0.18; else { G.deny[key.toLowerCase()] = 0.35; A.deny(); }
+    if (p.energy >= cost && cd <= 0) p['buf' + key] = 0.18; else { G.deny[key.toLowerCase()] = 0.35; A.deny(); if (p.energy < cost) tip('energy'); }
   };
   ask(kit.q.cost, p.cdQ, 'Q');
   ask(kit.e.cost, p.cdE, 'E');
@@ -1601,7 +1640,7 @@ function updatePlayer(dt) {
     const canDash = G.t >= (p.nextDash || 0) && p.state !== 'dash' && p.state !== 'skill' && p.state !== 'chg';
     if (p.bufDash > 0 && p.charges > 0 && canDash && p.energy < DASH_COST && !G.shackle) {
       p.bufDash = 0;
-      if (!(G.deny.dash > 0)) { A.deny(); addText(p.x, p.y - 24, 'NO ENERGY', P.volt, 1); emote('dots', 1); }
+      if (!(G.deny.dash > 0)) { A.deny(); addText(p.x, p.y - 24, 'NO ENERGY', P.volt, 1); emote('dots', 1); tip('energy'); }
       G.deny.dash = 0.35;
     } else if (p.bufDash > 0 && p.charges > 0 && canDash) startDash(mx, my, ml);
     else if (p.bufR > 0 && canAct && p.ult >= 100) { startUltimate(p, kit, up); return; }
@@ -2053,6 +2092,11 @@ function updateEnemy(e, dt) {
   if (e.frozen > 0) { e.frozen -= dt; return; }
   if (e.stunT > 0) { e.stunT -= dt; return; }
   if (e.state === 'hurt') { e.t -= dt; if (e.t <= 0) e.state = HOME[e.type] || 'chase'; return; }
+  if (e.fear > 0) {
+    // shaken (a big multi-kill nearby): it backs off, still facing the fighter, until it finds its nerve
+    e.fear -= dt;
+    if (e.state === (HOME[e.type] || 'chase') && SHAKEN.has(e.type)) { e.vx = -Math.cos(ang) * e.speed * 0.5; e.vy = -Math.sin(ang) * e.speed * 0.5; e.face = dx < 0 ? -1 : 1; return; }
+  }
   if (e.type === 'egg') {
     e.t -= dt;
     if (e.t <= 0) {
@@ -2398,6 +2442,7 @@ export function update(dt, rdt) {
   if (G.sunrise) G.sunrise.t += rdt;
   if (G.unlocks.length && !G.talk?.lore && (G.unlocks[0].t += rdt) > 2.48) G.unlocks.shift();
   updateTalk(rdt);
+  updateTips(rdt);
   G.rankPop = Math.max(0, G.rankPop - rdt * 4);
   fx.hurtVig = Math.max(0, fx.hurtVig - rdt * 1.5);
   G.descend = Math.max(0, G.descend - rdt / 1.1);
@@ -2451,6 +2496,7 @@ export function update(dt, rdt) {
   } else if (G.phase === 'night') updateNight(dt);
 
   checkEvo();
+  updateCritters(dt);
   if (G.arrivalFades) { for (const a of G.arrivalFades) { a.t += dt; a.f += dt; } G.arrivalFades = G.arrivalFades.filter((a) => a.f < a.fl); }
   for (const s of G.sigils) {
     s.t += dt;
@@ -2459,6 +2505,8 @@ export function update(dt, rdt) {
     if (s.t > 0 && Math.random() < dt * 30) { const a = rnd(TAU); part(s.x + Math.cos(a) * 10, s.y + Math.sin(a) * 6, 0, -rnd(10, 30), 0.4, col, { drag: 1, glow: true }); }
     if (s.t >= s.life) {
       s.enemy = spawnEnemy(s.type, s.x, s.y, s.boss);
+      // now and then one notices you as it comes out
+      if (s.type !== 'boss' && Math.random() < 0.2) s.enemy.emote = { kind: 'alert', at: G.time, life: 1 };
       if (s.tutOnly) { s.enemy.tutOnly = s.tutOnly; if (s.tutOnly !== 'any') s.enemy.speed *= 0.6; }
       if (s.type === 'boss') (G.arrivalFades ||= []).push({ boss: s.boss, x: s.x, y: s.y, t: s.t, life: s.life, f: 0, fl: ARRIVE_FADE[s.boss] || 1.2 });
       // the Colossus comes down where its shadow was
@@ -2576,8 +2624,8 @@ export function update(dt, rdt) {
     k.x += k.vx * dt; k.y += k.vy * dt;
     if (d < 8 && k.t > 0.35 && p.state !== 'dead') {
       k.got = true;
-      if (k.kind === 'heal') healPlayer(k.n || 1);
-      else if (k.kind === 'gold') addGold(k.n || 1, p.x, p.y - 26);
+      if (k.kind === 'heal') { healPlayer(k.n || 1); tip('heart'); }
+      else if (k.kind === 'gold') { addGold(k.n || 1, p.x, p.y - 26); tip('gold'); }
       else { p.energy = Math.min(100, p.energy + 2.5 * (k.n || 1)); G.pickChain += k.n || 1; G.pickChainT = 0.45; A.pickup(G.pickChain); }
       part(k.x, k.y, 0, -20, 0.2, k.kind === 'heal' ? P.blood : k.kind === 'gold' ? '#ffd447' : P.volt, { glow: true });
     }
@@ -3475,6 +3523,7 @@ export function drawWorld() {
   for (const e of G.E) list.push([e.y, 2, e]);
   for (const a of G.allies) list.push([a.y, 4, a]);
   for (const ob of G.obst) list.push([ob.y, 6, ob]);
+  for (const c of G.critters || []) list.push([c.y, 7, c]);
   if (!G.cine) list.push([G.p.y, 3, G.p]);
   list.sort((a, b) => a[0] - b[0]);
 
@@ -3496,6 +3545,7 @@ export function drawWorld() {
     else if (kind === 4) ALLY[o.type].draw(o);
     else if (kind === 5) drawCorpse(o);
     else if (kind === 6) drawObstacle(o, G.time);
+    else if (kind === 7) drawCritter(o);
     else drawPlayer();
   }
 

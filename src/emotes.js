@@ -6,7 +6,7 @@
 //   sleep 'z'   standing still too long                          star        a big win, a new best
 //   dizzy       stunned: stars circling the head
 // drawEmote(kind, x, y, t, k): x, y is the top of the head; t is how long it has shown (it pops in); k fades it.
-import { ctx, P, rect, px, textO } from './gfx.js?v=213';
+import { ctx, P, rect, px, textO } from './gfx.js?v=216';
 
 const INK = '#1a0e16';
 // a speech bubble with a tail pointing down at the head, w x h inside
@@ -65,8 +65,11 @@ export function drawEmote(kind, x, y, t = 1, k = 1) {
   ctx.globalAlpha = a;
 }
 // a speech bubble with words in it, centred over x, its tail touching y
-export function sayBubble(s, x, y, t = 1, col = INK) {
-  const w = s.length * 4 + 3, bx = Math.round(x - w / 2), by = Math.round(y - 12 + (t < 0.15 ? Math.round((1 - t / 0.15) * 3) : 0));
+// name: who is speaking, in front of the line in their own color (outlined, so pale colors still read on the paper)
+export function sayBubble(s, x, y, t = 1, col = INK, name = null, ncol = INK) {
+  const nw = name ? (name.length + 1) * 4 + 1 : 0;
+  const w = nw + s.length * 4 + 3, bx = Math.round(x - w / 2), by = Math.round(y - 12 + (t < 0.15 ? Math.round((1 - t / 0.15) * 3) : 0));
   bubble(bx, by, w, 9);
-  textO(s, bx + 2, by + 2, col, 1, 'l', P.paper);
+  if (name) textO(name, bx + 2, by + 2, ncol, 1, 'l', INK);
+  textO(s, bx + 2 + nw, by + 2, col, 1, 'l', P.paper);
 }

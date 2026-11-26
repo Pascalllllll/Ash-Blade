@@ -4,7 +4,7 @@
 // you can feel yourself moving through it). Where the fighter steps, rings spread as on still black water, and the
 // fighter carries a little light of their own. world.js keeps the arena's bounds following the fighter while it
 // lasts, so there is nowhere the dark ends.
-import { ctx, W, H, FW, SX, rect, px, glow, makeCanvas, BAYER } from './gfx.js?v=213';
+import { ctx, W, H, FW, SX, rect, px, glow, makeCanvas, BAYER } from './gfx.js?v=216';
 
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 let FAR = null, MID = null, GLASS = null;

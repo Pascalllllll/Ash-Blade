@@ -95,6 +95,8 @@ html, body {
   transition: opacity 0.15s, border-color 0.15s;
 }
 #corner button:hover, #corner button:focus-visible { opacity: 1; border-color: var(--ember); outline: none; }
+/* with a mouse they fade out while it rests (main.js), back as soon as it moves */
+html:not(.touch) #corner.rest button:not(:focus-visible) { opacity: 0; pointer-events: none; }
 #corner svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
 #corner svg .fill { fill: currentColor; stroke: none; }
 /* each icon has an "on" and an "off" drawing; a button switched off shows its "off" one, dimmed */

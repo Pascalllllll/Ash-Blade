@@ -35,7 +35,9 @@ export const settings = { ...DEFAULTS, ver: 5 };
 export const best = { score: 0, wave: 0, won: false, chars: {}, unlocked: ['BLADE'], kills: 0, combo: 0, perfects: 0, night: 0, codex: {},
   // the camp's shops (shop.js): gold to spend, what has been bought, the camp's look, the decorations put away, and
   // each fighter's permanent upgrades ({ BLADE: { vit: 1, ... } })
-  gold: 0, owned: [], skin: 'ash', hidden: [], perm: {} };
+  gold: 0, owned: [], skin: 'ash', hidden: [], perm: {},
+  // the field notes already shown (tips.js), each once ever
+  tips: [] };
 // the Compendium's record of what has been found: monsters killed (by type), bosses beaten, floors reached, endings
 // seen, evolutions taken and fighters awakened, each a count. Practice and test runs don't add to it.
 export const CODEX = ['foes', 'bosses', 'floors', 'endings', 'evos', 'awake'];
@@ -96,7 +98,7 @@ export function loadAll() {
       list: b.daily.list.slice(0, 3).map((m) => ({ id: String(m?.id || '').slice(0, 12), goal: Math.floor(num(m?.goal, 1, 1e5, 1)), reward: Math.floor(num(m?.reward, 0, 50, 0)), got: Math.floor(num(m?.got, 0, 1e5, 0)), claimed: m?.claimed === true })),
     };
     const ids = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === 'string' && /^[a-z0-9]{1,16}$/.test(x)))].slice(0, 200) : []);
-    best.owned = ids(b.owned); best.hidden = ids(b.hidden);
+    best.owned = ids(b.owned); best.hidden = ids(b.hidden); best.tips = ids(b.tips);
     best.skin = typeof b.skin === 'string' && /^[a-z0-9]{1,16}$/.test(b.skin) ? b.skin : 'ash';
     best.perm = {};
     if (b.perm && typeof b.perm === 'object') for (const c of OPTIONS.char) {

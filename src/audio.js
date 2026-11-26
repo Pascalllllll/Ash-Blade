@@ -1,9 +1,10 @@
 // Web Audio synthesizes the score and effects and mixes in the fighter's recorded ultimate line.
-let sfxRev = null, ac = null, master, sfx, mus, musDuck, crunch, nbuf, delayIn, delayNode, verbIn, padDuck, bassDuck, kickDist;
+let sfxRev = null, ac = null, master, sfx, mus, musDuck, crunch, nbuf, delayIn, delayNode, verbIn, padDuck, bassDuck, kickDist, sfxRevVol, musRevVol;
 let voiceBus, behindVoice, voiceAudible, voice = null, pausedVoice = null;
 const voiceClips = new Map();
 const layers = {};
 const loops = {};
+let loopsLive = true;
 const last = {};
 const rnd = (a, b) => a + Math.random() * (b - a);
 // phones: every sound is built from fewer voices (each voice is a few audio nodes made on the spot)
@@ -21,8 +22,24 @@ function env(node, t, a, peak, d) {
   node.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + a);
   node.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
 }
+// ---------- how many sound effects sound at once ----------
+// Every effect is built from short voices (an oscillator or a burst of noise, each with its filter and envelope). In
+// a crowded fight they piled up past a hundred and fifty at once on top of the music, more than the audio thread can
+// render in time on a slower machine (heard as crackles, stalls and late sounds). SFX_MAX caps the effects' voices:
+// as it fills, the extra layers go first (reverb copies, the blips of a crackle), and past it new voices are dropped,
+// except inside the sounds that must always be heard (kept: a hit taken, a death, a boss's roar, the ultimate, the
+// menus; see KEEP at the end). The music has its own fixed budget and is never cut.
+const SFX_MAX = LITE ? 30 : 60;
+let sfxLive = 0, keep = 0;
+const busy = () => sfxLive / SFX_MAX;
+const isSfx = (dest) => dest === sfx || dest === crunch || dest === sfxRev;
+function counted(node) { sfxLive++; node.onended = () => { sfxLive--; }; }
+const room = () => keep > 0 || sfxLive < SFX_MAX;
 function tone(type, f0, f1, dur, vol, dest = sfx, t = ac.currentTime, a = 0.002) {
+  const fx = isSfx(dest);
+  if (fx && !room()) return;
   const o = ac.createOscillator();
+  if (fx) counted(o);
   o.type = type;
   o.frequency.setValueAtTime(f0, t);
   if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + a + dur);
@@ -32,7 +49,10 @@ function tone(type, f0, f1, dur, vol, dest = sfx, t = ac.currentTime, a = 0.002)
   o.start(t); o.stop(t + a + dur + 0.03);
 }
 function hiss(dur, vol, type, f0, f1, q = 1, dest = sfx, t = ac.currentTime, a = 0.002) {
+  const fx = isSfx(dest);
+  if (fx && !room()) return;
   const s = ac.createBufferSource();
+  if (fx) counted(s);
   s.buffer = nbuf;
   const f = ac.createBiquadFilter();
   f.type = type; f.Q.value = q;
@@ -44,12 +64,27 @@ function hiss(dur, vol, type, f0, f1, q = 1, dest = sfx, t = ac.currentTime, a =
   s.start(t, Math.random() * 1.2); s.stop(t + a + dur + 0.03);
 }
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
-// the music dips under a big hit, then swells back
+// The music dips under a big hit, then swells back. The level is worked out from the last dip (reading the gain
+// back gives a value a few milliseconds old), a new dip never restarts while the music is already that low (a crowd
+// of kills used to restart it twenty-five times a second: the music pumped and clicked), and it comes down over
+// 12 ms, not 8, so the bass doesn't click.
+let dk = null;
+function duckLevel(t) {
+  if (!dk) return 1;
+  const a = dk.t0 + dk.att, h = a + dk.hold, r = h + dk.rel;
+  if (t <= dk.t0) return dk.from;
+  if (t < a) return dk.from + (dk.depth - dk.from) * (t - dk.t0) / dk.att;
+  if (t < h) return dk.depth;
+  if (t < r) return dk.depth + (1 - dk.depth) * (t - h) / dk.rel;
+  return 1;
+}
 function duck(depth = 0.6, hold = 0.05, rel = 0.28) {
   if (!musDuck) return;
-  const t = ac.currentTime, g = musDuck.gain;
-  g.cancelScheduledValues(t); g.setValueAtTime(Math.min(1, g.value), t);
-  g.linearRampToValueAtTime(depth, t + 0.008); g.setValueAtTime(depth, t + 0.008 + hold); g.linearRampToValueAtTime(1, t + 0.008 + hold + rel);
+  const t = ac.currentTime, g = musDuck.gain, from = duckLevel(t), att = 0.012;
+  if (from <= depth + 0.03) return;
+  g.cancelScheduledValues(t); g.setValueAtTime(from, t);
+  g.linearRampToValueAtTime(depth, t + att); g.setValueAtTime(depth, t + att + hold); g.linearRampToValueAtTime(1, t + att + hold + rel);
+  dk = { t0: t, from, depth, att, hold, rel };
 }
 
 // a fighter's voice clips: art/audio/ultimates/<id>.mp3, the short call over its ultimate, and
@@ -279,7 +314,9 @@ const SCENES = {
   // the story panels, and the dawn after the King (the ending and the victory screen)
   lore: { track: 'TALE OF ASH', pad: 2, bass: 1.4, drums: 1.8, arp: 2, lead: 2.4 },
   dawn: { track: 'DAWN', pad: 1.8, bass: 1.4, drums: 1.4, arp: 1.8, lead: 2.2 },
-  calm: { track: 'HYPERDRIVE', pad: 1, bass: 0.5, drums: 0.35, arp: 0.5, lead: 0.6 },
+  // between waves and under the pause: the battle track you chose, only quieter (a fixed track here switched songs at
+  // every wave for anyone who had picked another battle track)
+  calm: { track: 'COMBAT', pad: 1, bass: 0.5, drums: 0.35, arp: 0.5, lead: 0.6 },
   fight: { track: 'COMBAT', pad: 0.5, bass: 1, drums: 1, arp: 0.7, lead: 0.75 },
   hot: { track: 'COMBAT', pad: 0.6, bass: 1, drums: 1, arp: 1, lead: 1 },
   boss_warden: { track: 'WARDEN', pad: 0.5, bass: 1, drums: 1, arp: 0.8, lead: 1 },
@@ -306,7 +343,19 @@ function kick(t) {
   tone('sine', 160, 42, 0.22, 1, layers.drums, t); tone('sine', 60, 38, 0.3, 0.5, layers.drums, t);
   if (cur.hard) { tone('sine', 230, 48, 0.24, 1, kickDist, t); hiss(0.02, 0.4, 'bandpass', 2500, 1500, 2, layers.drums, t); }
   hiss(0.012, 0.3, 'highpass', 3000, 3000, 1, layers.drums, t);
-  for (const d of [padDuck, bassDuck]) { d.gain.cancelScheduledValues(t); d.gain.setValueAtTime(d === padDuck ? 0.35 : 0.55, t); d.gain.linearRampToValueAtTime(1, t + 0.2); }
+  sidechain(t);
+}
+// The kick pushes the pads and the bass down for a moment. Each dip glides down over 6 ms from wherever the last one
+// had swelled back to (a ramp, not a jump: an instant drop clicked on every beat), then swells back over 0.2 s.
+const sideT = new Map();
+function sidechain(t) {
+  for (const d of [padDuck, bassDuck]) {
+    const low = d === padDuck ? 0.35 : 0.55, t0 = sideT.get(d);
+    const from = t0 === undefined || t - t0 >= 0.2 ? 1 : Math.min(1, low + (1 - low) * Math.max(0, t - t0 - 0.006) / 0.194);
+    d.gain.cancelScheduledValues(t); d.gain.linearRampToValueAtTime(from, t);
+    d.gain.linearRampToValueAtTime(low, t + 0.006); d.gain.linearRampToValueAtTime(1, t + 0.2);
+    sideT.set(d, t);
+  }
 }
 function crash(t) { hiss(1.6, 0.12, 'highpass', 5000, 3500, 0.7, layers.drums, t); hiss(1.2, 0.06, 'highpass', 5000, 3500, 0.7, verbIn, t); }
 // a gang shout: noise through two vowel formants, a few voices slightly apart
@@ -363,13 +412,15 @@ function choirChord(t, dur, notes, vol = 0.06) {
 }
 // a brass stab: detuned saws through a filter that opens and closes fast
 function brass(t, notes, dur = 0.7, vol = 0.07) {
+  // every saw through one filter and one envelope (they were all alike)
+  const f = ac.createBiquadFilter(), e = ac.createGain();
+  f.type = 'lowpass'; f.Q.value = 2; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(3200, t + 0.06); f.frequency.exponentialRampToValueAtTime(700, t + dur);
+  env(e, t, 0.02, vol, dur);
+  f.connect(e); e.connect(ibus());
   for (const n of notes) for (const det of [-12, 0, 12]) {
-    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
+    const o = ac.createOscillator();
     o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det;
-    f.type = 'lowpass'; f.Q.value = 2; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(3200, t + 0.06); f.frequency.exponentialRampToValueAtTime(700, t + dur);
-    env(e, t, 0.02, vol, dur);
-    o.connect(f); f.connect(e); e.connect(ibus());
-    o.start(t); o.stop(t + dur + 0.1);
+    o.connect(f); o.start(t); o.stop(t + dur + 0.1);
   }
 }
 // a war drum: a deep body and a slap of skin
@@ -434,12 +485,14 @@ function ostNote(n, t, i) {
 }
 // an orchestral hit at the top of a phrase: brass on the chord, the drum, a soft cymbal
 function orchHit(root, ch, t) {
+  // eight saws through one filter blown open and one envelope (the same for each)
+  const f = ac.createBiquadFilter(), e = ac.createGain();
+  f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.05); f.frequency.exponentialRampToValueAtTime(600, t + 0.9);
+  env(e, t, 0.02, 0.022, 0.9); f.connect(e); e.connect(layers.lead); e.connect(verbIn);
   for (const iv of [0, ch[1], ch[2], 12]) for (const det of [-10, 10]) {
-    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
+    const o = ac.createOscillator();
     o.type = 'sawtooth'; o.frequency.value = mtof(root + 24 + iv); o.detune.value = det;
-    f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.05); f.frequency.exponentialRampToValueAtTime(600, t + 0.9);
-    env(e, t, 0.02, 0.022, 0.9); o.connect(f); f.connect(e); e.connect(layers.lead); e.connect(verbIn);
-    o.start(t); o.stop(t + 1);
+    o.connect(f); o.start(t); o.stop(t + 1);
   }
   taikoDrum(t, 1.1, 0.85);
   hiss(1.4, 0.06, 'highpass', 5000, 3500, 0.7, layers.drums, t); hiss(1.2, 0.05, 'highpass', 5000, 3500, 0.7, verbIn, t);
@@ -465,28 +518,38 @@ function bassNote(n, t) {
   o.start(t); o.stop(t + len + 0.05);
   tone('sine', mtof(n - 12), mtof(n - 12), len, 0.28, layers.bass, t, 0.005);
 }
+// a bar-long chord: two detuned saws a note, the low ones panned left and the high ones right. Each side shares one
+// filter, envelope and panner (alike for every note, so it sounds the same as a set per note, for a third of the work)
 function pad(root, ch, t) {
   const dur = S16() * 16;
-  for (const iv of ch) for (const det of [-8, 8]) {
-    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
-    o.type = 'sawtooth'; o.frequency.value = mtof(root + 24 + iv); o.detune.value = det;
+  for (const det of [-8, 8]) {
+    const f = ac.createBiquadFilter(), e = ac.createGain(), pn = ac.createStereoPanner();
     f.type = 'lowpass'; f.frequency.value = 700;
     e.gain.setValueAtTime(0.0001, t);
     e.gain.exponentialRampToValueAtTime(0.026, t + Math.min(0.6, dur / 3));
     e.gain.setValueAtTime(0.026, t + dur * 0.8);
     e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    const pn = ac.createStereoPanner(); pn.pan.value = det < 0 ? -0.6 : 0.6;
-    o.connect(f); f.connect(e); e.connect(pn); pn.connect(layers.pad);
-    o.start(t); o.stop(t + dur + 0.05);
+    pn.pan.value = det < 0 ? -0.6 : 0.6;
+    f.connect(e); e.connect(pn); pn.connect(layers.pad);
+    for (const iv of ch) {
+      const o = ac.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = mtof(root + 24 + iv); o.detune.value = det;
+      o.connect(f); o.start(t); o.stop(t + dur + 0.05);
+    }
   }
-  if (cur.choir) for (const iv of ch) {
-    const o = ac.createOscillator(), f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), e = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
-    o.type = 'sawtooth'; o.frequency.value = mtof(root + 36 + iv);
-    lfo.frequency.value = 5; lg.gain.value = 4; lfo.connect(lg); lg.connect(o.detune);
+  if (cur.choir) {
+    // the choir: a saw a note through two vowel formants, one vibrato for all
+    const f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), e = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
+    lfo.frequency.value = 5; lg.gain.value = 4; lfo.connect(lg);
     f1.type = 'bandpass'; f1.frequency.value = 750; f1.Q.value = 4; f2.type = 'bandpass'; f2.frequency.value = 1200; f2.Q.value = 5;
     e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(0.05, t + 0.6); e.gain.setValueAtTime(0.05, t + dur * 0.8); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(f1); o.connect(f2); f1.connect(e); f2.connect(e); e.connect(layers.pad);
-    o.start(t); o.stop(t + dur + 0.05); lfo.start(t); lfo.stop(t + dur + 0.05);
+    f1.connect(e); f2.connect(e); e.connect(layers.pad);
+    for (const iv of ch) {
+      const o = ac.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = mtof(root + 36 + iv); lg.connect(o.detune);
+      o.connect(f1); o.connect(f2); o.start(t); o.stop(t + dur + 0.05);
+    }
+    lfo.start(t); lfo.stop(t + dur + 0.05);
   }
 }
 function leadNote(n, len, t, bright = false) {
@@ -596,10 +659,16 @@ function playStep(i, t) {
   }
   if (cur.arp) { const tones = [0, ch[1], ch[2], 12]; arpNote(root + 36 + tones[cur.arp[s]], t); }
 }
+// The score is written a little ahead of the clock: a timer every 25 ms and every game frame (main.js calls A.pump)
+// fill the next LOOKAHEAD seconds. At 150 bpm a sixteenth is 0.1 s, so the old 0.12 s left one note of slack and
+// any hitch on the page (a new floor being painted, the garbage collector) dropped or delayed notes. If the clock
+// still gets ahead (a hidden tab), the missed steps are skipped whole, so the beat stays on its grid.
+const LOOKAHEAD = 0.3;
 function schedule() {
   if (!ac || ac.state !== 'running' || choice === 'OFF') return;
-  if (nextT < ac.currentTime) nextT = ac.currentTime + 0.05;
-  while (nextT < ac.currentTime + 0.12) { playStep(step, nextT); nextT += S16(); step++; }
+  if (nextT < ac.currentTime - 2) { nextT = ac.currentTime + 0.05; step += 16 - (step % 16); }
+  while (nextT < ac.currentTime + 0.005) { nextT += S16(); step++; }
+  while (nextT < ac.currentTime + LOOKAHEAD) { playStep(step, nextT); nextT += S16(); step++; }
 }
 function wantTrack() {
   if (choice !== 'AUTO') return TRACKS[choice] || null;
@@ -650,16 +719,20 @@ export const A = {
     nbuf = ac.createBuffer(1, ac.sampleRate * 2.5, ac.sampleRate);
     const d = nbuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    // a generated hall reverb
-    const verb = ac.createConvolver(), ir = ac.createBuffer(2, ac.sampleRate * 2.2, ac.sampleRate);
-    for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / ch.length, 3); }
+    // a generated hall reverb, one for the music and the effects both (a second one doubled the audio thread's
+    // heaviest work): each send passes its own volume first (musRevVol, sfxRevVol, set in settings), so the music's
+    // echo follows the music slider and the effects' the effects slider, as when each had a hall of its own
+    // (the hall decays as if 2.2 s long; only its first 1.6 s are kept, by when it is 34 dB down and lost in the mix,
+    // which spares the audio thread a quarter of its heaviest work; the last 80 ms fade to nothing so the cut is silent)
+    const full = ac.sampleRate * 2.2, len = Math.floor(ac.sampleRate * 1.6), fade = Math.floor(ac.sampleRate * 0.08);
+    const verb = ac.createConvolver(), ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / full, 3) * Math.min(1, (len - i) / fade); }
     verb.buffer = ir;
-    // a reverb send for sound effects, so it follows the effects volume, not the music volume
-    const sv = ac.createConvolver(); sv.buffer = ir;
-    sfxRev = ac.createGain(); sfxRev.gain.value = 0.45; sfxRev.connect(sv); sv.connect(sfx);
-    verbIn = ac.createGain(); verbIn.gain.value = 0.32;
+    verb.connect(behindVoice);
+    sfxRev = ac.createGain(); sfxRev.gain.value = 0.45; sfxRevVol = ac.createGain(); sfxRev.connect(sfxRevVol); sfxRevVol.connect(verb);
+    verbIn = ac.createGain(); verbIn.gain.value = 0.32; musRevVol = ac.createGain();
     const vlp = ac.createBiquadFilter(); vlp.type = 'lowpass'; vlp.frequency.value = 4000;
-    verbIn.connect(vlp); vlp.connect(verb); verb.connect(mus);
+    verbIn.connect(vlp); vlp.connect(musRevVol); musRevVol.connect(verb);
     padDuck = ac.createGain(); padDuck.connect(mus);
     bassDuck = ac.createGain(); bassDuck.connect(mus);
     for (const k of ['pad', 'bass', 'drums', 'arp', 'lead']) {
@@ -689,7 +762,9 @@ export const A = {
     if (!ac) return;
     master.gain.setTargetAtTime(s.mute ? 0 : s.master * 0.85, ac.currentTime, 0.05);
     mus.gain.setTargetAtTime(choice === 'OFF' ? 0 : s.music * 0.5, ac.currentTime, 0.05);
+    musRevVol.gain.setTargetAtTime(choice === 'OFF' ? 0 : s.music * 0.5, ac.currentTime, 0.05);
     sfx.gain.setTargetAtTime(s.sfx, ac.currentTime, 0.05);
+    sfxRevVol.gain.setTargetAtTime(s.sfx, ac.currentTime, 0.05);
     voiceBus.gain.setTargetAtTime(s.sfx, ac.currentTime, 0.05);
     voiceAudible = !s.mute && s.master > 0 && s.sfx > 0;
     applyScene();
@@ -699,8 +774,18 @@ export const A = {
     scene = name;
     applyScene();
   },
-  suspend(on) { if (ac) on ? ac.suspend() : ac.resume(); },
+  suspend(on) { if (!ac) return; (on ? ac.suspend() : ac.resume())?.catch?.(() => {}); },
 
+  // the score is topped up from the game's frames too (see schedule)
+  pump() { schedule(); },
+  // Continuous sounds (Unit-7's beam, its orbital laser, the bosses' beams) belong to a running fight. While the
+  // fight stands still (a story talk, the upgrade screen, a cinematic, a death, a menu) they go quiet instead of
+  // humming on, and they come back where they were when it runs again (main.js calls this every frame).
+  live(on) {
+    if (!ac || on === loopsLive) return;
+    loopsLive = on;
+    for (const k in loops) loops[k].g.gain.setTargetAtTime(on ? loops[k].vol : 0.0001, ac.currentTime, 0.03);
+  },
   // continuous sounds: beams, minigun hum, orbital laser
   loop(name, on, kind = 'beam') {
     if (!ac) return;
@@ -712,13 +797,14 @@ export const A = {
       o2.frequency.value = o.frequency.value * 1.505;
       f.type = 'lowpass'; f.frequency.value = kind === 'orbital' ? 900 : 1600; f.Q.value = 4;
       g.gain.value = 0.0001;
-      g.gain.setTargetAtTime(kind === 'orbital' ? 0.22 : 0.09, ac.currentTime, 0.03);
+      const vol = kind === 'orbital' ? 0.22 : 0.09;
+      g.gain.setTargetAtTime(loopsLive ? vol : 0.0001, ac.currentTime, 0.03);
       o.connect(f); o2.connect(f); f.connect(g); g.connect(sfx);
       o.start(); o2.start();
       const lfo = ac.createOscillator(), lg = ac.createGain();
       lfo.frequency.value = kind === 'orbital' ? 9 : 22; lg.gain.value = 300;
       lfo.connect(lg); lg.connect(f.frequency); lfo.start();
-      loops[name] = { o, o2, g, lfo };
+      loops[name] = { o, o2, g, lfo, vol };
     } else if (!on && l) {
       l.g.gain.setTargetAtTime(0.0001, ac.currentTime, 0.03);
       const t = ac.currentTime + 0.2;
@@ -896,6 +982,20 @@ export const A = {
   fuse() { if (gate('fuse', 0.08)) tone('square', 1200, 1200, 0.04, 0.05); },
   step() { if (gate('step', 0.1)) hiss(0.03, 0.05, 'lowpass', 900, 400, 1); },
   splat() { if (gate('splat', 0.05)) { hiss(0.15, 0.3, 'lowpass', 900, 200, 2); tone('sine', 180, 60, 0.1, 0.2); } },
+  // the floors' small life (critters.js): a startled squeak, chirp, click or caw, and the squish when one is squashed
+  critter(kind, squashed) {
+    if (!gate('critter', squashed ? 0.04 : 0.25)) return;
+    const t = ac.currentTime, r = rnd(0.92, 1.1);
+    if (squashed) { n(0.08, 0.16, 'lowpass', 1400, 300, 2, t); v('sine', 260 * r, 90, 0.07, 0.12, t); }
+    const vol = squashed ? 0.05 : 0.03;
+    if (kind === 'squeak') { v('square', 2600 * r, 1900 * r, 0.05, vol, t); v('square', 2900 * r, 2100 * r, 0.04, vol * 0.8, t + 0.06); }
+    else if (kind === 'click' || kind === 'tick') { for (let i = 0; i < 3; i++) v('square', (kind === 'tick' ? 3400 : 2200) * r, 1600 * r, 0.012, vol, t + i * 0.035); }
+    else if (kind === 'blip') { v('square', 1200 * r, 2400 * r, 0.05, vol * 0.8, t); v('square', 900 * r, 600 * r, 0.04, vol * 0.6, t + 0.05); }
+    else if (kind === 'croak') { v('sawtooth', 190 * r, 140 * r, 0.09, vol * 1.4, t); v('sawtooth', 170 * r, 120 * r, 0.08, vol * 1.2, t + 0.12); }
+    else if (kind === 'caw') { v('sawtooth', 820 * r, 520 * r, 0.12, vol * 1.2, t); n(0.1, vol * 2, 'bandpass', 1600, 900, 3, t); }
+    else if (kind === 'cluck') { for (let i = 0; i < 3; i++) v('square', (620 + i * 90) * r, 480 * r, 0.035, vol, t + i * 0.07); }
+    else if (kind === 'flutter') n(0.12, vol * 2, 'bandpass', 2400, 1800, 2, t);
+  },
   // ----- the heroes' entrances and deaths -----
   // a wet crunch: a blade or a hammer through flesh and bone
   gore(sz = 1) { if (gate('gore', 0.05)) { tone('sine', 150, 36, 0.2 * sz + 0.08, 0.9, crunch); hiss(0.25 * sz, 0.55, 'lowpass', 1600, 140, 3); tone('square', 520, 90, 0.05, 0.14, crunch); hiss(0.05, 0.35, 'bandpass', 2600, 1300, 5); } },
@@ -1085,22 +1185,28 @@ export const A = {
 
 // ---------- signature sounds: every fighter attacks and hits differently ----------
 function v(type, f0, f1, dur, vol, t, o = {}) {
+  const fx = isSfx(o.dest || sfx);
+  if (fx && !room()) return;
   const osc = ac.createOscillator();
+  if (fx) counted(osc);
   osc.type = type; osc.frequency.setValueAtTime(f0, t);
   if (f1 && f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
   const e = ac.createGain();
   env(e, t, o.a ?? 0.002, vol, dur);
   osc.connect(e); e.connect(o.dest || sfx);
-  if (o.rev && sfxRev && !LITE) { const g = ac.createGain(); g.gain.value = o.rev; e.connect(g); g.connect(sfxRev); }
+  if (o.rev && sfxRev && !LITE && busy() < 0.5) { const g = ac.createGain(); g.gain.value = o.rev; e.connect(g); g.connect(sfxRev); }
   osc.start(t); osc.stop(t + dur + 0.05);
 }
 function n(dur, vol, type, f0, f1, q, t, o = {}) {
   hiss(dur, vol, type, f0, f1, q, o.dest || sfx, t, o.a ?? 0.002);
-  if (o.rev && sfxRev && !LITE) hiss(dur, vol * o.rev, type, f0, f1, q, sfxRev, t, o.a ?? 0.002);
+  if (o.rev && sfxRev && !LITE && busy() < 0.5) hiss(dur, vol * o.rev, type, f0, f1, q, sfxRev, t, o.a ?? 0.002);
 }
 // pixels shattering: a quick run of tiny bright blips falling in pitch, a sprite breaking into its pixels
 function crackle(t, count = 9, f0 = 4200, vol = 0.05) {
   if (LITE) { count = Math.ceil(count / 2); vol *= 1.3; }
+  // fewer, louder blips as the effects fill up
+  const k = Math.max(0.25, 1 - busy() * 0.9);
+  if (k < 1) { count = Math.max(2, Math.round(count * k)); vol *= 1 + (1 - k) * 0.6; }
   for (let i = 0; i < count; i++) {
     const at = t + i * rnd(0.008, 0.02), f = f0 * (1 - i / (count * 1.7)) * rnd(0.85, 1.15);
     v('square', f, f * 0.8, 0.012, vol * (1 - (i / count) * 0.6), at);
@@ -1114,13 +1220,15 @@ function chime(f, t, vol = 0.06, dur = 0.35) {
 }
 // a brass chord: detuned saws, the filter blown open, then settling
 function brassChord(notes, t, dur = 0.8, vol = 0.05, dest = sfx) {
+  // every saw of the chord through one filter and one envelope (they were all alike)
+  const f = ac.createBiquadFilter(), e = ac.createGain();
+  f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(350, t); f.frequency.exponentialRampToValueAtTime(2800, t + 0.06); f.frequency.exponentialRampToValueAtTime(700, t + dur);
+  env(e, t, 0.03, vol / notes.length, dur);
+  f.connect(e); e.connect(dest); if (sfxRev && dest === sfx) e.connect(sfxRev);
   for (const nn of notes) for (const det of [-10, 0, 10]) {
-    const o = ac.createOscillator(), f = ac.createBiquadFilter(), e = ac.createGain();
+    const o = ac.createOscillator();
     o.type = 'sawtooth'; o.frequency.value = mtof(nn); o.detune.value = det;
-    f.type = 'lowpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(350, t); f.frequency.exponentialRampToValueAtTime(2800, t + 0.06); f.frequency.exponentialRampToValueAtTime(700, t + dur);
-    env(e, t, 0.03, vol / notes.length, dur);
-    o.connect(f); f.connect(e); e.connect(dest); if (sfxRev && dest === sfx) e.connect(sfxRev);
-    o.start(t); o.stop(t + dur + 0.1);
+    o.connect(f); o.start(t); o.stop(t + dur + 0.1);
   }
 }
 // inharmonic partials ring like struck metal
@@ -1257,6 +1365,13 @@ const HIT = {
     n(0.05, 0.2, 'highpass', 6000, 6000, 1, t);
   },
 };
+// KEEP: sounds the effects' budget never cuts (see SFX_MAX): taking a hit, dying, a boss's roar, waves starting and
+// ending, the ultimate, rewards and the menus, the story's cues and the opening
+for (const k of ['hurt', 'death', 'heal', 'bossRoar', 'waveStart', 'waveClear', 'victory', 'ultStart', 'ultCut', 'ultRelease', 'jackpot', 'perfect',
+  'rank', 'coin', 'deny', 'ui', 'select', 'twist', 'multi', 'lorePage', 'type', 'loreCue', 'endingCue', 'storyCue', 'introStart', 'introBeat', 'introLineup', 'introLogo', 'voice']) {
+  const f = A[k];
+  if (typeof f === 'function') A[k] = function (...a) { keep++; try { return f.apply(this, a); } finally { keep--; } };
+}
 Object.assign(A, {
   charAtk(id, heavy, step = 0) { if (gate('atk', 0.025)) (ATK[id] || ATK.BLADE)(heavy, step, ac.currentTime); },
   // hits climb a little in pitch as the combo grows

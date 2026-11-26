@@ -6,14 +6,14 @@
 //   the Smith     PERKS: permanent upgrades, each fighter's own. Every fighter starts weaker than before (NERF) and
 //                 the Smith's work makes them stronger than they ever were.
 // Prices are high on purpose. The shop's screen (openShop, updateShop, drawShop) is shown over the camp by lobby.js.
-import { ctx, W, H, FW, SX, P, rect, px, disc, ring, glow, text, textO, textW } from './gfx.js?v=213';
-import { A } from './audio.js?v=213';
-import { input, keyHit } from './input.js?v=213';
-import { best, saveBest } from './store.js?v=213';
-import { CHARS } from './chars.js?v=213';
-import { drawFighter } from './title-scene.js?v=213';
-import { dailyList, dailyClaim, dailyDay } from './daily.js?v=213';
-import { DRAW_DECOR, drawLanternStrings } from './decor-art.js?v=213';
+import { ctx, W, H, FW, SX, P, rect, px, disc, ring, glow, text, textO, textW } from './gfx.js?v=216';
+import { A } from './audio.js?v=216';
+import { input, keyHit } from './input.js?v=216';
+import { best, saveBest } from './store.js?v=216';
+import { CHARS } from './chars.js?v=216';
+import { drawFighter } from './title-scene.js?v=216';
+import { dailyList, dailyClaim, dailyDay } from './daily.js?v=216';
+import { DRAW_DECOR, drawLanternStrings } from './decor-art.js?v=216';
 
 export { DRAW_DECOR, drawLanternStrings };
 

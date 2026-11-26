@@ -15,7 +15,7 @@
 //   boom   it explodes when it breaks (and sets off any others near)
 //   fx     something extra when it goes: 'glitch', 'embers', 'shadow', 'stars'
 //   pieces the colors of its pieces when they depend on the one on the floor (its wood, its paint)
-import { ctx, rect, px, line, disc, glow, mix } from './gfx.js?v=213';
+import { ctx, rect, px, line, disc, glow, mix } from './gfx.js?v=216';
 
 const TAU = Math.PI * 2;
 const OUT = '#140c14';

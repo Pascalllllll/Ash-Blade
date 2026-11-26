@@ -2,17 +2,17 @@
 // (and their awakened forms), the monsters, the bosses, the floors of the pit, the endings (watch one again) and the
 // records. What hasn't been found yet is a dark shape and '???'. Opened from the title menu or the camp's old stone.
 // Keys: Q / E or Tab change the page, arrows pick, Enter uses (hear a fighter, watch an ending), Escape goes back.
-import { ctx, W, H, FW, SX, P, rect, px, text, textO, textW, glow, drawSprite } from './gfx.js?v=213';
-import { A } from './audio.js?v=213';
-import { input, keyHit } from './input.js?v=213';
-import { OPTIONS, best, isUnlocked } from './store.js?v=213';
-import { CHARS } from './chars.js?v=213';
-import { SPR, EVO_NAMES } from './sprites.js?v=213';
-import { MAPS, DEPTHS } from './maps.js?v=213';
-import { BOSSES, ORDER } from './bosses.js?v=213';
-import { monsterFrame } from './monster-motion.js?v=213';
-import { drawFighter } from './title-scene.js?v=213';
-import { drawEmote } from './emotes.js?v=213';
+import { ctx, W, H, FW, SX, P, rect, px, text, textO, textW, glow, drawSprite } from './gfx.js?v=216';
+import { A } from './audio.js?v=216';
+import { input, keyHit } from './input.js?v=216';
+import { OPTIONS, best, isUnlocked } from './store.js?v=216';
+import { CHARS } from './chars.js?v=216';
+import { SPR, EVO_NAMES } from './sprites.js?v=216';
+import { MAPS, DEPTHS } from './maps.js?v=216';
+import { BOSSES, ORDER } from './bosses.js?v=216';
+import { monsterFrame } from './monster-motion.js?v=216';
+import { drawFighter } from './title-scene.js?v=216';
+import { drawEmote } from './emotes.js?v=216';
 
 const FOES = {
   husk: ['ASH HUSK', "WHAT IS LEFT OF THE KING'S PEOPLE.", 'THEY WIND UP BEFORE THEY SWING.'],

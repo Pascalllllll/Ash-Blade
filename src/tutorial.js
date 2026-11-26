@@ -6,12 +6,12 @@
 // armor with a charged attack, kill sealed husks with Q, then E, then your ultimate. Nothing can hurt you while you
 // train. When the last lesson is done (or Tab / tapping the panel skips it), wave 1 starts for real (or, from the
 // dummy, you go back to camp) and the record remembers training was seen.
-import { ctx, W, P, rect, text, textO, textW, glow, ring, px } from './gfx.js?v=213';
-import { A } from './audio.js?v=213';
-import { input, keyHit } from './input.js?v=213';
-import { keyLabel } from './bindings.js?v=213';
-import { best, saveBest } from './store.js?v=213';
-import { G, B, rnd, clamp, hyp, addRing, addText, buildQueue, DASH_COST, part } from './world.js?v=213';
+import { ctx, W, P, rect, text, textO, textW, glow, ring, px } from './gfx.js?v=216';
+import { A } from './audio.js?v=216';
+import { input, keyHit } from './input.js?v=216';
+import { keyLabel } from './bindings.js?v=216';
+import { best, saveBest } from './store.js?v=216';
+import { G, B, rnd, clamp, hyp, addRing, addText, buildQueue, DASH_COST, part } from './world.js?v=216';
 
 const touch = () => input.touch;
 const moveKeys = () => ['up', 'left', 'down', 'right'].map(keyLabel).join('');

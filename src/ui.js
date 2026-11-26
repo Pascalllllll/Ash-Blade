@@ -1,19 +1,19 @@
-import { drawGold, perkFactors } from './shop.js?v=213';
-import { dailyList } from './daily.js?v=213';
-import { keys, keyLabel } from './bindings.js?v=213';
-import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=213';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=213';
-import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=213';
-import { SPR, icon } from './sprites.js?v=213';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=213';
-import { A } from './audio.js?v=213';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=213';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock, DASH_COST, dashGap } from './world.js?v=213';
-import { CHARS, skillPreview } from './chars.js?v=213';
-import { BOSSES, bossFor } from './bosses.js?v=213';
-import { MAPS } from './maps.js?v=213';
-import { drawTalk } from './story.js?v=213';
-import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=213';
+import { drawGold, perkFactors } from './shop.js?v=216';
+import { dailyList } from './daily.js?v=216';
+import { keys, keyLabel } from './bindings.js?v=216';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=216';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=216';
+import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=216';
+import { SPR, icon } from './sprites.js?v=216';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=216';
+import { A } from './audio.js?v=216';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=216';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock, DASH_COST, dashGap, evosDone, AWAKEN_NEED } from './world.js?v=216';
+import { CHARS, skillPreview } from './chars.js?v=216';
+import { BOSSES, bossFor } from './bosses.js?v=216';
+import { MAPS } from './maps.js?v=216';
+import { drawTalk } from './story.js?v=216';
+import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=216';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -228,7 +228,7 @@ export function drawHUD(menu) {
   if (!lb) G.E.filter((e) => e.type === 'boss' && !e.dead).slice(0, 2).forEach((e, i) => bossBar(e, H - 12 - i * 17));
   // multi-kill callout: pops in, colour climbs with the count, the bonus lands when the chain ends
   const mk = G.mkShow;
-  if (mk && !lb) {
+  if (mk && !lb && !menu) {
     const n = mk.n, col = n >= 9 ? '#ff4fa8' : n >= 6 ? P.blood : n >= 4 ? P.ember : n >= 3 ? P.gold : P.paper;
     const pop = mk.t < 0.08 ? 1 : 0, fade = mk.t > 1.2 && Math.floor(G.time * 20) % 2;
     if (!fade) {
@@ -255,6 +255,18 @@ export function drawHUD(menu) {
       for (let i = 0; i < 7; i++) { const w = 7 - i; line(ax + Math.cos(a) * (i + pulse) - Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) + Math.cos(a) * w, ax + Math.cos(a) * (i + pulse) + Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) - Math.cos(a) * w, col); }
       glow(ax, ay, col, 10, 0.5);
       textO(Math.round(Math.hypot(b.x - G.p.x, b.y - G.p.y) / 8) + 'M', ax - Math.cos(a) * 12, ay - Math.sin(a) * 12 - 2, col, 1, 'c');
+    }
+  }
+  // the last few monsters of a wave, off the screen: small pointers at the edge, so a wave never stalls on a hunt
+  if (!menu && !lb && !b && G.phase === 'fight' && !G.queue.length && !G.sigils.length) {
+    const left = G.E.filter((e) => !e.dead && !e.prop && !e.dying && e.state !== 'spawn' && !e.under);
+    if (left.length && left.length <= 3) for (const e of left) {
+      const ex = e.x - fx.cam.x, ey = e.y - 8 - fx.cam.y;
+      if (ex >= 2 - SX && ex <= W + SX - 2 && ey >= 2 && ey <= H - 2) continue;
+      const cx = W / 2, cy = H / 2, a = Math.atan2(ey - cy, ex - cx);
+      const m = Math.min((FW / 2 - 9) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 9) / Math.abs(Math.sin(a) || 1e-6));
+      const ax = cx + Math.cos(a) * m, ay = cy + Math.sin(a) * m, col = e.def?.col || P.paper, pulse = Math.floor(G.time * 5) % 2;
+      for (let i = 0; i < 4; i++) { const w = 4 - i; line(ax + Math.cos(a) * (i + pulse) - Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) + Math.cos(a) * w, ax + Math.cos(a) * (i + pulse) + Math.sin(a) * w, ay + Math.sin(a) * (i + pulse) - Math.cos(a) * w, col); }
     }
   }
   // letterbox while a boss makes its entrance
@@ -734,8 +746,10 @@ export function drawUpgrade() {
   dim(0.78);
   const k0 = ease(upg.t / 0.3), next = G.wave + 1;
   textO('WAVE ' + G.wave + ' CLEARED', W / 2, 14 - Math.round((1 - k0) * 10), P.ember3, 2, 'c');
-  const relicPick = upg.opts.some((o) => o.relic);
-  textO(relicPick ? 'THE BOSS DROPPED RELICS. CHOOSE ONE' : isBossWave(next) ? 'NEXT: ' + BOSSES[bossFor(next)].name : 'TAKE ONE', W / 2, 32, relicPick ? '#ff4fa8' : isBossWave(next) ? P.blood : P.dust, 1, 'c');
+  const relicPick = upg.opts.some((o) => o.relic), evoPick = !relicPick && !isBossWave(next) && upg.opts.some((o) => o.req);
+  // an evolution on offer says how far along the awakening is (AWAKEN_NEED evolutions awaken the fighter)
+  const evoLine = G.evo === true ? 'AN EVOLUTION IS ON OFFER' : 'AN EVOLUTION IS ON OFFER.  ' + evosDone() + ' OF ' + AWAKEN_NEED + ' AWAKEN YOUR FIGHTER';
+  textO(relicPick ? 'THE BOSS DROPPED RELICS. CHOOSE ONE' : isBossWave(next) ? 'NEXT: ' + BOSSES[bossFor(next)].name : evoPick ? evoLine : 'TAKE ONE', W / 2, 32, relicPick ? '#ff4fa8' : isBossWave(next) ? P.blood : evoPick ? P.gold : P.dust, 1, 'c');
   for (let i = 0; i < 3; i++) {
     const o = upg.opts[i], oc = C(o.c), k = back((upg.t - 0.08 - i * 0.07) / 0.35), on = upg.sel === i && upg.t > 0.3;
     const x = cardX(i), y = Math.round(CY + (1 - k) * -120) - (on ? 3 : 0);
@@ -793,15 +807,19 @@ export function pauseItems(go) {
 export function drawPause(items) {
   dim(0.8);
   textO('PAUSED', W / 2, 22, P.paper, 3, 'c');
-  text(G.kit.name + '   WAVE ' + G.wave + '   ' + MAPS[G.mapKey].name + '   ' + G.diffKey, W / 2, 46, P.dust, 1, 'c');
+  text(G.kit.hero + '   WAVE ' + G.wave + '   ' + MAPS[G.mapKey].name + '   ' + G.diffKey, W / 2, 46, P.dust, 1, 'c');
   drawMenu(pauseMenu, items, 70, 62, 180, PAUSE_ROW);
   // today's missions and how far along they are (they count in real runs only)
-  if (!G.tested && !G.training) dailyList().forEach((m, i) => {
-    const ready = !m.claimed && m.got >= m.goal;
-    text(m.text + '   ' + (m.claimed ? 'CLAIMED' : ready ? 'DONE: CLAIM IT AT CAMP' : Math.min(m.got, m.goal) + '/' + m.goal), W / 2, 129 + i * 7, m.claimed ? '#6a8a6a' : ready ? P.gold : '#8a7a80', 1, 'c');
-  });
-  text(G.saveError ? 'SAVE FAILED. CHECK BROWSER STORAGE AND RETRY.' : G.training ? 'TRAINING IS NEVER SAVED' : G.night ? 'SAVE KEEPS YOUR ENDLESS TIME AND BUILD' : 'CONTINUE RESTARTS THIS WAVE FROM ITS CHECKPOINT', W / 2, 150, G.saveError ? P.ember3 : P.stone2, 1, 'c');
-  if (!input.touch) text('ESC TO RESUME', W / 2, 162, P.stone2, 1, 'c');
+  if (!G.tested && !G.training) {
+    const list = dailyList();
+    if (list.length) text("TODAY'S MISSIONS", W / 2, 122, P.gold, 1, 'c');
+    list.forEach((m, i) => {
+      const ready = !m.claimed && m.got >= m.goal;
+      text(m.text + '   ' + (m.claimed ? 'CLAIMED' : ready ? 'DONE: CLAIM IT AT CAMP' : Math.min(m.got, m.goal) + '/' + m.goal), W / 2, 130 + i * 7, m.claimed ? '#6a8a6a' : ready ? P.gold : '#8a7a80', 1, 'c');
+    });
+  }
+  text(G.saveError ? 'SAVE FAILED. CHECK BROWSER STORAGE AND RETRY.' : G.training ? 'TRAINING IS NEVER SAVED' : G.night ? 'SAVE KEEPS YOUR ENDLESS TIME AND BUILD' : 'CONTINUE RESTARTS THIS WAVE FROM ITS CHECKPOINT', W / 2, 155, G.saveError ? P.ember3 : P.stone2, 1, 'c');
+  if (!input.touch) text('ESC TO RESUME', W / 2, 165, P.stone2, 1, 'c');
 }
 
 // ---------- game over ----------
@@ -840,8 +858,8 @@ export function drawOver(t, isBest) {
   textO('YOU FELL', W / 2, 26 - Math.round((1 - k) * 12), P.blood, 4, 'c');
   // below the pit, what counts is how long they held the dark back; in the endless night, for how long
   const held = G.wave - 20;
-  textO(G.night ? G.kit.name + ' HELD THE ENDLESS NIGHT FOR ' + clockOf(G.night.t) + '   BEST ' + clockOf(Math.max(best.night || 0, G.night.t))
-    : G.won ? G.kit.name + ' HELD THE DARK FOR ' + held + (held === 1 ? ' NIGHT' : ' NIGHTS') : G.kit.name + ' ON WAVE ' + G.wave, W / 2, 52, G.won ? '#b48cff' : P.bone, 1, 'c');
+  textO(G.night ? G.kit.hero + ' HELD THE ENDLESS NIGHT FOR ' + clockOf(G.night.t) + '   BEST ' + clockOf(Math.max(best.night || 0, G.night.t))
+    : G.won ? G.kit.hero + ' HELD THE DARK FOR ' + held + (held === 1 ? ' NIGHT' : ' NIGHTS') : G.kit.hero + ' FELL ON WAVE ' + G.wave, W / 2, 52, G.won ? '#b48cff' : P.bone, 1, 'c');
   if (G.deathLine) text(G.deathLine, W / 2, 61, P.dust, 1, 'c');
   stats(72, t);
   if (G.payout && t > 1.1) payout(122, t - 1.1);
@@ -849,6 +867,11 @@ export function drawOver(t, isBest) {
   // the King's parting words over your body (the pit's, once he's dead), typed out
   if (G.lastWords && t > 0.8) { const n = Math.floor((t - 0.8) * 30); textO(G.lastWords.slice(0, n), W / 2, 142, G.won ? '#b48cff' : P.ember, 1, 'c'); }
   if (t > 1 && !input.touch) textO('ENTER  SAME FIGHTER AGAIN     ESC  MENU', W / 2, 153, P.paper, 1, 'c');
+  // the next fighter still in ash, and how close you are to waking them (on a phone the buttons are there instead)
+  if (t > 1.4 && !input.touch && !G.tested) {
+    const next = OPTIONS.char.find((id) => !isUnlocked(id) && CHARS[id].mission);
+    if (next) { const k = CHARS[next]; text('NEXT TO WAKE: ' + (next === 'DEV' ? '???' : k.hero) + '.  ' + k.mission[0] + '   ' + k.mission[1](), W / 2, 165, P.stone2, 1, 'c'); }
+  }
   // on a phone, two big buttons (the left half of the screen plays again, the right half goes to the menu)
   if (t > 1 && input.touch) for (const [x, label, c] of [[W / 2 - 104, 'AGAIN', P.ember], [W / 2 + 8, 'MENU', P.stone2]]) {
     rect(x - 1, 151, 98, 20, P.ink0); rect(x, 152, 96, 18, P.ink2); rect(x, 152, 96, 1, c);

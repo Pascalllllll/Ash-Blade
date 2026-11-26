@@ -16,14 +16,15 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=213';
-import { SPR } from './sprites.js?v=213';
-import { input, keyHit } from './input.js?v=213';
-import { A } from './audio.js?v=213';
-import { G } from './world.js?v=213';
-import { CHARS } from './chars.js?v=213';
-import { drawFighter } from './title-scene.js?v=213';
-import { drawWeaponAt } from './hero-sprites.js?v=213';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=216';
+import { SPR } from './sprites.js?v=216';
+import { input, keyHit } from './input.js?v=216';
+import { A } from './audio.js?v=216';
+import { G } from './world.js?v=216';
+import { CHARS } from './chars.js?v=216';
+import { drawFighter } from './title-scene.js?v=216';
+import { drawWeaponAt } from './hero-sprites.js?v=216';
+import { loadMonsterSheet, monsterFrame } from './monster-motion.js?v=216';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -360,7 +361,8 @@ function face(who, x, y) {
   rect(x, y, 24, 24, '#05030a');
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, 24, 24); ctx.clip();
   if (who === KING) {
-    const s = SPR.king?.[Math.floor(G.time * 2) % 2];
+    // (his story frames: he breathes and blinks while he talks)
+    const s = kingPose(Math.floor(G.time * 2) % 2, G.time);
     if (s) { glow(x + 12, y + 14, P.ember, 14, 0.3); bossFace(s, FACE_BOX.king, x, y); }
   } else if (who === VOID) {
     // nothing to see but two eyes in the dark, blinking now and then
@@ -529,6 +531,30 @@ function planted(x, y, sc, a = Math.PI / 2) {
   ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); drawWeaponAt(ctx, wn, evo(), 0, 0, a, false, 1); ctx.restore();
 }
 const KING_SPR = () => SPR.king?.[0];
+// The King in the story moves: his poses (art/sprites/monsters/kingStory.png, made by tools/build_king_story.py from
+// the same drawing as the boss): 0-1 standing, 2-6 a hand rising to the sky (6 shaking), 7-9 both arms up, 10 bringing
+// them down, 11 both hands on his chest, 12 the sun burning in it, 13 doubled over, 14 arched back, 15 standing with
+// the sun burning in him, 16 an arm out, 17 an arm raised, 18-19 struck, arms flung back, 20 on his knees, 21-22
+// reaching up from his knees, 23 looking up. Until the picture has loaded he stands as the boss does. He blinks now
+// and then, like everyone else.
+loadMonsterSheet('kingStory', 125 / 1.5);
+const kingPose = (i, t = 0) => monsterFrame('kingStory', (i + 0.5) / 24, SPR.king, (t + 1.3) % 3.7 < 0.13);
+// which pose at time t, from a list of [from, pose] in time order
+const at = (t, keys) => { let v = keys[0][1]; for (const [k, p] of keys) if (t >= k) v = p; else break; return v; };
+// a little banner on a pole, streaming in the wind
+function flag(x, y, t, col = '#a8243a', mark = '#ffd447') {
+  rect(x, y, 1, 11, '#2a1018');
+  for (let i = 0; i < 7; i++) { const dy = Math.round(Math.sin(t * 5 - i * 0.7) * (i / 7) * 1.5); rect(x + 1 + i, y + dy, 1, 4, i === 3 ? mark : col); }
+}
+// the dark gathering at a picture's edges (k 0..1)
+function closeIn(k) {
+  if (k <= 0) return;
+  for (let i = 1; i <= 10; i++) {
+    ctx.globalAlpha = k * 0.075;
+    rect(PX, PY, i * 3, PH, '#05020a'); rect(PX + PW - i * 3, PY, i * 3, PH, '#05020a'); rect(PX, PY, PW, Math.round(i * 1.6), '#05020a');
+  }
+  ctx.globalAlpha = 1;
+}
 
 // ---------- the pages ----------
 const PX = 50, PY = 14, PW = 220, PH = 108;
@@ -539,37 +565,82 @@ const LORE = [
     cap: ['KING AUREL RULED BENEATH A GOLDEN SUN.'],
     draw(t) {
       sky(PX, PY, PW, PH, ['#ffe9a8', '#ffc76a', '#ff9a4a', '#e0623a']);
+      // clouds drifting by
+      for (let i = 0; i < 3; i++) { const x = PX - 30 + ((i * 83 + t * (3 + i)) % (PW + 60)), y = PY + 12 + i * 12; ell(x, y, 14 - i * 2, 3, '#ffe2b0'); ell(x + 8, y - 2, 9 - i, 3, '#fff0cc'); }
       sun(PX + PW / 2, PY + 34, 15, t);
+      birds(PX + 10, PY + 24, t, 4, '#a05a3a');
       castle(PX + 50, PY + PH - 6, '#4a1c2a', '#ffe08a', t);
+      // his banners on the three highest towers, the gold sun on crimson
+      for (const [dx, h, w] of [[32, 52, 18], [70, 44, 14], [14, 38, 14]]) flag(PX + 50 + dx + Math.floor(w / 2), PY + PH - 6 - h - Math.ceil(w / 2) - 15, t + dx);
+      // his people on the road below, some waving up at their sun
+      for (let i = 0; i < 6; i++) {
+        const x = PX - 10 + ((i * 41 + t * (5 + (i % 3))) % (PW + 20)), wave = Math.sin(t * 5 + i * 2) > 0.2;
+        folk(x, PY + PH - 4, i % 3 ? 1 : 0.7, '#3a1420', t, { arm: wave ? [3, -6 + (Math.floor(t * 8 + i) % 2)] : null });
+      }
       rect(PX, PY + PH - 4, PW, 4, '#3a1420');
     },
   },
   {
+    len: 6.4,
     cue: () => A.loreCue(1),
     cap: ['BUT THE SUN GREW OLD AND DIM,', 'AND AUREL FEARED THE DARK.'],
     draw(t) {
       sky(PX, PY, PW, PH, ['#2a1838', '#5a2a4a', '#9a3a4a']);
-      // the old sun, small and failing, its light flickering
-      const f = 0.6 + 0.4 * Math.abs(Math.sin(t * 2.3)) * (Math.sin(t * 17) > 0.6 ? 0.3 : 1);
-      sun(PX + 150, PY + 30, 9, t * 0.3, { core: '#e0a060', rim: '#a0502a', ray: '#7a3a2a', glow: '#c06a3a', ga: 0.3 * f });
+      // the old sun, small and failing: it gutters like a candle, nearly goes out as his hand gets close, and
+      // shrinks as the page goes on
+      const fade = clamp01((t - 2.4) / 3), out = t > 2.25 && t < 2.6 ? 0.2 : 1;
+      const f = (0.6 + 0.4 * Math.abs(Math.sin(t * 2.3)) * (Math.sin(t * 17) > 0.6 ? 0.3 : 1)) * out, sr = Math.round(9 - 2 * fade);
+      sun(PX + 150, PY + 30, sr, t * 0.3, { core: out < 1 ? '#8a4a3a' : '#e0a060', rim: '#a0502a', ray: '#7a3a2a', glow: '#c06a3a', ga: 0.3 * f });
       line(PX + 146, PY + 26, PX + 151, PY + 31, '#6a2a1a'); line(PX + 153, PY + 27, PX + 150, PY + 33, '#6a2a1a');
-      // the King, a black shape looking up at it
-      silhouette(KING_SPR(), PX + 40, PY + PH - 54, 1, '#140a12', '#c06a3a', false, 0.35);
+      // the King looks up at it, lifts a hand toward it and holds it there, shaking; it gutters; the hand falls, he
+      // takes a step back, and holds his chest: afraid
+      const pose = at(t, [[0, 23], [0.9, 2], [1.02, 3], [1.14, 4], [1.26, 5], [1.45, 6], [1.57, 5], [1.69, 6], [1.81, 5], [1.93, 6], [2.05, 5],
+        [2.6, 4], [2.72, 3], [2.84, 2], [2.96, 0], [3.4, 10], [3.56, 11]]);
+      const back = Math.round(clamp01((t - 3.0) / 0.6) * 3), tremble = pose === 6 || (t > 3.56 && Math.sin(t * 40) > 0.6) ? 1 : 0;
+      ctx.globalAlpha = 0.45; ell(PX + 76 - back, PY + PH - 5, 36, 2, '#0a0408'); ctx.globalAlpha = 1;
+      silhouette(kingPose(pose, t), PX + 40 - back + (pose === 6 ? 0 : 0), PY + PH - 54 + (tremble && pose !== 6 ? 1 : 0), 1, '#140a12', '#c06a3a', false, 0.35);
       rect(PX, PY + PH - 6, PW, 6, '#140a12');
+      // a cold wind over the plain
+      for (let i = 0; i < 14; i++) { const u = (t * (0.35 + hash(i) * 0.3) + hash(i + 5)) % 1; ctx.globalAlpha = 0.5 * Math.sin(u * Math.PI); px(PX + PW - u * PW, PY + 40 + hash(i + 2) * (PH - 50) + Math.sin(t * 2 + i) * 2, '#c8a8b8'); ctx.globalAlpha = 1; }
+      // and the dark closing in at the edges
+      closeIn(fade);
     },
   },
   {
+    len: 6.6,
     cue: () => A.loreCue(2),
     cap: ['SO HE SWALLOWED IT WHOLE,', 'TO BURN FOREVER.'],
     draw(t) {
       sky(PX, PY, PW, PH, ['#1a0a12', '#3a0e18', '#6a1420']);
-      const k = ease(t / 2.4), cx = PX + PW / 2, chestY = PY + PH - 34;
-      // the sun is pulled down into him; its light streams after it
-      const sy = PY + 18 + (chestY - PY - 18) * k, r = Math.max(2, 13 * (1 - k * 0.8));
-      for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU + t * 2, L = 30 * (1 - k); ctx.globalAlpha = 0.5; line(cx + Math.cos(a) * (r + L), sy + Math.sin(a) * (r + L), cx + Math.cos(a) * r, sy + Math.sin(a) * r, P.ember3); ctx.globalAlpha = 1; }
-      silhouette(KING_SPR(), cx - 30, PY + PH - 80, 1, '#0e070c', k > 0.95 ? P.ember : '#8a2a1a', false, 0.25 + 0.3 * k);
-      if (k < 1) sun(cx, sy, r, t * 2);
-      if (k > 0.9) { glow(cx, chestY, P.ember, 26, 0.6); glow(cx - 2, PY + PH - 66, P.blood, 6, 0.8); }
+      const cx = PX + PW / 2, kx = cx - 32, ky = PY + PH - 72, top = PY + 14;
+      // once the sun is in him, the sky goes black
+      const black = clamp01((t - 2.45) / 1.4);
+      if (black > 0) { ctx.globalAlpha = black * 0.8; rect(PX, PY, PW, PH, '#040106'); ctx.globalAlpha = 1; }
+      // his arms go up to it; it comes down into his hands; he pulls it into his chest; it burns in him and he
+      // doubles over, shaking; he throws his head back in its fire; and he stands up with it burning inside him
+      const pose = at(t, [[0, 23], [0.5, 7], [0.65, 8], [0.85, 9], [2.0, 10], [2.25, 11], [2.45, 12], [2.6, 13], [2.75, 12], [2.9, 13], [3.05, 12], [3.2, 13], [3.5, 14], [4.4, 15]]);
+      const burning = t >= 2.45, shook = t > 2.45 && t < 3.5 ? Math.round(Math.sin(t * 55)) : 0;
+      // the sun's way down: high over him, down above his head, into his hands, into his chest
+      let sy = null, r = 12;
+      if (t < 0.9) sy = top + 4;
+      else if (t < 2.0) { const k = ease((t - 0.9) / 1.1); sy = top + 4 + (ky - 14 - top) * k; r = 12 - 4 * k; }
+      else if (t < 2.25) { const k = (t - 2.0) / 0.25; sy = ky - 10 + 40 * k; r = 8 - 3 * k; }
+      else if (t < 2.45) { const k = (t - 2.25) / 0.2; sy = ky + 30 + 14 * k; r = 5 - 3 * k; }
+      // its light streams after it as it comes down
+      if (sy !== null && t > 0.9) for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU + t * 2, L = 26 * (1 - clamp01((t - 0.9) / 1.5)); ctx.globalAlpha = 0.45; line(cx + Math.cos(a) * (r + L + 4), sy + Math.sin(a) * (r + L + 4), cx + Math.cos(a) * (r + 1), sy + Math.sin(a) * (r + 1), P.ember3); ctx.globalAlpha = 1; }
+      silhouette(kingPose(pose, t), kx + shook, ky, 1, '#0e070c', burning ? P.ember : '#8a2a1a', false, burning ? 0.6 : 0.3);
+      if (sy !== null) sun(cx, sy, Math.max(2, r), t * 2);
+      // the moment it goes in: a white flash
+      if (t >= 2.45 && t < 2.7) { ctx.globalAlpha = 1 - (t - 2.45) / 0.25; rect(PX, PY, PW, PH, '#fff0c0'); ctx.globalAlpha = 1; }
+      if (burning) {
+        // the fire in his chest, beating; embers pouring up off him; his eyes alight
+        const beat = 0.5 + 0.5 * Math.sin(t * 6), cy = ky + 44 + (pose === 13 ? 2 : 0);
+        glow(cx + shook, cy, P.ember, 22 + beat * 6, 0.55); glow(cx + shook, cy, '#ffe08a', 7, 0.8);
+        for (let i = 0; i < 16; i++) { const u = (t * (0.5 + hash(i) * 0.4) + hash(i + 9)) % 1; ctx.globalAlpha = 1 - u; px(cx - 22 + hash(i + 3) * 44 + Math.sin(t * 3 + i) * 3, cy + 10 - u * 70, i % 3 ? P.ember : P.ember3); ctx.globalAlpha = 1; }
+        if (t >= 3.5 && t < 4.4) { const k = (t - 3.5) / 0.9; for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + (i - 5.5) * 0.22, L = 10 + 60 * k; ctx.globalAlpha = 1 - k; line(cx, cy, cx + Math.cos(a) * L, cy + Math.sin(a) * L, i % 2 ? P.ember3 : P.paper); ctx.globalAlpha = 1; } }
+        const ey = ky + (pose === 14 ? 15 : pose === 13 ? 22 : 18);
+        glow(cx - 4 + shook, ey, P.ember3, 4, 0.75); glow(cx + 4 + shook, ey, P.ember3, 4, 0.75);
+      }
       rect(PX, PY + PH - 4, PW, 4, '#0e070c');
     },
   },
@@ -595,6 +666,10 @@ const LORE = [
         if (rise > 0.5) glow(x + s.w * 0.5, y + s.h * 0.3, P.blood, 4, 0.7);
       }
       for (let i = 0; i < 5; i++) { const x = PX + 20 + i * 44, a = 0.4 + 0.4 * Math.sin(t * 3 + i * 2); ctx.globalAlpha = a; line(x, base + 3, x + 6, base + 10, P.ember); ctx.globalAlpha = 1; }
+      // and on a crag over them all, the King, his sun burning in him, raising his arm: rise
+      const gx = PX + PW - 22, sc = 0.36, ks = kingPose(at(t, [[0, 15], [1.1, 16], [1.5, 17]]), t);
+      for (let x = 0; x < 30; x++) { const h = Math.round(24 - Math.abs(x - 15) * 0.8 + hash(x + 40) * 3); rect(gx - 15 + x, base - h, 1, h + 2, '#05020a'); }
+      if (ks) { silhouette(ks, gx - (ks.w * sc) / 2, base - 22 - ks.h * sc, sc, '#0a0408', P.ember); glow(gx, base - 22 - ks.h * sc + 16, P.ember, 5 + Math.sin(t * 5) * 1.5, 0.6); }
     },
   },
   {
@@ -633,9 +708,12 @@ const LORE = [
       }
       // the throne at the bottom, the King on it, the sun burning in his chest; it flares when the last torch lights
       const ty = ringY(6), s = KING_SPR(), flare = t >= TORCH_AT(19) ? Math.max(0, 1 - (t - TORCH_AT(19)) / 0.8) : 0;
-      if (s) silhouette(s, cx - s.w / 4, ty - s.h / 2 + 2, 0.5, '#07030a', '#6a2a1a');
+      const ks = kingPose(t >= TORCH_AT(19) ? 17 : 15, t);
+      if (s) silhouette(ks || s, cx - s.w / 4, ty - s.h / 2 + 2, 0.5, '#07030a', '#6a2a1a');
       const beat = 0.5 + 0.5 * Math.sin(t * 5);
       glow(cx, ty - 12, P.ember, 6 + beat * 2 + flare * 14, 0.5 + flare * 0.5); px(cx, ty - 12, P.gold);
+      // embers rising out of the pit
+      for (let i = 0; i < 14; i++) { const u = (t * (0.18 + hash(i) * 0.12) + hash(i + 21)) % 1; ctx.globalAlpha = Math.sin(u * Math.PI) * 0.9; px(cx + (hash(i + 4) - 0.5) * 120 * (0.3 + u) + Math.sin(t * 2 + i) * 2, ty - 4 - u * 62, i % 3 ? P.ember : P.ember3); ctx.globalAlpha = 1; }
       if (flare > 0) for (let i = 0; i < 8; i++) { const a = (i * TAU) / 8 + t; ctx.globalAlpha = flare; line(cx + Math.cos(a) * 3, ty - 12 + Math.sin(a) * 3, cx + Math.cos(a) * (6 + 16 * (1 - flare)), ty - 12 + Math.sin(a) * (6 + 16 * (1 - flare)), P.gold); ctx.globalAlpha = 1; }
       // the ledge in front, and the fighters on it: night, so they stand in shadow, lit only along the side that faces
       // the burning pit, their shadows thrown back away from it. Grom leads, at the very edge, nearest of them all.
@@ -661,16 +739,22 @@ function backlit(id, x, y, t) {
 // when the King falls
 const ENDING = [
   {
+    len: 6.2,
     cue: () => A.endingCue(0),
     cap: ['THE KING FELL, AND THE SUN', 'BROKE FREE OF HIM.'],
     draw(t) {
       sky(PX, PY, PW, PH, ['#120610', '#2a0a14', '#4a1018']);
-      const cx = PX + PW / 2, chest = PY + PH - 40, k = ease((t - 0.6) / 1.6);
-      // light splits him open from the chest
+      const cx = PX + PW / 2, kx = cx - 32, ky = PY + PH - 80, k = ease((t - 0.6) / 1.6);
+      // struck: his arms fly back as the light splits him open from the chest, he shakes, and he goes down on his
+      // knees as the sun climbs out of him
+      const pose = at(t, [[0, 15], [0.55, 18], [0.75, 19], [2.4, 20]]), kneel = pose === 20;
+      const chest = ky + 44 + (kneel ? 8 : 0), shook = t > 0.55 && t < 2.4 ? Math.round(Math.sin(t * 50)) : 0;
       for (let i = 0; i < 14; i++) { const a = (i * TAU) / 14 + t * 0.3, L = 20 + 120 * k; ctx.globalAlpha = 0.25 + 0.5 * k; line(cx, chest, cx + Math.cos(a) * L, chest + Math.sin(a) * L, i % 2 ? P.ember3 : P.paper); ctx.globalAlpha = 1; }
-      silhouette(KING_SPR(), cx - 30, PY + PH - 84 + Math.round(k * 10), 1, '#0e070c', P.ember, false, 0.4 * (1 - k));
+      silhouette(kingPose(pose, t), kx + shook, ky, 1, '#0e070c', P.ember, false, 0.4 * (1 - k));
+      // dust where his knees hit the ground
+      if (kneel && t < 2.95) { const u = (t - 2.4) / 0.55; for (let i = 0; i < 12; i++) { ctx.globalAlpha = Math.max(0, 1 - u); px(cx + (hash(i) - 0.5) * 44 * (0.4 + u), PY + PH - 5 - hash(i + 4) * 8 * u, i % 2 ? '#6a4a50' : '#3a2a30'); } ctx.globalAlpha = 1; }
       // the sun climbs out of him and up into the sky
-      const sy = chest - 54 * ease((t - 1.6) / 1.8);
+      const sy = chest - 64 * ease((t - 1.6) / 1.8);
       if (t > 0.6) sun(cx, sy, 3 + 9 * ease((t - 0.6) / 2), t);
       rect(PX, PY + PH - 4, PW, 4, '#0e070c');
     },
@@ -718,7 +802,8 @@ const ENDING = [
       // a band of light from the sun to him
       ctx.globalAlpha = 0.12; for (let i = 0; i < 20; i++) line(PX + PW - 46, PY + 24, cx - 10 + i * 2, base - 30, P.gold); ctx.globalAlpha = 1;
       rect(PX, base, PW, 10, '#2a1418');
-      const s = KING_SPR(), d = clamp01((t - 1.4) / 3);
+      // on his knees he looks up, and reaches for it as he goes
+      const s = kingPose(at(t, [[0, 20], [0.7, 21], [1.1, 22]]), t), d = clamp01((t - 1.4) / 3);
       if (s) burnAway(s, cx - s.w / 2, base, 1, '#140a12', P.ember3, d, t, '#8a7a80', 77);
       // his crown drops into the ash
       if (d > 0.8) { const k = ease((d - 0.8) / 0.2); crown(cx, base - 2 - (1 - k) * 34, t); }
@@ -732,6 +817,15 @@ const ENDING = [
       sky(PX, PY, PW, PH, k < 0.5 ? ['#2a1428', '#7a3040', '#e0703a'] : ['#7ac8ff', '#ffd98a', '#ffb05a']);
       sun(PX + PW / 2, PY + PH - 10 - 60 * k, 14, t);
       castle(PX + 50, PY + PH - 6, k < 0.5 ? '#2a1020' : '#5a2a3a', '#ffe08a', t);
+      if (k > 0.5) {
+        // the birds come back, and the people come out into the light, arms up
+        birds(PX + 14, PY + 20, t, 5, '#6a3a3a');
+        for (const [dx, h, w] of [[32, 52, 18], [70, 44, 14]]) flag(PX + 50 + dx + Math.floor(w / 2), PY + PH - 6 - h - Math.ceil(w / 2) - 15, t + dx, '#d8a032', '#fff4b0');
+        for (let i = 0; i < 6; i++) {
+          const out = clamp01((t - 1.6 - i * 0.25) / 2.2), side = i % 2 ? 1 : -1;
+          if (out > 0) folk(PX + 110 + side * (4 + out * (26 + i * 9)), PY + PH - 4, i % 3 ? 1 : 0.7, '#5a2a3a', t, { arm: Math.sin(t * 5 + i) > -0.2 ? [2 * side, -6 + (Math.floor(t * 6 + i) % 2)] : null });
+        }
+      }
       rect(PX, PY + PH - 4, PW, 4, '#3a1420');
       // the ash turns to light
       for (let i = 0; i < 30; i++) { const x = PX + ((i * 53 + t * 6) % PW), y = PY + PH - ((i * 37 + t * 12 * (1 + (i % 3))) % PH); px(x, y, i % 3 ? P.gold : P.paper); }
@@ -744,7 +838,8 @@ const ENDING = [
     typed: (t) => Math.min((LAST[G.char] || LAST.BLADE).length, Math.floor(Math.max(0, t - 0.5) * 30)),
     draw(t) {
       sky(PX, PY, PW, PH, ['#ffe9a8', '#ffc76a', '#ff9a4a']);
-      glow(PX + 60, PY + 50, P.gold, 50, 0.4);
+      glow(PX + 60, PY + 50, P.gold, 50, 0.4 + 0.05 * Math.sin(t * 1.5));
+      for (let i = 0; i < 18; i++) { const u = (t * (0.08 + hash(i) * 0.06) + hash(i + 3)) % 1; ctx.globalAlpha = Math.sin(u * Math.PI) * 0.8; px(PX + ((hash(i + 7) * PW + Math.sin(t * 0.8 + i) * 6 + u * 30) % PW), PY + PH - u * PH, i % 2 ? '#fff6c8' : P.gold); ctx.globalAlpha = 1; }
       drawFighter(G.char, PX + 58, PY + PH - 4, 4, { t, evo: evo() });
       const line_ = LAST[G.char] || LAST.BLADE;
       textO(hero(), PX + 150, PY + 22, heroCol(), 2, 'c');
@@ -1526,6 +1621,10 @@ const FALL = [
       castle(PX + 50, PY + PH - 14, '#5a2a3a', '#ffe08a', t);
       rect(PX, PY + PH - 12, PW, 12, '#4a6a3a'); for (let x = 0; x < PW; x += 2) px(PX + x, PY + PH - 12, hash(x) < 0.5 ? '#6aa84a' : '#4a6a3a');
       birds(PX + 40, PY + 22, t, 4);
+      for (const [dx, h, w] of [[32, 52, 18], [70, 44, 14]]) flag(PX + 50 + dx + Math.floor(w / 2), PY + PH - 14 - h - Math.ceil(w / 2) - 15, t + dx, '#d8a032', '#fff4b0');
+      // the town going about its morning on the green, never knowing; a child runs with a kite
+      for (let i = 0; i < 5; i++) { const x = PX - 10 + ((i * 47 + t * (4 + i % 3)) % (PW + 20)); folk(x, PY + PH - 3, i === 2 ? 0.7 : 1, '#3a4a2a', t, { arm: i === 2 ? [3, -5] : null }); }
+      { const kx = PX - 10 + ((2 * 47 + t * 6) % (PW + 20)), ky = PY + PH - 34 + Math.sin(t * 2) * 3; line(kx + 3, PY + PH - 11, kx + 14, ky + 4, '#e8e0d0'); rect(kx + 12, ky, 5, 5, '#d8323e'); px(kx + 14, ky + 2, '#ffd447'); line(kx + 14, ky + 5, kx + 12 + Math.sin(t * 6) * 2, ky + 11, '#d8323e'); }
       // where the pit was: a small light in the grass, burning in their color
       const lx = PX + 30, ly = PY + PH - 8;
       glow(lx, ly, heroCol(), 10 + Math.sin(t * 3) * 2, 0.6); px(lx, ly, P.paper); px(lx, ly - 1, heroCol());
@@ -1790,7 +1889,7 @@ const STORIES = { ash: ASH_BOOK, lore: LORE, ending: ENDING, home: HOME, deeper:
 export const story = { char: null, evo: false, name: null, pages: LORE, i: 0, t: 0, cued: -1, typed: 0, cap: null };
 // going home is the climb, then three pages of the fighter's own ending, then THE END
 const pagesOf = (name) => (name === 'home' ? [HOME[0], ...(HOMES[me()] || [HOME[1]]), HOME[2]] : STORIES[name]);
-export function playStory(name, o = {}) { story.char = o.char || null; story.evo = !!o.evo; Object.assign(story, { name, pages: pagesOf(name), i: 0, t: 0, cued: -1, typed: 0, cap: null }); }
+export function playStory(name, o = {}) { story.char = o.char || null; story.evo = !!o.evo; Object.assign(story, { name, pages: pagesOf(name), i: 0, t: 0, cued: -1, typed: 0, cap: null, prevI: -1, prevT: 0, turned: 0 }); turn.old = null; }
 const capOf = (p) => (typeof p.cap === 'function' ? p.cap() : p.cap);
 // a caption types out at 34 letters a second after a short pause; returns how many letters show at time t
 const typedAt = (cap, t) => Math.min(cap.reduce((a, l) => a + l.length, 0), Math.floor(Math.max(0, t - 0.25) * 34));
@@ -1810,18 +1909,64 @@ export function updateStory(dt) {
   const next = story.t > 0.35 && (input.any || input.mouse.pressed);
   if (next || story.t > pageLen(pg, story.cap)) {
     A.ui();
+    story.prevI = story.i; story.prevT = story.t;
     story.i++; story.t = 0; story.cap = null;
     if (story.i >= story.pages.length) { story.i = story.pages.length - 1; return 'done'; }
   }
   return null;
 }
-function frame(t) {
-  // the page slides in, with a bright frame round it
-  const k = ease(t / 0.3), dx = Math.round((1 - k) * 30);
+function frame(t, slide = true) {
+  // the first page slides in, with a bright frame round it (the others burn in over the page before)
+  const k = slide ? ease(t / 0.3) : 1, dx = Math.round((1 - k) * 30);
   rect(PX - 3 + dx, PY - 3, PW + 6, PH + 6, P.ink0);
-  rect(PX - 2 + dx, PY - 2, PW + 4, PH + 4, t < 0.12 ? P.paper : P.stone2);
+  rect(PX - 2 + dx, PY - 2, PW + 4, PH + 4, slide && t < 0.12 ? P.paper : P.stone2);
   rect(PX - 1 + dx, PY - 1, PW + 2, PH + 2, P.ink0);
   return dx;
+}
+// ---------- turning a page ----------
+// The page before burns away into the next one (TURN seconds): from the bottom up through ragged ash, an edge of
+// embers eating into it, motes going up off the edge. The page before is drawn once more at the moment it was left
+// and copied off the canvas (turn.old); each frame a copy of it loses the cells already burnt (turn.burn holds each
+// cell's turn, low ones first) and is laid over the new page.
+const TURN = 0.8, CELL = 2;
+const turn = { old: null, mask: null, burn: null };
+function capturePanel() {
+  const m = ctx.getTransform(), w = Math.max(1, Math.round(m.a * PW)), h = Math.max(1, Math.round(m.d * PH));
+  if (!turn.old || turn.old.width !== w || turn.old.height !== h) turn.old = makeCanvas(w, h);
+  const g = turn.old.getContext('2d');
+  g.clearRect(0, 0, w, h);
+  g.drawImage(ctx.canvas, Math.round(m.a * PX + m.e), Math.round(m.d * PY + m.f), w, h, 0, 0, w, h);
+}
+function drawTurn(p) {
+  const src = turn.old;
+  if (!src || p >= 1) return;
+  const w = src.width, h = src.height, sx = w / PW, sy = h / PH, nx = Math.ceil(PW / CELL), ny = Math.ceil(PH / CELL);
+  if (!turn.burn || turn.burn.length !== nx * ny) {
+    turn.burn = new Float32Array(nx * ny);
+    for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) turn.burn[y * nx + x] = 0.26 * hash(x * 37.1 + y * 91.7) + 0.64 * (1 - y / ny) + 0.1 * (0.5 + 0.5 * Math.sin(x * 0.21 + Math.sin(x * 0.07) * 3));
+  }
+  if (!turn.mask || turn.mask.width !== w || turn.mask.height !== h) turn.mask = makeCanvas(w, h);
+  const g = turn.mask.getContext('2d'), q = p * 1.12 - 0.06, EDGE = 0.045, edge = [];
+  g.globalCompositeOperation = 'copy'; g.drawImage(src, 0, 0);
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
+  const cw = Math.ceil(CELL * sx), ch = Math.ceil(CELL * sy);
+  for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
+    const b = turn.burn[y * nx + x];
+    if (b < q) g.fillRect(Math.floor(x * CELL * sx), Math.floor(y * CELL * sy), cw, ch);
+    else if (b < q + EDGE) edge.push(x, y, (b - q) / EDGE);
+  }
+  g.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < edge.length; i += 3) {
+    const u = edge[i + 2];
+    g.fillStyle = u < 0.3 ? '#fff0a0' : u < 0.62 ? '#ff8a2a' : '#6a1a12';
+    g.fillRect(Math.floor(edge[i] * CELL * sx), Math.floor(edge[i + 1] * CELL * sy), cw, ch);
+  }
+  ctx.drawImage(turn.mask, PX, PY, PW, PH);
+  // motes going up off the burning edge
+  for (let i = 0; i < edge.length; i += 3 * 7) {
+    const x = edge[i], y = edge[i + 1], u = (p * 3 + hash(x + y * 7)) % 1;
+    ctx.globalAlpha = 1 - u; px(PX + x * CELL + Math.sin(p * 9 + x) * 2, PY + y * CELL - u * 10, hash(x * 3 + y) < 0.5 ? P.ember3 : '#8a7a80'); ctx.globalAlpha = 1;
+  }
 }
 export function drawStory() {
   const pg = story.pages[story.i], t = story.t, cap = story.cap ?? capOf(pg);
@@ -1829,9 +1974,20 @@ export function drawStory() {
   // the dots: which page this is
   const N = story.pages.length;
   for (let i = 0; i < N; i++) rect(W / 2 - N * 4 + i * 8 + 2, PY + PH + 44, 4, 2, i === story.i ? P.gold : P.ink3);
-  const dx = frame(t);
+  // a page just turned: draw the one before once more as it was left, and keep it to burn away
+  const turning = story.prevI >= 0 && story.prevI !== story.i && story.pages[story.prevI];
+  if (turning && story.turned !== story.i + 1) {
+    ctx.save(); ctx.beginPath(); ctx.rect(PX, PY, PW, PH); ctx.clip();
+    fillScreen('#000'); story.pages[story.prevI].draw(story.prevT);
+    ctx.restore();
+    capturePanel(); story.turned = story.i + 1;
+    fillScreen('#000');
+    for (let i = 0; i < N; i++) rect(W / 2 - N * 4 + i * 8 + 2, PY + PH + 44, 4, 2, i === story.i ? P.gold : P.ink3);
+  }
+  const dx = frame(t, !(turning && turn.old));
   ctx.save(); ctx.translate(dx, 0); ctx.beginPath(); ctx.rect(PX, PY, PW, PH); ctx.clip();
   pg.draw(t);
+  if (turning && t < TURN) drawTurn(t / TURN);
   ctx.restore();
   // the caption types out under the picture
   let n = Math.floor(Math.max(0, t - 0.25) * 34);

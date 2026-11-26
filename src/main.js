@@ -1,22 +1,23 @@
-import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=213';
-import { resetKeys, resetLayout } from './bindings.js?v=213';
-import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=213';
-import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=213';
-import { A } from './audio.js?v=213';
-import { codexNote } from './store.js?v=213';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=213';
-import { buildSprites } from './sprites.js?v=213';
-import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=213';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, payOut, flash, applyPractice } from './world.js?v=213';
+import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=216';
+import { resetKeys, resetLayout } from './bindings.js?v=216';
+import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=216';
+import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=216';
+import { A } from './audio.js?v=216';
+import { codexNote } from './store.js?v=216';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=216';
+import { buildSprites } from './sprites.js?v=216';
+import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=216';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, payOut, flash, applyPractice } from './world.js?v=216';
 import {
   drawLeave, drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg, drawInheritance,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=213';
-import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=213';
-import { updateTutorial, drawTutorial } from './tutorial.js?v=213';
-import { openCamp, updateCamp, drawCamp, campNote } from './lobby.js?v=213';
-import { openCodex, updateCodex, drawCodex } from './codex.js?v=213';
+} from './ui.js?v=216';
+import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=216';
+import { updateTutorial, drawTutorial } from './tutorial.js?v=216';
+import { openCamp, updateCamp, drawCamp, campNote, campRun } from './lobby.js?v=216';
+import { openCodex, updateCodex, drawCodex } from './codex.js?v=216';
+import { drawTips } from './tips.js?v=216';
 
 loadAll();
 applyTheme(settings.theme);
@@ -30,8 +31,25 @@ addEventListener('touchstart', fit, { once: true });
 
 let lockId = null, selectFrom = 'title';
 let scene = 'splash', sceneT = 0, last = performance.now(), newBest = false, settingsFrom = 'title';
-const frameInterval = 1000 / 60;
-let nextFrame = last;
+// Frame pacing: the game runs on every Nth refresh of the screen, N picked from the screen's own rate (measured from
+// the browser's frame times), so frames come evenly spaced: 60 and 75 Hz screens run every refresh, 120 and 144 Hz
+// every other one (60 and 72 fps), 165 every third (55), 240 every fourth (60). The old cap counted milliseconds
+// against a 60 fps clock: on 75, 144 and 165 Hz screens it alternated one and two (or two and three) refreshes, a
+// visible judder, and even at 60 Hz it dropped a frame now and then when the browser's timestamps wobbled.
+const rafGaps = [];
+let rafPrev = 0, paceN = 1, paceK = 0, paceCount = 0;
+function paced(now) {
+  const d = now - rafPrev;
+  rafPrev = now;
+  if (d > 1 && d < 60) { rafGaps.push(d); if (rafGaps.length > 60) rafGaps.shift(); }
+  if (++paceCount % 30 === 0 && rafGaps.length >= 20) {
+    const g = rafGaps.slice().sort((a, b) => a - b), hz = 1000 / g[g.length >> 1];
+    paceN = hz < 100 ? 1 : Math.max(2, Math.round(hz / 60));
+  }
+  if (++paceK < paceN) return false;
+  paceK = 0;
+  return true;
+}
 const readSlot = practice => loadRun(id => !!byId(id), practice);
 let save = readSlot(false), practice = readSlot(true);
 const menuItems = () => titleItems(save, id => id, practice);
@@ -44,12 +62,13 @@ function go(s) {
   else if (scene === 'play' || s === 'title') A.stopVoice();
   scene = s; sceneT = 0;
 }
-function pauseRun() { pauseMenu.sel = 0; go('pause'); A.scene('calm'); A.stopLoops(); }
+// (a beam or a laser still going goes quiet under the pause and picks up again after it: A.live)
+function pauseRun() { pauseMenu.sel = 0; go('pause'); A.scene('calm'); }
 function resumeRun() { go('play'); A.scene(G.night ? 'night' : G.boss ? 'boss_' + G.boss.boss : 'fight'); }
 function toTitle() { settingsFrom = 'title'; save = readSlot(false); practice = readSlot(true); showMap(settings.map); titleMenu.sel = 0; A.stopLoops(); A.scene('title'); go('title'); }
 function toCamp(o) { openCamp(o); A.stopLoops(); A.scene('title'); go('camp'); }
 function startRun(char, s, opts) {
-  A.init(settings); newRun(char, s, opts); waveCheckpoint = snapshot(); go('play'); }
+  A.init(settings); A.stopLoops(); newRun(char, s, opts); waveCheckpoint = snapshot(); go('play'); }
 function checkpoint() {
   if (!G || G.dead) return;
   waveCheckpoint = snapshot();
@@ -70,6 +89,8 @@ function recordBest(won) {
   best.chars[G.char] = { score: Math.max(r.score, G.score), wave: Math.max(r.wave, G.wave), won: !!(r.won || G.won || won),
     nox: !!(r.nox || G.nox), night: Math.max(r.night || 0, Math.floor(G.night?.t || 0)) };
   saveBest();
+  // the others at the camp will have something to say about it
+  if (!G.training) campRun({ char: G.char, wave: G.wave, won: !!(G.won || won), dead: !!G.dead, best: newBest });
 }
 function applySettings(prev) {
   if (settingsFrom === 'pause') {
@@ -104,6 +125,13 @@ shakeBtn?.addEventListener('click', (e) => {
   saveSettings(); cornerShow(); shakeBtn.blur();
 });
 cornerShow();
+// with a mouse, the corner buttons fade away while it rests (they sit over the game's own bottom right corner) and
+// come back the moment it moves
+const corner = document.getElementById('corner');
+let cornerRest = 0;
+const cornerWake = () => { corner?.classList.remove('rest'); clearTimeout(cornerRest); cornerRest = setTimeout(() => corner?.classList.add('rest'), 2600); };
+addEventListener('mousemove', cornerWake);
+cornerWake();
 
 const exitMenu = {sel:0};
 let leaving = false;
@@ -145,11 +173,12 @@ addEventListener('popstate',() => {
 });
 
 addEventListener('blur', () => { if (scene === 'play' && !G.dead) pauseRun(); });
+// a hidden tab: the sound stops with the game and picks up where it was (the browser slows a hidden page's timers to
+// about once a second, which played the music in fragments behind other windows)
+document.addEventListener('visibilitychange', () => A.suspend(document.hidden));
 
 function tick(now) {
-  // Keep the fractional time between display refreshes on 75, 90 and 144 Hz screens.
-  if (now + 0.5 < nextFrame) { requestAnimationFrame(tick); return; }
-  nextFrame = (now - nextFrame >= frameInterval ? now : nextFrame) + frameInterval;
+  if (!paced(now)) { requestAnimationFrame(tick); return; }
   // the step is capped so a long stall can't jump the game ahead, but high enough (down to about 12 fps) that a
   // slow device still runs at full speed instead of in slow motion
   const rdt = Math.max(0, Math.min(0.08, (now - last) / 1000));
@@ -269,9 +298,9 @@ function tick(now) {
       }
       else if (G.wantUpgrade) { G.wantUpgrade = false; openUpgrade(); go('upgrade'); }
       // falling below the pit, after the King, has its own story before the run's end
-      if (G.dead && G.deadT > 3.4) { payOut(); recordBest(false); clearRun(G.tested); save = null; if (G.won) { playStory('fall'); go('fall'); A.scene('lore'); } else go('over'); }
+      if (G.dead && G.deadT > 3.4) { payOut(); recordBest(false); if (!G.tested && G.gold > 0) campNote('THE LAST RUN BROUGHT ' + G.gold + ' GOLD HOME'); clearRun(G.tested); save = null; if (G.won) { playStory('fall'); go('fall'); A.scene('lore'); } else go('over'); }
     }
-    drawWorld(); vignette(); drawHUD(); drawTutorial();
+    drawWorld(); vignette(); drawHUD(); drawTutorial(); drawTips(rdt);
   } else if (scene === 'upgrade') {
     update(0, rdt);
     const pick = updateUpgrade(rdt);
@@ -342,6 +371,9 @@ function tick(now) {
   cursor();
   // Route the next tap to the scene this frame just displayed.
   input.touchPlay = scene === 'play' && G && !G.dead && !G.cine && !storyTalk();
+  // the sound: the score topped up, and the beams' hums only while the fight is actually running
+  A.pump();
+  A.live(!!input.touchPlay);
   endFrame();
   hdEnd();
   requestAnimationFrame(tick);
