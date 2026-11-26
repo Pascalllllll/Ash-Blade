@@ -484,17 +484,17 @@ function tent(x, y, col) {
 function crate(x, y) { rect(x - 4, y - 7, 8, 7, '#6a4a30'); rect(x - 4, y - 7, 8, 1, '#8a6a48'); line(x - 4, y - 7, x + 3, y - 1, '#4a3020'); }
 
 // ---------- the shopkeepers ----------
-// The owner's pictures of them, re-pixelized at a size that keeps their faces and trims (art/sprites/npcs, made by
-// tools/build_npcs.py): each a 16-frame idle loop (the head sinks on the breath, the Smith blinks and her ponytail
-// streams, the Weaver's robe sways). They have far more pixels than a fighter, so one art pixel is one canvas pixel
-// (a fighter's is two): the sheet is drawn at a third of its size in game pixels. EYES are the Weaver's glowing eyes,
-// in a frame's own pixels.
+// The owner's pictures of them, pixelized again at the fighters' own size (art/sprites/npcs, made by
+// tools/build_npcs.py): heads as big as a fighter's and pixels the same size (one art pixel is two canvas pixels,
+// so a sheet is drawn at a third of its size in game pixels). Each is a 16-frame idle loop: the head sinks on the
+// breath, the Smith and the Peddler blink, her ponytail streams, the Weaver's robe sways. EYES are the Weaver's
+// glowing eyes, the middle of each in a frame's own pixels.
 const NPC_CYCLE = { smith: 2.4, peddler: 2.8, weaver: 3 };
-const EYES = { weaver: [[18, 29], [25, 29]] };
+const EYES = { weaver: [[20, 36], [28, 36]] };
 const NPC_IMG = {};
 function npcSheet(k) {
   let im = NPC_IMG[k];
-  if (!im) { im = NPC_IMG[k] = new Image(); im.src = new URL(`../art/sprites/npcs/${k}.png?v=2`, import.meta.url).href; }
+  if (!im) { im = NPC_IMG[k] = new Image(); im.src = new URL(`../art/sprites/npcs/${k}.png?v=3`, import.meta.url).href; }
   return im.complete && im.naturalWidth ? im : null;
 }
 function drawNPC(k, n, t, f) {
@@ -507,7 +507,7 @@ function drawNPC(k, n, t, f) {
   if (f < 0) { ctx.translate(2 * x0 + w, 0); ctx.scale(-1, 1); }
   ctx.drawImage(im, i * fw, 0, fw, fh, x0, y0, w, h);
   ctx.restore();
-  for (const [ex, ey] of EYES[k] || []) glow(x0 + ((f < 0 ? fw - 1 - ex : ex) + 0.5) / 3, y0 + (ey + 0.5) / 3, '#ffd447', 3, 0.3 + 0.15 * Math.sin(t * 2.2));
+  for (const [ex, ey] of EYES[k] || []) glow(x0 + (f < 0 ? fw - ex : ex) / 3, y0 + ey / 3, '#ffd447', 3, 0.3 + 0.15 * Math.sin(t * 2.2));
 }
 
 // what drifts through the air, by the camp's look
