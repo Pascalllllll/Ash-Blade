@@ -15,20 +15,18 @@
 // ash statues, the fallen head of Aurel's great statue, the broken column and the bones are always there.
 // Fighters are drawn at three quarters of their fight size while you choose, and at their fight size once one is
 // locked in and you walk the camp, as you would in a fight.
-import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas, drawSprite } from './gfx.js?v=212';
-import { SPR } from './sprites.js?v=212';
-import { loadMonsterSheet, monsterFrame } from './monster-motion.js?v=212';
-import { A } from './audio.js?v=212';
-import { input, keyHit, keyDown, actionHit } from './input.js?v=212';
-import { keyLabel } from './bindings.js?v=212';
-import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=212';
-import { CHARS } from './chars.js?v=212';
-import { drawFighter } from './title-scene.js?v=212';
-import { drawEmote, sayBubble } from './emotes.js?v=212';
-import { drawSelect, sel } from './ui.js?v=212';
-import { loadPortraits } from './portraits.js?v=212';
-import { DECOR, DRAW_DECOR, decorShown, drawLanternStrings, skinOf, openShop, updateShop, drawShop, drawGold } from './shop.js?v=212';
-import { dailyList, dailyReady } from './daily.js?v=212';
+import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW, makeCanvas } from './gfx.js?v=213';
+import { A } from './audio.js?v=213';
+import { input, keyHit, keyDown, actionHit } from './input.js?v=213';
+import { keyLabel } from './bindings.js?v=213';
+import { OPTIONS, settings, best, saveSettings, isUnlocked } from './store.js?v=213';
+import { CHARS } from './chars.js?v=213';
+import { drawFighter } from './title-scene.js?v=213';
+import { drawEmote, sayBubble } from './emotes.js?v=213';
+import { drawSelect, sel } from './ui.js?v=213';
+import { loadPortraits } from './portraits.js?v=213';
+import { DECOR, DRAW_DECOR, decorShown, drawLanternStrings, skinOf, openShop, updateShop, drawShop, drawGold } from './shop.js?v=213';
+import { dailyList, dailyReady } from './daily.js?v=213';
 
 const TAU = Math.PI * 2;
 const OUT = '#140c14';
@@ -95,7 +93,7 @@ export function openCamp(o = {}) {
   S = PICK_S;
   Object.assign(camp, { t: 0, mode: 'pick', pick: list.indexOf(id), id, x: 0, y: 0, face: 1, moving: 0, tx: null, ty: null, pending: null, near: null, others, npc, puffs: [], sparks: [], msg: null, msgT: 0, cam: { x: FIRE[0] - W / 2, y: FIRE[1] - H / 2 - 6 }, cardFrom: 'pick', cardId: id });
   if (note) { camp.msg = note; camp.msgT = 4; note = null; }
-  for (const k in NPCS) loadMonsterSheet(k, SPR[k][0].h);
+  for (const k in NPCS) npcSheet(k);
   if (o.walkAs && isUnlocked(o.walkAs)) {
     camp.mode = 'walk'; camp.id = o.walkAs; camp.pick = list.indexOf(o.walkAs); S = WALK_S;
     if (o.at === 'dummy') { camp.x = DUMMY[0] + 14; camp.y = DUMMY[1] + 2; camp.face = -1; } else { const s = others[o.walkAs]; camp.x = s.hx + 8; camp.y = s.hy + 6; }
@@ -429,7 +427,7 @@ function board(t) {
   });
   if (dailyReady() > 0) { const by = y - 42 + Math.round(Math.sin(t * 4) * 2); glow(x, by + 4, '#ffd447', 9, 0.5); textO('!', x, by, P.gold, 2, 'c'); }
 }
-// the Smith's corner: a stone forge with its fire and chimney smoke, the anvil where the hammer falls
+// the Smith's corner: a stone forge with its fire and chimney smoke, the anvil throwing sparks now and then
 function forge(t) {
   const [x, y] = FORGE, fl = 0.5 + 0.5 * Math.sin(t * 9) * Math.sin(t * 3.7);
   shadow(x, y, 14);
@@ -443,7 +441,7 @@ function forge(t) {
   glow(x, y - 6, '#ff7a2a', 24, 0.35 + fl * 0.15);
 }
 function anvil(t) {
-  const [x, y] = ANVIL, since = ((t - 0.84) % 1.4 + 1.4) % 1.4;
+  const [x, y] = ANVIL, since = ((t - 0.84) % 2.8 + 2.8) % 2.8;
   shadow(x, y, 8);
   rect(x - 4, y - 3, 8, 3, '#2a2a32'); rect(x - 2, y - 6, 4, 3, '#3a3a44');
   rect(x - 6, y - 9, 12, 3, '#4a4a56'); rect(x - 6, y - 9, 12, 1, '#8a8a9a'); rect(x - 9, y - 8, 3, 1, '#4a4a56'); px(x - 10, y - 8, '#4a4a56');
@@ -486,16 +484,30 @@ function tent(x, y, col) {
 function crate(x, y) { rect(x - 4, y - 7, 8, 7, '#6a4a30'); rect(x - 4, y - 7, 8, 1, '#8a6a48'); line(x - 4, y - 7, x + 3, y - 1, '#4a3020'); }
 
 // ---------- the shopkeepers ----------
-// Drawn by tools/build_monsters.py like the monsters and the fighters (big heads, the dark outline, flat bands of
-// light and shadow), each looping one idle cycle on its own sheet: the Smith's hammer lands at 0.6 of his 1.4 s
-// cycle (the anvil's sparks fly then), the Peddler's lantern swings, the Weaver pulls her glowing thread.
-const NPC_CYCLE = { smith: 1.4, peddler: 2.2, weaver: 2.6 };
+// The owner's pictures of them, re-pixelized at a size that keeps their faces and trims (art/sprites/npcs, made by
+// tools/build_npcs.py): each a 16-frame idle loop (the head sinks on the breath, the Smith blinks and her ponytail
+// streams, the Weaver's robe sways). They have far more pixels than a fighter, so one art pixel is one canvas pixel
+// (a fighter's is two): the sheet is drawn at a third of its size in game pixels. EYES are the Weaver's glowing eyes,
+// in a frame's own pixels.
+const NPC_CYCLE = { smith: 2.4, peddler: 2.8, weaver: 3 };
+const EYES = { weaver: [[18, 29], [25, 29]] };
+const NPC_IMG = {};
+function npcSheet(k) {
+  let im = NPC_IMG[k];
+  if (!im) { im = NPC_IMG[k] = new Image(); im.src = new URL(`../art/sprites/npcs/${k}.png?v=2`, import.meta.url).href; }
+  return im.complete && im.naturalWidth ? im : null;
+}
 function drawNPC(k, n, t, f) {
-  const fr = monsterFrame(k, t / NPC_CYCLE[k], SPR[k], (t + n.x * 0.01) % 3.7 < 0.12);
-  if (!fr) return;
-  drawSprite(fr, n.x - fr.w / 2, n.y - fr.h + 1, f < 0);
-  if (k === 'peddler') glow(n.x + 7 * f, n.y - 20, '#ffb347', 10, 0.45 + Math.sin(t * 7) * 0.05);
-  if (k === 'weaver') glow(n.x + f, n.y - 20, '#c599ff', 8, 0.35);
+  const im = npcSheet(k);
+  if (!im) return;
+  // each loops on its own beat (offset by where it stands), mirrored to face its work or you
+  const fw = im.naturalWidth / 16, fh = im.naturalHeight, i = Math.floor((t / NPC_CYCLE[k] + (n.x % 7) / 7) * 16) % 16;
+  const w = fw / 3, h = fh / 3, x0 = Math.round((n.x - w / 2) * 3) / 3, y0 = Math.round((n.y + 1 - h) * 3) / 3;
+  ctx.save();
+  if (f < 0) { ctx.translate(2 * x0 + w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(im, i * fw, 0, fw, fh, x0, y0, w, h);
+  ctx.restore();
+  for (const [ex, ey] of EYES[k] || []) glow(x0 + ((f < 0 ? fw - 1 - ex : ex) + 0.5) / 3, y0 + (ey + 0.5) / 3, '#ffd447', 3, 0.3 + 0.15 * Math.sin(t * 2.2));
 }
 
 // what drifts through the air, by the camp's look

@@ -1,22 +1,22 @@
-import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=212';
-import { resetKeys, resetLayout } from './bindings.js?v=212';
-import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=212';
-import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=212';
-import { A } from './audio.js?v=212';
-import { codexNote } from './store.js?v=212';
-import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=212';
-import { buildSprites } from './sprites.js?v=212';
-import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=212';
-import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, payOut, flash, applyPractice } from './world.js?v=212';
+import { openControls, closeControls, updateControls, drawControls } from './control-menu.js?v=213';
+import { resetKeys, resetLayout } from './bindings.js?v=213';
+import { fit, ctx, W, H, P, fillScreen, applyTheme, applyDisplay, hdEnd } from './gfx.js?v=213';
+import { input, keyHit, endFrame, actionHit, placeButtons, releaseTouches } from './input.js?v=213';
+import { A } from './audio.js?v=213';
+import { codexNote } from './store.js?v=213';
+import { OPTIONS, settings, best, loadAll, saveBest, saveSettings, resetSettings, saveRun, loadRun, clearRun, isUnlocked } from './store.js?v=213';
+import { buildSprites } from './sprites.js?v=213';
+import { byId, takeUpgrade, grantAllUpgrades } from './upgrades.js?v=213';
+import { G, fx, newRun, startWave, update, controls, drawWorld, showMap, snapshot, buzz, evolveFx, bankStats, payOut, flash, applyPractice } from './world.js?v=213';
 import {
   drawLeave, drawHUD, drawTitle, titleItems, titleMenu, runMenu, drawUpgrade, updateUpgrade, openUpgrade, upg, drawInheritance,
   pauseItems, pauseMenu, PAUSE_ROW, drawPause, drawOver, vignette, screenFlash, cursor, refreshArt,
   sel, updateSelect, drawSelect, drawLockin, LOCK_LEN, setm, settingsItems, updateSettings, drawSettings, drawSplash, drawIntro, introClock, INTRO_LEN, TITLE_MENU, titleMenuX, titleMenuY, INTRO_CUES,
-} from './ui.js?v=212';
-import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=212';
-import { updateTutorial, drawTutorial } from './tutorial.js?v=212';
-import { openCamp, updateCamp, drawCamp, campNote } from './lobby.js?v=212';
-import { openCodex, updateCodex, drawCodex } from './codex.js?v=212';
+} from './ui.js?v=213';
+import { playStory, updateStory, drawStory, resetChoice, updateChoice, drawChoice, storyTalk, skipTalk } from './story.js?v=213';
+import { updateTutorial, drawTutorial } from './tutorial.js?v=213';
+import { openCamp, updateCamp, drawCamp, campNote } from './lobby.js?v=213';
+import { openCodex, updateCodex, drawCodex } from './codex.js?v=213';
 
 loadAll();
 applyTheme(settings.theme);
@@ -87,7 +87,23 @@ function applySettings(prev) {
   A.settings(settings);
   if (settingsFrom === 'title' && prev.map !== settings.map) showMap(settings.map);
   saveSettings();
+  cornerShow();
 }
+// the page's corner buttons beside fullscreen: sound on or off (the volume is kept), screen shake on or off (turned
+// back on, it returns to what it was, or the default)
+const muteBtn = document.getElementById('mute'), shakeBtn = document.getElementById('shake');
+let shakeWas = settings.shake > 0 ? settings.shake : 0.25;
+function cornerShow() {
+  const set = (b, on, what) => { if (!b) return; b.classList.toggle('off', !on); b.setAttribute('aria-pressed', String(on)); b.title = what + (on ? ' on' : ' off'); };
+  set(muteBtn, !settings.mute, 'Sound'); set(shakeBtn, settings.shake > 0, 'Screen shake');
+}
+muteBtn?.addEventListener('click', (e) => { e.stopPropagation(); settings.mute = !settings.mute; A.settings(settings); saveSettings(); cornerShow(); muteBtn.blur(); });
+shakeBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (settings.shake > 0) { shakeWas = settings.shake; settings.shake = 0; } else settings.shake = shakeWas;
+  saveSettings(); cornerShow(); shakeBtn.blur();
+});
+cornerShow();
 
 const exitMenu = {sel:0};
 let leaving = false;

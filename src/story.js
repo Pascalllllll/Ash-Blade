@@ -16,14 +16,14 @@
 //               deeper   going deeper: the seal breaks, the dark opens its eyes, the fighter goes down
 //               fall     falling in the deep: the fall, the nights they held it back, the sun still rising above
 //   choice    the page after the ending: the run in comic panels, then GO HOME or GO DEEPER
-import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=212';
-import { SPR } from './sprites.js?v=212';
-import { input, keyHit } from './input.js?v=212';
-import { A } from './audio.js?v=212';
-import { G } from './world.js?v=212';
-import { CHARS } from './chars.js?v=212';
-import { drawFighter } from './title-scene.js?v=212';
-import { drawWeaponAt } from './hero-sprites.js?v=212';
+import { W, H, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, disc, ring, glow, text, textO, textW, wrapText, drawSprite } from './gfx.js?v=213';
+import { SPR } from './sprites.js?v=213';
+import { input, keyHit } from './input.js?v=213';
+import { A } from './audio.js?v=213';
+import { G } from './world.js?v=213';
+import { CHARS } from './chars.js?v=213';
+import { drawFighter } from './title-scene.js?v=213';
+import { drawWeaponAt } from './hero-sprites.js?v=213';
 
 export const KING = 'KING', VOID = 'VOID', ASH = 'ASH', NOX = 'NOX';
 const TAU = Math.PI * 2;
@@ -637,17 +637,27 @@ const LORE = [
       const beat = 0.5 + 0.5 * Math.sin(t * 5);
       glow(cx, ty - 12, P.ember, 6 + beat * 2 + flare * 14, 0.5 + flare * 0.5); px(cx, ty - 12, P.gold);
       if (flare > 0) for (let i = 0; i < 8; i++) { const a = (i * TAU) / 8 + t; ctx.globalAlpha = flare; line(cx + Math.cos(a) * 3, ty - 12 + Math.sin(a) * 3, cx + Math.cos(a) * (6 + 16 * (1 - flare)), ty - 12 + Math.sin(a) * (6 + 16 * (1 - flare)), P.gold); ctx.globalAlpha = 1; }
-      // the ledge in front, and the fighters on it, lit red from the pit below
+      // the ledge in front, and the fighters on it: night, so they stand in shadow, lit only along the side that faces
+      // the burning pit, their shadows thrown back away from it. Grom leads, at the very edge, nearest of them all.
       const ly = PY + PH - 12;
       rect(PX, ly, 96, 12, '#0a0508');
       for (let x = 0; x < 96; x += 4) rect(PX + x, ly - (hash(x) * 3 | 0), 4, 3, '#0a0508');
       for (let x = 96; x < 108; x++) rect(PX + x, ly + (x - 96), 1, 12, '#0a0508');
-      glow(PX + 50, ly - 8, P.ember, 36, 0.14);
-      ['TANK', 'BLADE', 'NINJA', 'GUNNER'].forEach((id, i) => drawFighter(id, PX + 14 + i * 21, ly + 1, 1, { t: t + i * 0.4, rim: '#3a0c10' }));
+      glow(PX + 104, ly + 2, P.ember, 34, 0.16);
+      for (const [id, dx, dy, k] of [['GUNNER', 16, -1, 0.6], ['NINJA', 34, -2, 1.2], ['BLADE', 52, -1, 1.8], ['TANK', 78, 2, 0]]) backlit(id, PX + dx, ly + dy, t + k);
     },
   },
 ];
 const TORCH_AT = (k) => 0.9 + k * 0.18;
+// a fighter at the pit's edge at night: their shadow on the ground, thrown away from the pit; their shape lit in ember
+// a pixel toward it; themselves dark (where a browser can't darken a picture, a dark veil over the body does it)
+function backlit(id, x, y, t) {
+  ctx.globalAlpha = 0.75; ell(x - 6, y + 1, 9, 1.5, '#000000'); ctx.globalAlpha = 1;
+  drawFighter(id, x + 2 / 3, y, 1, { t, tint: '#7a1c10' });
+  drawFighter(id, x + 1 / 3, y, 1, { t, tint: '#ff6a2a', alpha: 0.9 });
+  if (typeof ctx.filter === 'string') { ctx.save(); ctx.filter = 'brightness(0.34) saturate(0.75)'; drawFighter(id, x, y, 1, { t }); ctx.restore(); }
+  else { drawFighter(id, x, y, 1, { t }); drawFighter(id, x, y, 1, { t, tint: '#07030a', alpha: 0.66 }); }
+}
 // when the King falls
 const ENDING = [
   {

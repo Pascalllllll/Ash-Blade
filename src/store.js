@@ -22,7 +22,7 @@ export const OPTIONS = {
 const DEFAULTS = {
   master: 1, music: 0.6, sfx: 0.9, track: 'AUTO', combat: 'HYPERDRIVE',
   theme: 'EMBER', vibrancy: 1, bright: 1, contrast: 1, hue: 0, crt: false,
-  shake: 0.25, flash: true, numbers: true, particles: 'HIGH',
+  shake: 0.25, flash: true, numbers: true, particles: 'HIGH', mute: false,
   map: 'DESCENT', diff: 'NORMAL', char: 'BLADE', vibe: 'MEDIUM', blood: '10 SEC', res: 'AUTO',
   // TESTING, temporary: nothing can hurt you; runs start at a later wave
   god: false, testStart: 'OFF', testBuffs: false, testCharge: false, testRoster: false,
@@ -72,7 +72,7 @@ export function loadAll() {
   const s = read(KEY_SETTINGS);
   if (s) {
     for (const k in RANGES) settings[k] = num(s[k], RANGES[k][0], RANGES[k][1], DEFAULTS[k]);
-    for (const k of ['crt', 'flash', 'numbers', 'god', 'testBuffs', 'testCharge', 'testRoster']) settings[k] = typeof s[k] === 'boolean' ? s[k] : DEFAULTS[k];
+    for (const k of ['crt', 'flash', 'numbers', 'mute', 'god', 'testBuffs', 'testCharge', 'testRoster']) settings[k] = typeof s[k] === 'boolean' ? s[k] : DEFAULTS[k];
     for (const k in OPTIONS) settings[k] = OPTIONS[k].includes(s[k]) ? s[k] : DEFAULTS[k];
     // settings saved before HYPERDRIVE existed move to it once
     if (!(s.ver >= 3)) { settings.combat = 'HYPERDRIVE'; settings.track = 'AUTO'; }

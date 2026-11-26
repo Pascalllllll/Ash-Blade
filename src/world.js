@@ -1,29 +1,29 @@
-import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=212';
-import { SPR, EVO_NAMES } from './sprites.js?v=212';
-import { A } from './audio.js?v=212';
-import { input, actionDown, actionHit } from './input.js?v=212';
-import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF, codexNote } from './store.js?v=212';
-import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=212';
-import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=212';
-import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=212';
-import { byId, grantAllUpgrades } from './upgrades.js?v=212';
-import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=212';
-import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=212';
-import { WEAPON_ART } from './hero-rig.js?v=212';
-import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=212';
-import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=212';
-import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=212';
+import { remap, W, H, FW, SX, onWidth, fillScreen, ctx, P, makeCanvas, rect, px, line, disc, ring, drawSprite, glow, glowBegin, glowAt, glowEnd, text, textO, snap, SS } from './gfx.js?v=213';
+import { SPR, EVO_NAMES } from './sprites.js?v=213';
+import { A } from './audio.js?v=213';
+import { input, actionDown, actionHit } from './input.js?v=213';
+import { settings, OPTIONS, best, saveBest, testing, TEST_BUFF, codexNote } from './store.js?v=213';
+import { AW, AH, B, TORCHES, MAPS, buildFloor, stageFor, depthOf } from './maps.js?v=213';
+import { CHARS, ALLY, swordAngle, previewable } from './chars.js?v=213';
+import { BOSSES, bossFor, ORDER, updateTricks, drawTricks } from './bosses.js?v=213';
+import { byId, grantAllUpgrades } from './upgrades.js?v=213';
+import { KILLS, startDeath, updateDeath, drawDeath, drawDeathUnder } from './deaths.js?v=213';
+import { softFacingLeft, drawWeaponAt, sheathPose } from './hero-sprites.js?v=213';
+import { WEAPON_ART } from './hero-rig.js?v=213';
+import { say, updateTalk, TALK, waveTalk, bossDeadLines, lastWords } from './story.js?v=213';
+import { loadMonsterSheet, startMonsterMotion, advanceMonsterMotion, monsterFrame, monsterPose } from './monster-motion.js?v=213';
+import { drawBossArrival, bossArrivalUpdate, ARRIVE_LIFE } from './boss-arrivals.js?v=213';
 // how long each boss's arrival takes to fade once the boss is here (the Brood Mother's web lasts while she comes down)
 const ARRIVE_FADE = { brood: 3.8, herald: 1.8, nox: 2.4, king: 1.6, eclipse: 1.8, wyrm: 1.4, clock: 1.4, warden: 1.2, colossus: 0.8, mirror: 1 };
-import { floorArrival } from './floor-arrivals.js?v=212';
-import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction, drawLash } from './deep.js?v=212';
-import { startTutorial, tutNote, tutAllows, tutImmune, drawTutorialMarks } from './tutorial.js?v=212';
-import { drawEmote } from './emotes.js?v=212';
-import { drawVoid, drawVoidGround } from './void.js?v=212';
-import { drawObstacle, drawObstacleShadow } from './obstacles.js?v=212';
-import { perkFactors } from './shop.js?v=212';
-import { PROPS, MAP_PROPS, drawProp } from './props.js?v=212';
-import { dailyNote, dailyMax } from './daily.js?v=212';
+import { floorArrival } from './floor-arrivals.js?v=213';
+import { awakenNox, deepBossTurn, drawDeepFloor, noxDust, rememberAction, drawLash } from './deep.js?v=213';
+import { startTutorial, tutNote, tutAllows, tutImmune, drawTutorialMarks } from './tutorial.js?v=213';
+import { drawEmote } from './emotes.js?v=213';
+import { drawVoid, drawVoidGround } from './void.js?v=213';
+import { drawObstacle, drawObstacleShadow } from './obstacles.js?v=213';
+import { perkFactors } from './shop.js?v=213';
+import { PROPS, MAP_PROPS, drawProp, pickBox, piecesOf } from './props.js?v=213';
+import { dailyNote, dailyMax } from './daily.js?v=213';
 
 export { AW, AH, B };
 export const TAU = Math.PI * 2;
@@ -298,6 +298,7 @@ export function startWave(n) {
   // the descent: the wave after a boss is fought a floor further down, on a stage of its own (no twist on it)
   const below = G.training ? G.mapKey : stageFor(G.arena, n), newFloor = below !== G.mapKey;
   if (newFloor) enterStage(below);
+  else if (n > 1) dropBoxes();
   G.twist = null;
   if (!boss && !newFloor && n >= 6 && Math.random() < 0.34) {
     const keys = Object.keys(TWISTS).filter((k) => k !== G.lastTwist);
@@ -390,8 +391,9 @@ export function pushOut(o, r, side = 0) {
     if (side) { o.x += (-dy / d) * side; o.y += (dx / d) * side / 1.8; }
   };
   for (const ob of G.obst || []) push(ob);
-  // the things to break stand in the way too, except of something smashing through them (updateProps breaks them)
-  if (G.props?.length && !smashes(o)) for (const ob of G.props) if (!ob.dead && ob !== o) push(ob);
+  // the things to break stand in the way too (once down on the floor), except of something smashing through them
+  // (updateProps breaks them)
+  if (G.props?.length && !smashes(o)) for (const ob of G.props) if (!ob.dead && ob !== o && !(ob.z > 3)) push(ob);
   return hit;
 }
 // a point moved out of any obstacle (a safe spot a boss's rite marks must be reachable)
@@ -400,34 +402,65 @@ const inObstacle = (x, y, pad = 0) => (G.obst || []).some((ob) => hyp(x - ob.x, 
 
 // ---------- things to break ----------
 // props.js has what they are and how they look. A fresh set is laid out on every new floor (the first wave, and every
-// five waves past a boss): clusters of two or three, crates and the floor's own things, clear of the middle (where the
-// fighter starts), the walls, the floor's obstacles and its lava. They wait in G.E with the monsters (prop: true), so
-// every blow, shot, blast and ultimate in the game breaks them; foe() keeps them out of anything that picks a monster
-// to aim at, and the wave never waits for them. A dash, a boss on the ground, a charging Brute or a body knocked
-// flying goes straight through one and smashes it. One in ten drops a coin, one in thirty-three a heart.
+// five waves past a boss): 26 to 32 of them in clusters of two to four, mostly boxes of every kind, the rest the floor's
+// own things, clear of the middle (where the fighter starts), the walls, the floor's obstacles and its lava; and as
+// each later wave on the floor starts, a few new boxes drop in from above (dropBoxes), never more than the floor began
+// with. They wait in G.E with the monsters (prop: true), so every blow, shot, blast and ultimate in the game breaks
+// them; foe() keeps them out of anything that picks a monster to aim at, and the wave never waits for them. A dash, a
+// boss on the ground, a charging Brute or a body knocked flying goes straight through one and smashes it. One in ten
+// drops a coin, one in thirty-three a heart.
+const PROP_MID = () => ({ x: AW / 2, y: (B.y0 + B.y1) / 2 + 10 });
+function propFree(x, y, r, gap = 3) {
+  const mid = PROP_MID();
+  return x > B.x0 + 14 && x < B.x1 - 14 && y > B.y0 + 22 && y < B.y1 - 8
+    && hyp(x - mid.x, (y - mid.y) * 1.3) > 66 && !inObstacle(x, y, r + 10)
+    && !(G.map.pools || []).some(([px0, py0, pr]) => hyp(x - px0, y - py0) < pr + r + 10)
+    && !G.props.some((o) => !o.dead && hyp(o.x - x, (o.y - y) * 1.6) < o.r + r + gap);
+}
+function makeProp(kind, x, y) {
+  const d = PROPS[kind];
+  const e = { prop: true, type: 'prop', kind, v: Math.random(), w: Math.random(), x, y, hx: x, hy: y, r: d.r, hp: d.hp, maxHp: d.hp, z: 0, vz: 0, kx: 0, ky: 0, vx: 0, vy: 0, state: 'idle', flash: 0, wob: 0, anim: 0, face: 1,
+    def: { r: d.r, col: d.pal[0], colD: d.pal[2], kbRes: 1, scale: 1, speed: 0, score: 0, energy: 0 } };
+  G.props.push(e); G.E.push(e);
+  return e;
+}
 function spawnProps() {
   for (const e of G.props) e.dead = true;
   G.props = [];
+  G.propWant = 0;
   const own = MAP_PROPS[G.mapKey];
   if (G.night || !own) return;
-  const want = G.training ? 9 : 14 + Math.floor(rnd(4)), mid = { x: AW / 2, y: (B.y0 + B.y1) / 2 + 10 };
-  const free = (x, y, r) => x > B.x0 + 14 && x < B.x1 - 14 && y > B.y0 + 22 && y < B.y1 - 8
-    && hyp(x - mid.x, (y - mid.y) * 1.3) > 66 && !inObstacle(x, y, r + 10)
-    && !(G.map.pools || []).some(([px0, py0, pr]) => hyp(x - px0, y - py0) < pr + r + 10)
-    && !G.props.some((o) => hyp(o.x - x, (o.y - y) * 1.6) < o.r + r + 5);
+  const want = G.training ? 12 : 26 + Math.floor(rnd(7));
+  G.propWant = want;
   let kegs = 0;
-  for (let tries = 0; G.props.length < want && tries < 300; tries++) {
-    const cx = rnd(B.x0 + 26, B.x1 - 26), cy = rnd(B.y0 + 28, B.y1 - 14), n = 2 + Math.floor(rnd(2));
+  for (let tries = 0; G.props.length < want && tries < 400; tries++) {
+    const cx = rnd(B.x0 + 26, B.x1 - 26), cy = rnd(B.y0 + 28, B.y1 - 14), n = 2 + Math.floor(rnd(3));
     for (let i = 0; i < n && G.props.length < want; i++) {
-      let kind = Math.random() < 0.4 ? (Math.random() < 0.7 ? 'crate' : 'smallcrate') : own[Math.floor(rnd(own.length))];
+      let kind = Math.random() < 0.7 ? pickBox() : own[Math.floor(rnd(own.length))];
       if (PROPS[kind].boom && kegs >= 3) kind = 'crate';
-      const d = PROPS[kind], x = Math.round(cx + rnd(-15, 15)), y = Math.round(cy + rnd(-8, 8));
-      if (!free(x, y, d.r)) continue;
-      if (d.boom) kegs++;
-      const e = { prop: true, type: 'prop', kind, x, y, hx: x, hy: y, r: d.r, hp: d.hp, maxHp: d.hp, z: 0, kx: 0, ky: 0, vx: 0, vy: 0, state: 'idle', flash: 0, wob: 0, anim: 0, face: 1,
-        def: { r: d.r, col: d.pal[0], colD: d.pal[2], kbRes: 1, scale: 1, speed: 0, score: 0, energy: 0 } };
-      G.props.push(e); G.E.push(e);
+      // a few tries for each, so the big boxes find room as often as the small things do
+      const d = PROPS[kind];
+      for (let k = 0; k < 5; k++) {
+        const x = Math.round(cx + rnd(-16, 16)), y = Math.round(cy + rnd(-9, 9));
+        if (!propFree(x, y, d.r)) continue;
+        if (d.boom) kegs++;
+        makeProp(kind, x, y);
+        break;
+      }
     }
+  }
+}
+// a later wave on the same floor: two to four new boxes fall in from above, clear of the fighter, so there is always
+// something to smash (never more on the floor than it started with)
+function dropBoxes() {
+  if (G.night || G.training || !G.propWant || !MAP_PROPS[G.mapKey]) return;
+  let n = Math.min(G.propWant - G.props.filter((e) => !e.dead).length, 2 + Math.floor(rnd(3)));
+  for (let tries = 0; n > 0 && tries < 120; tries++) {
+    const kind = pickBox(), d = PROPS[kind], x = Math.round(rnd(B.x0 + 30, B.x1 - 30)), y = Math.round(rnd(B.y0 + 30, B.y1 - 14));
+    if (!propFree(x, y, d.r, 6) || hyp(x - G.p.x, (y - G.p.y) * 1.3) < 60) continue;
+    const e = makeProp(kind, x, y);
+    e.z = 110 + rnd(90); e.vz = -rnd(0, 30);
+    n--;
   }
 }
 // what goes straight through things to break instead of stopping at them
@@ -443,7 +476,8 @@ function hitProp(e, dmg, o) {
   e.hp -= dmg >= 20 || o.src === 'ult' || o.src === 'boom' ? e.hp : 1;
   if (e.hp <= 0) { breakProp(e, dir); return false; }
   e.flash = 0.12; e.wob = 0.24;
-  for (let i = 0; i < 4; i++) part(e.x + rnd(-2, 2), e.y - 1, Math.cos(dir) * rnd(20, 70) + rnd(-20, 20), Math.sin(dir) * rnd(10, 40), rnd(0.3, 0.5), d.pal[i % 3], { z: d.h * 0.5, vz: rnd(30, 80), g: 320, drag: 2 });
+  const pal = piecesOf(e);
+  for (let i = 0; i < 4; i++) part(e.x + rnd(-2, 2), e.y - 1, Math.cos(dir) * rnd(20, 70) + rnd(-20, 20), Math.sin(dir) * rnd(10, 40), rnd(0.3, 0.5), pal[i % 3], { z: d.h * 0.5 + (e.z || 0), vz: rnd(30, 80), g: 320, drag: 2 });
   A.knock(d.mat);
   return false;
 }
@@ -451,7 +485,7 @@ function hitProp(e, dmg, o) {
 export function breakProp(e, dir = rnd(TAU)) {
   if (e.dead) return;
   e.dead = true;
-  const d = PROPS[e.kind], { x, y } = e, h = d.h, [c1, c2, c3] = d.pal;
+  const d = PROPS[e.kind], { x, y } = e, h = d.h, [c1, c2, c3] = piecesOf(e);
   const n = d.r >= 6 ? 16 : 11;
   for (let i = 0; i < n; i++) {
     const a = dir + rnd(-1.1, 1.1), v = rnd(30, 120);
@@ -483,6 +517,14 @@ function updateProps(dt) {
     // they never move, whatever pulls or shoves the monsters
     e.x = e.hx; e.y = e.hy; e.kx = e.ky = 0;
     e.flash = Math.max(0, e.flash - dt); e.wob = Math.max(0, e.wob - dt);
+    // one dropping in: it falls, then lands with a thump, a puff of dust and a little shake
+    if (e.z > 0) {
+      e.vz -= 620 * dt; e.z += e.vz * dt;
+      if (e.z > 0) continue;
+      e.z = 0; e.vz = 0; e.wob = 0.2;
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; part(e.x + Math.cos(a) * e.r, e.y, Math.cos(a) * rnd(25, 50), Math.sin(a) * rnd(8, 18), rnd(0.35, 0.6), '#8a8088', { drag: 3, s: 2 }); }
+      A.knock(PROPS[e.kind].mat); shake(0.03);
+    }
     if (smashes(G.p) && hyp(G.p.x - e.x, (G.p.y - e.y) * 1.6) < G.p.r + e.r + 3) { breakProp(e, Math.atan2(e.y - G.p.y, e.x - G.p.x)); continue; }
     for (const o of G.E) if (!o.dead && smashes(o) && hyp(o.x - e.x, (o.y - e.y) * 1.6) < o.r + e.r) { breakProp(e, Math.atan2(e.y - o.y, e.x - o.x)); break; }
   }

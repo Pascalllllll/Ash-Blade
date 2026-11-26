@@ -1,12 +1,12 @@
 // Signature deaths and kills. Every fighter dies their own way, a short gory scene played in real time (so the
 // death slow-motion doesn't drag it out), and every fighter kills their own way.
-import { ctx, P, rect, px, line, disc, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=212';
-import { A } from './audio.js?v=212';
-import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=212';
+import { ctx, P, rect, px, line, disc, glow, text, textO, makeCanvas, SS, snap } from './gfx.js?v=213';
+import { A } from './audio.js?v=213';
+import { G, TAU, rnd, clamp, part, bleed, splat, stain, dust, sparks, scorch, addRing, addText, glitch, flash, shake, kick, heroSet, sprFor, shadow } from './world.js?v=213';
 import {
   BLOOD, ease, easeIn, at, frame, drawBody, drawHero, drawWeapon, cellToWorld, handPos, weaponName, weaponLen, restAngle, cutFrame, placePieces,
   stepPieces, drawPieces, pieceToWorld, eachPiecePixel, spurt, chunks, addPool, stepPools, drawPools, makeCracks, drawCracks, stampCracks,
-} from './scene-fx.js?v=212';
+} from './scene-fx.js?v=213';
 
 // ---------- sprite pixels, for effects that take a body apart pixel by pixel ----------
 const pxCache = new WeakMap();
@@ -428,14 +428,14 @@ const DEATHS = {
   // and blood runs out of his visor. He braces on his hammer until the haft snaps, and the crown slams him down onto
   // his own boots, blood, meat and bone bursting out of every seam. His helm pops off a pumping stump and rolls away,
   // its visor light going out, while the blood keeps pumping into a spreading pool.
-  // The crushing is done in whole art rows of his sprite (helm 0-18, chest 19-28, legs 29-32, boots 33-34): a row
+  // The crushing is done in whole art rows of his sprite (helm 0-22, chest 23-33, legs 34-37, boots 38-39): a row
   // that gives is gone, everything above it drops onto what's below, and a band of gore squeezes out of the seam.
   TANK: {
     line: 'THE PIT CLOSES ITS FIST', col: '#8b98ab',
-    // art rows of his 33-row sprite: the knees (28 to 30), the spine (22, 23), then everything between the helm (rows 0
-    // to 16) and the boots
-    STEPS: [[0.42, [28, 29], 'knees'], [0.66, [27, 30], 'knees'], [1.02, [22, 23], 'spine'], [1.3, [17, 18, 19, 20, 21, 24, 25, 26], 'flat']],
-    ROWS: 33, NECK: 17, HAND: 27, VISOR: 16,
+    // art rows of his 40-row sprite: the knees (34 to 37), the spine (28, 29), then everything between the helm (rows 0
+    // to 22, the visor slit at 17 to 19) and the boots (38, 39); his hammer hand is on row 31
+    STEPS: [[0.42, [35, 36], 'knees'], [0.66, [34, 37], 'knees'], [1.02, [28, 29], 'spine'], [1.3, [23, 24, 25, 26, 27, 30, 31, 32, 33], 'flat']],
+    ROWS: 40, NECK: 23, HAND: 31, VISOR: 18,
     start(d) {
       Object.assign(d.s, { gone: new Set(), white: 0, jx: 0, cA: 0, slam: false, head: null, eye: 1, pump: 0, popped: false });
       A.powerUp(0.5);

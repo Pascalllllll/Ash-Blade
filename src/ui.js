@@ -1,19 +1,19 @@
-import { drawGold, perkFactors } from './shop.js?v=212';
-import { dailyList } from './daily.js?v=212';
-import { keys, keyLabel } from './bindings.js?v=212';
-import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=212';
-import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=212';
-import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=212';
-import { SPR, icon } from './sprites.js?v=212';
-import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=212';
-import { A } from './audio.js?v=212';
-import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=212';
-import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock, DASH_COST, dashGap } from './world.js?v=212';
-import { CHARS, skillPreview } from './chars.js?v=212';
-import { BOSSES, bossFor } from './bosses.js?v=212';
-import { MAPS } from './maps.js?v=212';
-import { drawTalk } from './story.js?v=212';
-import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=212';
+import { drawGold, perkFactors } from './shop.js?v=213';
+import { dailyList } from './daily.js?v=213';
+import { keys, keyLabel } from './bindings.js?v=213';
+import { W, H, FW, SX, onWidth, fillScreen, ctx, P, BAYER, makeCanvas, rect, px, line, ring, disc, drawSprite, glow, text, textO, textW, wrapText, logoCanvas, hdBegin, hdActive, hdCtx, target } from './gfx.js?v=213';
+import { drawScene, drawFighter, drawLogo, flourishAngle, flourishFx, fighterColor } from './title-scene.js?v=213';
+import { loadPortraits, portraitReady, drawPortrait, portraitLand, PORTRAIT_SCALE } from './portraits.js?v=213';
+import { SPR, icon } from './sprites.js?v=213';
+import { input, keyHit, TOUCH_BTNS, STICK_X, STICK_Y, STICK_R } from './input.js?v=213';
+import { A } from './audio.js?v=213';
+import { settings, best, OPTIONS, isUnlocked, TEST_BUFF, testing } from './store.js?v=213';
+import { TWISTS, multiName, G, fx, RANKS, RANK_POWER, floor, decal, AW, AH, isBossWave, buzz, canVibrate, bossLock, DASH_COST, dashGap } from './world.js?v=213';
+import { CHARS, skillPreview } from './chars.js?v=213';
+import { BOSSES, bossFor } from './bosses.js?v=213';
+import { MAPS } from './maps.js?v=213';
+import { drawTalk } from './story.js?v=213';
+import { byId, rollUpgrades, UPGRADES } from './upgrades.js?v=213';
 const UPG_EVO = Object.fromEntries(UPGRADES.filter((u) => u.req).map((u) => [u.req, u.id]));
 
 const ease = (k) => 1 - Math.pow(1 - Math.min(1, Math.max(0, k)), 3);
@@ -592,7 +592,7 @@ const stepList = (k) => (dir) => { settings[k] = cycle(OPTIONS[k], settings[k], 
 const toggle = (k) => () => { settings[k] = !settings[k]; };
 export function settingsItems(ctxInfo) {
   if (setm.tab === 0) return [
-    { label: 'MASTER VOLUME', value: () => pct(settings.master), adjust: stepNum('master', 0.1, 0, 1) },
+    { label: 'MASTER VOLUME', value: () => (settings.mute ? 'MUTED' : pct(settings.master)), adjust: (dir) => { if (settings.mute) settings.mute = false; else stepNum('master', 0.1, 0, 1)(dir); } },
     { label: 'MUSIC', value: () => pct(settings.music), adjust: stepNum('music', 0.1, 0, 1) },
     { label: 'SOUND EFFECTS', value: () => pct(settings.sfx), adjust: stepNum('sfx', 0.1, 0, 1) },
     { label: 'SOUNDTRACK', value: () => (settings.track === 'AUTO' ? 'AUTO (FOLLOWS THE FIGHT)' : settings.track), adjust: stepList('track') },

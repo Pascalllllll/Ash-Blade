@@ -6,16 +6,18 @@
 //   the Smith     PERKS: permanent upgrades, each fighter's own. Every fighter starts weaker than before (NERF) and
 //                 the Smith's work makes them stronger than they ever were.
 // Prices are high on purpose. The shop's screen (openShop, updateShop, drawShop) is shown over the camp by lobby.js.
-import { ctx, W, H, FW, SX, P, rect, px, line, disc, ring, glow, text, textO, textW } from './gfx.js?v=212';
-import { A } from './audio.js?v=212';
-import { input, keyHit } from './input.js?v=212';
-import { best, saveBest } from './store.js?v=212';
-import { CHARS } from './chars.js?v=212';
-import { drawFighter } from './title-scene.js?v=212';
-import { dailyList, dailyClaim, dailyDay } from './daily.js?v=212';
+import { ctx, W, H, FW, SX, P, rect, px, disc, ring, glow, text, textO, textW } from './gfx.js?v=213';
+import { A } from './audio.js?v=213';
+import { input, keyHit } from './input.js?v=213';
+import { best, saveBest } from './store.js?v=213';
+import { CHARS } from './chars.js?v=213';
+import { drawFighter } from './title-scene.js?v=213';
+import { dailyList, dailyClaim, dailyDay } from './daily.js?v=213';
+import { DRAW_DECOR, drawLanternStrings } from './decor-art.js?v=213';
+
+export { DRAW_DECOR, drawLanternStrings };
 
 const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
-const TAU = Math.PI * 2;
 
 // ---------- permanent upgrades and the nerf they make up for ----------
 export const NERF = { wpn: 0.85, energy: 0.85, ult: 0.88 };
@@ -45,19 +47,29 @@ export const DECOR = [
   { id: 'head', free: true, name: 'FALLEN HEAD', x: 500, y: 178, r: 11 },
   { id: 'column', free: true, name: 'BROKEN COLUMN', x: 146, y: 158, r: 6 },
   { id: 'bones', free: true, name: 'BONES', x: 320, y: 198, r: 0 },
-  { id: 'cherry', name: 'CHERRY TREE', price: 60, x: 100, y: 100, r: 6, d: ["A CUTTING FROM THE TREE AT RIN'S SHRINE.", 'IT BLOOMS HERE TOO.'] },
-  { id: 'windmill', name: 'LITTLE WINDMILL', price: 70, x: 690, y: 104, r: 7, d: ["RIVET'S. SHE SAYS IT RUNS ON NOTHING.", 'IT RUNS ON SPITE.'] },
-  { id: 'rack', name: 'WEAPON RACK', price: 35, x: 24, y: 170, r: 7, d: ['SWORDS AND SPEARS THE FALLEN LEFT', 'AT THE RIM. NONE OF THEM RUSTED.'] },
-  { id: 'fountain', name: 'EMBER FOUNTAIN', price: 120, x: 360, y: 204, r: 9, d: ['IT POURS LIGHT, NOT WATER.', 'NOBODY KNOWS WHERE IT COMES FROM.'] },
-  { id: 'meadow', name: 'FLOWER PATCH', price: 30, x: 452, y: 198, r: 0, d: ['UNIT-7 PLANTED IT. NEW ORDER:', 'KEEP IT SAFE.'] },
-  { id: 'telescope', name: 'STAR TELESCOPE', price: 55, x: 470, y: 152, r: 6, d: ['MORROW STILL WATCHES FOR THE STARS', 'TO COME BACK.'] },
-  { id: 'tavern', name: 'TAVERN CORNER', price: 45, x: 630, y: 200, r: 8, d: ["BARRELS FROM VEGA'S FAVORITE TAVERN.", 'THE TAB IS HUGE.'] },
-  { id: 'tomb', name: "THE KING'S TOMB", price: 80, x: 176, y: 204, r: 8, d: ['GROM CARVED IT HIMSELF.', 'AUREL, WHO WAS GOOD ONCE.'] },
-  { id: 'terminal', name: 'OLD TERMINAL', price: 40, x: 700, y: 204, r: 6, d: ["THE DEV'S. IT IS STILL COMPILING", 'SOMETHING.'] },
-  { id: 'banners', name: 'SUN BANNERS', price: 90, x: 322, y: 96, x2: 398, r: 0, d: ["TWO OF AUREL'S OLD BANNERS, THE SUN", 'STITCHED IN GOLD. FROM BEFORE.'] },
+  { id: 'stew', name: 'STEW POT', price: 30, x: 268, y: 202, r: 6, h: 32, d: ["VEGA'S STEW. DON'T ASK WHAT'S IN IT.", 'IT IS ALWAYS HOT.'] },
+  { id: 'meadow', name: 'FLOWER PATCH', price: 30, x: 452, y: 198, r: 0, h: 14, d: ['UNIT-7 PLANTED IT. NEW ORDER:', 'KEEP IT SAFE.'] },
+  { id: 'rack', name: 'WEAPON RACK', price: 35, x: 24, y: 170, r: 7, h: 40, d: ['SWORDS AND SPEARS THE FALLEN LEFT', 'AT THE RIM. NONE OF THEM RUSTED.'] },
+  { id: 'shrooms', name: 'GLOW MUSHROOMS', price: 35, x: 124, y: 164, r: 0, h: 26, d: ['THEY GROW IN THE DARK AND GLOW.', 'THE DEEPER THE PIT, THE BRIGHTER.'] },
+  { id: 'terminal', name: 'OLD TERMINAL', price: 40, x: 700, y: 204, r: 6, h: 27, d: ["THE DEV'S. IT IS STILL COMPILING", 'SOMETHING.'] },
+  { id: 'cat', name: 'THE CAMP CAT', price: 40, x: 402, y: 186, r: 0, h: 20, d: ['IT CAME UP OUT OF THE PIT ONE NIGHT.', 'NOBODY OWNS IT. IT OWNS THE FIRE.'] },
+  { id: 'tavern', name: 'TAVERN CORNER', price: 45, x: 630, y: 200, r: 8, h: 32, ox: -7, d: ["BARRELS FROM VEGA'S FAVORITE TAVERN.", 'THE TAB IS HUGE.'] },
+  { id: 'raven', name: "RAVEN'S PERCH", price: 45, x: 68, y: 110, r: 3, h: 36, d: ['IT WATCHES THE PIT ALL NIGHT.', 'IT HAS NEVER SAID WHAT IT SAW.'] },
   { id: 'lanterns', name: 'LANTERN STRINGS', price: 50, x: 0, y: 0, r: 0, d: ['PAPER LANTERNS ACROSS THE CAMP.', 'THEY NEVER GO OUT.'] },
-  { id: 'throne', name: 'EMPTY THRONE', price: 200, x: 52, y: 204, r: 9, d: ["A COPY OF AUREL'S THRONE.", 'NOBODY SITS IN IT. NOBODY EVER WILL.'] },
-  { id: 'torii', name: 'SHRINE GATE', price: 75, x: 360, y: 100, r: 0, d: ['A RED GATE LIKE THE ONE AT THE', 'RED ONI SHRINE.'] },
+  { id: 'telescope', name: 'STAR TELESCOPE', price: 55, x: 470, y: 152, r: 6, h: 26, d: ['MORROW STILL WATCHES FOR THE STARS', 'TO COME BACK.'] },
+  { id: 'cherry', name: 'CHERRY TREE', price: 60, x: 100, y: 100, r: 6, h: 41, d: ["A CUTTING FROM THE TREE AT RIN'S SHRINE.", 'IT BLOOMS HERE TOO.'] },
+  { id: 'bench', name: 'WORKBENCH', price: 60, x: 690, y: 176, r: 8, h: 26, d: ["RIVET'S. HALF THE CAMP'S BOLTS", 'WERE MADE ON IT.'] },
+  { id: 'well', name: 'WISHING WELL', price: 65, x: 596, y: 168, r: 9, h: 36, d: ['THROW A COIN IN. NOTHING COMES BACK.', 'THE PIT HEARS YOU ANYWAY.'] },
+  { id: 'windmill', name: 'LITTLE WINDMILL', price: 70, x: 690, y: 104, r: 7, h: 44, d: ["RIVET'S. SHE SAYS IT RUNS ON NOTHING.", 'IT RUNS ON SPITE.'] },
+  { id: 'wartable', name: 'WAR TABLE', price: 70, x: 252, y: 152, r: 9, h: 22, d: ['A MAP OF THE PIT, FLOOR BY FLOOR.', 'KAEL MARKS EVERY FLOOR HE CLEARS.'] },
+  { id: 'torii', name: 'SHRINE GATE', price: 75, x: 360, y: 100, r: 0, h: 34, d: ['A RED GATE LIKE THE ONE AT THE', 'RED ONI SHRINE.'] },
+  { id: 'tomb', name: "THE KING'S TOMB", price: 80, x: 176, y: 204, r: 8, h: 26, d: ['GROM CARVED IT HIMSELF.', 'AUREL, WHO WAS GOOD ONCE.'] },
+  { id: 'koi', name: 'KOI POND', price: 85, x: 118, y: 194, r: 12, h: 14, d: ['THE FISH SWAM UP OUT OF THE PIT.', 'THEY GLOW A LITTLE. NOBODY MINDS.'] },
+  { id: 'banners', name: 'SUN BANNERS', price: 90, x: 322, y: 96, x2: 398, r: 0, h: 40, ox: -7, d: ["TWO OF AUREL'S OLD BANNERS, THE SUN", 'STITCHED IN GOLD. FROM BEFORE.'] },
+  { id: 'armor', name: "GROM'S OLD ARMOR", price: 95, x: 232, y: 106, r: 6, h: 45, d: ["HIS ARMOR FROM THE KING'S GUARD.", "HE WON'T WEAR IT. HE WON'T SELL IT."] },
+  { id: 'fountain', name: 'EMBER FOUNTAIN', price: 120, x: 360, y: 204, r: 9, h: 32, d: ['IT POURS LIGHT, NOT WATER.', 'NOBODY KNOWS WHERE IT COMES FROM.'] },
+  { id: 'starstone', name: 'STARSTONE', price: 130, x: 568, y: 104, r: 4, h: 30, d: ['A PIECE OF A STAR THAT FELL.', 'MORROW SAYS IT HUMS. IT DOES.'] },
+  { id: 'throne', name: 'EMPTY THRONE', price: 200, x: 52, y: 204, r: 9, h: 46, d: ["A COPY OF AUREL'S THRONE.", 'NOBODY SITS IN IT. NOBODY EVER WILL.'] },
 ];
 export const decorShown = (it) => (it.free || best.owned.includes(it.id)) && !best.hidden.includes(it.id);
 
@@ -88,131 +100,11 @@ function buy(id, price) {
   return true;
 }
 
-// ---------- the decorations, drawn in pixels at their feet (x, y) ----------
-function shadowAt(x, y, w) { ctx.globalAlpha = 0.35; for (let i = -2; i <= 2; i++) rect(x - w + Math.abs(i), y + i, w * 2 - Math.abs(i) * 2, 1, '#05030a'); ctx.globalAlpha = 1; }
-const ASHC = ['#4e464e', '#6a6068', '#2e282e', '#8a8088'];
-function ashFlakes(x, y, t, n = 2) { for (let i = 0; i < n; i++) { const u = (t * 0.4 + i / n + hash(x)) % 1; ctx.globalAlpha = 1 - u; px(x - 2 + i * 4, y - u * 10, '#7a7078'); } ctx.globalAlpha = 1; }
-export const DRAW_DECOR = {
-  // ash statues of the King's people, caught as they were when the ash came
-  statue1(x, y, t) {  // a mother holding her child up
-    shadowAt(x, y, 6); rect(x - 5, y - 2, 10, 2, ASHC[2]);
-    rect(x - 3, y - 16, 6, 14, ASHC[0]); rect(x - 3, y - 16, 2, 14, ASHC[1]); rect(x - 2, y - 21, 5, 5, ASHC[0]); px(x - 1, y - 21, ASHC[1]);
-    rect(x + 2, y - 26, 3, 7, ASHC[0]); rect(x + 2, y - 29, 4, 4, ASHC[1]); rect(x - 4, y - 18, 1, 6, ASHC[0]);
-    line(x - 1, y - 12, x + 1, y - 8, ASHC[2]); px(x + 3, y - 27, ASHC[3]);
-    ashFlakes(x, y - 20, t);
-  },
-  statue2(x, y, t) {  // a soldier kneeling, his spear planted
-    shadowAt(x, y, 7); rect(x - 6, y - 2, 12, 2, ASHC[2]);
-    rect(x - 4, y - 10, 8, 8, ASHC[0]); rect(x - 4, y - 10, 2, 8, ASHC[1]); rect(x - 3, y - 15, 6, 5, ASHC[0]); rect(x - 3, y - 17, 6, 2, ASHC[1]);
-    rect(x - 6, y - 6, 3, 4, ASHC[0]); line(x + 5, y - 2, x + 5, y - 24, ASHC[1]); rect(x + 4, y - 27, 3, 3, ASHC[3]);
-    line(x - 2, y - 8, x + 1, y - 4, ASHC[2]); ashFlakes(x, y - 14, t);
-  },
-  statue3(x, y, t) {  // an old man on his cane, looking up
-    shadowAt(x, y, 5); rect(x - 4, y - 2, 8, 2, ASHC[2]);
-    rect(x - 2, y - 15, 5, 13, ASHC[0]); rect(x - 2, y - 15, 1, 13, ASHC[1]); rect(x - 1, y - 20, 5, 5, ASHC[0]); px(x + 2, y - 20, ASHC[1]);
-    line(x + 4, y - 12, x + 6, y - 2, ASHC[1]); rect(x - 3, y - 13, 2, 3, ASHC[0]); px(x + 3, y - 22, ASHC[3]);
-    ashFlakes(x, y - 18, t);
-  },
-  head(x, y, t) {  // the head of Aurel's great statue, fallen, half in the ground, its crown cracked
-    shadowAt(x, y, 13);
-    for (let r = 0; r < 16; r++) { const w = Math.round(Math.sqrt(1 - ((r - 8) / 9) ** 2) * 11); rect(x - w, y - 2 - r, w * 2, 1, r < 3 ? '#3a3238' : r > 12 ? '#7a7078' : '#5a5058'); }
-    rect(x - 6, y - 12, 4, 2, '#2a2228'); rect(x + 2, y - 12, 4, 2, '#2a2228'); rect(x - 1, y - 9, 2, 3, '#4a4248'); rect(x - 3, y - 6, 6, 1, '#2a2228');
-    for (let i = 0; i < 5; i++) { const h = i === 2 ? 6 : i % 2 ? 4 : 3; rect(x - 9 + i * 4, y - 18 - h, 2, h, i === 3 ? '#5a4a30' : '#8a7448'); }
-    rect(x - 10, y - 19, 21, 2, '#8a7448'); line(x + 3, y - 17, x + 6, y - 8, '#2a2228');
-    if (Math.floor(t * 2 + x) % 7 === 0) px(x - 5, y - 11, '#ff7a2a');
-  },
-  column(x, y) {  // a broken column, fallen pieces beside it
-    shadowAt(x, y, 7); rect(x - 5, y - 4, 10, 4, '#3a3036');
-    rect(x - 4, y - 20, 8, 16, '#5a5058'); rect(x - 4, y - 20, 2, 16, '#7a7078'); rect(x + 2, y - 20, 2, 16, '#3e3640');
-    for (let i = 0; i < 8; i++) rect(x - 4 + i, y - 22 + Math.round(Math.abs(Math.sin(i * 1.9)) * 3), 1, 2, '#6a6068');
-    rect(x + 6, y - 4, 7, 4, '#5a5058'); rect(x + 6, y - 4, 7, 1, '#7a7078');
-  },
-  bones(x, y, t, sk) {
-    const b = sk?.bone || '#c8bca4';
-    for (const [dx, dy] of [[-6, 0], [-2, -2], [3, -1], [7, 1]]) { rect(x + dx, y + dy, 3, 1, b); px(x + dx - 1, y + dy - 1, b); px(x + dx + 3, y + dy + 1, b); }
-    rect(x - 1, y - 4, 3, 3, b); px(x - 1, y - 3, '#2a1a1a'); px(x + 1, y - 3, '#2a1a1a');
-  },
-  cherry(x, y, t) {
-    shadowAt(x, y, 10); rect(x - 1, y - 18, 3, 18, '#5a3a2a'); line(x, y - 14, x - 7, y - 20, '#5a3a2a'); line(x + 1, y - 15, x + 8, y - 21, '#5a3a2a');
-    for (let i = 0; i < 46; i++) { const a = hash(i) * TAU, r = hash(i + 9) * 11; rect(x + Math.cos(a) * r * 1.2, y - 24 + Math.sin(a) * r * 0.6, 2, 2, i % 3 ? '#ff9fc0' : '#ffd0e0'); }
-    for (let i = 0; i < 6; i++) { const u = (t * 0.25 + hash(i + 3)) % 1; px(x - 10 + hash(i + 5) * 20 + u * 14, y - 26 + u * 26, i % 2 ? '#ff9fc0' : '#ffd0e0'); }
-  },
-  windmill(x, y, t) {
-    shadowAt(x, y, 6);
-    for (let r = 0; r < 24; r++) { const w = Math.round(3 + r * 0.12); rect(x - w, y - r - 1, w * 2, 1, r % 6 === 0 ? '#5a4a42' : '#6a5a50'); }
-    rect(x - 1, y - 6, 3, 5, '#2a1e1a');
-    for (let i = 0; i < 4; i++) { const a = t * 1.6 + i * TAU / 4; line(x, y - 25, x + Math.cos(a) * 12, y - 25 + Math.sin(a) * 12, '#d8c8b0', 2); }
-    disc(x, y - 25, 2, '#62efff'); glow(x, y - 25, '#62efff', 7, 0.5);
-  },
-  rack(x, y) {
-    shadowAt(x, y, 8); rect(x - 8, y - 14, 2, 14, '#5a3a28'); rect(x + 7, y - 14, 2, 14, '#5a3a28'); rect(x - 8, y - 13, 17, 2, '#6a4a30'); rect(x - 8, y - 4, 17, 1, '#6a4a30');
-    for (let i = 0; i < 4; i++) { const sx = x - 5 + i * 4; line(sx, y - 3, sx, y - 20 - (i % 2) * 3, i % 2 ? '#c8d0dc' : '#9aa4b4'); rect(sx - 1, y - 8, 3, 1, '#d8a032'); }
-  },
-  fountain(x, y, t) {
-    shadowAt(x, y, 11); rect(x - 10, y - 5, 20, 5, '#4a4250'); rect(x - 10, y - 5, 20, 1, '#6a6070'); rect(x - 8, y - 4, 16, 2, '#ff9a3c');
-    rect(x - 2, y - 14, 4, 9, '#5a5260'); rect(x - 4, y - 15, 8, 2, '#6a6070');
-    for (let i = 0; i < 10; i++) { const u = (t * 0.9 + i / 10) % 1, a = (i % 2 ? 1 : -1) * (0.3 + hash(i) * 0.6); px(x + Math.sin(a) * u * 10, y - 16 - Math.sin(u * Math.PI) * 9 + u * 10, u < 0.5 ? '#ffd447' : '#ff7a2a'); }
-    glow(x, y - 12, '#ff9a3c', 16, 0.45);
-  },
-  meadow(x, y, t) {
-    for (let i = 0; i < 26; i++) { const fx = x - 14 + hash(i + 40) * 28, fy = y - 4 + hash(i + 60) * 8, c = ['#ff9fc0', '#ffd447', '#9fd3ff', '#ffffff'][i % 4]; px(fx, fy, '#5aa84a'); px(fx, fy - 1 - (Math.sin(t * 2 + i) > 0.6 ? 1 : 0), c); }
-  },
-  telescope(x, y, t) {
-    shadowAt(x, y, 6); line(x, y - 8, x - 5, y, '#5a3a28'); line(x, y - 8, x + 5, y, '#5a3a28'); line(x, y - 8, x, y, '#5a3a28');
-    line(x - 4, y - 6, x + 6, y - 16, '#c8903a', 3); line(x - 4, y - 7, x + 6, y - 17, '#fff0b8');
-    if (Math.floor(t * 2) % 3 === 0) { px(x + 8, y - 22, '#ffffff'); glow(x + 8, y - 22, '#c8b8ff', 6, 0.5); }
-  },
-  tavern(x, y, t) {
-    shadowAt(x, y, 10);
-    for (const [dx, dy] of [[-6, 0], [5, 0], [0, -8]]) { rect(x + dx - 4, y + dy - 8, 8, 8, '#7a4a2a'); rect(x + dx - 4, y + dy - 6, 8, 1, '#4a2a18'); rect(x + dx - 4, y + dy - 3, 8, 1, '#4a2a18'); }
-    rect(x + 10, y - 26, 1, 24, '#4a3020'); rect(x + 10, y - 26, 12, 1, '#4a3020');
-    const sw = Math.round(Math.sin(t * 2) * 1); rect(x + 13 + sw, y - 24, 10, 6, '#3a2418'); text('INN', x + 14 + sw, y - 23, '#ffd447', 1);
-  },
-  tomb(x, y, t) {
-    shadowAt(x, y, 9); rect(x - 8, y - 14, 16, 14, '#6a6070'); rect(x - 8, y - 14, 16, 2, '#8a8090'); text('AUREL', x, y - 10, '#2a2430', 1, 'c');
-    for (let i = 0; i < 5; i++) { const h = i === 2 ? 4 : 2; rect(x - 5 + i * 2.5, y - 16 - h, 1, h, '#ffd447'); }
-    for (let i = 0; i < 4; i++) { px(x - 7 + i * 5, y, '#5aa84a'); px(x - 7 + i * 5, y - 1, i % 2 ? '#ff9fc0' : '#ffd447'); }
-  },
-  terminal(x, y, t) {
-    shadowAt(x, y, 7); rect(x - 7, y - 6, 14, 6, '#5a3a28'); rect(x - 6, y - 16, 12, 10, '#2a2e3a'); rect(x - 5, y - 15, 10, 7, '#06120a');
-    for (let i = 0; i < 3; i++) rect(x - 4, y - 14 + i * 2, 3 + ((Math.floor(t * 3) + i) % 4) * 2, 1, '#39ff6a');
-    if (Math.floor(t * 3) % 2) rect(x + 2, y - 10, 2, 1, '#39ff6a');
-    glow(x, y - 11, '#39ff6a', 10, 0.25);
-  },
-  banners(x, y, t) {  // one of the pair that flank the way down into the pit
-    rect(x, y - 30, 2, 31, '#4a3020'); px(x, y - 31, '#ffd447');
-    const sw = (i) => Math.round(Math.sin(t * 2 + i * 0.5 + x) * 1);
-    for (let i = 0; i < 16; i++) rect(x + 2 + sw(i), y - 28 + i, 9, 1, '#8a1a2a');
-    rect(x + 3, y - 12, 3, 2, '#8a1a2a'); rect(x + 8, y - 12, 3, 2, '#8a1a2a');
-    disc(x + 6, y - 21, 2.5, '#ffd447'); px(x + 6, y - 21, '#fff4b0');
-  },
-  throne(x, y, t) {
-    shadowAt(x, y, 10); rect(x - 8, y - 4, 16, 4, '#5a4020'); rect(x - 7, y - 10, 14, 6, '#8a1a2a'); rect(x - 7, y - 10, 14, 1, '#b83040');
-    rect(x - 8, y - 28, 16, 18, '#d8a032'); rect(x - 6, y - 26, 12, 15, '#8a1a2a'); rect(x - 8, y - 28, 16, 1, '#fff4b0');
-    for (let i = 0; i < 3; i++) rect(x - 6 + i * 5, y - 32 - (i === 1 ? 2 : 0), 2, 4 + (i === 1 ? 2 : 0), '#d8a032');
-    disc(x, y - 20, 2, '#ffd447'); glow(x, y - 20, '#ffd447', 10, 0.3);
-  },
-  torii(x, y, t) {
-    rect(x - 10, y - 24, 3, 24, '#c0302a'); rect(x + 8, y - 24, 3, 24, '#c0302a');
-    rect(x - 14, y - 27, 29, 3, '#c0302a'); rect(x - 15, y - 29, 31, 2, '#2a1a1a'); rect(x - 11, y - 20, 23, 2, '#a02a24');
-    for (let i = 0; i < 4; i++) { const u = (t * 0.3 + hash(i + 7)) % 1; px(x - 8 + hash(i) * 16 + u * 8, y - 24 + u * 24, '#ff9fc0'); }
-  },
-};
-// strings of lanterns, hung across the camp between the given posts
-export function drawLanternStrings(posts, t) {
-  for (let i = 0; i + 1 < posts.length; i++) {
-    const [x0, y0] = posts[i], [x1, y1] = posts[i + 1], n = Math.max(4, Math.round(Math.abs(x1 - x0) / 10));
-    for (let k = 0; k <= n; k++) {
-      const u = k / n, x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u + Math.sin(u * Math.PI) * 10;
-      px(x, y, '#3a2a22');
-      if (k % 2 === 1) { const c = ['#ff7a2a', '#ffd447', '#ff9fc0'][k % 3]; rect(x - 1, y + 1, 3, 3, c); glow(x, y + 2, c, 6, 0.35 + 0.1 * Math.sin(t * 3 + k)); }
-    }
-  }
-}
-
 // ---------- the shop's screen ----------
-export const shop = { kind: null, sel: 0, t: 0, msg: '', msgT: 0, hero: 'BLADE', from: 'camp' };
-function say(s) { shop.msg = s; shop.msgT = 1.4; }
+// top: the first row in sight (the Peddler's list is longer than the screen); arm: how long a pressed reset waits
+// for its second press
+export const shop = { kind: null, sel: 0, top: 0, arm: 0, t: 0, msg: '', msgT: 0, hero: 'BLADE', from: 'camp' };
+function say(s) { shop.msg = s; shop.msgT = 1.6; }
 const NPC = {
   decor: { who: 'THE PEDDLER', what: 'THINGS FOR THE CAMP', col: '#c8a060' },
   skin: { who: 'THE WEAVER', what: 'A NEW LOOK FOR THE CAMP', col: '#c599ff' },
@@ -225,25 +117,66 @@ function rows() {
   if (shop.kind === 'perk') return PERKS;
   return dailyList();
 }
-export function openShop(kind, hero) { Object.assign(shop, { kind, sel: 0, t: 0, msg: '', msgT: 0, hero: hero || shop.hero }); A.ui(); }
+export function openShop(kind, hero) { Object.assign(shop, { kind, sel: 0, top: 0, arm: 0, t: 0, msg: '', msgT: 0, hero: hero || shop.hero }); A.ui(); }
+
+// each shopkeeper's reset (the quest board has none): the Smith takes this fighter's upgrades back and pays back all
+// they cost, the Peddler puts every decoration away (still yours, set any out again for free), the Weaver weaves the
+// camp back into its first look. Press it twice: the first press only asks.
+function resetOf() {
+  if (shop.kind === 'perk') {
+    const lv = best.perm[shop.hero] || {};
+    let gold = 0;
+    for (const pk of PERKS) for (let i = 0; i < Math.min(pk.max, lv[pk.id] || 0); i++) gold += pk.cost[i];
+    return { can: gold > 0, label: 'RESET UPGRADES', sure: 'PRESS AGAIN: ' + gold + ' GOLD BACK', none: 'NO UPGRADES TO RESET', gold };
+  }
+  if (shop.kind === 'decor') {
+    const out = DECOR.filter((d) => !d.free && best.owned.includes(d.id) && !best.hidden.includes(d.id));
+    return { can: out.length > 0, label: 'PUT EVERYTHING AWAY', sure: 'PRESS AGAIN: PUT ' + out.length + ' AWAY', none: 'NOTHING IS OUT', out };
+  }
+  if (shop.kind === 'skin') return { can: best.skin !== 'ash', label: 'BACK TO THE ASHEN CAMP', sure: 'PRESS AGAIN TO WEAVE IT BACK', none: 'IT IS THE ASHEN CAMP' };
+  return null;
+}
+function reset() {
+  const r = resetOf();
+  if (!r) return;
+  if (!r.can) { A.deny(); say(r.none); shop.arm = 0; return; }
+  if (shop.arm <= 0) { shop.arm = 2.5; A.ui(); return; }
+  shop.arm = 0;
+  if (shop.kind === 'perk') { best.perm[shop.hero] = {}; best.gold += r.gold; A.coin(); say('+' + r.gold + ' GOLD. START AGAIN'); }
+  else if (shop.kind === 'decor') { for (const d of r.out) best.hidden.push(d.id); say('ALL PUT AWAY'); }
+  else { best.skin = 'ash'; say('THE CAMP CHANGES BACK'); }
+  saveBest(); A.select();
+}
+
+const LIST_Y = 30, ROW_H = 10, ROWS = 11, RESET_Y = H - 33;
+const keepInSight = (n) => { shop.top = Math.max(0, Math.min(Math.max(0, n - ROWS), shop.top, shop.sel)); if (shop.sel >= shop.top + ROWS) shop.top = shop.sel - ROWS + 1; };
 // returns 'close' when the screen should close
 export function updateShop(dt) {
-  shop.t += dt; shop.msgT = Math.max(0, shop.msgT - dt);
+  shop.t += dt; shop.msgT = Math.max(0, shop.msgT - dt); shop.arm = Math.max(0, shop.arm - dt);
   const list = rows(), n = list.length;
   if (keyHit('Escape') || (input.touch && input.mouse.pressed && input.mouse.x < 46 && input.mouse.y < 18)) { A.ui(); return 'close'; }
   if (keyHit('ArrowDown', 'KeyS')) { shop.sel = (shop.sel + 1) % n; A.ui(); }
   if (keyHit('ArrowUp', 'KeyW')) { shop.sel = (shop.sel - 1 + n) % n; A.ui(); }
   const m = input.mouse;
+  // the wheel, or the arrows at the list's ends, scroll it a row at a time
+  const more = n > ROWS;
+  if (more && m.wheel) { shop.top = Math.max(0, Math.min(n - ROWS, shop.top + m.wheel)); shop.sel = Math.max(shop.top, Math.min(shop.top + ROWS - 1, shop.sel)); }
+  if (more && m.pressed && m.x >= 120 && m.x < 150) {
+    if (m.y >= LIST_Y - 11 && m.y < LIST_Y - 2 && shop.top > 0) { shop.top--; shop.sel = Math.min(shop.sel, shop.top + ROWS - 1); A.ui(); }
+    if (m.y >= LIST_Y + ROWS * ROW_H - 2 && m.y < LIST_Y + ROWS * ROW_H + 7 && shop.top < n - ROWS) { shop.top++; shop.sel = Math.max(shop.sel, shop.top); A.ui(); }
+  }
+  keepInSight(n);
   let act = keyHit('Enter', 'Space');
-  for (let i = 0; i < n; i++) {
-    const y = LIST_Y + i * ROW_H;
+  for (let i = 0; i < Math.min(ROWS, n - shop.top); i++) {
+    const k = shop.top + i, y = LIST_Y + i * ROW_H;
     if (m.x >= 12 && m.x < 150 && m.y >= y - 2 && m.y < y + ROW_H - 2) {
-      if (m.moved && shop.sel !== i) { shop.sel = i; A.ui(); }
-      if (m.pressed) { if (shop.sel === i) act = true; else { shop.sel = i; A.ui(); } }
+      if (m.moved && shop.sel !== k) { shop.sel = k; A.ui(); }
+      if (m.pressed) { if (shop.sel === k) act = true; else { shop.sel = k; A.ui(); } }
     }
   }
   if (m.pressed && m.x > 156 && m.y > H - 34 && m.y < H - 18) act = true;
   if (act) use(list[shop.sel]);
+  if (keyHit('KeyR') || (m.pressed && m.x >= 12 && m.x < 150 && m.y >= RESET_Y - 1 && m.y < RESET_Y + 14)) reset();
   return null;
 }
 function use(it) {
@@ -274,30 +207,51 @@ export function drawGold(x, y, align = 'r', n = best.gold) {
   rect(x0 + 2 - Math.round(sq * 1.5), y, 1 + Math.round(sq * 3), 5, '#ffd447'); px(x0 + 2, y + 1, '#fff6c0');
   textO(s, x0 + 8, y, '#ffd447', 1, 'l');
 }
-const LIST_Y = 30, ROW_H = 10;
 export function drawShop(t, bg) {
   bg();
   ctx.globalAlpha = 0.78; rect(-SX, 0, FW, H, '#05030a'); ctx.globalAlpha = 1;
-  const nn = NPC[shop.kind], list = rows();
+  const nn = NPC[shop.kind], list = rows(), n = list.length;
   rect(8, 8, W - 16, H - 16, '#0e0a12'); rect(8, 8, W - 16, 1, nn.col); rect(8, H - 9, W - 16, 1, '#3a2a32');
   textO(nn.who, 14, 13, nn.col, 1, 'l'); text(shop.kind === 'perk' ? 'UPGRADES FOR ' + CHARS[shop.hero].hero : shop.kind === 'board' ? "TODAY'S MISSIONS  " + dailyDay() : nn.what, 14 + textW(nn.who) + 6, 13, '#8a7a80');
   drawGold(W - 14, 13);
   if (input.touch) { rect(3, 1, 34, 11, P.ink0); text('< BACK', 7, 4, P.paper); }
-  list.forEach((it, i) => {
-    const y = LIST_Y + i * ROW_H, on = i === shop.sel;
+  for (let i = 0; i < Math.min(ROWS, n - shop.top); i++) {
+    const k = shop.top + i, it = list[k], y = LIST_Y + i * ROW_H, on = k === shop.sel;
     if (on) { rect(12, y - 2, 138, ROW_H - 1, '#2a1e26'); rect(12, y - 2, 2, ROW_H - 1, nn.col); }
     const [name, right, rc] = rowText(it);
     text(name, 17, y, on ? P.paper : P.bone); text(right, 146, y, rc, 1, 'r');
-  });
+  }
+  // the list goes on: arrows at its ends, and how far down it is
+  if (n > ROWS) {
+    const bob = Math.floor(t * 3) % 2;
+    if (shop.top > 0) for (let i = 0; i < 3; i++) rect(141 - i, LIST_Y - 7 + i - bob, 1 + i * 2, 1, nn.col);
+    if (shop.top < n - ROWS) for (let i = 0; i < 3; i++) rect(141 - i, LIST_Y + ROWS * ROW_H + 2 - i + bob, 1 + i * 2, 1, nn.col);
+    const bh = Math.max(6, Math.round((ROWS / n) * (ROWS * ROW_H - 4))), by = LIST_Y - 2 + Math.round((shop.top / (n - ROWS)) * (ROWS * ROW_H - 4 - bh));
+    rect(152, LIST_Y - 2, 1, ROWS * ROW_H - 4, '#2a2028'); rect(152, by, 1, bh, nn.col);
+  }
   const it = list[shop.sel];
   if (it) drawDetail(it, t);
-  if (shop.msgT > 0) textO(shop.msg, 232, H - 44, shop.msg.startsWith('NOT') || shop.msg.startsWith('ALREADY') ? P.blood : P.gold, 1, 'c');
-  if (!input.touch) text('ARROWS PICK   ENTER ' + (shop.kind === 'board' ? 'CLAIM' : 'BUY / USE') + '   ESC BACK', W / 2, H - 6, '#6a5a62', 1, 'c');
+  drawReset(t);
+  if (shop.msgT > 0) textO(shop.msg, 232, H - 44, shop.msg.startsWith('NOT') || shop.msg.startsWith('ALREADY') || shop.msg.startsWith('NO ') || shop.msg.startsWith('NOTHING') || shop.msg.startsWith('IT IS') ? P.blood : P.gold, 1, 'c');
+  if (!input.touch) text('ARROWS PICK   ENTER ' + (shop.kind === 'board' ? 'CLAIM' : 'BUY / USE') + (resetOf() ? '   R RESET' : '') + '   ESC BACK', W / 2, H - 6, '#6a5a62', 1, 'c');
+}
+// the reset button, under the list: grey when there is nothing to reset, red while it waits for the second press
+function drawReset(t) {
+  const r = resetOf();
+  if (!r) return;
+  const armed = shop.arm > 0, col = armed ? (Math.floor(t * 6) % 2 ? '#ff4a5a' : P.blood) : r.can ? '#8a6a72' : '#3a2a32';
+  rect(12, RESET_Y, 138, 13, armed ? '#3a0c16' : '#160f14');
+  rect(12, RESET_Y, 138, 1, col); rect(12, RESET_Y + 12, 138, 1, col); rect(12, RESET_Y, 1, 13, col); rect(149, RESET_Y, 1, 13, col);
+  // a little circling arrow before the words
+  const cx = 20, cy = RESET_Y + 6, c = armed ? P.paper : r.can ? P.bone : '#5a4a52';
+  for (let i = 0; i < 7; i++) { const a = -0.6 + i * 0.75; px(cx + Math.round(Math.cos(a) * 3), cy + Math.round(Math.sin(a) * 3), c); }
+  px(cx + 3, cy - 3, c); px(cx + 2, cy - 4, c); px(cx + 4, cy - 1, c);
+  text(armed ? r.sure : r.label, 84, RESET_Y + 4, c, 1, 'c');
 }
 function rowText(it) {
-  if (shop.kind === 'decor') return [it.name, !best.owned.includes(it.id) ? String(it.price) : best.hidden.includes(it.id) ? 'AWAY' : 'OUT', !best.owned.includes(it.id) ? (best.gold >= it.price ? '#ffd447' : '#7a6a50') : '#7dff9a'];
+  if (shop.kind === 'decor') return [it.name, !best.owned.includes(it.id) ? String(it.price) : best.hidden.includes(it.id) ? 'AWAY' : 'OUT', !best.owned.includes(it.id) ? (best.gold >= it.price ? '#ffd447' : '#7a6a50') : best.hidden.includes(it.id) ? '#8a7a80' : '#7dff9a'];
   if (shop.kind === 'skin') return [it.name, best.skin === it.id ? 'ON' : skinOwned(it.id) ? 'OWNED' : String(it.price), best.skin === it.id ? '#7dff9a' : skinOwned(it.id) ? P.bone : best.gold >= it.price ? '#ffd447' : '#7a6a50'];
-  if (shop.kind === 'perk') { const lv = permLevel(shop.hero, it.id); return [it.name + ' ' + 'I'.repeat(lv) , lv >= it.max ? 'MAX' : String(it.cost[lv]), lv >= it.max ? '#7dff9a' : best.gold >= it.cost[lv] ? '#ffd447' : '#7a6a50']; }
+  if (shop.kind === 'perk') { const lv = permLevel(shop.hero, it.id); return [it.name + ' ' + 'I'.repeat(lv), lv >= it.max ? 'MAX' : String(it.cost[lv]), lv >= it.max ? '#7dff9a' : best.gold >= it.cost[lv] ? '#ffd447' : '#7a6a50']; }
   return [it.text.length > 28 ? it.text.slice(0, 27) + '.' : it.text, it.claimed ? 'DONE' : Math.min(it.got, it.goal) + '/' + it.goal, it.claimed ? '#7dff9a' : it.got >= it.goal ? '#ffd447' : '#8a7a80'];
 }
 function button(label, ok) {
@@ -310,8 +264,10 @@ function drawDetail(it, t) {
   rect(158, 26, 148, 82, '#140e16');
   ctx.save(); ctx.beginPath(); ctx.rect(158, 26, 148, 82); ctx.clip();
   if (shop.kind === 'decor') {
-    // the thing itself, twice its size
-    ctx.save(); ctx.translate(cx, 96); ctx.scale(2, 2); DRAW_DECOR[it.id]?.(it.id === 'banners' ? -6 : 0, 0, t, skinOf(best.skin)); if (it.id === 'lanterns') drawLanternStrings([[-30, -30], [0, -26], [30, -30]], t); ctx.restore();
+    // the thing itself, as big as fits: twice its size, or five or four thirds for the tall ones (each a whole
+    // number of screen pixels, so it stays sharp)
+    const k = (it.h || 30) > 46 ? 4 / 3 : (it.h || 30) > 39 ? 5 / 3 : 2;
+    ctx.save(); ctx.translate(cx, it.id === 'lanterns' ? 96 : 104); ctx.scale(k, k); DRAW_DECOR[it.id]?.(it.ox || 0, 0, t, skinOf(best.skin)); if (it.id === 'lanterns') drawLanternStrings([[-30, -30], [0, -26], [30, -30]], t); ctx.restore();
   } else if (shop.kind === 'skin') {
     drawSkinPreview(skinOf(it.id), t);
   } else if (shop.kind === 'perk') {

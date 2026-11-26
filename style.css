@@ -73,11 +73,16 @@ html, body {
     transform: rotate(90deg);
   }
 }
-/* fullscreen button in the page corner */
-#fs {
+/* the page's corner buttons: sound, screen shake, fullscreen */
+#corner {
   position: fixed;
   bottom: 10px;
   right: 10px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+#corner button {
   width: 32px;
   height: 32px;
   display: grid;
@@ -88,10 +93,18 @@ html, body {
   cursor: pointer;
   opacity: 0.55;
   transition: opacity 0.15s, border-color 0.15s;
-  z-index: 5;
 }
-#fs:hover, #fs:focus-visible { opacity: 1; border-color: var(--ember); outline: none; }
-#fs svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+#corner button:hover, #corner button:focus-visible { opacity: 1; border-color: var(--ember); outline: none; }
+#corner svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
+#corner svg .fill { fill: currentColor; stroke: none; }
+/* each icon has an "on" and an "off" drawing; a button switched off shows its "off" one, dimmed */
+#corner svg .off { display: none; }
+#corner button.off svg .on { display: none; }
+#corner button.off svg .off { display: inline; }
+#corner button.off { color: #8a7a80; }
+#fs svg { stroke-width: 2; }
 #fs.on svg { transform: rotate(180deg); }
-.touch #fs { width: 24px; height: 24px; bottom: 2px; right: 2px; opacity: 0.38; }
+.touch #corner { bottom: 2px; right: 2px; gap: 3px; }
+.touch #corner button { width: 24px; height: 24px; opacity: 0.38; }
+.touch #corner svg { width: 13px; height: 13px; }
 .touch:fullscreen #fs { display: none; }

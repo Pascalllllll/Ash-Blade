@@ -6,8 +6,8 @@
 //
 // The sets exist from the start with empty frames (the title screen draws them on its first frame); the pictures fill
 // those same frames when they arrive, so nothing holds on to an empty one.
-import { SS } from './gfx.js?v=212';
-import { RIG, WEAPON_ART } from './hero-rig.js?v=212';
+import { SS } from './gfx.js?v=213';
+import { RIG, WEAPON_ART } from './hero-rig.js?v=213';
 
 const CW = 120, CH = 96;
 const ROWS = { idle: [0, 16], walk: [1, 12], run: [2, 12], death: [3, 8], dash: [4, 8], hurt: [5, 8], attack: [6,16], cast: [7,16] };
@@ -160,7 +160,7 @@ function load(url) {
     im.src = url;
   });
 }
-const art = (file) => new URL(`../art/sprites/heroes/${file}?v=212`, import.meta.url).href;
+const art = (file) => new URL(`../art/sprites/heroes/${file}?v=213`, import.meta.url).href;
 
 // fills SPR.chars, SPR.evo and SPR.weapons right away (empty frames), then loads the pictures into them
 export function installHeroSprites(SPR) {

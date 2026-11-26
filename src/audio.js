@@ -687,11 +687,11 @@ export const A = {
   settings(s) {
     choice = s.track; combat = s.combat;
     if (!ac) return;
-    master.gain.setTargetAtTime(s.master * 0.85, ac.currentTime, 0.05);
+    master.gain.setTargetAtTime(s.mute ? 0 : s.master * 0.85, ac.currentTime, 0.05);
     mus.gain.setTargetAtTime(choice === 'OFF' ? 0 : s.music * 0.5, ac.currentTime, 0.05);
     sfx.gain.setTargetAtTime(s.sfx, ac.currentTime, 0.05);
     voiceBus.gain.setTargetAtTime(s.sfx, ac.currentTime, 0.05);
-    voiceAudible = s.master > 0 && s.sfx > 0;
+    voiceAudible = !s.mute && s.master > 0 && s.sfx > 0;
     applyScene();
   },
   scene(name) {

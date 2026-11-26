@@ -2,7 +2,7 @@
 // number made from the date. Progress counts in every real run that day (not practice, not training): world.js calls
 // dailyNote (counts) and dailyMax (bests in one run). When one is done, claim its gold at the board in the camp.
 // A new day brings three new missions. Kept in best.daily (store.js); saved with the rest of the record.
-import { best, saveBest } from './store.js?v=212';
+import { best, saveBest } from './store.js?v=213';
 
 const POOL = [
   { id: 'kills', text: (n) => 'KILL ' + n + ' MONSTERS', goals: [120, 170, 240], reward: [3, 4, 5] },

@@ -1,6 +1,6 @@
-import { canvas, W, H, FW, SX, onWidth, rotatedTouch } from './gfx.js?v=212';
+import { canvas, W, H, FW, SX, onWidth, rotatedTouch } from './gfx.js?v=213';
 
-import { keys, layout, persistControls } from './bindings.js?v=212';
+import { keys, layout, persistControls } from './bindings.js?v=213';
 // the movement stick sits near the screen's left edge (the stage can be narrower than the screen, see gfx.js)
 export let STICK_X = 50;
 export let STICK_Y = 135;
@@ -9,7 +9,7 @@ const AIM_DEAD = 6;
 export const input = {
   down: new Set(),
   hit: new Set(),
-  mouse: { x: W / 2, y: H / 2, down: false, rdown: false, pressed: false, rpressed: false, moved: false },
+  mouse: { x: W / 2, y: H / 2, down: false, rdown: false, pressed: false, rpressed: false, moved: false, wheel: 0 },
   device: 'mouse',
   any: false,
   touch: false,
@@ -85,10 +85,10 @@ export function toggleFull() {
     screen.orientation?.lock?.('landscape')?.catch(() => {});
   }).catch(() => {});
 }
-// the corner button: its own clicks and taps never reach the game
+// the page's corner buttons (sound and screen shake are wired in main.js): their own clicks and taps never reach the game
+for (const b of document.querySelectorAll('#corner button')) for (const ev of ['mousedown', 'mouseup', 'touchstart', 'touchend']) b.addEventListener(ev, (e) => e.stopPropagation());
 const fsBtn = document.getElementById('fs');
 if (fsBtn) {
-  for (const ev of ['mousedown', 'mouseup', 'touchstart', 'touchend']) fsBtn.addEventListener(ev, (e) => e.stopPropagation());
   fsBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleFull(); fsBtn.blur(); });
   document.addEventListener('fullscreenchange', () => { fsBtn.classList.toggle('on', isFull()); if (!isFull()) navigator.keyboard?.unlock?.(); });
 }
@@ -228,6 +228,8 @@ addEventListener('mouseup', (e) => {
   if (e.button === 2) input.mouse.rdown = false;
 });
 addEventListener('contextmenu', (e) => e.preventDefault());
+// the mouse wheel, in whole steps (it scrolls the long lists, like the Peddler's)
+addEventListener('wheel', (e) => { if (e.deltaY) input.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
 
 export const keyDown = (...codes) => codes.some((c) => input.down.has(c));
 export const keyHit = (...codes) => codes.some((c) => input.hit.has(c));
@@ -237,6 +239,7 @@ export const actionDown = id => keys[id].some(c => input.down.has(c));
 export function endFrame() {
   input.hit.clear();
   input.mouse.pressed = input.mouse.rpressed = input.mouse.moved = false;
+  input.mouse.wheel = 0;
   input.thit.clear();
   input.cast = null;
   input.any = false;

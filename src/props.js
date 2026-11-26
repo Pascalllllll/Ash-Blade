@@ -1,8 +1,11 @@
-// Things to break. Crates turn up on every floor; each floor also has two things of its own that suit it (clay urns of
-// bones in the Pit, blocks of ice in the Frozen Hollow, powder kegs in the Ember Forge that blow up, server boxes on
-// the Neon Grid...). world.js lays a fresh set out whenever a new floor begins (every five waves) and they stay broken
-// once broken. This file is what they are and how they look; world.js does the breaking (spawnProps, hitProp,
-// breakProp). Each one is drawn standing on its base at (x, y) in pixels, facing the camera.
+// Things to break. Boxes turn up on every floor, in a dozen kinds (BOXES: crates in four woods, iron-bound ones, long
+// ones, stacks, painted cargo boxes, slatted crates of apples, tarps roped over crates, lockboxes, barrels, sacks,
+// baskets); each floor also has two things of its own that suit it (clay urns of bones in the Pit, blocks of ice in
+// the Frozen Hollow, powder kegs in the Ember Forge that blow up, server boxes on the Neon Grid...). world.js lays a
+// fresh set out whenever a new floor begins (every five waves), drops a few more boxes in from above as each later
+// wave starts, and they stay broken once broken. This file is what they are and how they look; world.js does the
+// breaking (spawnProps, dropBoxes, hitProp, breakProp). Each one is drawn standing on its base at (x, y) in pixels,
+// facing the camera; e is the one on the floor (e.v and e.w are its own two random numbers: which wood, which mark).
 //   r      how wide it is on the floor (hits and bumping into it)
 //   h      how tall it stands (where the cracks show and where its pieces fly from)
 //   hp     hits it takes (a heavy blow breaks anything at once)
@@ -11,7 +14,8 @@
 //   pal    the colors of its pieces
 //   boom   it explodes when it breaks (and sets off any others near)
 //   fx     something extra when it goes: 'glitch', 'embers', 'shadow', 'stars'
-import { ctx, rect, px, line, disc, glow } from './gfx.js?v=212';
+//   pieces the colors of its pieces when they depend on the one on the floor (its wood, its paint)
+import { ctx, rect, px, line, disc, glow, mix } from './gfx.js?v=213';
 
 const TAU = Math.PI * 2;
 const OUT = '#140c14';
@@ -54,20 +58,133 @@ function flame(x, y, t, k, c1, c2) {
   px(x, y - 1 - (f === 2 ? 1 : 0), c2); px(x, y, c1); if (f === 0) px(x, y - 2, c2);
 }
 
+// wood in four tones, one picked for each box when it is laid out: lid, face, shadow side, seams, lit edge
+const WOODS = [
+  ['#a8743e', '#7a4a26', '#5a3418', '#4a2a14', '#c8904a'],   // oak
+  ['#d0a868', '#a88048', '#7e5c30', '#5a4020', '#ecd098'],   // pine
+  ['#7e5236', '#5c3826', '#42261a', '#2e1a10', '#a0704a'],   // walnut
+  ['#8e887a', '#6c665a', '#504c42', '#3a3630', '#b0aa98'],   // grey, weathered
+];
+const wood = (e, k = 0) => WOODS[(Math.floor((e?.v ?? 0) * WOODS.length) + k) % WOODS.length];
+const woodPieces = (e) => { const w = wood(e); return [w[1], w[0], w[2]]; };
+// a mark painted on some boxes: an arrow (this way up), a cross, the old sun, a number
+function mark(x, y, e, c) {
+  const m = Math.floor((e?.w ?? 0) * 8);
+  if (m === 0) { px(x, y - 2, c); px(x - 1, y - 1, c); px(x + 1, y - 1, c); rect(x, y - 1, 1, 4, c); }
+  else if (m === 1) { line(x - 2, y - 2, x + 2, y + 2, c); line(x + 2, y - 2, x - 2, y + 2, c); }
+  else if (m === 2) { for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; px(x + Math.round(Math.cos(a) * 2), y + Math.round(Math.sin(a) * 2), c); } px(x, y, c); }
+  else if (m === 3) { rect(x - 2, y - 2, 1, 5, c); rect(x, y - 2, 2, 1, c); rect(x + 1, y - 1, 1, 1, c); rect(x, y, 2, 1, c); rect(x + 1, y + 1, 1, 1, c); rect(x, y + 2, 2, 1, c); }
+}
+// paint for the cargo boxes: color, lit, dark
+const PAINT = [['#a83030', '#d05050', '#6a1a1a'], ['#2e5a9a', '#4a80c8', '#1a3466'], ['#3a7a3a', '#5aa05a', '#22501e'], ['#c8962a', '#ecc050', '#7a5818']];
+const paint = (e) => PAINT[Math.floor((e?.v ?? 0) * PAINT.length) % PAINT.length];
+const IRON = ['#5a5e6a', '#9aa0ae', '#34363e'];
+// a crate: its lid, its face with a brace across, nails at the corners
+function crateAt(x, y, w, h, lid, c) {
+  const [tp, fc, sd, dk, lt] = c, hw = w >> 1;
+  parts([[x - hw, y - h, w, lid, tp], [x - hw, y - h + lid, w, h - lid, fc]]);
+  for (let k = 1; k < 3; k++) rect(x - hw + Math.round((w * k) / 3), y - h, 1, lid, dk);
+  rect(x - hw, y - h, w, 1, lt);
+  rect(x - hw, y - h + lid, w, 1, lt); rect(x - hw, y - Math.round((h - lid) / 2), w, 1, sd);
+  rect(x - hw, y - h + lid, 2, h - lid, sd); rect(x + hw - 2, y - h + lid, 2, h - lid, dk);
+  line(x - hw + 2, y - h + lid + 1, x + hw - 3, y - 2, sd);
+  for (const [dx, dy] of [[-hw + 1, -h + lid + 1], [hw - 2, -h + lid + 1], [-hw + 1, -2], [hw - 2, -2]]) px(x + dx, y + dy, lt);
+}
+
 export const PROPS = {
-  // ---- every floor ----
-  crate: { r: 6, h: 15, hp: 2, mat: 'wood', pal: ['#7a4a26', '#a8743e', '#5a3418'], draw(x, y) {
-    parts([[x - 6, y - 14, 12, 4, '#a8743e'], [x - 6, y - 10, 12, 10, '#7a4a26']]);
-    rect(x - 3, y - 14, 1, 4, '#8a5a2e'); rect(x + 1, y - 14, 1, 4, '#8a5a2e');
-    rect(x - 6, y - 10, 12, 1, '#c8904a'); rect(x - 6, y - 5, 12, 1, '#5a3418');
-    rect(x - 6, y - 10, 2, 10, '#5a3418'); rect(x + 4, y - 10, 2, 10, '#4a2a14');
-    line(x - 4, y - 9, x + 3, y - 2, '#5a3418');
-    for (const [dx, dy] of [[-5, -9], [4, -9], [-5, -2], [4, -2]]) px(x + dx, y + dy, '#e0b070');
+  // ---- every floor: boxes of every kind ----
+  crate: { r: 6, h: 15, hp: 2, mat: 'wood', pal: ['#7a4a26', '#a8743e', '#5a3418'], pieces: woodPieces, draw(x, y, t, e) {
+    const c = wood(e);
+    crateAt(x, y, 12, 14, 4, c);
+    if ((e?.w ?? 1) < 0.5) mark(x, y - 6, e, mix(c[1], '#f0e0c0', 0.55));
   } },
-  smallcrate: { r: 4, h: 11, hp: 1, mat: 'wood', pal: ['#8a5a2e', '#b8844a', '#5a3418'], draw(x, y) {
-    parts([[x - 4, y - 10, 8, 3, '#b8844a'], [x - 4, y - 7, 8, 7, '#8a5a2e']]);
-    rect(x - 4, y - 7, 8, 1, '#d8a060'); rect(x - 4, y - 7, 1, 7, '#5a3418'); rect(x + 3, y - 7, 1, 7, '#4a2a14');
-    line(x - 3, y - 6, x + 2, y - 1, '#5a3418'); rect(x - 1, y - 10, 1, 3, '#8a5a2e');
+  smallcrate: { r: 4, h: 11, hp: 1, mat: 'wood', pal: ['#8a5a2e', '#b8844a', '#5a3418'], pieces: woodPieces, draw(x, y, t, e) {
+    crateAt(x, y, 8, 10, 3, wood(e, 1));
+  } },
+  ironcrate: { r: 6, h: 15, hp: 3, mat: 'metal', pal: ['#5c3826', '#5a5e6a', '#9aa0ae'], draw(x, y, t, e) {
+    crateAt(x, y, 12, 14, 4, WOODS[2]);
+    // iron at its corners and a strap round its middle, rivets, a brass lock plate
+    rect(x - 6, y - 14, 2, 14, IRON[0]); rect(x - 6, y - 14, 1, 14, IRON[1]); rect(x + 4, y - 14, 2, 14, IRON[2]);
+    rect(x - 6, y - 7, 12, 2, IRON[0]); rect(x - 6, y - 7, 12, 1, IRON[1]);
+    for (const [dx, dy] of [[-5, -12], [-5, -2], [4, -12], [4, -2], [-2, -6], [1, -6]]) px(x + dx, y + dy, '#c8ccd8');
+    rect(x - 1, y - 11, 2, 3, '#d8a032'); px(x - 1, y - 11, '#ffe08a');
+    if (Math.floor(t * 0.7 + (e?.v ?? 0) * 9) % 6 === 0) px(x - 6, y - 13, '#ffffff');
+  } },
+  longcrate: { r: 8, h: 11, hp: 2, mat: 'wood', pal: ['#7a4a26', '#a8743e', '#5a3418'], pieces: woodPieces, draw(x, y, t, e) {
+    const c = wood(e, 2);
+    crateAt(x, y, 17, 10, 3, c);
+    rect(x - 8, y - 7, 1, 7, c[3]); rect(x - 1, y - 7, 1, 7, c[2]);
+    if ((e?.w ?? 1) < 0.6) mark(x + 4, y - 4, e, mix(c[1], '#f0e0c0', 0.5));
+  } },
+  stack: { r: 6, h: 24, hp: 3, mat: 'wood', pal: ['#7a4a26', '#a8743e', '#5a3418'], pieces: woodPieces, draw(x, y, t, e) {
+    // a crate with a smaller one left on top of it, a little off true
+    const c = wood(e);
+    crateAt(x, y, 12, 14, 4, c);
+    const s = (e?.w ?? 0) < 0.5 ? -1 : 1;
+    crateAt(x + s, y - 14, 8, 10, 3, wood(e, 1));
+    if ((e?.w ?? 1) < 0.25) mark(x, y - 6, e, mix(c[1], '#f0e0c0', 0.55));
+  } },
+  cargo: { r: 7, h: 14, hp: 2, mat: 'wood', pal: ['#a83030', '#d05050', '#3a3a44'], pieces: (e) => [paint(e)[0], paint(e)[1], '#3a3a44'], draw(x, y, t, e) {
+    // a painted cargo box: ribbed sides, dark corner castings, a stenciled mark, warning stripes on the bottom
+    const [m, l, d] = paint(e);
+    parts([[x - 7, y - 13, 14, 3, l], [x - 7, y - 10, 14, 10, m]]);
+    rect(x - 7, y - 13, 14, 1, mix(l, '#ffffff', 0.3)); rect(x - 7, y - 10, 14, 1, l);
+    for (const k of [-4, 0, 4]) rect(x + k, y - 9, 1, 8, d);
+    rect(x - 7, y - 9, 1, 9, l); rect(x + 5, y - 9, 2, 9, d);
+    for (const [dx, dy] of [[-7, -13], [5, -13], [-7, -2], [5, -2]]) rect(x + dx, y + dy, 2, 2, '#2a2a34');
+    for (let i = 0; i < 6; i++) rect(x - 5 + i * 2, y - 2, 1, 1, i % 2 ? '#f0e8d0' : '#1e1e26');
+    mark(x - 2, y - 6, e, '#f0e8d0');
+  } },
+  slatcrate: { r: 6, h: 13, hp: 1, mat: 'wood', pal: ['#a8743e', '#d0303a', '#e0c070'], pieces: (e) => [wood(e, 1)[1], '#d0303a', '#e0c070'], draw(x, y, t, e) {
+    // slats with gaps between them, straw and apples showing through and heaped over the top
+    const [tp, fc, sd, dk, lt] = wood(e, 1);
+    rect(x - 7, y - 12, 14, 13, OUT); rect(x - 6, y - 11, 12, 11, '#2a1a10');
+    for (let i = 0; i < 6; i++) px(x - 5 + i * 2, y - 10 + (i % 2), '#c8a050');
+    for (const sy of [-9, -5, -1]) { rect(x - 6, y + sy, 12, 2, fc); rect(x - 6, y + sy, 12, 1, lt); }
+    rect(x - 6, y - 11, 1, 11, sd); rect(x + 5, y - 11, 1, 11, dk);
+    const apples = (e?.w ?? 0) < 0.5 ? ['#d0303a', '#e04848', '#b82030'] : ['#7ab83a', '#e0c040', '#9ad048'];
+    for (const [dx, dy, k] of [[-3, -12, 0], [1, -12, 1], [4, -11, 2], [-1, -14, 1]]) { disc(x + dx, y + dy, 2, OUT); disc(x + dx, y + dy, 1.5, apples[k]); px(x + dx - 1, y + dy - 1, '#fff0e0'); }
+  } },
+  tarpbox: { r: 7, h: 15, hp: 2, mat: 'straw', pal: ['#8a8a5a', '#aaa878', '#c8a870'], draw(x, y, t, e) {
+    // a crate under a canvas tarp, roped down, its corners flaring on the floor
+    const g = (e?.v ?? 0) < 0.5, c = g ? '#7a845a' : '#9a8a64', l = g ? '#9aa478' : '#bcac84', d = g ? '#525c3a' : '#6e6040';
+    vessel(x, y, [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 5, 3], c, l, d);
+    px(x - 8, y - 1, c); px(x + 8, y - 1, d); px(x - 3, y - 13, l);
+    for (const [dx, dy] of [[-4, -9], [2, -6], [-1, -4], [4, -11]]) px(x + dx, y + dy, d);
+    line(x - 6, y - 12, x + 6, y - 3, '#c8a870'); line(x + 6, y - 12, x - 6, y - 3, '#c8a870'); rect(x - 7, y - 7, 15, 1, '#c8a870'); px(x, y - 8, '#8a6a40');
+    if (Math.sin(t * 2.3 + (e?.v ?? 0) * 9) > 0.8) px(x + 7, y - 4, l);
+  } },
+  lockbox: { r: 4, h: 10, hp: 2, mat: 'metal', pal: ['#4a2e1c', '#6a6e7a', '#d8a032'], draw(x, y, t, e) {
+    // a small iron-bound box with a padlock; the lid rounded
+    parts([[x - 5, y - 9, 10, 3, '#6a4428'], [x - 5, y - 6, 10, 6, '#4a2e1c']]); rect(x - 4, y - 10, 8, 1, OUT); rect(x - 4, y - 10, 8, 1, '#7a5232');
+    rect(x - 5, y - 9, 10, 1, '#8a5e36');
+    rect(x - 5, y - 9, 1, 9, IRON[1]); rect(x + 4, y - 9, 1, 9, IRON[2]); rect(x - 5, y - 6, 10, 1, IRON[0]); rect(x - 2, y - 9, 1, 9, IRON[0]); rect(x + 1, y - 9, 1, 9, IRON[0]);
+    rect(x - 1, y - 6, 3, 3, '#d8a032'); px(x - 1, y - 7, '#b8862a'); px(x + 1, y - 7, '#b8862a'); px(x, y - 8, '#b8862a'); px(x, y - 5, '#3a2a10'); px(x - 1, y - 6, '#ffe08a');
+    if (Math.floor(t * 0.9 + (e?.v ?? 0) * 7) % 5 === 0) px(x + 1, y - 6, '#ffffff');
+  } },
+  barrel: { r: 5, h: 14, hp: 2, mat: 'wood', pal: ['#7a4a26', '#a8743e', '#3a3a44'], pieces: (e) => [wood(e, 3)[1], wood(e, 3)[0], '#3a3a44'], draw(x, y, t, e) {
+    const [tp, fc, sd, dk, lt] = wood(e, 3);
+    vessel(x, y, [4, 5, 5, 6, 6, 6, 6, 6, 5, 5, 4, 4], fc, lt, sd);
+    for (const [hy, w] of [[-3, 5], [-7, 6], [-11, 4]]) { rect(x - w, y + hy, w * 2 + 1, 1, '#3a3a44'); px(x - w + 1, y + hy, '#7a7e8a'); }
+    rect(x - 3, y - 13, 7, 1, tp); px(x - 3, y - 13, lt); px(x + 1, y - 6, dk);
+    for (const k of [-2, 2]) rect(x + k, y - 10, 1, 8, mix(fc, '#000000', 0.18));
+  } },
+  sack: { r: 5, h: 12, hp: 1, mat: 'straw', pal: ['#b8a070', '#d8c090', '#e8d8a8'], draw(x, y, t, e) {
+    // a burlap sack tied at the neck, grain spilled at its foot, a stamp on it
+    const c = '#b8a070', l = '#d8c090', d = '#8a7448';
+    vessel(x, y, [5, 6, 6, 6, 6, 6, 5, 5, 4, 3, 2], c, l, d);
+    rect(x - 2, y - 11, 5, 1, '#6a4a28'); px(x - 1, y - 13, l); px(x + 1, y - 14, c); px(x, y - 13, d); rect(x - 1, y - 13, 1, 1, OUT);
+    for (const [dx, dy] of [[-3, -7], [2, -4], [-1, -9], [3, -8]]) px(x + dx, y + dy, mix(c, '#000000', 0.12));
+    if ((e?.w ?? 1) < 0.6) { rect(x - 2, y - 7, 4, 3, mix(c, '#5a2a1a', 0.5)); px(x - 1, y - 6, c); }
+    for (const dx of [-6, -5, 6, 7]) px(x + dx, y, '#e8d8a8');
+  } },
+  basket: { r: 5, h: 10, hp: 1, mat: 'straw', pal: ['#a8783a', '#d0303a', '#e8902a'], draw(x, y, t, e) {
+    // a wicker basket, a handle over it, fruit heaped in it
+    vessel(x, y, [4, 5, 5, 6, 6, 6], '#a8783a', '#c89858', '#7a5228');
+    for (let r = 0; r < 6; r++) for (let k = -5; k <= 5; k += 2) px(x + k + (r % 2), y - 1 - r, '#8a6230');
+    const fruit = (e?.w ?? 0) < 0.4 ? ['#d0303a', '#e8902a', '#5aa84a'] : (e?.w ?? 0) < 0.7 ? ['#e8902a', '#ffd447', '#e8902a'] : ['#8a3aa8', '#a85ac8', '#5aa84a'];
+    for (const [dx, dy, k] of [[-3, -8, 0], [2, -8, 1], [0, -10, 2]]) { disc(x + dx, y + dy, 2.5, OUT); disc(x + dx, y + dy, 2, fruit[k]); px(x + dx - 1, y + dy - 1, '#fff4e0'); }
+    for (let i = 0; i <= 10; i++) { const a = Math.PI + (i / 10) * Math.PI; px(x + Math.round(Math.cos(a) * 6), y - 7 + Math.round(Math.sin(a) * 6), i % 3 ? '#8a6230' : '#c89858'); }
   } },
 
   // ---- the training yard ----
@@ -269,7 +386,13 @@ export const PROPS = {
     glow(x, y - 6, '#6a4aa0', 8, 0.25);
   } },
 };
-// each floor's own two (crates go anywhere)
+// boxes go on every floor: how often each kind turns up
+export const BOXES = { crate: 20, smallcrate: 14, ironcrate: 8, longcrate: 8, stack: 7, cargo: 9, slatcrate: 8, tarpbox: 6, lockbox: 5, barrel: 9, sack: 6, basket: 5 };
+const BOX_SUM = Object.values(BOXES).reduce((a, b) => a + b, 0);
+export function pickBox(r = Math.random()) { let k = r * BOX_SUM; for (const [id, w] of Object.entries(BOXES)) { k -= w; if (k < 0) return id; } return 'crate'; }
+// the colors one breaks into (its own wood or paint, or its kind's)
+export const piecesOf = (e) => PROPS[e.kind].pieces?.(e) || PROPS[e.kind].pal;
+// each floor's own two (boxes go anywhere)
 export const MAP_PROPS = {
   YARD: ['hay', 'target'],
   PIT: ['urn', 'skulls'], FROST: ['iceblock', 'icicles'], FORGE: ['keg', 'ore'], GRID: ['datacube', 'server'],
@@ -277,19 +400,21 @@ export const MAP_PROPS = {
   GLASS: ['vase', 'pane'], TEMPLE: ['amphora', 'brazier'], GEARS: ['cogbox', 'clock'], NIGHT: ['candles', 'shadowjar'],
 };
 
-// one on the floor: its shadow, itself (shaking when just hit), and cracks once it has been hit
+// one on the floor: its shadow, itself (shaking when just hit), and cracks once it has been hit. One dropping in
+// from above (z over the floor) falls toward its shadow, which grows as it comes down.
 export function drawProp(e, t) {
   const d = PROPS[e.kind];
   if (!d) return;
-  ctx.globalAlpha = 0.35;
-  for (let i = -1; i <= 1; i++) rect(e.x - d.r - 1 + Math.abs(i), e.y + i, (d.r + 1) * 2 - Math.abs(i) * 2 + 1, 1, '#05030a');
+  const z = Math.max(0, Math.round(e.z || 0)), k = Math.max(0.3, 1 - z / 140), sr = Math.max(1, Math.round((d.r + 1) * k));
+  ctx.globalAlpha = 0.35 * (0.5 + k * 0.5);
+  for (let i = -1; i <= 1; i++) rect(e.x - sr + Math.abs(i), e.y + i, sr * 2 - Math.abs(i) * 2 + 1, 1, '#05030a');
   ctx.globalAlpha = 1;
   const wob = e.wob > 0 ? Math.round(Math.sin(e.wob * 70) * Math.min(2, e.wob * 10)) : 0;
-  d.draw(e.x + wob, e.y, t, e);
+  d.draw(e.x + wob, e.y - z, t, e);
   if (e.hp < e.maxHp) {
-    const x = e.x + wob, top = e.y - d.h + 3;
+    const x = e.x + wob, top = e.y - z - d.h + 3;
     line(x - 2, top, x, top + Math.round(d.h * 0.35), OUT); line(x, top + Math.round(d.h * 0.35), x - 1, top + Math.round(d.h * 0.6), OUT);
     line(x, top + Math.round(d.h * 0.35), x + 3, top + Math.round(d.h * 0.45), OUT);
   }
-  if (e.flash > 0) { ctx.globalAlpha = Math.min(1, e.flash * 8) * 0.6; glow(e.x, e.y - d.h / 2, '#ffffff', d.r * 2 + 4, 0.8); ctx.globalAlpha = 1; }
+  if (e.flash > 0) { ctx.globalAlpha = Math.min(1, e.flash * 8) * 0.6; glow(e.x, e.y - z - d.h / 2, '#ffffff', d.r * 2 + 4, 0.8); ctx.globalAlpha = 1; }
 }

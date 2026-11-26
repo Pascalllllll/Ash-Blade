@@ -1,6 +1,6 @@
-import { W,H,FW,SX,P,fillScreen,rect,ring,text,textO } from './gfx.js?v=212';
-import { input,keyHit,editor,TOUCH_BTNS,STICK_X,STICK_Y,STICK_R,placeButtons } from './input.js?v=212';
-import { ACTIONS,keys,keyLabel,bindKey,resetKeys,resetLayout } from './bindings.js?v=212';
+import { W,H,FW,SX,P,fillScreen,rect,ring,text,textO } from './gfx.js?v=213';
+import { input,keyHit,editor,TOUCH_BTNS,STICK_X,STICK_Y,STICK_R,placeButtons } from './input.js?v=213';
+import { ACTIONS,keys,keyLabel,bindKey,resetKeys,resetLayout } from './bindings.js?v=213';
 const ids = Object.keys(ACTIONS);
 const state = { touch:false, row:0, capture:false, note:'' };
 const click = (x,y,w,h) => input.mouse.pressed && input.mouse.x >= x && input.mouse.x < x+w && input.mouse.y >= y && input.mouse.y < y+h;
